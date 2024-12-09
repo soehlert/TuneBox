@@ -40,18 +40,17 @@ const QueueComponent = () => {
           setTimeout(connectWebSocket, 5000); // Attempt reconnection after 5 seconds
         };
 
-        // Heartbeat: Ping the server every 10 seconds
+        // Heartbeat
         pingIntervalRef.current = setInterval(() => {
           if (socketRef.current?.readyState === WebSocket.OPEN) {
             socketRef.current?.send(JSON.stringify({ message: "ping" }));
 
-            // Set timeout to wait for pong
             pongTimeoutRef.current = setTimeout(() => {
               console.error("No pong received, attempting reconnect...");
               socketRef.current?.close();
             }, 5000); // Wait for 5 seconds for the pong
           }
-        }, 10000); // Ping every 10 seconds
+        }, 10000);
       }
     };
 

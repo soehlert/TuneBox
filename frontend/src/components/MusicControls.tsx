@@ -74,7 +74,11 @@ const MusicControlsComponent = () => {
       <h1>Current Track</h1>
       {currentTrack && (
         <div>
-          <p>{currentTrack.title} by {currentTrack.artist}</p>
+          <p>
+            {currentTrack.title} by {currentTrack.artist}
+            {currentTrack.track_state === 'paused' && ' (paused)'}
+            Remaining: {currentTrack.remaining_percentage.toFixed(2)}%
+          </p>
         </div>
       )}
     </div>
