@@ -1,21 +1,21 @@
 from plexapi.server import PlexServer
 from plexapi.exceptions import PlexApiException
 from backend.config import settings
-import logging
 import requests
 from backend.state import playback_queue
+from backend.utils import TrackTimeTracker
 
 
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+track_time_tracker = TrackTimeTracker()
 
-def format_duration(milliseconds):
-    """Convert duration in milliseconds to a mm:ss string format."""
-    seconds = milliseconds // 1000
-    minutes = seconds // 60
-    remaining_seconds = seconds % 60
-    return f"{minutes}:{remaining_seconds:02}"
+
+def milliseconds_to_seconds(milliseconds):
+    """Convert duration in milliseconds to total seconds."""
+    seconds = milliseconds // 1000  # Convert milliseconds to seconds
+    return seconds
 
 
 def fetch_item_by_rating_key(rating_key):
@@ -45,21 +45,6 @@ def get_plex_connection():
         raise
 
 
-def get_active_session():
-    """Get the active session for the player; this returns the actively playing Track."""
-    plex = get_plex_connection()
-    active_player = get_active_player()
-
-    # Retrieve active sessions and find the one that corresponds to the active player
-    sessions = plex.sessions()
-    for session in sessions:
-        if session.player.machineIdentifier == active_player.machineIdentifier:
-            return session
-
-    logging.error("No active session found for the player.")
-    raise Exception("No active session found for the player.")
-
-
 def get_current_playing_track():
     """Fetch the currently playing track on the active player."""
     plex = get_plex_connection()
@@ -70,19 +55,32 @@ def get_current_playing_track():
         logging.debug("No active sessions found.")
         return None
 
-    # Find the first session where media is currently playing
     for session in sessions:
         if session.player.machineIdentifier == player:
-            if session.player.state == 'playing':
-                # Extract the media (track) information from the session
-                current_track = {
-                    'title': session.title,
-                    'artist': session.grandparentTitle,
-                    'album': session.parentTitle
-                }
-                return current_track
+            total_time = milliseconds_to_seconds(session.duration)
+            view_offset = session.viewOffset
+            track_state = session.player.state
+            elapsed_time = track_time_tracker.get_elapsed_time(session.title)
+            remaining_time = total_time - elapsed_time
 
-    logging.debug("No media is currently playing.")
+            if total_time > 0:
+                remaining_percentage = (remaining_time / total_time) * 100
+            else:
+                remaining_percentage = 0
+
+            current_track = {
+                'title': session.title,
+                'artist': session.grandparentTitle,
+                'album': session.parentTitle,
+                'total_time': total_time,
+                'track_state': track_state,
+                'remaining_time': remaining_time,
+                'offset': view_offset,
+                'remaining_percentage': remaining_percentage,
+            }
+            track_time_tracker.update(current_track)
+            return current_track
+
     return None
 
 
@@ -251,7 +249,7 @@ def fetch_tracks_for_album(album_id):
                 {
                     "track_id": track.ratingKey,
                     "title": track.title,
-                    "duration": format_duration(track.duration) if track.duration else "0:00"
+                    "duration": milliseconds_to_seconds(track.duration) if track.duration else 0
                 }
                 for track in tracks
             ]
@@ -278,7 +276,7 @@ def search_music(query):
         for item in track_results:
             formatted_results.append({
                 "title": item.title, "type": item.type, "track_id": item.ratingKey,
-                "duration": format_duration(item.duration) if item.duration else None,
+                "duration": milliseconds_to_seconds(item.duration) if item.duration else 0,
                 "artist": item.grandparentTitle, "album": item.parentTitle
             })
 

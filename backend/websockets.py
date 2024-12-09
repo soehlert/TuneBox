@@ -52,32 +52,33 @@ async def send_current_playing():
 
     try:
         current_track = get_current_playing_track()
-        logging.debug(f"Send current playing track: {current_track}")
         if current_track:
             track_data = {
                 "title": current_track["title"],
-                "artist": current_track["artist"]
+                "artist": current_track["artist"],
+                "total_time": current_track["total_time"],
+                "remaining_time": current_track["remaining_time"],
+                "track_state": current_track["track_state"],
+                "remaining_percentage": current_track["remaining_percentage"],
             }
 
-            # Only send if the current track has changed
-            if track_data != last_sent_track:
-                message = json.dumps({
-                    "message": "Current track update",
-                    "current_track": track_data
-                })
-                logging.debug(f"Sending current playing track: {track_data}")
+            message = json.dumps({
+                "message": "Current track update",
+                "current_track": track_data
+            })
+            logging.debug(f"Sending current playing track: {track_data}")
 
-                for connection in active_connections:
-                    try:
-                        logging.debug(f"Sending current track to connection {id(connection)}")
-                        await connection.send_text(message)
-                    except Exception as e:
-                        logging.error(f"Error sending current track to client {id(connection)}: {e}")
-                        # If sending fails, remove the connection from active_connections
-                        active_connections.remove(connection)
+            for connection in active_connections:
+                try:
+                    logging.debug(f"Sending current track to connection {id(connection)}")
+                    await connection.send_text(message)
+                except Exception as e:
+                    logging.error(f"Error sending current track to client {id(connection)}: {e}")
+                    # If sending fails, remove the connection from active_connections
+                    active_connections.remove(connection)
 
-                # Update the last sent track
-                last_sent_track = track_data
+            # Update the last sent track
+            last_sent_track = track_data
         else:
             logging.warning("No current track found.")
     except Exception as e:
@@ -87,7 +88,6 @@ async def update_websocket_clients():
     """Periodically send updates to all connected WebSocket clients."""
     while True:
         if active_connections:
-            logging.debug("Sending websocket updates")
             await send_queue()
             await send_current_playing()
         await asyncio.sleep(5)  # Sleep for 5 seconds before sending again
@@ -103,10 +103,8 @@ async def websocket_handler(websocket: WebSocket):
         while True:
             message = await websocket.receive_text()
             data = json.loads(message)
-            logging.debug(f"Received message: {data}")
 
             if data.get("message") == "ping":
-                logging.debug("Sending pong...");
                 await websocket.send_text(json.dumps({"message": "pong"}))
 
             elif data.get("message") == "get_current_queue":
