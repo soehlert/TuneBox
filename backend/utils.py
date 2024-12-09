@@ -1,4 +1,21 @@
 import time
+from backend.state import playback_queue
+
+
+def milliseconds_to_seconds(milliseconds):
+    """Convert duration in milliseconds to total seconds."""
+    seconds = milliseconds // 1000  # Convert milliseconds to seconds
+    return seconds
+
+
+# Helper function to check if the song is already in the queue
+def is_song_in_queue(item):
+    """Check if a song with the same ratingKey already exists in the queue."""
+    # If the queue is empty, return False as it can't be in the queue
+    if not playback_queue:
+        return False
+    return any(track.ratingKey == item.ratingKey for track in playback_queue)
+
 
 class TrackTimeTracker:
     def __init__(self):
