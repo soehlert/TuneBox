@@ -5,7 +5,10 @@ import json
 from backend.config import settings
 from backend.utils import is_song_in_queue, is_track_object
 
-redis_client = redis.StrictRedis.from_url(settings.redis_url, decode_responses=True)
+redis_queue_client = redis.StrictRedis.from_url(settings.redis_url, db=0, decode_responses=True)
+redis_cache_client = redis.StrictRedis.from_url(settings.redis_url, db=1, decode_responses=True)
+
+CACHE_TTL = 21600
 
 def add_to_queue_redis(song):
     """Add a song to the Redis queue, including album art."""
@@ -27,7 +30,7 @@ def add_to_queue_redis(song):
         }
 
         # Store the song as a JSON object in Redis
-        redis_client.rpush("playback_queue", json.dumps(song_data))  # Use json.dumps to convert the dict to a JSON string
+        redis_queue_client.rpush("playback_queue", json.dumps(song_data))  # Use json.dumps to convert the dict to a JSON string
         logging.info(f"Added {song.title} to the Redis playback queue.")
     except Exception as e:
         logging.error(f"Error adding song to Redis queue: {e}")
@@ -38,14 +41,14 @@ def remove_from_redis_queue(item_id):
     """Remove a song from the Redis playback queue by its item_id."""
     try:
         # Fetch all items from the queue
-        queue = redis_client.lrange("playback_queue", 0, -1)
+        queue = redis_queue_client.lrange("playback_queue", 0, -1)
 
         # Loop through the queue to find the song with the given item_id
         for song_data in queue:
             song = json.loads(song_data)
             if song["item_id"] == item_id:
                 # Remove the song from the queue
-                redis_client.lrem("playback_queue", 0, song_data)
+                redis_queue_client.lrem("playback_queue", 0, song_data)
                 logging.info(f"Removed {song['title']} from the Redis playback queue.")
                 return {"message": f"Removed {song['title']} from the queue."}
 
@@ -61,7 +64,7 @@ def remove_from_redis_queue(item_id):
 def get_redis_queue():
     """Get all songs in the Redis playback queue (metadata only)."""
     try:
-        queue = redis_client.lrange("playback_queue", 0, -1)
+        queue = redis_queue_client.lrange("playback_queue", 0, -1)
 
         queue_items = []
         for item_data in queue:
@@ -77,9 +80,44 @@ def get_redis_queue():
 def clear_redis_queue():
     """Clear the entire Redis playback queue."""
     try:
-        redis_client.delete("playback_queue")
+        redis_queue_client.delete("playback_queue")
         logging.info("The Redis playback queue has been cleared.")
         return {"message": "The queue has been cleared."}
     except Exception as e:
         logging.error(f"Error clearing Redis queue: {e}")
+        raise
+
+
+def cache_data(key, data):
+    """Cache data in Redis."""
+    try:
+        redis_cache_client.setex(key, CACHE_TTL, json.dumps(data))
+        logging.info(f"Cached data under key: {key}")
+    except Exception as e:
+        logging.error(f"Error caching data under key {key}: {e}")
+        raise
+
+
+def get_cached_data(key):
+    """Retrieve cached data from Redis."""
+    try:
+        cached_data = redis_cache_client.get(key)
+        if cached_data:
+            return json.loads(cached_data)
+        else:
+            logging.info(f"No cached data found for key: {key}")
+            return None
+    except Exception as e:
+        logging.error(f"Error retrieving cached data for key {key}: {e}")
+        raise
+
+
+def clear_cache(key: str):
+    """Clear a specific cache key in Redis."""
+    try:
+        redis_cache_client.delete(key)
+        logging.info(f"Cache cleared for key: {key}")
+        return {"message": f"Cache cleared for key: {key}"}
+    except Exception as e:
+        logging.error(f"Error clearing cache for key {key}: {e}")
         raise

@@ -6,7 +6,7 @@ from plexapi.exceptions import PlexApiException
 from backend.config import settings
 import requests
 from backend.utils import TrackTimeTracker, milliseconds_to_seconds
-from backend.services.redis import get_redis_queue
+from backend.services.redis import get_redis_queue, cache_data, get_cached_data
 
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -172,42 +172,78 @@ async def monitor_song_progress(track, total_time):
             break
         await asyncio.sleep(1)
 
+
 def fetch_all_artists():
-    """Fetch all artists from the Plex music library."""
+    """Fetch all artists from the Plex music library with Redis caching."""
+    cache_key = "all_artists"
+    cached_artists = get_cached_data(cache_key)
+
+    if cached_artists:
+        logging.info("Fetching artists from cache.")
+        return cached_artists
+
     try:
         plex = get_plex_connection()
         music_library = plex.library.section("Music")
         artists = music_library.all(libtype="artist")
-        return [{"artist_id": artist.ratingKey, "name": artist.title} for artist in artists]
+        artist_list = [{"artist_id": artist.ratingKey, "name": artist.title} for artist in artists]
+
+        # Cache the result in Redis
+        cache_data(cache_key, artist_list)
+        logging.info(f"Caching artists: {len(artist_list)}")
+
+        return artist_list
     except Exception as e:
         logging.error(f"Error fetching all artists: {e}")
         raise
 
 def fetch_albums_for_artist(artist_id):
-    """Fetch albums for a specific artist by their ID."""
+    """Fetch albums for a specific artist by their ID with Redis caching."""
+    cache_key = f"albums_for_artist_{artist_id}"
+    cached_albums = get_cached_data(cache_key)
+
+    if cached_albums:
+        logging.info(f"Fetching albums for artist {artist_id} from cache.")
+        return cached_albums
+
     try:
         plex = get_plex_connection()
         artist = plex.fetchItem(artist_id)
         albums = artist.albums()
-        return [
+        album_list = [
             {
                 "album_id": album.ratingKey,
+                "artist": artist.title,
                 "title": album.title,
                 "thumb": f"{settings.plex_base_url}{album.thumb}?X-Plex-Token={settings.plex_token}" if album.thumb else None
             }
             for album in albums
         ]
+
+        # Cache the result in Redis
+        cache_data(cache_key, album_list)
+        logging.info(f"Caching {len(album_list)} albums for artist {artist_id}.")
+
+        return album_list
     except Exception as e:
         logging.error(f"Error fetching albums for artist {artist_id}: {e}")
         raise
 
+
 def fetch_tracks_for_album(album_id):
-    """Fetch tracks for a specific album by its ID."""
+    """Fetch tracks for a specific album by its ID with Redis caching."""
+    cache_key = f"tracks_for_album_{album_id}"
+    cached_tracks = get_cached_data(cache_key)
+
+    if cached_tracks:
+        logging.info(f"Fetching tracks for album {album_id} from cache.")
+        return cached_tracks
+
     try:
         plex = get_plex_connection()
         album = plex.fetchItem(album_id)
         tracks = album.tracks()
-        return {
+        track_list = {
             "album_title": album.title,
             "thumb": f"{settings.plex_base_url}{album.thumb}?X-Plex-Token={settings.plex_token}" if album.thumb else None,
             "tracks": [
@@ -219,9 +255,16 @@ def fetch_tracks_for_album(album_id):
                 for track in tracks
             ]
         }
+
+        # Cache the result in Redis
+        cache_data(cache_key, track_list)
+        logging.info(f"Caching tracks for album {album_id}.")
+
+        return track_list
     except Exception as e:
         logging.error(f"Error fetching tracks for album {album_id}: {e}")
         raise
+
 
 def search_music(query):
     """Search for artists, albums, and tracks in Plex."""

@@ -17,6 +17,7 @@ from backend.services.redis import (
     add_to_queue_redis,
     remove_from_redis_queue,
     get_redis_queue,
+    clear_cache,
 )
 from backend.websockets import send_queue
 from plexapi.exceptions import PlexApiException
@@ -202,3 +203,14 @@ def get_current_playing():
         # Log unexpected errors and raise a 500 error
         logging.error(f"Error fetching current track: {e}")
         raise HTTPException(status_code=500, detail=f"Error fetching current track: {str(e)}")
+
+
+@router.post("/clear-cache/{key}")
+async def clear_redis_cache(key: str):
+    """Clear a specific cache key in Redis."""
+    try:
+        result = clear_cache(key)
+        return result
+    except Exception as e:
+        logging.error(f"Error clearing cache for key {key}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error clearing cache: {e}")

@@ -11,12 +11,10 @@ last_sent_queue = None
 last_sent_track = None
 
 
-
 async def send_queue():
     """Send the current queue to all connected WebSocket clients, if it has changed."""
     global last_sent_queue
-    redis_queue =  get_redis_queue()
-    play_queue = [track_to_dict(track) for track in redis_queue]
+    play_queue =  get_redis_queue()
     logging.debug(f"Sending current queue: {play_queue}")
 
     # Only send if the queue has changed

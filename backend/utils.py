@@ -18,16 +18,6 @@ def milliseconds_to_seconds(milliseconds):
     return seconds
 
 
-def track_to_dict(track):
-    """Convert a Plex Track object to a dictionary."""
-    return {
-        "item_id": track.ratingKey,
-        "title": track.title,
-        "artist": getattr(track, "grandparentTitle", "Unknown Artist"),
-        "duration": track.duration if hasattr(track, "duration") else None
-    }
-
-
 def is_song_in_queue(item):
     """Check if a song with the same ratingKey already exists in the Redis queue."""
     try:
