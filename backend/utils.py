@@ -1,5 +1,9 @@
 import time
-from backend.state import playback_queue
+import json
+import logging
+import redis
+
+redis_client = redis.StrictRedis(host='localhost', port=6379, db=0, decode_responses=True)
 
 
 def milliseconds_to_seconds(milliseconds):
@@ -8,13 +12,18 @@ def milliseconds_to_seconds(milliseconds):
     return seconds
 
 
-# Helper function to check if the song is already in the queue
 def is_song_in_queue(item):
-    """Check if a song with the same ratingKey already exists in the queue."""
-    # If the queue is empty, return False as it can't be in the queue
-    if not playback_queue:
+    """Check if a song with the same ratingKey already exists in the Redis queue."""
+    try:
+        queue = redis_client.lrange("playback_queue", 0, -1)
+
+        queue_items = [json.loads(item) for item in queue]
+
+        return any(track['item_id'] == item.ratingKey for track in queue_items)
+
+    except Exception as e:
+        logging.error(f"Error checking if song is in queue: {e}")
         return False
-    return any(track.ratingKey == item.ratingKey for track in playback_queue)
 
 
 class TrackTimeTracker:

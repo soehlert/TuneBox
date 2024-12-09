@@ -1,12 +1,7 @@
-import asyncio
 import logging
 
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from backend.services.plex import (
-    add_to_local_queue,
-    remove_from_local_queue,
-    clear_local_queue,
-    get_local_playback_queue,
     fetch_all_artists,
     fetch_albums_for_artist,
     fetch_tracks_for_album,
@@ -17,26 +12,31 @@ from backend.services.plex import (
     get_active_player,
     search_music
 )
+from backend.services.redis import (
+    clear_redis_queue,
+    add_to_queue_redis,
+    remove_from_redis_queue,
+    get_redis_queue,
+)
 from backend.utils import is_song_in_queue
 from backend.websockets import send_queue
 from plexapi.exceptions import PlexApiException
+
 
 router = APIRouter(
     prefix="/api/music",
     tags=["Music"]
 )
 
+
 @router.post("/queue/{item_id}")
 async def add_to_queue(item_id: int, background_tasks: BackgroundTasks):
-    """Add an item to the playback queue."""
+    """Add an item to the playback queue in Redis."""
     try:
-        song = get_track(item_id)  # Use item_id here to fetch the song
+        song = get_track(item_id)  # Fetch the track using the item_id
 
-        if is_song_in_queue(song):
-            # Return a 400 error with an appropriate message if the song is already in the queue
-            raise HTTPException(status_code=400, detail="Song is already in the queue.")
-
-        add_to_local_queue(song)
+        # Add the song to the Redis queue
+        add_to_queue_redis(song)
 
         # Call the WebSocket function to notify clients of the updated queue
         background_tasks.add_task(send_queue)
@@ -54,23 +54,16 @@ async def add_to_queue(item_id: int, background_tasks: BackgroundTasks):
 
 @router.delete("/queue/{item_id}")
 async def remove_from_queue(item_id: int, background_tasks: BackgroundTasks):
-    """Remove an item from the playback queue."""
+    """Remove an item from the Redis playback queue."""
     try:
-        # Fetch the song using the provided item_id
         song = get_track(item_id)
         logging.debug(f"Removing song: {song.title}")
-
-        # Check if the song is in the queue
-        if not is_song_in_queue(song):
-            raise HTTPException(status_code=404, detail="Song not found in the queue.")
-
-        # Remove the song from the queue
-        remove_from_local_queue(song)
+        result = remove_from_redis_queue(item_id)
 
         # Notify clients via WebSocket that the queue has been updated
         background_tasks.add_task(send_queue)
 
-        return {"message": f"Removed {song.title} from the playback queue."}
+        return result
 
     except PlexApiException as e:
         raise HTTPException(status_code=500, detail=f"Plex error: {e}")
@@ -81,19 +74,20 @@ async def remove_from_queue(item_id: int, background_tasks: BackgroundTasks):
         raise HTTPException(status_code=500, detail=f"Error removing item from queue: {e}")
 
 
-
 @router.get("/queue")
 def get_playback_queue():
-    """Get the current playback queue."""
+    """Get the current playback queue from Redis."""
     try:
-        queue = get_local_playback_queue()
+        queue = get_redis_queue()
         logging.debug(f"Current queue: {queue}")
+
         return [
             {
                 "item_id": item["item_id"],
                 "title": item["title"],
                 "artist": item.get("artist", "Unknown Artist"),
-                "duration": item.get("duration", "0:00")
+                "duration": item.get("duration", "0:00"),
+                "album_art": item.get("album_art", None)
             }
             for item in queue
         ]
@@ -103,14 +97,20 @@ def get_playback_queue():
 
 
 @router.post("/clear-queue")
-def clear_the_queue():
-    """Clear the playback queue."""
+async def clear_the_queue(background_tasks: BackgroundTasks):
+    """Clear the Redis playback queue."""
     try:
-        clear_local_queue()
+        result = clear_redis_queue()
 
-        return {"message": "Queue has been cleared."}
+        # Notify clients via WebSocket that the queue has been cleared
+        background_tasks.add_task(send_queue)
+
+        return result
+
     except Exception as e:
+        logging.error(f"Error clearing the queue: {e}")
         raise HTTPException(status_code=500, detail=f"Error clearing the queue: {e}")
+
 
 @router.post("/play-queue")
 async def play_queue(background_tasks: BackgroundTasks):
@@ -182,20 +182,24 @@ def get_active_player_endpoint():
         raise HTTPException(status_code=500, detail=f"Error fetching active player: {e}")
 
 
-
 @router.get("/now-playing")
 def get_current_playing():
     """Get the currently playing track."""
     try:
         current_track = get_current_playing_track()
         logging.debug(f"Current playing track: {current_track}")
+
         if not current_track:
             logging.debug("No track is currently playing, raising 404.")
             raise HTTPException(status_code=404, detail="No track is currently playing")
+
         return {"current_track": current_track}
-    except HTTPException as e:  # Catch HTTPException and let FastAPI handle it
-        raise e  # Just re-raise it, so FastAPI can process it
+
+    except HTTPException as e:
+        # Catch HTTPException and let FastAPI handle it
+        raise e
 
     except Exception as e:
-        logging.error(f"Error fetching current track: {e}")  # Log the error details
+        # Log unexpected errors and raise a 500 error
+        logging.error(f"Error fetching current track: {e}")
         raise HTTPException(status_code=500, detail=f"Error fetching current track: {str(e)}")

@@ -2,11 +2,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 import json
 import logging
 import asyncio
-from backend.state import playback_queue
-from backend.services.plex import get_current_playing_track
-
-# Setup logging
-logging.basicConfig(level=logging.DEBUG)
+from backend.services.plex import get_current_playing_track, get_redis_queue
 
 router = APIRouter()
 active_connections = []
@@ -27,8 +23,8 @@ def track_to_dict(track):
 async def send_queue():
     """Send the current queue to all connected WebSocket clients, if it has changed."""
     global last_sent_queue
-
-    play_queue = [track_to_dict(track) for track in playback_queue]
+    redis_queue =  get_redis_queue()
+    play_queue = [track_to_dict(track) for track in redis_queue]
     logging.debug(f"Sending current queue: {play_queue}")
 
     # Only send if the queue has changed
