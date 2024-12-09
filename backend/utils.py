@@ -3,13 +3,29 @@ import json
 import logging
 import redis
 
+from plexapi.audio import Track
+
 redis_client = redis.StrictRedis(host='localhost', port=6379, db=0, decode_responses=True)
 
 
+def is_track_object(item):
+    """Check if the given item is a track object (not a video)."""
+    return isinstance(item, Track)
+
 def milliseconds_to_seconds(milliseconds):
     """Convert duration in milliseconds to total seconds."""
-    seconds = milliseconds // 1000  # Convert milliseconds to seconds
+    seconds = milliseconds // 1000
     return seconds
+
+
+def track_to_dict(track):
+    """Convert a Plex Track object to a dictionary."""
+    return {
+        "item_id": track.ratingKey,
+        "title": track.title,
+        "artist": getattr(track, "grandparentTitle", "Unknown Artist"),
+        "duration": track.duration if hasattr(track, "duration") else None
+    }
 
 
 def is_song_in_queue(item):
@@ -36,7 +52,8 @@ class TrackTimeTracker:
     def start(self, track_name):
         """Start tracking a new track."""
         self.track_name = track_name
-        self.start_time = time.time() - self.elapsed_time  # Adjust if resumed after pause
+        # Adjust if resumed after pause
+        self.start_time = time.time() - self.elapsed_time
         self.is_playing = True
 
     def pause(self):
@@ -48,7 +65,8 @@ class TrackTimeTracker:
     def resume(self):
         """Resume the track from where it left off."""
         if not self.is_playing:
-            self.start_time = time.time() - self.elapsed_time  # Adjust the start time
+            # Adjust the start time
+            self.start_time = time.time() - self.elapsed_time
             self.is_playing = True
 
     def stop(self):
@@ -63,7 +81,8 @@ class TrackTimeTracker:
             if self.is_playing:
                 return time.time() - self.start_time
             return self.elapsed_time
-        return 0  # Return 0 if the track isn't being tracked
+        # We are not tracking this song
+        return 0
 
     def update(self, current_track):
         """Update the tracker based on the current track information."""

@@ -22,16 +22,14 @@ app = FastAPI(
 # Add CORS middleware to allow WebSocket connections from the frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for WebSocket (adjust for security)
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Include the music router
 app.include_router(music.router)
 
-# Include the WebSocket router
 app.include_router(websockets_router)
 
 # Start the background task for periodic updates
@@ -42,4 +40,4 @@ async def start_background_tasks():
 # Root endpoint
 @app.get("/", tags=["Root"])
 def read_root():
-    return {"message": "Welcome to the Plex Jukebox API!"}
+    return {"message": "Welcome to the Tunebox API!"}

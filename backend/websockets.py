@@ -7,18 +7,10 @@ from backend.services.plex import get_current_playing_track, get_redis_queue
 router = APIRouter()
 active_connections = []
 
-# Variables to store last sent data
 last_sent_queue = None
 last_sent_track = None
 
-def track_to_dict(track):
-    """Convert a Plex Track object to a dictionary."""
-    return {
-        "item_id": track.ratingKey,
-        "title": track.title,
-        "artist": getattr(track, "grandparentTitle", "Unknown Artist"),
-        "duration": track.duration if hasattr(track, "duration") else None
-    }
+
 
 async def send_queue():
     """Send the current queue to all connected WebSocket clients, if it has changed."""
@@ -29,7 +21,7 @@ async def send_queue():
 
     # Only send if the queue has changed
     if play_queue != last_sent_queue:
-        message = json.dumps({"message": "Queue update", "queue": play_queue})  # Create the message
+        message = json.dumps({"message": "Queue update", "queue": play_queue})
         for connection in active_connections:
             try:
                 logging.debug(f"Sending queue to connection {id(connection)}")
@@ -86,7 +78,7 @@ async def update_websocket_clients():
         if active_connections:
             await send_queue()
             await send_current_playing()
-        await asyncio.sleep(5)  # Sleep for 5 seconds before sending again
+        await asyncio.sleep(5)
 
 async def websocket_handler(websocket: WebSocket):
     """Handle incoming WebSocket connections."""

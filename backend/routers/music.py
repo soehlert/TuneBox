@@ -18,7 +18,6 @@ from backend.services.redis import (
     remove_from_redis_queue,
     get_redis_queue,
 )
-from backend.utils import is_song_in_queue
 from backend.websockets import send_queue
 from plexapi.exceptions import PlexApiException
 

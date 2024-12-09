@@ -2,14 +2,18 @@ import logging
 import redis
 import json
 
-from backend.utils import is_song_in_queue
+from backend.config import settings
+from backend.utils import is_song_in_queue, is_track_object
 
-redis_client = redis.StrictRedis(host='localhost', port=6379, db=0, decode_responses=True)
-
+redis_client = redis.StrictRedis.from_url(settings.redis_url, decode_responses=True)
 
 def add_to_queue_redis(song):
     """Add a song to the Redis queue, including album art."""
     try:
+        if not is_track_object(song):
+            logging.error(f"The object being added is not a song: {song}")
+            raise ValueError("Only songs can be added to the queue.")
+
         if is_song_in_queue(song):
             logging.info(f"Song {song.title} is already in the Redis queue.")
             return {"message": f"Song {song.title} is already in the queue."}
