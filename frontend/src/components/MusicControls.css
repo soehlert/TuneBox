@@ -1,0 +1,29 @@
+.music-controls {
+  background-color: #FF6600; /* Orange background */
+  color: white;
+  padding: 10px;
+  position: fixed;
+  top: 0;
+  width: 100%;
+  z-index: 1000; /* Ensure it stays on top */
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.music-controls .MuiTypography-root {
+  font-size: 14px; /* Adjust font size for compact view */
+}
+
+.music-controls button {
+  margin-left: 10px;
+  font-size: 12px;
+}
+
+.music-controls .MuiBox-root {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.content-container {
+  padding-top: 60px; /* Give space below the fixed MusicControls bar */
+}

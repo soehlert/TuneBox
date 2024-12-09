@@ -1,0 +1,50 @@
+/* Queue.css */
+.queue-container {
+  width: 300px;
+  height: calc(100vh - 40px); /* Full height minus padding */
+  position: sticky;
+  top: 20px;
+  background-color: #2C4E80; /* Dark Blue */
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  flex-shrink: 0; /* Prevent it from shrinking */
+}
+
+.queue-container h3 {
+  color: #DC5F00; /* Orange */
+  margin-bottom: 10px;
+}
+
+.queue-list {
+  list-style: none;
+  padding: 0;
+}
+
+.queue-item {
+  background-color: #373A40;
+  padding: 10px;
+  margin-bottom: 10px;
+  border: 1px solid #555;
+  border-radius: 5px;
+  font-size: 1rem;
+  color: #EEEEEE;
+}
+
+.queue-item strong {
+  color: #DC5F00; /* Orange */
+}
+
+.queue-item button {
+  background-color: #DC5F00;
+  color: white;
+  border: none;
+  padding: 5px 10px;
+  margin-top: 5px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.queue-item button:hover {
+  background-color: #2C4E80;
+}

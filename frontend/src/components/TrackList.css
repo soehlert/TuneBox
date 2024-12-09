@@ -1,0 +1,47 @@
+/* TrackList.css */
+.track-list-page {
+  display: flex;
+  justify-content: space-between;
+  padding: 20px;
+}
+
+.track-list-container {
+  display: flex;
+  gap: 20px;
+  width: 100%;
+}
+
+.track-list {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.track-card {
+  background-color: #2C4E80 !important;  /* Dark Blue */
+  padding: 20px;
+  border-radius: 8px;
+  text-align: center;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  flex: 1;
+  min-width: 220px; /* Adjust minimum width for card */
+  transition: background-color 0.3s ease;
+}
+
+.track-card:hover {
+  background-color: #DC5F00;  /* Hover effect to orange */
+  cursor: pointer;
+}
+
+.track-list h1 {
+  text-align: center;
+  color: #DC5F00;  /* Orange color */
+  margin-bottom: 20px;
+}
+
+.album-cover {
+  width: 200px;
+  height: auto;
+  margin-bottom: 20px;
+}

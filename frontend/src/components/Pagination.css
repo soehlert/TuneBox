@@ -1,0 +1,23 @@
+/* Pagination component styles */
+.pagination {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 20px;
+  margin-bottom: 20px;
+}
+
+.pagination button {
+  background-color: #888888; /* Default gray background */
+  color: #FFFFFF;
+  transition: background-color 0.3s ease;
+  padding: 8px 16px;
+}
+
+.pagination button:hover {
+  background-color: #2C4E80; /* Blue color on hover */
+}
+
+.pagination .MuiButton-root {
+  min-width: 50px;
+}

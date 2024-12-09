@@ -1,0 +1,60 @@
+/* General Page Layout */
+body {
+  margin: 0;
+  padding: 0;
+  font-family: Arial, sans-serif;
+  overflow-x: hidden;
+  background-color: #373A40; /* Dark background */
+  color: #EEEEEE; /* Light gray text */
+}
+
+.app-container {
+  display: flex;
+  justify-content: space-between; /* Align content and queue side by side */
+  padding: 20px;
+  max-width: 100%;
+  margin: 0 auto;
+  height: 100vh; /* Full height */
+}
+
+.content-container {
+  flex: 1; /* Allow content to take available space */
+  margin: 0;
+  padding: 0 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start; /* Align content to the top */
+  align-items: center;
+}
+
+.app-title {
+  text-align: center;
+  font-size: 2rem;
+  color: #DC5F00; /* Orange color for title */
+  margin-bottom: 20px;
+}
+
+.app-title-link {
+  text-decoration: none;
+  color: inherit;
+}
+
+.app-title-link:hover {
+  text-decoration: none;
+}
+
+.search-bar input {
+  width: 100%;
+  max-width: 300px;
+  padding: 10px;
+  font-size: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  outline: none;
+  transition: border-color 0.3s;
+}
+
+.search-bar input:focus {
+  border-color: #FC4100;  /* Red focus border */
+}
