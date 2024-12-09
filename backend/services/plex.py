@@ -1,36 +1,17 @@
+import asyncio
+
 from plexapi.server import PlexServer
 from plexapi.exceptions import PlexApiException
 from backend.config import settings
 import requests
 from backend.state import playback_queue
-from backend.utils import TrackTimeTracker
-
+from backend.utils import TrackTimeTracker, milliseconds_to_seconds
 
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+
 track_time_tracker = TrackTimeTracker()
-
-
-def milliseconds_to_seconds(milliseconds):
-    """Convert duration in milliseconds to total seconds."""
-    seconds = milliseconds // 1000  # Convert milliseconds to seconds
-    return seconds
-
-
-def fetch_item_by_rating_key(rating_key):
-    """Fetch an item by its ratingKey from the Plex library."""
-    try:
-        plex = get_plex_connection()
-        music_library = plex.library.section("Music")
-
-        track_results = music_library.search(rating_key, libtype="track")
-
-        logging.debug(f"Fetched item: {track_results.title}")
-        return track_results
-    except Exception as e:
-        logging.error(f"Error fetching item with ratingKey {rating_key}: {e}")
-        raise
 
 
 def get_plex_connection():
@@ -126,31 +107,37 @@ def get_track(item_id):
     """Get track ID from plex based on song."""
     plex = get_plex_connection()
     try:
+        logging.debug(f"Fetching track: {item_id}")
         item = plex.fetchItem(item_id)
+        logging.debug(f"Fetched track: {item.title}")
         return item
     except PlexApiException as e:
         logging.error(f"Error adding item to playback queue: {e}")
         raise
 
 
-# Add an item to the local playback queue
-def add_to_local_queue(item):
+def add_to_local_queue(song):
     """Add a song to the local playback queue."""
-    if item not in playback_queue:
-        playback_queue.append(item)
-        logging.info(f"Added {item.title} to the local playback queue.")
+    if not any(track.ratingKey == song.ratingKey for track in playback_queue):
+        playback_queue.append(song)  # Add the track object directly
+        logging.info(f"Added {song.title} to the local playback queue.")
     else:
-        logging.info(f"{item.title} is already in the queue.")
+        logging.info(f"{song.title} is already in the queue.")
 
 
-# Remove an item from the local playback queue
-def remove_from_local_queue(item):
+def remove_from_local_queue(song):
     """Remove an item from the local playback queue."""
-    if item in playback_queue:
-        playback_queue.remove(item)
-        logging.info(f"Removed {item.title} from the local playback queue.")
+    track_to_remove = None
+    for track in playback_queue:
+        if track.ratingKey == song.ratingKey:
+            track_to_remove = track
+            break
+
+    if track_to_remove:
+        playback_queue.remove(track_to_remove)
+        logging.info(f"Removed {track_to_remove.title} from the local playback queue.")
     else:
-        logging.warning(f"{item.title} not found in the queue.")
+        logging.warning(f"{song.title} not found in the queue.")
 
 
 # Clear the local playback queue
@@ -165,7 +152,6 @@ import logging
 def get_local_playback_queue():
     """Get the current local playback queue."""
     try:
-        # Log the state of the playback queue
         logging.debug(f"Fetching playback queue. Current queue size: {len(playback_queue)}")
 
         if not playback_queue:
@@ -173,18 +159,18 @@ def get_local_playback_queue():
             return []
 
         queue_items = []
-        for item in playback_queue:
+        for song in playback_queue:
             try:
-                # Attempt to fetch item details and ensure it's well-formed
                 item_details = {
-                    "item_id": item.ratingKey,
-                    "title": item.title,
-                    "artist": getattr(item, "grandparentTitle", "Unknown Artist")  # Fallback to 'Unknown Artist' if no artist field
+                    "item_id": song.ratingKey,
+                    "title": song.title,
+                    "artist": getattr(song, "grandparentTitle", "Unknown Artist"),
+                    "duration": getattr(song, "duration", 0)
                 }
                 queue_items.append(item_details)
             except AttributeError as e:
-                logging.error(f"Error processing item {item}: {e}. This item might be missing required attributes.")
-                continue  # Skip this item if it doesn't have the expected structure
+                logging.error(f"Error processing item {song}: {e}. This item might be missing required attributes.")
+                continue
 
         if not queue_items:
             logging.warning("No valid items found in the queue.")
@@ -197,15 +183,58 @@ def get_local_playback_queue():
         raise Exception(f"Error fetching the queue: {e}")
 
 
-
-def play_media_on_player(player, media):
-    """Play the specified media on the provided Plex player."""
+def play_song(player, song):
+    """Play a specific song on the Plex player."""
     try:
-        player.playMedia(media)  # This line assumes 'player' has a method `playMedia`
-        logging.info(f"Playing media: {media.title} on {player.title}")
+        logging.info(f"Playing song: {song.title} on player: {player.title}")
+        player.playMedia(song)
+        track_time_tracker.start(song.title)
     except Exception as e:
         logging.error(f"Error playing media: {e}")
         raise
+
+async def play_queue_on_device():
+    """Play the entire queue on the active Plex device."""
+    try:
+        player = get_active_player()
+
+        if not playback_queue:
+            logging.warning("Playback queue is empty.")
+            return
+
+        # Play each track in the queue
+        for track in playback_queue:
+            if hasattr(track, 'duration'):
+                total_time = milliseconds_to_seconds(track.duration)
+            else:
+                logging.error(f"Track {track.title} has no 'duration' attribute. Skipping track.")
+                continue
+
+            # Ensure the track has a valid total_time
+            if total_time <= 0:
+                logging.error(f"Invalid total_time for {track.title}. Skipping track.")
+                continue
+
+            logging.debug(f"Starting playback of {track.title} on {player.title}")
+            await asyncio.to_thread(play_song, player, track)
+
+            # Monitor song progress asynchronously using asyncio.create_task
+            await monitor_song_progress(track, total_time)
+
+            logging.debug(f"Finished playing {track.title}. Moving to the next song.")
+    except Exception as e:
+        logging.error(f"Error playing queue on device: {e}")
+        raise
+
+async def monitor_song_progress(track, total_time):
+    """Monitor the progress of the song without blocking the event loop."""
+    while track_time_tracker.is_playing:
+        elapsed_time = track_time_tracker.get_elapsed_time(track.title)
+        if elapsed_time >= total_time:
+            logging.debug(f"Finished playing {track.title}. Moving to the next song.")
+            track_time_tracker.stop()  # Stop tracking when the song finishes
+            break
+        await asyncio.sleep(1)
 
 def fetch_all_artists():
     """Fetch all artists from the Plex music library."""
