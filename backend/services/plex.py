@@ -278,7 +278,7 @@ def search_music(query):
 
         formatted_results = []
         for item in artist_results:
-            formatted_results.append({"title": item.title, "type": item.type, "artist_id": item.ratingKey})
+            formatted_results.append({"name": item.title, "type": item.type, "artist_id": item.ratingKey})
         for item in album_results:
             formatted_results.append({"title": item.title, "type": item.type, "album_id": item.ratingKey, "artist": item.parentTitle})
         for item in track_results:

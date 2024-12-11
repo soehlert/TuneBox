@@ -13,24 +13,18 @@ last_sent_track = None
 
 async def send_queue():
     """Send the current queue to all connected WebSocket clients, if it has changed."""
-    global last_sent_queue
     play_queue =  get_redis_queue()
-    logging.debug(f"Sending current queue: {play_queue}")
 
-    # Only send if the queue has changed
-    if play_queue != last_sent_queue:
-        message = json.dumps({"message": "Queue update", "queue": play_queue})
-        for connection in active_connections:
-            try:
-                logging.debug(f"Sending queue to connection {id(connection)}")
-                await connection.send_text(message)
-            except Exception as e:
-                logging.error(f"Error sending message to client {id(connection)}: {e}")
-                # If sending fails, remove the connection from active_connections
-                active_connections.remove(connection)
-
-        # Update the last sent queue
-        last_sent_queue = play_queue
+    message = json.dumps({"message": "Queue update", "queue": play_queue})
+    logging.debug(f"Sending message: {message}")
+    for connection in active_connections:
+        try:
+            logging.debug(f"Sending queue to connection {id(connection)}")
+            await connection.send_text(message)
+        except Exception as e:
+            logging.error(f"Error sending message to client {id(connection)}: {e}")
+            # If sending fails, remove the connection from active_connections
+            active_connections.remove(connection)
 
 async def send_current_playing():
     """Send the current playing track to all connected WebSocket clients, if it has changed."""
