@@ -26,7 +26,7 @@ const useDebounce = (value: string, delay: number) => {
 interface Artist {
   artist_id: number;
   name: string;
-  title: string;
+  thumb?: string;
 }
 
 function ArtistList() {
@@ -151,6 +151,13 @@ useEffect(() => {
                   onClick={() => handleArtistClick(artist.artist_id)}
                 >
                   <CardContent>
+                    {artist.thumb && (
+                      <img
+                        src={artist.thumb}
+                        alt={artist.name}
+                        className="artist-photo"
+                      />
+                    )}
                     <Typography variant="h6">
                       {artist.name}
                     </Typography>

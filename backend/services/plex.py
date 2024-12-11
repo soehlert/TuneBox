@@ -6,7 +6,7 @@ from plexapi.exceptions import PlexApiException
 from backend.config import settings
 import requests
 from backend.utils import TrackTimeTracker, milliseconds_to_seconds
-from backend.services.redis import get_redis_queue, cache_data, get_cached_data
+from backend.services.redis import get_redis_queue, cache_data, get_cached_data, remove_from_redis_queue
 
 import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -157,7 +157,7 @@ async def play_queue_on_device():
 
             await monitor_song_progress(track, total_time)
 
-            logging.debug(f"Finished playing {track.title}. Moving to the next song.")
+            await remove_from_redis_queue(item_id)
     except Exception as e:
         logging.error(f"Error playing queue on device: {e}")
         raise
@@ -186,7 +186,12 @@ def fetch_all_artists():
         plex = get_plex_connection()
         music_library = plex.library.section("Music")
         artists = music_library.all(libtype="artist")
-        artist_list = [{"artist_id": artist.ratingKey, "name": artist.title} for artist in artists]
+        artist_list = [
+            {
+                "artist_id": artist.ratingKey,
+                "name": artist.title,
+                "thumb": f"{settings.plex_base_url}{artist.thumb}?X-Plex-Token={settings.plex_token}" if artist.thumb else None
+            } for artist in artists]
 
         # Cache the result in Redis
         cache_data(cache_key, artist_list)
