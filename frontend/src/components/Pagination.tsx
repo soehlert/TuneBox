@@ -8,18 +8,21 @@ interface PaginationProps {
   className?: string;  // Added className prop
 }
 
-const Pagination: React.FC<PaginationProps> = ({ currentPage, totalPages, paginate, className }) => {
+const Pagination: React.FC<PaginationProps> = ({
+  currentPage,
+  totalPages,
+  paginate,
+  className,
+}) => {
   const pageNumbers = [];
 
-  // Generate the list of page numbers with logic to include only the pages you want
-  for (let i = 1; i <= totalPages; i++) {
-    if (
-      i === 1 ||
-      i === totalPages ||
-      (i >= currentPage - 1 && i <= currentPage + 1)
-    ) {
-      pageNumbers.push(i);
-    }
+  // Logic for pagination: 4 pages before and after the current page
+  const leftSide = Math.max(currentPage - 3, 1);
+  const rightSide = Math.min(currentPage + 3, totalPages);
+
+  // Add page numbers from the calculated range
+  for (let i = leftSide; i <= rightSide; i++) {
+    pageNumbers.push(i);
   }
 
   return (
@@ -29,6 +32,8 @@ const Pagination: React.FC<PaginationProps> = ({ currentPage, totalPages, pagina
         color="primary"
         onClick={() => paginate(1)}
         disabled={currentPage === 1}
+        className="pagination-first-prev"
+
       >
         &laquo; First
       </Button>
@@ -37,6 +42,7 @@ const Pagination: React.FC<PaginationProps> = ({ currentPage, totalPages, pagina
         color="primary"
         onClick={() => paginate(currentPage - 1)}
         disabled={currentPage === 1}
+        className="pagination-first-prev"
       >
         &lt; Prev
       </Button>
@@ -57,6 +63,8 @@ const Pagination: React.FC<PaginationProps> = ({ currentPage, totalPages, pagina
         color="primary"
         onClick={() => paginate(currentPage + 1)}
         disabled={currentPage === totalPages}
+        className="pagination-next-last"
+
       >
         Next &gt;
       </Button>
@@ -65,11 +73,13 @@ const Pagination: React.FC<PaginationProps> = ({ currentPage, totalPages, pagina
         color="primary"
         onClick={() => paginate(totalPages)}
         disabled={currentPage === totalPages}
+        className="pagination-next-last"
       >
         Last &raquo;
       </Button>
     </div>
   );
 };
+
 
 export default Pagination;

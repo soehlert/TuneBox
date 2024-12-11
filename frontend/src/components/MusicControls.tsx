@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import { Box, Typography } from '@mui/material'; // Import MUI components
 
 const MusicControlsComponent = () => {
   const [currentTrack, setCurrentTrack] = useState<any>(null);
@@ -20,8 +21,7 @@ const MusicControlsComponent = () => {
           try {
             const data = JSON.parse(event.data);
             if (data.message === "Current track update") {
-              console.log("Received message from server in MusicControlsComponent:", data); // Added log here
-              setCurrentTrack(data.current_track); // Update the current track state with the new data
+              setCurrentTrack(data.current_track); // Update current track state
             } else if (data.message === "pong") {
               clearTimeout(pongTimeoutRef.current!); // Reset pong timeout
             }
@@ -36,8 +36,7 @@ const MusicControlsComponent = () => {
 
         socketRef.current.onclose = () => {
           console.log("WebSocket closed in MusicControlsComponent");
-          // Try to reconnect
-          setTimeout(connectWebSocket, 5000); // Attempt reconnection after 5 seconds
+          setTimeout(connectWebSocket, 5000); // Reconnect after 5 seconds
         };
 
         // Heartbeat: Ping the server every 10 seconds
@@ -45,7 +44,6 @@ const MusicControlsComponent = () => {
           if (socketRef.current?.readyState === WebSocket.OPEN) {
             socketRef.current?.send(JSON.stringify({ message: "ping" }));
 
-            // Set timeout to wait for pong
             pongTimeoutRef.current = setTimeout(() => {
               console.error("No pong received, attempting reconnect...");
               socketRef.current?.close();
@@ -55,10 +53,8 @@ const MusicControlsComponent = () => {
       }
     };
 
-    // Initial connection
     connectWebSocket();
 
-    // Cleanup on unmount
     return () => {
       if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
         socketRef.current.close();
@@ -67,21 +63,21 @@ const MusicControlsComponent = () => {
         console.log("WebSocket connection closed on component unmount.");
       }
     };
-  }, []); // Empty dependency array ensures this runs only once
+  }, []); // Runs only once when component mounts
 
   return (
-    <div>
-      <h1>Current Track</h1>
-      {currentTrack && (
-        <div>
-          <p>
-            {currentTrack.title} by {currentTrack.artist}
-            {currentTrack.track_state === 'paused' && ' (paused)'}
-            Remaining: {currentTrack.remaining_percentage.toFixed(2)}%
-          </p>
-        </div>
-      )}
-    </div>
+    <Box className="music-controls">
+      <Box className="track-info">
+        <Typography variant="h6" className="track-title">Current Track</Typography>
+        {currentTrack ? (
+          <Typography variant="body1" className="track-details">
+            {currentTrack.title} by {currentTrack.artist} - Remaining: {currentTrack.remaining_percentage.toFixed(2)}%
+          </Typography>
+        ) : (
+          <Typography variant="body2" className="no-track">No track playing...</Typography>
+        )}
+      </Box>
+    </Box>
   );
 };
 

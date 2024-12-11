@@ -14,16 +14,17 @@ const QueueComponent = () => {
         socketRef.current.onopen = () => {
           console.log("WebSocket connected to QueueComponent");
           socketRef.current?.send(JSON.stringify({ message: "get_current_queue" }));
+          console.log("Asked for queue")
         };
 
         socketRef.current.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data);
             if (data.message === "Queue update") {
-              console.log("Received message from server in MusicControlsComponent:", data); // Added log here
-              setQueue(data.queue); // Update the queue state with the new data
+              console.log("Queue update received:", data.queue);
+              setQueue(data.queue);
             } else if (data.message === "pong") {
-              clearTimeout(pongTimeoutRef.current!); // Reset pong timeout
+              clearTimeout(pongTimeoutRef.current!);
             }
           } catch (error) {
             console.error("Error parsing WebSocket message:", error);
@@ -36,7 +37,6 @@ const QueueComponent = () => {
 
         socketRef.current.onclose = () => {
           console.log("WebSocket closed in QueueComponent");
-          // Try to reconnect
           setTimeout(connectWebSocket, 5000); // Attempt reconnection after 5 seconds
         };
 
@@ -69,13 +69,13 @@ const QueueComponent = () => {
   }, []); // Empty dependency array ensures this runs only once
 
   return (
-    <div>
-      <h1>Queue</h1>
-      <ul>
+    <div className="queue-container">
+      <h3>Queue</h3>
+      <ul className="queue-list">
         {queue.map((track, index) => (
-          <li key={index}>
-            {track.title} by {track.artist}
-          </li>
+            <li key={index} className="queue-item">
+              <strong>{track.title}</strong> by {track.artist}
+            </li>
         ))}
       </ul>
     </div>

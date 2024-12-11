@@ -3,21 +3,40 @@ import { ThemeProvider } from "@mui/material/styles";
 import ArtistList from "./components/ArtistList";
 import ArtistAlbums from "./components/ArtistAlbums";
 import TrackList from "./components/TrackList";
+import MusicControls from "./components/MusicControls";
+import Queue from "./components/Queue";
 import theme from "./theme"; // Import the theme
+import TuneBoxLogo from './assets/TuneBox.svg';
 import "./App.css";
 
 function App() {
   return (
-    <ThemeProvider theme={theme}> {/* Wrap your app with the ThemeProvider */}
+    <ThemeProvider theme={theme}>
       <div className="app-container">
-        <Link to="/" className="app-title-link">
-          <h1 className="app-title">Party Jukebox</h1>
-        </Link>
-        <Routes>
-          <Route path="/" element={<ArtistList />} />
-          <Route path="/artists/:artistId/albums" element={<ArtistAlbums />} />
-          <Route path="/albums/:albumId/tracks" element={<TrackList />} />
-        </Routes>
+
+        {/* Navbar */}
+        <div className="navbar">
+          <Link to="/" className="app-title-link">
+            <img src={TuneBoxLogo} alt="TuneBox Logo" className="logo" />
+          </Link>
+          <div className="music-controls-container">
+            <MusicControls />
+          </div>
+        </div>
+
+        {/* Main content area with artist grid and queue */}
+        <div className="main-content">
+          <div className="artist-grid-container">
+            <Routes>
+              <Route path="/" element={<ArtistList />} />
+              <Route path="/artists/:artistId/albums" element={<ArtistAlbums />} />
+              <Route path="/albums/:albumId/tracks" element={<TrackList />} />
+            </Routes>
+          </div>
+
+          {/* Queue section (sticky on the right side) */}
+          <Queue /> {/* Your queue component */}
+        </div>
       </div>
     </ThemeProvider>
   );

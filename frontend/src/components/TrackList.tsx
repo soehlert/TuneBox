@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import axios from "axios";
 import { AxiosError } from 'axios';
-import Queue from "./Queue"; // Import Queue component
 import { Button, Grid, Card, CardContent, Typography } from "@mui/material"; // MUI components for styling
 
 interface Track {
@@ -103,10 +102,6 @@ function TrackList() {
           )}
         </div>
 
-        {/* Queue Component on the Right */}
-        <div className="queue-container">
-          <Queue />
-        </div>
       </div>
     </div>
   );

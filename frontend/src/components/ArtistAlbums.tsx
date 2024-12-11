@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { Grid, Card, CardContent, Typography, CardMedia } from "@mui/material"; // Added CardMedia for images
-import Queue from "./Queue"; // Import Queue
 import "../App.css";
 import "./ArtistAlbums.css"; // Updated import
 
@@ -76,8 +75,6 @@ function ArtistAlbums() {
         )}
       </div>
 
-      {/* Queue component on the right side */}
-      <Queue />
     </div>
   );
 }

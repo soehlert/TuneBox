@@ -1,60 +1,61 @@
-/* General Page Layout */
-body {
-  margin: 0;
-  padding: 0;
-  font-family: Arial, sans-serif;
-  overflow-x: hidden;
-  background-color: #373A40; /* Dark background */
-  color: #EEEEEE; /* Light gray text */
-}
-
+/* Overall app container */
 .app-container {
   display: flex;
-  justify-content: space-between; /* Align content and queue side by side */
-  padding: 20px;
-  max-width: 100%;
-  margin: 0 auto;
-  height: 100vh; /* Full height */
-}
-
-.content-container {
-  flex: 1; /* Allow content to take available space */
-  margin: 0;
-  padding: 0 20px;
-  display: flex;
   flex-direction: column;
-  justify-content: flex-start; /* Align content to the top */
+  height: 100vh;
+}
+
+/* Navbar styles */
+.navbar {
+  display: flex;
+  justify-content: flex-start;
   align-items: center;
+  padding: 1rem;
+  background: linear-gradient(45deg,
+    #FF3366 20%,
+    #FF6600 40%,
+    #FF3366 60%,
+    #FF6600 80%,
+    #FF3366 100%), /* Create a stripe effect */
+    linear-gradient(180deg, #FF3366, #FF6600); /* Base gradient for depth */
+  background-size: 100% 100%, 100% 100%; /* Ensure the gradients fill the whole navbar */
+  color: white;
 }
 
-.app-title {
-  text-align: center;
-  font-size: 2rem;
-  color: #DC5F00; /* Orange color for title */
-  margin-bottom: 20px;
+.logo {
+  width: 200px; /* Increase logo size */
+  height: auto;
+  margin-right: 1rem; /* Add margin to separate logo from music controls */
 }
 
-.app-title-link {
-  text-decoration: none;
-  color: inherit;
-}
-
-.app-title-link:hover {
-  text-decoration: none;
-}
-
-.search-bar input {
+.music-controls-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
   width: 100%;
-  max-width: 300px;
-  padding: 10px;
-  font-size: 1rem;
-  border: 1px solid #ccc;
-  border-radius: 5px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-  outline: none;
-  transition: border-color 0.3s;
 }
 
-.search-bar input:focus {
-  border-color: #FC4100;  /* Red focus border */
+/* Main content container */
+.main-content {
+  display: flex;
+  flex-grow: 1;
+  height: 100vh;
+  width: 100%;
+  overflow-y: auto;
+}
+
+.artist-grid-container {
+  flex-grow: 1; /* This will make the artist grid take up available space */
+  padding: 1rem;
+}
+
+.queue-container {
+  width: 300px;
+  position: sticky;
+  top: 0;
+  background-color: #222;
+  color: white;
+  padding: 1rem;
+  height: 100vh;
+  overflow-y: auto;
 }

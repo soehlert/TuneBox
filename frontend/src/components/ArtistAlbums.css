@@ -51,33 +51,3 @@
   background-color: #DC5F00; /* Orange when hovered */
   color: white;
 }
-
-/* Grid layout for the album cards */
-.artist-grid {
-  display: grid;
-  gap: 20px;
-  margin-top: 20px;
-  width: 100%;
-  max-width: 1200px;
-  margin-left: auto;
-  margin-right: auto;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); /* Auto-fill columns */
-}
-
-@media (min-width: 600px) {
-  .artist-grid {
-    grid-template-columns: repeat(2, 1fr); /* 2 columns for medium screens */
-  }
-}
-
-@media (min-width: 900px) {
-  .artist-grid {
-    grid-template-columns: repeat(3, 1fr); /* 3 columns for larger screens */
-  }
-}
-
-@media (min-width: 1200px) {
-  .artist-grid {
-    grid-template-columns: repeat(4, 1fr); /* 4 columns for very large screens */
-  }
-}

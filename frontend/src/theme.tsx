@@ -1,4 +1,3 @@
-// theme.tsx
 import { createTheme } from "@mui/material/styles";
 
 // Create theme with custom colors
@@ -27,6 +26,46 @@ const theme = createTheme({
     },
     body1: {
       color: "#EEEEEE", // Light gray for body text
+    },
+  },
+  components: {
+    MuiCard: {
+      styleOverrides: {
+        root: {
+          backgroundColor: "#0077B6", // Purple from logo
+          color: "#FFFFFF", // White text color for all cards
+          boxShadow: "0 2px 5px rgba(0, 0, 0, 0.3)", // Box shadow for depth
+        },
+      },
+    },
+    MuiPaper: {
+      styleOverrides: {
+        root: {
+          backgroundColor: "#0077B6", // Set background color to purple from logo
+          color: "#FFFFFF", // Set text color to white to ensure visibility
+        },
+      },
+    },
+    MuiButton: {
+      styleOverrides: {
+        // Override for "First" and "Previous" buttons
+        root: {
+          '&.pagination-first-prev': {
+            backgroundColor: '#6f7577', // Lighter gray for First and Previous buttons
+            color: 'white',
+            '&:hover': {
+              backgroundColor: '#90A4AE', // Darker gray on hover
+            },
+          },
+          '&.pagination-next-last': {
+            backgroundColor: '#6f7577', // Lighter gray for First and Previous buttons
+            color: 'white',
+            '&:hover': {
+              backgroundColor: '#90A4AE', // Darker gray on hover
+            },
+          },
+        },
+      },
     },
   },
 });

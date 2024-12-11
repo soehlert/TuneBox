@@ -1,23 +1,42 @@
 /* Pagination component styles */
 .pagination {
+  margin-top: 20px;
+  text-align: center;
+  width: 100%;
   display: flex;
   justify-content: center;
-  gap: 10px;
-  margin-top: 20px;
-  margin-bottom: 20px;
+  gap: 10px; /* Add space between buttons */
+  flex-wrap: wrap; /* Allow buttons to wrap to the next line on smaller screens */
 }
+
+/* First and Previous buttons with lighter gray */
+.pagination button:first-child,
+.pagination button:nth-child(2) {
+  background-color: #B0BEC5; /* Lighter gray */
+  color: white;
+}
+
+/* Hover effect for First and Previous buttons */
+.pagination button:first-child:hover,
+.pagination button:nth-child(2):hover {
+  background-color: #90A4AE; /* Darker gray for hover */
+}
+
 
 .pagination button {
   background-color: #888888; /* Default gray background */
   color: #FFFFFF;
   transition: background-color 0.3s ease;
   padding: 8px 16px;
+  min-width: 50px; /* Ensure button width is not smaller than this */
+  font-size: 1rem;
+  text-align: center;
 }
 
 .pagination button:hover {
   background-color: #2C4E80; /* Blue color on hover */
 }
 
-.pagination .MuiButton-root {
-  min-width: 50px;
+.pagination button:disabled {
+  background-color: #BF095E; /* Disabled button style */
 }
