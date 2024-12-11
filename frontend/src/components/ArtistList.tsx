@@ -153,7 +153,7 @@ useEffect(() => {
                   <CardContent>
                     {artist.thumb && (
                       <img
-                        src={artist.thumb}
+                        src={`http://localhost:8000/api/music/artist-image/${artist.artist_id}`}
                         alt={artist.name}
                         className="artist-photo"
                       />

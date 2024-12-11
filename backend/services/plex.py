@@ -1,6 +1,7 @@
 import asyncio
 import logging
 
+from fastapi import HTTPException
 from plexapi.server import PlexServer
 from plexapi.exceptions import PlexApiException
 from backend.config import settings
@@ -297,3 +298,36 @@ def search_music(query):
     except Exception as e:
         logging.error(f"Error searching music library: {e}")
         raise
+
+
+def fetch_art(item_id: int, item_type: str):
+    """Fetch image (either artist or album) from Plex securely."""
+    try:
+        plex = get_plex_connection()
+
+        # Fetch the item (artist or album) based on the item_type
+        if item_type == "artist":
+            item = plex.fetchItem(item_id)
+        elif item_type == "album":
+            item = plex.fetchItem(item_id)
+        else:
+            raise HTTPException(status_code=400, detail="Invalid item type. Must be 'artist' or 'album'.")
+
+        # Check if the item has a thumbnail
+        if not item.thumb:
+            raise HTTPException(status_code=404, detail=f"No image available for this {item_type}.")
+
+        # Construct the URL to fetch the image from Plex
+        image_url = f"{settings.plex_base_url}{item.thumb}?X-Plex-Token={settings.plex_token}"
+
+        # Fetch the image
+        response = requests.get(image_url, stream=True, verify=False)  # Disable SSL verification if needed
+        if not response.ok:
+            raise HTTPException(status_code=500, detail=f"Error fetching {item_type} image from Plex.")
+
+        # Return the image response
+        return response
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching {item_type} image: {e}")
+

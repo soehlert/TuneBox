@@ -54,7 +54,7 @@ function ArtistAlbums() {
                       component="img"
                       alt={album.title}
                       height="200"
-                      image={album.thumb}
+                      image={`http://localhost:8000/api/music/album-art/${album.album_id}`}
                       title={album.title}
                       className="album-cover"
                     />

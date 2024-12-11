@@ -69,7 +69,7 @@ function TrackList() {
               <h1>{albumData.album_title}</h1>
               {albumData.thumb && (
                 <img
-                  src={albumData.thumb}
+                  src={`http://localhost:8000/api/music/album-art/${albumId}`}
                   alt={albumData.album_title}
                   className="album-cover"
                 />

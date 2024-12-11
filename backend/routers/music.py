@@ -1,6 +1,7 @@
 import logging
 
 from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi.responses import StreamingResponse
 from backend.services.plex import (
     fetch_all_artists,
     fetch_albums_for_artist,
@@ -10,7 +11,8 @@ from backend.services.plex import (
     get_current_playing_track,
     get_track,
     get_active_player,
-    search_music
+    search_music,
+    fetch_art,
 )
 from backend.services.redis import (
     clear_redis_queue,
@@ -214,3 +216,35 @@ async def clear_redis_cache(key: str):
     except Exception as e:
         logging.error(f"Error clearing cache for key {key}: {e}")
         raise HTTPException(status_code=500, detail=f"Error clearing cache: {e}")
+
+
+@router.get("/artist-image/{artist_id}")
+def get_artist_image(artist_id: int):
+    """Fetch and proxy the artist image from Plex."""
+    try:
+        # Call the combined function to get the artist image
+        response = fetch_art(artist_id, "artist")
+
+        # Return the image as a streaming response
+        return StreamingResponse(response.iter_content(chunk_size=1024), media_type="image/jpeg")
+
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching artist image: {e}")
+
+
+@router.get("/album-art/{album_id}")
+def get_album_art(album_id: int):
+    """Fetch and proxy the album art from Plex."""
+    try:
+        # Call the combined function to get the album art
+        response = fetch_art(album_id, "album")
+
+        # Return the image as a streaming response
+        return StreamingResponse(response.iter_content(chunk_size=1024), media_type="image/jpeg")
+
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching album art: {e}")
