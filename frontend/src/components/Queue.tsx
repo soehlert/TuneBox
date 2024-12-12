@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import { Box, Typography } from '@mui/material';
 
 const QueueComponent = () => {
   const [queue, setQueue] = useState<any[]>([]);
@@ -14,7 +15,7 @@ const QueueComponent = () => {
         socketRef.current.onopen = () => {
           console.log("WebSocket connected to QueueComponent");
           socketRef.current?.send(JSON.stringify({ message: "get_current_queue" }));
-          console.log("Asked for queue")
+          console.log("Asked for queue");
         };
 
         socketRef.current.onmessage = (event) => {
@@ -69,16 +70,30 @@ const QueueComponent = () => {
   }, []); // Empty dependency array ensures this runs only once
 
   return (
-    <div className="queue-container">
-      <h3>Queue</h3>
+    <Box className="queue-container" sx={{ padding: 2 }}>
+      <Typography variant="h4" color="primary" sx={{ marginBottom: 2 }}>
+        Queue
+      </Typography>
       <ul className="queue-list">
         {queue.map((track, index) => (
-            <li key={index} className="queue-item">
-              <strong>{track.title}</strong> by {track.artist}
-            </li>
+          <li key={index} className="queue-item">
+            <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+              <Typography
+                variant="h6"
+                component="strong"
+                color="primary"
+                sx={{ fontSize: '1.25rem', marginBottom: 1 }}
+              >
+                {track.title}
+              </Typography>
+              <Typography variant="body2" color="textSecondary" sx={{ fontSize: '1rem' }}>
+                {track.artist}
+              </Typography>
+            </Box>
+          </li>
         ))}
       </ul>
-    </div>
+    </Box>
   );
 };
 

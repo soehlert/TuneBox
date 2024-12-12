@@ -4,7 +4,7 @@ import { createTheme } from "@mui/material/styles";
 const theme = createTheme({
   palette: {
     primary: {
-      main: "#DC5F00", // Orange accent for primary buttons
+      main: "#E59500", // Orange accent for primary buttons
     },
     secondary: {
       main: "#2C4E80", // Blue for secondary buttons and highlights
@@ -22,7 +22,19 @@ const theme = createTheme({
       color: "#EEEEEE", // Light gray for h1 (primary heading)
     },
     h2: {
-      color: "#DC5F00", // Orange for h2 (secondary heading)
+      color: "#E59500", // Orange for h2 (secondary heading)
+    },
+    h3: {
+      color: "#E59500",
+    },
+    h4: {
+      color: "#E59500",
+      fontSize: "2rem", // Set font size for h3
+      fontWeight: "bold", // Bold text
+      textAlign: "center", // Center-align text
+      textTransform: "uppercase", // Uppercase letters
+      letterSpacing: "2px", // Add spacing between letters
+      textShadow: "2px 2px 5px rgba(0, 0, 0, 0.4)", // Add text shadow for a glowing effect
     },
     body1: {
       color: "#EEEEEE", // Light gray for body text
@@ -32,7 +44,7 @@ const theme = createTheme({
     MuiCard: {
       styleOverrides: {
         root: {
-          backgroundColor: "#0077B6", // Purple from logo
+          backgroundColor: "#0077B6",
           color: "#FFFFFF", // White text color for all cards
           boxShadow: "0 2px 5px rgba(0, 0, 0, 0.3)", // Box shadow for depth
         },
@@ -43,27 +55,6 @@ const theme = createTheme({
         root: {
           backgroundColor: "#0077B6", // Set background color to purple from logo
           color: "#FFFFFF", // Set text color to white to ensure visibility
-        },
-      },
-    },
-    MuiButton: {
-      styleOverrides: {
-        // Override for "First" and "Previous" buttons
-        root: {
-          '&.pagination-first-prev': {
-            backgroundColor: '#6f7577', // Lighter gray for First and Previous buttons
-            color: 'white',
-            '&:hover': {
-              backgroundColor: '#90A4AE', // Darker gray on hover
-            },
-          },
-          '&.pagination-next-last': {
-            backgroundColor: '#6f7577', // Lighter gray for First and Previous buttons
-            color: 'white',
-            '&:hover': {
-              backgroundColor: '#90A4AE', // Darker gray on hover
-            },
-          },
         },
       },
     },

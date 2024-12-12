@@ -83,10 +83,10 @@ useEffect(() => {
 
 
   // Handle clicking a letter on the alphabet filter
-  const handleAlphabetClick = (letter: string) => {
-    const filtered = artists.filter(artist =>
-      artist.name[0].toUpperCase() === letter.toUpperCase() // Filter artists by first letter
-    );
+  const handleAlphabetClick = (character: string) => {
+    const filtered = character === "0-9"
+      ? artists.filter((artist) => artist.name[0].match(/^\d/)) // Filter artists whose names start with a number
+      : artists.filter((artist) => artist.name[0].toUpperCase() === character.toUpperCase());
 
     setFilteredArtists(filtered);
     setCurrentPage(1); // Reset pagination to first page
@@ -130,6 +130,13 @@ useEffect(() => {
           <div className="artist-list-container">
             {/* Alphabet filter */}
             <div className="alphabet-filter">
+              {/* Add a button for '0-9' or special characters */}
+                <button
+                  onClick={() => handleAlphabetClick("0-9")}  // Filter by artists starting with a number
+                  className={searchTerm === "0-9" ? "active" : ""}
+                >
+                  0
+                </button>
               {"ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map((letter) => (
                 <button
                   key={letter}
@@ -151,7 +158,7 @@ useEffect(() => {
                   onClick={() => handleArtistClick(artist.artist_id)}
                 >
                   <CardContent>
-                    {artist.thumb && (
+                    {(
                       <img
                         src={`http://localhost:8000/api/music/artist-image/${artist.artist_id}`}
                         alt={artist.name}

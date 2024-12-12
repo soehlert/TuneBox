@@ -5,9 +5,11 @@ import ArtistAlbums from "./components/ArtistAlbums";
 import TrackList from "./components/TrackList";
 import MusicControls from "./components/MusicControls";
 import Queue from "./components/Queue";
-import theme from "./theme"; // Import the theme
+import theme from "./theme";
 import TuneBoxLogo from './assets/TuneBox.svg';
 import "./App.css";
+import "./components/Queue.css";
+import "./components/Pagination.css";
 
 function App() {
   return (
@@ -35,7 +37,7 @@ function App() {
           </div>
 
           {/* Queue section (sticky on the right side) */}
-          <Queue /> {/* Your queue component */}
+          <Queue />
         </div>
       </div>
     </ThemeProvider>

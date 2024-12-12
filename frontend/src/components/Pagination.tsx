@@ -32,8 +32,6 @@ const Pagination: React.FC<PaginationProps> = ({
         color="primary"
         onClick={() => paginate(1)}
         disabled={currentPage === 1}
-        className="pagination-first-prev"
-
       >
         &laquo; First
       </Button>
@@ -42,7 +40,6 @@ const Pagination: React.FC<PaginationProps> = ({
         color="primary"
         onClick={() => paginate(currentPage - 1)}
         disabled={currentPage === 1}
-        className="pagination-first-prev"
       >
         &lt; Prev
       </Button>
@@ -53,6 +50,7 @@ const Pagination: React.FC<PaginationProps> = ({
           variant="contained"
           color={page === currentPage ? "secondary" : "primary"}
           onClick={() => paginate(page)}
+          className={page === currentPage ? "active" : ""}
         >
           {page}
         </Button>
@@ -63,7 +61,6 @@ const Pagination: React.FC<PaginationProps> = ({
         color="primary"
         onClick={() => paginate(currentPage + 1)}
         disabled={currentPage === totalPages}
-        className="pagination-next-last"
 
       >
         Next &gt;
@@ -73,7 +70,6 @@ const Pagination: React.FC<PaginationProps> = ({
         color="primary"
         onClick={() => paginate(totalPages)}
         disabled={currentPage === totalPages}
-        className="pagination-next-last"
       >
         Last &raquo;
       </Button>

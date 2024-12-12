@@ -11,21 +11,21 @@
   justify-content: flex-start;
   align-items: center;
   padding: 1rem;
-  background: linear-gradient(45deg,
-    #FF3366 20%,
-    #FF6600 40%,
-    #FF3366 60%,
-    #FF6600 80%,
-    #FF3366 100%), /* Create a stripe effect */
-    linear-gradient(180deg, #FF3366, #FF6600); /* Base gradient for depth */
-  background-size: 100% 100%, 100% 100%; /* Ensure the gradients fill the whole navbar */
+  background: rgb(25,25,92);
+  background: linear-gradient(90deg, rgba(25,25,92,1) 23%, rgba(229,149,0,1) 63%, rgba(25,25,92,1) 91%);
   color: white;
 }
 
 .logo {
-  width: 200px; /* Increase logo size */
+  width: 100%;
+  max-width: 300px;
   height: auto;
   margin-right: 1rem; /* Add margin to separate logo from music controls */
+}
+
+.app-title-link {
+  position: relative;
+  z-index: 10; /* Ensure the logo is on top of other elements */
 }
 
 .music-controls-container {
@@ -42,6 +42,7 @@
   height: 100vh;
   width: 100%;
   overflow-y: auto;
+  justify-content: space-between;
 }
 
 .artist-grid-container {
@@ -50,10 +51,11 @@
 }
 
 .queue-container {
-  width: 300px;
+  width: 100%;
+  max-width: 350px;
   position: sticky;
   top: 0;
-  background-color: #222;
+  background-color: #272929;
   color: white;
   padding: 1rem;
   height: 100vh;

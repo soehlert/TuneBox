@@ -85,7 +85,7 @@
 }
 
 .alphabet-filter button {
-  background-color: #30077B; /* Purple from logo */
+  background-color: #BF095E; /* Purple from logo */
   color: white;
   border: none;
   padding: 8px 12px; /* Reduced padding for narrower buttons */
@@ -99,7 +99,7 @@
 }
 
 .alphabet-filter button:hover {
-  background-color: #BF095E; /* Pink hover effect */
+  background-color: #30077B;
 }
 
 .alphabet-filter button.active {
@@ -139,5 +139,11 @@
 @media (min-width: 1200px) {
   .artist-grid {
     grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 1500px) {
+  .artist-grid {
+    grid-template-columns: repeat(4, 1fr);
   }
 }

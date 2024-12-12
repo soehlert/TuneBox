@@ -49,7 +49,7 @@ function ArtistAlbums() {
               <Grid item key={album.album_id} xs={12} sm={6} md={4} lg={3}>
                 <Card onClick={() => navigate(`/albums/${album.album_id}/tracks`)} className="album-card">
                   {/* Render album cover if available */}
-                  {album.thumb && (
+                  {(
                     <CardMedia
                       component="img"
                       alt={album.title}

@@ -9,22 +9,25 @@
   flex-wrap: wrap; /* Allow buttons to wrap to the next line on smaller screens */
 }
 
-/* First and Previous buttons with lighter gray */
+/* First, Previous, Next, Last buttons with lighter gray */
 .pagination button:first-child,
-.pagination button:nth-child(2) {
-  background-color: #B0BEC5; /* Lighter gray */
+.pagination button:nth-child(2),
+.pagination button:nth-last-child(2),
+.pagination button:last-child{
+  background-color: #2a4261; /* Lighter gray */
   color: white;
 }
 
-/* Hover effect for First and Previous buttons */
+/* Hover effect for First, Previous, Next, Last buttons */
 .pagination button:first-child:hover,
-.pagination button:nth-child(2):hover {
-  background-color: #90A4AE; /* Darker gray for hover */
+.pagination button:nth-child(2):hover,
+.pagination button:nth-last-child(2):hover,
+.pagination button:last-child:hover{
+  background-color: #90A4AE;
 }
 
-
 .pagination button {
-  background-color: #888888; /* Default gray background */
+  background-color: #373A40;
   color: #FFFFFF;
   transition: background-color 0.3s ease;
   padding: 8px 16px;
@@ -34,9 +37,14 @@
 }
 
 .pagination button:hover {
-  background-color: #2C4E80; /* Blue color on hover */
+  background-color: #E59500; /* Disabled button style */
 }
 
 .pagination button:disabled {
-  background-color: #BF095E; /* Disabled button style */
+  background-color: #90A4AE; /* Blue color on hover */
+}
+
+.pagination button.active {
+  background-color: #E59500;
+  color: white;
 }
