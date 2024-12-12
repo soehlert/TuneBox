@@ -35,7 +35,7 @@ router = APIRouter(
 async def add_to_queue(item_id: int, background_tasks: BackgroundTasks):
     """Add an item to the playback queue in Redis."""
     try:
-        song = get_track(item_id)  # Fetch the track using the item_id
+        song = get_track(item_id)
 
         # Add the song to the Redis queue
         add_to_queue_redis(song)

@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import axios from "axios";
 import { AxiosError } from 'axios';
-import { Button, Grid, Card, CardContent, Typography } from "@mui/material"; // MUI components for styling
+import { Button, Grid, Card, CardContent, Typography, Snackbar, Alert } from "@mui/material";
+import "./TrackList.css";
 
 interface Track {
   track_id: number;
@@ -20,6 +21,10 @@ function TrackList() {
   const { albumId } = useParams();
   const [albumData, setAlbumData] = useState<AlbumData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [severity, setSeverity] = useState<"success" | "warning" | "error">("success");
+
 
   useEffect(() => {
     const fetchTracks = async () => {
@@ -34,12 +39,25 @@ function TrackList() {
     };
 
     fetchTracks();
-  }, [albumId]);
+    }, [albumId]);
+
+    // Utility function to convert seconds to mm:ss format
+    const formatDuration = (seconds: string) => {
+      const minutes = Math.floor(Number(seconds) / 60);
+      const remainingSeconds = Number(seconds) % 60;
+      return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+    };
+
+    const showSnackbar = (message: string, severity: "success" | "warning" | "error") => {
+      setSnackbarMessage(message);
+      setSeverity(severity);
+      setSnackbarOpen(true);
+    };
 
    const addToQueue = async (trackId: number) => {
     try {
       await axios.post(`http://localhost:8000/api/music/queue/${trackId}`);
-      alert("Track added to queue!"); // Show success alert
+      showSnackbar("Track added to queue!", "success");
     } catch (error) {
       // Type assertion to tell TypeScript that this error is an AxiosError
       const axiosError = error as AxiosError;
@@ -48,11 +66,11 @@ function TrackList() {
       if (axiosError.response) {
         // Handle the error based on status code
         if (axiosError.response.status === 400) {
-          alert("This song is already in the queue!"); // Show alert for song already in queue
+          showSnackbar("This song is already in the queue!", "warning"); // Show alert for song already in queue
         }
       } else {
         // If error.response doesn't exist, it's likely a network or other issue
-        alert("An unexpected error occurred."); // Show generic error alert
+        showSnackbar("An unexpected error occurred.", "error"); // Show generic error alert
       }
       console.error("Error adding track to queue:", error);
     }
@@ -71,18 +89,18 @@ function TrackList() {
                 <img
                   src={`http://localhost:8000/api/music/album-art/${albumId}`}
                   alt={albumData.album_title}
-                  className="album-cover"
+                  className="album-banner"
                 />
               )}
 
-              <Grid container spacing={3}>
+              <Grid container spacing={2}>
                 {albumData.tracks.map((track) => (
                   <Grid item xs={12} sm={6} md={4} key={track.track_id}>
                     <Card className="track-card">
                       <CardContent>
-                        <Typography variant="h6">{track.title}</Typography>
-                        <Typography variant="body2" color="textSecondary">
-                          {track.duration}
+                        <Typography variant="h6" className="track-title">{track.title}</Typography>
+                        <Typography variant="body2" className="track-duration">
+                          {formatDuration(track.duration)}
                         </Typography>
                         <Button
                           variant="contained"
@@ -101,8 +119,16 @@ function TrackList() {
             <p>No tracks found.</p>
           )}
         </div>
-
       </div>
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={3000} // Automatically hide after 3 seconds
+        onClose={() => setSnackbarOpen(false)}
+      >
+        <Alert onClose={() => setSnackbarOpen(false)} severity={severity}>
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </div>
   );
 }

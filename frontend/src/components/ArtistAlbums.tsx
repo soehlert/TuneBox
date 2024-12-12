@@ -36,12 +36,11 @@ function ArtistAlbums() {
   return (
     <div className="app-container">
       <div className="content-container">
-        <h2>Albums</h2>
+        <h1>Albums</h1>
         {loading ? (
           <p>Loading...</p>
         ) : (
           <div className="album-grid-wrapper">
-            {/* Now using MUI Grid2 */}
             <Grid container spacing={6}>
               {albums.map((album) => (
                 <Grid item key={album.album_id} xs={12} sm={6} md={4} lg={3}>

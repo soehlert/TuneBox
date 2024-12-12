@@ -75,6 +75,12 @@
   box-sizing: border-box;
 }
 
+.album-grid h1 {
+  text-align: center;
+  color: #E59500;
+  margin-bottom: 20px;
+}
+
 /* Responsive design: Making the grid responsive for different screen sizes */
 @media (min-width: 480px) {
   .album-grid {

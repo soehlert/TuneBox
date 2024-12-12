@@ -1,47 +1,93 @@
-/* TrackList.css */
+/* Album banner for track list page */
+.album-banner {
+  width: 100%;
+  max-width: 400px;
+  height: auto;
+  margin: 0 auto 20px;
+  display: block;
+}
+
+/* Track List Layout */
 .track-list-page {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   padding: 20px;
 }
 
 .track-list-container {
-  display: flex;
-  gap: 20px;
   width: 100%;
-}
-
-.track-list {
-  flex: 1;
+  max-width: 1200px;
   display: flex;
-  flex-wrap: wrap;
-  gap: 20px;
-}
-
-.track-card {
-  background-color: #2C4E80 !important;  /* Dark Blue */
-  padding: 20px;
-  border-radius: 8px;
-  text-align: center;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-  flex: 1;
-  min-width: 220px; /* Adjust minimum width for card */
-  transition: background-color 0.3s ease;
-}
-
-.track-card:hover {
-  background-color: #DC5F00;  /* Hover effect to orange */
-  cursor: pointer;
+  flex-direction: column;
+  gap: 30px;
+  padding-right: 10px;
 }
 
 .track-list h1 {
   text-align: center;
-  color: #DC5F00;  /* Orange color */
+  color: #E59500;
   margin-bottom: 20px;
 }
 
-.album-cover {
-  width: 200px;
-  height: auto;
-  margin-bottom: 20px;
+.track-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.track-card {
+  background-color: #0077B6;
+  border-radius: 8px;
+  min-height: 150px;
+  text-align: center;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  transition: background-color 0.3s ease;
+  min-width: 100%;
+}
+
+.track-card .MuiTypography-root {
+  color: white;
+  margin-bottom: 10px;
+}
+
+.track-card .MuiButton-root {
+  background-color: #373A40;
+  color: white;
+  text-transform: none;
+  margin-top: 10px;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.track-card .MuiButton-root:hover {
+  background-color: #E59500;
+}
+
+/* Styling for the duration text */
+.track-card .MuiTypography-body2 {
+  color: #B0BEC5;
+  margin-bottom: 15px;
+}
+
+.track-card .track-title {
+  flex-grow: 1;
+  font-size: clamp(0.9rem, 2vw, 1.2rem);
+  text-align: center;
+  padding: 10px;
+  font-weight: bold;
+  overflow: hidden;
+  text-overflow: ellipsis; /* Ensure text doesn't overflow */
+  white-space: nowrap; /* Prevent text from wrapping to a new line */
+  max-height: 60px; /* Set a max-height to ensure text doesn't push out the card */
+}
+
+.track-card .track-duration {
+  color: #AAAAAA; /* Dimmed color for duration */
+  margin-bottom: 15px; /* Added spacing */
+  font-size: calc(1vw + 1vh); /* Dynamic font size for better readability */
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis; /* Prevent overflow if text is too long */
+  white-space: nowrap;
 }

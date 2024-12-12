@@ -2,6 +2,8 @@ import logging
 import redis
 import json
 
+from fastapi import HTTPException, status
+
 from backend.config import settings
 from backend.utils import is_song_in_queue, is_track_object
 
@@ -19,7 +21,10 @@ def add_to_queue_redis(song):
 
         if is_song_in_queue(song):
             logging.info(f"Song {song.title} is already in the Redis queue.")
-            return {"message": f"Song {song.title} is already in the queue."}
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Song {song.title} is already in the queue."
+            )
 
         song_data = {
             "item_id": song.ratingKey,
