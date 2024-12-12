@@ -191,7 +191,6 @@ def fetch_all_artists():
             {
                 "artist_id": artist.ratingKey,
                 "name": artist.title,
-                "thumb": f"{settings.plex_base_url}{artist.thumb}?X-Plex-Token={settings.plex_token}" if artist.thumb else None
             } for artist in artists]
 
         # Cache the result in Redis
@@ -221,7 +220,6 @@ def fetch_albums_for_artist(artist_id):
                 "album_id": album.ratingKey,
                 "artist": artist.title,
                 "title": album.title,
-                "thumb": f"{settings.plex_base_url}{album.thumb}?X-Plex-Token={settings.plex_token}" if album.thumb else None
             }
             for album in albums
         ]
@@ -251,7 +249,6 @@ def fetch_tracks_for_album(album_id):
         tracks = album.tracks()
         track_list = {
             "album_title": album.title,
-            "thumb": f"{settings.plex_base_url}{album.thumb}?X-Plex-Token={settings.plex_token}" if album.thumb else None,
             "tracks": [
                 {
                     "track_id": track.ratingKey,
