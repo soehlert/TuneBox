@@ -1,21 +1,31 @@
+/* Container for the album grid */
+.album-grid-wrapper {
+  width: 100%;
+  display: block;
+  padding: 0 20px;
+  margin-top: 20px;
+  box-sizing: border-box;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 /* Card layout for albums */
 .album-card {
-  background-color: #2C4E80; /* Dark Blue background */
+  background-color: #0077B6;
   padding: 15px;
   text-align: center;
-  border-radius: 10px;
+  border-radius: 8px;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
-  color: #FFFFFF; /* White text for contrast */
+  color: #FFFFFF;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
   align-items: center;
-  height: 300px; /* Set a fixed height for consistent card size */
-  width: 100%; /* Ensure it takes full width of its container */
-  margin-bottom: 20px; /* Add space between rows */
+  height: 300px;
+  width: 100%;
+  margin-bottom: 20px;
   transition: background-color 0.3s ease-in-out;
-  background-color: #2C4E80 !important; /* Ensure the background color is applied */
-  overflow: hidden; /* Prevent text overflow */
+  overflow: hidden;
 }
 
 /* Center the album cover image inside the card */
@@ -23,7 +33,7 @@
   width: 100%;
   height: auto;
   max-height: 200px;
-  object-fit: contain; /* Ensure the entire image fits */
+  object-fit: cover; /* Ensure the image covers the area without distorting */
   border-radius: 8px;
   margin-bottom: 10px;
   display: block;
@@ -33,21 +43,59 @@
 
 /* Title text styling inside the album card */
 .album-card h3 {
-  font-size: calc(1rem + 1vw); /* Use a responsive unit to allow text to shrink or grow */
-  color: #FFFFFF; /* White text for contrast */
+  font-size: calc(1rem + 1vw);
+  color: #FFFFFF;
   margin-top: 10px;
   font-weight: bold;
   text-align: center;
-  white-space: nowrap; /* Prevent text wrapping */
+  white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis; /* Truncate long titles */
-  padding: 0 10px; /* Add padding to prevent text from touching edges */
-  line-height: 1.2; /* Adjust line-height for better readability */
-  max-width: 90%; /* Prevent title from stretching out too wide */
+  text-overflow: ellipsis;
+  padding: 0 10px;
+  line-height: 1.2;
+  max-width: 90%;
 }
 
 /* Hover effect for the album card */
 .album-card:hover {
-  background-color: #DC5F00; /* Orange when hovered */
+  background-color: #E59500;
   color: white;
+}
+
+/* Custom grid layout */
+.album-grid {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: repeat(1, 1fr);
+  width: 100%;
+  margin-bottom: 20px;
+  grid-template-rows: auto;
+  align-items: start;
+  padding: 0 20px;
+  box-sizing: border-box;
+}
+
+/* Responsive design: Making the grid responsive for different screen sizes */
+@media (min-width: 480px) {
+  .album-grid {
+    grid-template-columns: repeat(2, 1fr); /* 2 columns on medium screens */
+  }
+}
+
+@media (min-width: 600px) {
+  .album-grid {
+    grid-template-columns: repeat(3, 1fr); /* 3 columns on larger screens */
+  }
+}
+
+@media (min-width: 900px) {
+  .album-grid {
+    grid-template-columns: repeat(4, 1fr); /* 4 columns on large screens */
+  }
+}
+
+@media (min-width: 1200px) {
+  .album-grid {
+    grid-template-columns: repeat(6, 1fr); /* Keep 4 columns on extra-large screens */
+  }
 }

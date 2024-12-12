@@ -1,14 +1,14 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
-import { Grid, Card, CardContent, Typography, CardMedia } from "@mui/material"; // Added CardMedia for images
+import { Card, CardContent, Typography, CardMedia, Grid } from "@mui/material";
 import "../App.css";
-import "./ArtistAlbums.css"; // Updated import
+import "./ArtistAlbums.css";
 
 interface Album {
   album_id: number;
   title: string;
-  thumb: string | null; // Ensure thumb can be null
+  thumb: string | null;
 }
 
 function ArtistAlbums() {
@@ -30,7 +30,7 @@ function ArtistAlbums() {
         setLoading(false);
       }
     };
-    fetchAlbums();
+     fetchAlbums();
   }, [artistId]);
 
   return (
@@ -40,16 +40,12 @@ function ArtistAlbums() {
         {loading ? (
           <p>Loading...</p>
         ) : (
-          <Grid
-            container
-            spacing={2}
-            className={albums.length === 1 ? "artist-grid single-album" : "artist-grid"}
-          >
-            {albums.map((album) => (
-              <Grid item key={album.album_id} xs={12} sm={6} md={4} lg={3}>
-                <Card onClick={() => navigate(`/albums/${album.album_id}/tracks`)} className="album-card">
-                  {/* Render album cover if available */}
-                  {(
+          <div className="album-grid-wrapper">
+            {/* Now using MUI Grid2 */}
+            <Grid container spacing={6}>
+              {albums.map((album) => (
+                <Grid item key={album.album_id} xs={12} sm={6} md={4} lg={3}>
+                  <Card onClick={() => navigate(`/albums/${album.album_id}/tracks`)} className="album-card">
                     <CardMedia
                       component="img"
                       alt={album.title}
@@ -58,23 +54,22 @@ function ArtistAlbums() {
                       title={album.title}
                       className="album-cover"
                     />
-                  )}
-                  <CardContent>
-                    <Typography
-                      variant="h6"
-                      className={album.title.length > 20 ? "long-title" : ""}
-                      style={{ textAlign: "center", fontWeight: "bold", color: "#FFFFFF" }}
-                    >
-                      {album.title}
-                    </Typography>
-                  </CardContent>
-                </Card>
-              </Grid>
-            ))}
-          </Grid>
+                    <CardContent>
+                      <Typography
+                        variant="h6"
+                        className={album.title.length > 20 ? "long-title" : ""}
+                        style={{ textAlign: "center", fontWeight: "bold", color: "#FFFFFF" }}
+                      >
+                        {album.title}
+                      </Typography>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              ))}
+            </Grid>
+          </div>
         )}
       </div>
-
     </div>
   );
 }

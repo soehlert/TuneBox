@@ -5,37 +5,37 @@
   text-align: center;
   border-radius: 8px;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
-  color: #FFFFFF; /* White text for contrast */
+  color: #FFFFFF;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  height: auto; /* Removed fixed height */
+  height: auto;
   min-height: 200px;
   min-width: 150px;
   transition: background-color 0.3s ease-in-out;
 }
 
 .artist-card:hover {
-  background-color: #E59500; /* Pink on hover */
-  color: white; /* Ensure text stays white */
+  background-color: #E59500;
+  color: white;
 }
 
 /* Title Readability */
 .artist-card .MuiTypography-root {
   text-align: center;
   font-weight: bold;
-  color: #FFFFFF; /* White text for better visibility on blue background */
+  color: #FFFFFF;
   line-height: 1.3; /* Ensures the text doesn't get cramped */
   flex-grow: 1; /* Allow name to take up remaining space */
   overflow: hidden;
   font-size: clamp(10px, 5vw, 20px);
   white-space: nowrap; /* Prevent text from wrapping to a new line */
-  max-height: 60px; /* Set a max-height to ensure text doesn't push out the card */
+  max-height: 60px;
 }
 
 .artist-photo {
   width: 100%;
-  height: 150px; /* Fixed height for the image */
+  height: 150px;
   object-fit: cover; /* Ensures the image covers the area without distorting */
   border-top-left-radius: 8px;
   border-top-right-radius: 8px;
@@ -59,19 +59,19 @@
   grid-template-columns: 100px 1fr; /* Fix the width of filter and make artist grid take up remaining space */
   width: 100%;
   height: auto;
-  margin-top: 20px; /* Space at the top */
+  margin-top: 20px;
   margin-bottom: 20px;
-  gap: 10px; /* Space between the filter and artist grid */
+  gap: 10px;
 }
 
 .artist-list-container .pagination {
   grid-column: 2 / 3; /* Place the pagination in the second column */
-  justify-self: center; /* Center the pagination horizontally */
+  justify-self: center;
 }
 
 @media (max-width: 600px) {
   .artist-list-container {
-    grid-template-columns: 1fr; /* 1 column layout on very small screens */
+    grid-template-columns: 1fr;
   }
 }
 
@@ -85,17 +85,17 @@
 }
 
 .alphabet-filter button {
-  background-color: #BF095E; /* Purple from logo */
+  background-color: #BF095E;
   color: white;
   border: none;
-  padding: 8px 12px; /* Reduced padding for narrower buttons */
+  padding: 8px 12px;
   font-size: 1rem;
   cursor: pointer;
   border-radius: 5px;
   transition: background-color 0.3s ease-in-out;
-  text-align: center; /* Center text */
-  width: auto; /* Let the width adjust to the content */
-  margin: 0 auto; /* Center the button in the container */
+  text-align: center;
+  width: auto;
+  margin: 0 auto;
 }
 
 .alphabet-filter button:hover {
@@ -103,7 +103,7 @@
 }
 
 .alphabet-filter button.active {
-  background-color: #E59500; /* Orange for active letter */
+  background-color: #E59500;
 }
 
 /* Artist Grid Layout */
@@ -111,9 +111,9 @@
   display: grid;
   gap: 1rem;
   grid-template-columns: repeat(1, 1fr); /* Default 1 column */
-  width: 100%; /* Ensure grid uses the full available width */
-  margin-bottom: 20px; /* Add margin below the grid for pagination */
-  grid-template-rows: auto; /* Dynamically adjust rows based on content */
+  width: 100%;
+  margin-bottom: 20px;
+  grid-template-rows: auto;
   align-items: start;
 }
 

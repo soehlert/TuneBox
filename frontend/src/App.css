@@ -20,12 +20,12 @@
   width: 100%;
   max-width: 300px;
   height: auto;
-  margin-right: 1rem; /* Add margin to separate logo from music controls */
+  margin-right: 1rem;
 }
 
 .app-title-link {
   position: relative;
-  z-index: 10; /* Ensure the logo is on top of other elements */
+  z-index: 10;
 }
 
 .music-controls-container {
@@ -46,7 +46,7 @@
 }
 
 .artist-grid-container {
-  flex-grow: 1; /* This will make the artist grid take up available space */
+  flex-grow: 1;
   padding: 1rem;
 }
 

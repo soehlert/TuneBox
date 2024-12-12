@@ -5,8 +5,8 @@
   width: 100%;
   display: flex;
   justify-content: center;
-  gap: 10px; /* Add space between buttons */
-  flex-wrap: wrap; /* Allow buttons to wrap to the next line on smaller screens */
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 /* First, Previous, Next, Last buttons with lighter gray */
@@ -14,7 +14,7 @@
 .pagination button:nth-child(2),
 .pagination button:nth-last-child(2),
 .pagination button:last-child{
-  background-color: #2a4261; /* Lighter gray */
+  background-color: #2a4261;
   color: white;
 }
 
@@ -31,17 +31,17 @@
   color: #FFFFFF;
   transition: background-color 0.3s ease;
   padding: 8px 16px;
-  min-width: 50px; /* Ensure button width is not smaller than this */
+  min-width: 50px;
   font-size: 1rem;
   text-align: center;
 }
 
 .pagination button:hover {
-  background-color: #E59500; /* Disabled button style */
+  background-color: #E59500;
 }
 
 .pagination button:disabled {
-  background-color: #90A4AE; /* Blue color on hover */
+  background-color: #90A4AE;
 }
 
 .pagination button.active {
