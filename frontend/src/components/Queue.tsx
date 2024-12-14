@@ -14,7 +14,9 @@ const QueueComponent = () => {
 
         socketRef.current.onopen = () => {
           console.log("WebSocket connected to QueueComponent");
-          socketRef.current?.send(JSON.stringify({ message: "get_current_queue" }));
+          socketRef.current?.send(JSON.stringify({
+            message_type: "queue-update",
+            message: "get_current_queue" }));
           console.log("Asked for queue");
         };
 
