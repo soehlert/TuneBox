@@ -41,9 +41,16 @@ def get_current_playing_track():
     for session in sessions:
         if session.player.machineIdentifier == player:
             total_time = milliseconds_to_seconds(session.duration)
-            view_offset = session.viewOffset
+            view_offset = milliseconds_to_seconds(session.viewOffset)
             track_state = session.player.state
             elapsed_time = track_time_tracker.get_elapsed_time(session.title)
+
+            # Ensure that elapsed_time doesn't go negative or exceed total_time
+            if elapsed_time < 0:
+                elapsed_time = 0
+            if elapsed_time > total_time:
+                elapsed_time = total_time
+
             remaining_time = total_time - elapsed_time
 
             if total_time > 0:
@@ -60,6 +67,7 @@ def get_current_playing_track():
                 'remaining_time': remaining_time,
                 'offset': view_offset,
                 'remaining_percentage': remaining_percentage,
+                'elapsed_time': elapsed_time,
             }
             track_time_tracker.update(current_track)
             return current_track
@@ -121,27 +129,42 @@ def get_track(item_id):
 def play_song(player, song):
     """Play a specific song on the Plex player."""
     try:
-        logging.info(f"Playing song: {song.title} on player: {player.title}")
+        logging.info(f"Attempting to play song: {song.title} on player: {player.title}")
         player.playMedia(song)
         track_time_tracker.start(song.title)
+        logging.info(f"Song {song.title} started playing on player: {player.title}")
     except Exception as e:
         logging.error(f"Error playing media: {e}")
         raise
+
 
 async def play_queue_on_device():
     """Play the entire queue on the active Plex device."""
     try:
         player = get_active_player()
+        if not player:
+            logging.error("No active player found.")
+            raise HTTPException(status_code=400, detail="No active player found.")
+        else:
+            logging.debug(f"Active player found: {player.title}")
+
         playback_queue = get_redis_queue()
 
         if not playback_queue:
             logging.warning("Playback queue is empty.")
             return
 
+        logging.debug(f"Playback queue: {playback_queue}")
+
         # Play each track in the queue
         for song in playback_queue:
             item_id = song["item_id"]
             track = get_track(item_id)
+            if not track:
+                logging.error(f"Track with item_id {item_id} not found. Skipping track.")
+                continue
+            else:
+                logging.debug(f"Track found: {track.title}")
 
             if hasattr(track, 'duration'):
                 total_time = milliseconds_to_seconds(track.duration)
@@ -158,7 +181,7 @@ async def play_queue_on_device():
 
             await monitor_song_progress(track, total_time)
 
-            await remove_from_redis_queue(item_id)
+            remove_from_redis_queue(item_id)
     except Exception as e:
         logging.error(f"Error playing queue on device: {e}")
         raise

@@ -38,25 +38,29 @@ class TrackTimeTracker:
         self.elapsed_time = 0
         self.is_playing = False
         self.track_name = None
+        self.last_update_time = None  # Last time the track progress was updated
 
     def start(self, track_name):
         """Start tracking a new track."""
         self.track_name = track_name
         # Adjust if resumed after pause
         self.start_time = time.time() - self.elapsed_time
+        self.last_update_time = time.time()  # Start tracking time
         self.is_playing = True
 
     def pause(self):
         """Pause the track and record elapsed time."""
         if self.is_playing:
-            self.elapsed_time = time.time() - self.start_time
+            self.elapsed_time = time.time() - self.start_time  # Save elapsed time
             self.is_playing = False
+            self.last_update_time = None  # Stop tracking time
 
     def resume(self):
         """Resume the track from where it left off."""
         if not self.is_playing:
             # Adjust the start time
             self.start_time = time.time() - self.elapsed_time
+            self.last_update_time = time.time()  # Resume tracking time
             self.is_playing = True
 
     def stop(self):
@@ -64,12 +68,16 @@ class TrackTimeTracker:
         self.elapsed_time = 0
         self.is_playing = False
         self.track_name = None
+        self.last_update_time = None
 
     def get_elapsed_time(self, track_name):
         """Get the elapsed time for the currently playing track."""
         if self.track_name == track_name:
             if self.is_playing:
-                return time.time() - self.start_time
+                # Update elapsed time based on the last update time
+                time_diff = time.time() - self.last_update_time
+                self.elapsed_time += time_diff  # Increase elapsed time while playing
+                self.last_update_time = time.time()  # Update last update time
             return self.elapsed_time
         # We are not tracking this song
         return 0
@@ -88,3 +96,4 @@ class TrackTimeTracker:
             # If the track is playing, resume or continue tracking
             if not self.is_playing:
                 self.resume()
+
