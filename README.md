@@ -4,6 +4,16 @@ TuneBox is a web-based jukebox suite that allows you to manage and play music fr
 a central Jukebox, but still allow access to other devices. Meant for collective music listening at parties. It features 
 a modern interface for interacting with your Plex music library, managing the queue, and controlling music playback.
 
+#### Library View
+![The Main Library Page](https://github.com/soehlert/TuneBox/blob/main/docs/images/Library.png?raw=true)
+
+#### Artist View
+![The Artist Album Page](https://github.com/soehlert/TuneBox/blob/main/docs/images/Artist.png?raw=true)
+
+#### Album View
+![The Album Detail Page](https://github.com/soehlert/TuneBox/blob/main/docs/images/Album.png?raw=true)
+
+
 ## Features
 - **Plex Integration**: Seamlessly integrates with your Plex server to browse and play music.
 - **Playback Queue**: Manage the queue of songs to be played and automatically update it in real-time.
