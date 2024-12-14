@@ -12,7 +12,7 @@
   align-items: center;
   padding: 1rem;
   background: rgb(25,25,92);
-  background: linear-gradient(90deg, rgba(25,25,92,1) 23%, rgba(229,149,0,1) 63%, rgba(25,25,92,1) 91%);
+  background: linear-gradient(90deg, #19195C 23%, #e59500 63%, #19195C 91%);
   color: white;
 }
 
@@ -28,12 +28,16 @@
   z-index: 10;
 }
 
+/* Music Controls Container */
 .music-controls-container {
   display: flex;
-  justify-content: center;
+  justify-content: center; /* Center the music controls */
   align-items: center;
   width: 100%;
+  max-width: 800px; /* Limit maximum width of music controls */
+  margin: 0 auto; /* Center the container */
 }
+
 
 /* Main content container */
 .main-content {

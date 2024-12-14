@@ -55,7 +55,7 @@ function ArtistAlbums() {
                     />
                     <CardContent>
                       <Typography
-                        variant="h6"
+                        variant="h5"
                         className={album.title.length > 20 ? "long-title" : ""}
                         style={{ textAlign: "center", fontWeight: "bold", color: "#FFFFFF" }}
                       >
