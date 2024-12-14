@@ -25,9 +25,10 @@ const MusicControlsComponent = () => {
         socketRef.current.onopen = () => {
           console.log("WebSocket connected to MusicControlsComponent");
           socketRef.current?.send(JSON.stringify({
-            message_type: "music_control",
+            type: "music_control",
             message: "get_current_track"
           }));
+          console.log("Asked for now playing")
         };
 
         socketRef.current.onmessage = (event) => {
@@ -74,18 +75,6 @@ const MusicControlsComponent = () => {
           console.log("WebSocket closed in MusicControlsComponent");
           setTimeout(connectWebSocket, 5000); // Reconnect after 5 seconds
         };
-
-        // Heartbeat: Ping the server every 10 seconds
-        pingIntervalRef.current = setInterval(() => {
-          if (socketRef.current?.readyState === WebSocket.OPEN) {
-            socketRef.current?.send(JSON.stringify({ message: "ping" }));
-
-            pongTimeoutRef.current = setTimeout(() => {
-              console.error("No pong received, attempting reconnect...");
-              socketRef.current?.close();
-            }, 5000); // Wait for 5 seconds for the pong
-          }
-        }, 10000);
       }
     };
 

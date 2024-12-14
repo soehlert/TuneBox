@@ -15,7 +15,7 @@ const QueueComponent = () => {
         socketRef.current.onopen = () => {
           console.log("WebSocket connected to QueueComponent");
           socketRef.current?.send(JSON.stringify({
-            message_type: "queue-update",
+            type: "queue_update",
             message: "get_current_queue" }));
           console.log("Asked for queue");
         };
@@ -46,8 +46,10 @@ const QueueComponent = () => {
         // Heartbeat
         pingIntervalRef.current = setInterval(() => {
           if (socketRef.current?.readyState === WebSocket.OPEN) {
-            socketRef.current?.send(JSON.stringify({ message: "ping" }));
-
+            socketRef.current?.send(JSON.stringify({
+              type: "heartbeat",
+              message: "ping"
+            }));
             pongTimeoutRef.current = setTimeout(() => {
               console.error("No pong received, attempting reconnect...");
               socketRef.current?.close();

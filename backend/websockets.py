@@ -3,58 +3,57 @@ import json
 import logging
 import asyncio
 
-from requests import session
-
 from backend.services.plex import get_current_playing_track, get_redis_queue
 
 router = APIRouter()
 
-last_sent_queue = None
-last_sent_track = None
-
 # Dictionary to store WebSocket connections categorized by type
 active_connections = {
     "music_control": {},  # Store music control connections
-    "queue-update": {},   # Store queue update connections
+    "queue_update": {},   # Store queue update connections
+    "unknown": {},
 }
 
-
-async def send_to_specific_client(session_id: str, message: dict):
+async def send_to_specific_client(session_id: str, message: dict, message_type: str):
     """Send a message to a specific WebSocket client based on session ID."""
-    connection = active_connections.get(session_id)
-    if connection:
-        try:
-            logging.debug(f"Sending message to connection {session_id}")
-            await connection.send_text(json.dumps(message))
-        except Exception as e:
-            logging.error(f"Error sending message to client {session_id}: {e}")
-            # If sending fails, remove the connection from active_connections
-            active_connections.pop(session_id, None)
-    else:
-        logging.error(f"No connection found for session ID: {session_id}")
+    try:
+        connection = active_connections[message_type][session_id]
+        logging.debug(f"Sending message to connection {session_id}")
+        await connection.send_text(json.dumps(message))
+    except KeyError:
+        logging.error(f"Session ID {session_id} not found in {message_type}")
+    except Exception as e:
+        logging.error(f"Error sending message to client {session_id}: {e}")
 
 
 async def send_queue():
-    """Send the current queue to all connected WebSocket clients of 'queue-update' message_type."""
+    """Send the current queue to all connected WebSocket clients of 'queue_update' message_type."""
     play_queue = get_redis_queue()
+    message = {
+        "type": "queue_update",
+        "message": "Queue update",
+        "queue": play_queue  # No need for json.dumps here
+    }
+    logging.debug(f"Sending play queue: {play_queue}")
 
-    message = json.dumps({"message": "Queue update", "queue": play_queue})
-    logging.debug(f"Sending message: {message}")
-
-    # Send the queue to all active connections of message_type 'queue-update'
-    for session_id, connection in active_connections["queue-update"].items():
+    # Send the queue to all active connections of message_type 'queue_update'
+    for session_id, connection in active_connections["queue_update"].items():
         try:
             logging.debug(f"Sending queue to connection {session_id}")
-            await send_to_specific_client(session_id, message, "queue-update")
+            await send_to_specific_client(session_id, message, "queue_update")
         except Exception as e:
             logging.error(f"Error sending message to client {session_id}: {e}")
             # If sending fails, remove the connection from active_connections
-            active_connections["queue-update"].pop(session_id, None)
+            active_connections["queue_update"].pop(session_id, None)
+
 
 async def send_current_playing():
     """Send the current playing track to all connected WebSocket clients of 'music_control' message_type."""
     try:
+        # Fetch the current playing track
         current_track = get_current_playing_track()
+
+        # Check if the track is valid
         if current_track:
             track_data = {
                 "title": current_track["title"],
@@ -66,20 +65,21 @@ async def send_current_playing():
                 "elapsed_time": current_track["elapsed_time"],
             }
 
-            message = json.dumps({
+            # Prepare the message
+            message = {
                 "message": "Current track update",
                 "current_track": track_data
-            })
+            }
+
             logging.debug(f"Sending current playing track: {track_data}")
 
-            # Loop through all active connections of message_type 'music_control' and send to each one
+            # Send the message to all active connections of message_type 'music_control'
             for session_id, connection in active_connections["music_control"].items():
                 try:
                     logging.debug(f"Sending current track to connection {session_id}")
                     await send_to_specific_client(session_id, message, "music_control")
                 except Exception as e:
                     logging.error(f"Error sending message to client {session_id}: {e}")
-                    # If sending fails, remove the connection from active_connections
                     active_connections["music_control"].pop(session_id, None)
 
         else:
@@ -112,12 +112,16 @@ async def websocket_handler(websocket: WebSocket):
         await websocket.close()
         return
 
-    # Store the WebSocket connection under the correct type
+    # Ensure the correct category exists in active_connections
     if message_type not in active_connections:
         active_connections[message_type] = {}
 
     session_id = str(id(websocket))  # Using id(websocket) as the unique identifier
+
+    # Store the WebSocket connection under the correct type
     active_connections[message_type][session_id] = websocket
+    logging.debug(f"Current active connections for '{message_type}': {active_connections[message_type]}")
+    logging.debug(f"Stored WebSocket connection {session_id} under {message_type}")
 
     logging.info(f"New WebSocket connection of type '{message_type}' from {websocket.client} "
                  f"Active connections: {len(active_connections)}")
@@ -126,6 +130,7 @@ async def websocket_handler(websocket: WebSocket):
         while True:
             message = await websocket.receive_text()
             data = json.loads(message)
+            logging.debug(f"Received message from client {message}")
 
             # Handle messages based on their type
             message_type = data.get("type")
@@ -133,15 +138,17 @@ async def websocket_handler(websocket: WebSocket):
                 logging.error("Received message with no 'type'.")
                 continue
 
-            if message_type == "ping":
+            if message_type == "heartbeat":
+                logging.debug("sending heartbeat")
                 await websocket.send_text(json.dumps({"message": "pong"}))
 
-            elif message_type == "get_current_queue":
+            elif message_type == "queue_update":
+                logging.debug("sending queue_update")
                 await send_queue()
 
-            elif message_type == "get_current_track":
-                # Send the current track to the client that requested it
-                await send_current_playing(session_id, message_type)
+            elif message_type == "music_control":
+                logging.debug("sending current_playing")
+                await send_current_playing()
 
     except WebSocketDisconnect as e:
         # Remove the WebSocket connection from active_connections on disconnect
