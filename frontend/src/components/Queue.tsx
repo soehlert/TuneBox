@@ -10,7 +10,7 @@ const QueueComponent = () => {
   useEffect(() => {
     const connectWebSocket = () => {
       if (!socketRef.current) {
-        socketRef.current = new WebSocket("ws://localhost:8000/ws");
+        socketRef.current = new WebSocket("ws://backend:8000/ws");
 
         socketRef.current.onopen = () => {
           console.log("WebSocket connected to QueueComponent");

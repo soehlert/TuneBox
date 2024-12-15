@@ -46,8 +46,8 @@ useEffect(() => {
   const fetchArtists = async () => {
     try {
       const endpoint = debouncedSearchTerm
-        ? `http://localhost:8000/api/music/search?query=${encodeURIComponent(searchTerm)}`
-        : "http://localhost:8000/api/music/artists";
+        ? `http://backend:8000/api/music/search?query=${encodeURIComponent(searchTerm)}`
+        : "http://backend:8000/api/music/artists";
 
       const response = await axios.get(endpoint);
       let data = response.data;
@@ -160,7 +160,7 @@ useEffect(() => {
                   <CardContent>
                     {(
                       <img
-                        src={`http://localhost:8000/api/music/artist-image/${artist.artist_id}`}
+                        src={`http://backend:8000/api/music/artist-image/${artist.artist_id}`}
                         alt={artist.name}
                         className="artist-photo"
                       />

@@ -20,7 +20,7 @@ const MusicControlsComponent = () => {
   useEffect(() => {
     const connectWebSocket = () => {
       if (!socketRef.current) {
-        socketRef.current = new WebSocket("ws://localhost:8000/ws");
+        socketRef.current = new WebSocket("ws://backend:8000/ws");
 
         socketRef.current.onopen = () => {
           console.log("WebSocket connected to MusicControlsComponent");
@@ -114,7 +114,7 @@ const MusicControlsComponent = () => {
   // Function to handle play/pause and trigger the play-queue API endpoint
   const handlePlayPause = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/music/play-queue', {
+      const response = await fetch('http://backend:8000/api/music/play-queue', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

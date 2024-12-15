@@ -29,7 +29,7 @@ function TrackList() {
   useEffect(() => {
     const fetchTracks = async () => {
       try {
-        const response = await axios.get(`http://localhost:8000/api/music/albums/${albumId}/tracks`);
+        const response = await axios.get(`http://backend:8000/api/music/albums/${albumId}/tracks`);
         setAlbumData(response.data);
       } catch (error) {
         console.error("Error fetching album tracks:", error);
@@ -56,7 +56,7 @@ function TrackList() {
 
    const addToQueue = async (trackId: number) => {
     try {
-      await axios.post(`http://localhost:8000/api/music/queue/${trackId}`);
+      await axios.post(`http://backend:8000/api/music/queue/${trackId}`);
       showSnackbar("Track added to queue!", "success");
     } catch (error) {
       // Type assertion to tell TypeScript that this error is an AxiosError
@@ -87,7 +87,7 @@ function TrackList() {
               <h1>{albumData.album_title}</h1>
               {(
                 <img
-                  src={`http://localhost:8000/api/music/album-art/${albumId}`}
+                  src={`http://backend:8000/api/music/album-art/${albumId}`}
                   alt={albumData.album_title}
                   className="album-banner"
                 />

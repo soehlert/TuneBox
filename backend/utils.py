@@ -2,10 +2,10 @@ import time
 import json
 import logging
 import redis
-
+from backend.config import settings
 from plexapi.audio import Track
 
-redis_client = redis.StrictRedis(host='localhost', port=6379, db=0, decode_responses=True)
+redis_client = redis.StrictRedis(host=settings.redis_url, port=6379, db=0, decode_responses=True)
 
 
 def is_track_object(item):
