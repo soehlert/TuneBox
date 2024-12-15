@@ -5,7 +5,7 @@
   justify-content: center;
   align-items: center;
   width: 100%;
-  padding: 10px 20px;
+  padding: 5px;
   background: transparent;
   position: relative;
   z-index: 10;
@@ -22,14 +22,14 @@
 }
 
 .track-title {
-  font-size: 2rem;
+  font-size: 1.8rem;
   font-weight: bold !important;
   margin-bottom: 5px;
   color: #19195C !important;
 }
 
 .track-artist {
-  font-size: 1.4rem;
+  font-size: 1.2rem;
   color: #FFFFFFB3;
   margin-bottom: 10px;
 }
@@ -40,13 +40,28 @@
 
 .no-track {
   font-size: 1.2rem;
-  color: #FFFFFFB3;
-  margin-bottom: 10px;
+  color: #FFFFFF !important;
+  margin-bottom: 20px;
+  text-align: center;
 }
 
-/* Style for the LinearProgress component */
+.start-queue-button {
+  background-color: #0077B6 !important;
+  color: #FFFFFF;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 5px;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.start-queue-button:hover {
+  background-color: #FFFFFF !important;
+}
+
 .MuiLinearProgress-root {
-  width: 80%;
+  width: 85%;
   background-color: #FFFFFFB3;
   margin-bottom: 10px;
 }
@@ -58,10 +73,19 @@
 /* Time display */
 .track-time {
   font-size: 1rem;
-  margin-bottom: 10px;
+  margin-bottom: 2px;
   color: #FFFFFFB3;
 }
 
 .playback-controls {
-  margin-top: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 80%;
+  margin-top: 2px;
+}
+
+/* Spacing between the button and progress bar */
+.playback-controls .MuiIconButton-root {
+  margin-right: 2px;
 }

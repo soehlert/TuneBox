@@ -7,6 +7,7 @@ from backend.services.plex import (
     fetch_albums_for_artist,
     fetch_tracks_for_album,
     play_queue_on_device,
+    stop_playback,
     get_all_players,
     get_current_playing_track,
     get_track,
@@ -119,6 +120,13 @@ async def play_queue(background_tasks: BackgroundTasks):
     """Start playing the entire queue on the active player."""
     background_tasks.add_task(play_queue_on_device)
     return {"message": "Playback started in the background."}
+
+@router.post("/stop-queue")
+async def stop_queue(background_tasks: BackgroundTasks):
+    """Stop playback on the active player."""
+    result = stop_playback()  # Call the stop_playback function from plex.py
+    background_tasks.add_task(send_queue)  # You may want to notify clients about the updated state
+    return result
 
 
 # Fetch all artists

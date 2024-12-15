@@ -196,6 +196,22 @@ async def monitor_song_progress(track, total_time):
             break
         await asyncio.sleep(1)
 
+def stop_playback():
+    """Stop the currently playing track on the active Plex player."""
+    try:
+        player = get_active_player()
+        if player:
+            logging.info(f"Stopping playback on {player.title}")
+            player.stop(mtype="music")
+            return {"message": "Playback stopped successfully."}
+        else:
+            logging.error("No active player found.")
+            raise HTTPException(status_code=400, detail="No active player found.")
+    except Exception as e:
+        logging.error(f"Error stopping playback: {e}")
+        raise HTTPException(status_code=500, detail=f"Error stopping playback: {e}")
+
+
 
 def fetch_all_artists():
     """Fetch all artists from the Plex music library with Redis caching."""

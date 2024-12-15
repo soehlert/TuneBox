@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
-import { Box, Typography, LinearProgress, IconButton } from '@mui/material';
+import { Box, Typography, LinearProgress, IconButton, Button } from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
-import PauseIcon from '@mui/icons-material/Pause';
+import StopIcon from '@mui/icons-material/Stop';
 import "./MusicControls.css";
 
 const MusicControlsComponent = () => {
@@ -12,7 +12,6 @@ const MusicControlsComponent = () => {
   const [duration, setDuration] = useState<string>('00:00'); // To store the song's total duration in mm:ss format
   const socketRef = useRef<WebSocket | null>(null);
   const timerRef = useRef<any>(null); // Timer reference for interval updates
-  const startTimeRef = useRef<number>(0); // Start time for progress calculation
 
   useEffect(() => {
     const connectWebSocket = () => {
@@ -32,9 +31,10 @@ const MusicControlsComponent = () => {
           try {
             const data = JSON.parse(event.data);
             if (data.message === "Current track update") {
+              console.log("Current track update:", data); // This will log the current track update data
               const currentTrackData = data.current_track;
               setCurrentTrack(currentTrackData);
-              setIsPlaying(currentTrackData.track_state === 'playing');
+              setIsPlaying(currentTrackData.track_state === 'playing'); // Using track_state from WebSocket message
 
               // Calculate elapsed time
               const remainingTime = currentTrackData.remaining_time;
@@ -52,19 +52,7 @@ const MusicControlsComponent = () => {
               const seconds = Math.floor(totalTimeInSeconds % 60);
               setDuration(`${minutes}:${seconds < 10 ? '0' : ''}${seconds}`);
 
-              // Initialize progress and start time
-              startTimeRef.current = Date.now();
               setProgress(100 - currentTrackData.remaining_percentage);
-
-              // Clear any previous interval
-              if (timerRef.current) {
-                clearInterval(timerRef.current);
-              }
-
-              // Update progress every second
-              timerRef.current = setInterval(() => {
-                updateProgress();
-              }, 1000);
             }
           } catch (error) {
             console.error("Error parsing WebSocket message:", error);
@@ -93,21 +81,31 @@ const MusicControlsComponent = () => {
         console.log("WebSocket connection closed on component unmount.");
       }
     };
-  }, []); // Runs only once when component mounts
+  }, []);
 
-  const updateProgress = () => {
-    if (currentTrack) {
-      const elapsed = (Date.now() - startTimeRef.current) / 1000; // Calculate elapsed time in seconds
-      const totalDuration = currentTrack.total_time;
-      const remainingPercentage = 100 - currentTrack.remaining_percentage;
+  const handlePlayStop = async () => {
+    try {
+      const endpoint = isPlaying ? "/api/music/stop-queue" : "/api/music/play-queue";  // Switch endpoint to stop when playing
+      const response = await fetch(`http://localhost:8000${endpoint}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
 
-      // Update progress based on elapsed time and remaining percentage
-      const newProgress = Math.min(remainingPercentage + (elapsed / totalDuration) * 100, 100);
-      setProgress(newProgress);
+      if (response.ok) {
+        const data = await response.json();
+        console.log(data.message);
+        setIsPlaying(!isPlaying); // Toggle the state
+      } else {
+        console.error('Failed to toggle playback');
+      }
+    } catch (error) {
+      console.error('Error toggling playback:', error);
     }
   };
 
-  const handlePlayPause = async () => {
+  const handleStartQueue = async () => {
     try {
       const response = await fetch('http://localhost:8000/api/music/play-queue', {
         method: 'POST',
@@ -118,13 +116,13 @@ const MusicControlsComponent = () => {
 
       if (response.ok) {
         const data = await response.json();
-        console.log('Playback started:', data.message);
-        setIsPlaying(true);
+        console.log('Queue started:', data.message);
+        setIsPlaying(true); // Once the queue starts, set playing to true
       } else {
         console.error('Failed to start playback');
       }
     } catch (error) {
-      console.error('Error starting playback:', error);
+      console.error('Error starting queue playback:', error);
     }
   };
 
@@ -139,22 +137,29 @@ const MusicControlsComponent = () => {
             <Typography variant="body1" className="track-artist">
               {currentTrack.artist}
             </Typography>
-            <LinearProgress
-              variant="determinate"
-              value={progress} // Use the smooth progress value
-              sx={{ marginBottom: 2 }}
-            />
+            <Box className="playback-controls">
+              <IconButton onClick={handlePlayStop}>
+                {isPlaying ? <StopIcon /> : <PlayArrowIcon />}
+              </IconButton>
+              <LinearProgress
+                variant="determinate"
+                value={progress}
+                sx={{ marginBottom: 2 }}
+              />
+            </Box>
             <Typography variant="body2" className="track-time">
               {elapsedTime} / {duration}
             </Typography>
-            <Box className="playback-controls">
-              <IconButton onClick={handlePlayPause}>
-                {isPlaying ? <PauseIcon /> : <PlayArrowIcon />}
-              </IconButton>
-            </Box>
           </>
         ) : (
-          <Typography variant="body2" className="no-track">No track playing...</Typography>
+          <>
+            <Typography variant="h4" className="no-track">
+              No track playing
+            </Typography>
+            <Button onClick={handleStartQueue} variant="contained" className="start-queue-button">
+              Start Queue
+            </Button>
+          </>
         )}
       </Box>
     </Box>
