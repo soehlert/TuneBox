@@ -24,7 +24,6 @@ const QueueComponent = () => {
           try {
             const data = JSON.parse(event.data);
             if (data.message === "Queue update") {
-              console.log("Queue update received:", data.queue);
               setQueue(data.queue);
             } else if (data.message === "pong") {
               clearTimeout(pongTimeoutRef.current!);
