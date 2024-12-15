@@ -22,8 +22,11 @@ app = FastAPI(
 # Add CORS middleware to allow WebSocket connections from the frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=[
+        "http://frontend:80",
+        "http://localhost",
+        "http://localhost:5173"
+    ],
     allow_methods=["*"],
     allow_headers=["*"],
 )

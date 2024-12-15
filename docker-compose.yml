@@ -2,13 +2,11 @@ services:
   frontend:
     build:
       context: .
-      dockerfile: compose/frontend/Dockerfile  # Make sure to use the correct Dockerfile path
+      dockerfile: compose/frontend/Dockerfile
     ports:
-      - "80:80"  # Expose nginx port to serve the app
+      - "80:80"
     depends_on:
       - backend
-    networks:
-      - app-network
 
   backend:
     build:
@@ -19,21 +17,10 @@ services:
     volumes:
       - ./backend:/app/backend
       - ./.env:/app/.env
-    environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
     depends_on:
       - redis
-    networks:
-      - app-network
 
   redis:
     image: "redis:alpine"
     ports:
       - "6379:6379"
-    networks:
-      - app-network
-
-networks:
-  app-network:
-    driver: bridge

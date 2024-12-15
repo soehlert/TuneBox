@@ -18,10 +18,12 @@ COPY ./frontend /app
 # Build the app for production
 RUN npm run build
 
-# Step 2: Serve the production build using nginx
 
 # Use the official Nginx image to serve the build
 FROM nginx:alpine
+
+# Copy the custom nginx.conf file to the container
+COPY ./Compose/frontend/nginx.conf /etc/nginx/nginx.conf
 
 # Copy the build output from the previous stage to the nginx container
 COPY --from=build /app/dist /usr/share/nginx/html

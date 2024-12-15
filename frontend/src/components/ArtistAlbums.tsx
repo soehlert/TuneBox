@@ -21,7 +21,7 @@ function ArtistAlbums() {
     const fetchAlbums = async () => {
       try {
         const response = await axios.get(
-          `http://localhost:8000/api/music/artists/${artistId}/albums`
+          `http://backend:8000/api/music/artists/${artistId}/albums`
         );
         setAlbums(response.data);
       } catch (error) {
@@ -49,7 +49,7 @@ function ArtistAlbums() {
                       component="img"
                       alt={album.title}
                       height="200"
-                      image={`http://localhost:8000/api/music/album-art/${album.album_id}`}
+                      image={`http://backend:8000/api/music/album-art/${album.album_id}`}
                       title={album.title}
                       className="album-cover"
                     />
