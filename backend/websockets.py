@@ -18,7 +18,6 @@ async def send_to_specific_client(session_id: str, message: dict, message_type: 
     """Send a message to a specific WebSocket client based on session ID."""
     try:
         connection = active_connections[message_type][session_id]
-        logging.debug(f"Sending message to connection {session_id}")
         await connection.send_text(json.dumps(message))
     except KeyError:
         logging.error(f"Session ID {session_id} not found in {message_type}")
@@ -50,10 +49,9 @@ async def send_queue():
 async def send_current_playing():
     """Send the current playing track to all connected WebSocket clients of 'music_control' message_type."""
     try:
-        # Fetch the current playing track
         current_track = get_current_playing_track()
+        logging.debug(f"Sending current playing track: {current_track}")
 
-        # Check if the track is valid
         if current_track:
             track_data = {
                 "title": current_track["title"],
