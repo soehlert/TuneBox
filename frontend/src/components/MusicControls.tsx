@@ -96,7 +96,9 @@ const MusicControlsComponent = () => {
       if (response.ok) {
         const data = await response.json();
         console.log(data.message);
-        setIsPlaying(!isPlaying); // Toggle the state
+        setIsPlaying(!isPlaying);
+        setProgress(0);
+        setElapsedTime('0:00');
       } else {
         console.error('Failed to toggle playback');
       }
