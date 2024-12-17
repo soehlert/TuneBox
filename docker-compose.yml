@@ -2,7 +2,7 @@ services:
   frontend:
     build:
       context: .
-      dockerfile: compose/frontend/Dockerfile
+      dockerfile: Compose/frontend/Dockerfile
     ports:
       - "80:80"
     depends_on:
@@ -11,7 +11,7 @@ services:
   backend:
     build:
       context: .
-      dockerfile: compose/backend/Dockerfile
+      dockerfile: Compose/backend/Dockerfile
     ports:
       - "8000:8000"
     volumes:

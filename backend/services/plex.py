@@ -14,6 +14,8 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
 track_time_tracker = TrackTimeTracker()
+# Declare the global variable to manage playback state
+playback_active = False
 
 
 def get_plex_connection():
@@ -28,48 +30,64 @@ def get_plex_connection():
         raise
 
 
+def calculate_playback_state(session):
+    """Calculate the playback state including elapsed time, remaining time, and progress."""
+    total_time = milliseconds_to_seconds(session.duration)
+
+    # Call the method on the instance of TrackTimeTracker
+    elapsed_time = track_time_tracker.get_elapsed_time(session.title)
+
+    # Ensure that elapsed_time doesn't go negative or exceed total_time
+    if elapsed_time < 0:
+        elapsed_time = 0
+    if elapsed_time > total_time:
+        elapsed_time = total_time
+
+    remaining_time = total_time - elapsed_time
+
+    if total_time > 0:
+        remaining_percentage = (remaining_time / total_time) * 100
+    else:
+        remaining_percentage = 0
+
+    return {
+        'total_time': total_time,
+        'elapsed_time': elapsed_time,
+        'remaining_time': remaining_time,
+        'remaining_percentage': remaining_percentage
+    }
+
+
 def get_current_playing_track():
     """Fetch the currently playing track on the active player."""
     plex = get_plex_connection()
     player = get_active_player().machineIdentifier
     sessions = plex.sessions()
+    logging.debug(f"Plex sessions: {sessions}")
 
     if not sessions:
         logging.debug("No active sessions found.")
         return None
 
     for session in sessions:
+        logging.debug(f"SESSION: {session}")
         if session.player.machineIdentifier == player:
-            total_time = milliseconds_to_seconds(session.duration)
-            view_offset = milliseconds_to_seconds(session.viewOffset)
-            track_state = session.player.state
-            elapsed_time = track_time_tracker.get_elapsed_time(session.title)
-
-            # Ensure that elapsed_time doesn't go negative or exceed total_time
-            if elapsed_time < 0:
-                elapsed_time = 0
-            if elapsed_time > total_time:
-                elapsed_time = total_time
-
-            remaining_time = total_time - elapsed_time
-
-            if total_time > 0:
-                remaining_percentage = (remaining_time / total_time) * 100
-            else:
-                remaining_percentage = 0
+            playback_state = calculate_playback_state(session)
+            logging.debug(f"Playback state: {playback_state}")
 
             current_track = {
                 'title': session.title,
                 'artist': session.grandparentTitle,
                 'album': session.parentTitle,
-                'total_time': total_time,
-                'track_state': track_state,
-                'remaining_time': remaining_time,
-                'offset': view_offset,
-                'remaining_percentage': remaining_percentage,
-                'elapsed_time': elapsed_time,
+                'track_state': session.player.state,
+                'total_time': playback_state['total_time'],
+                'elapsed_time': playback_state['elapsed_time'],
+                'remaining_time': playback_state['remaining_time'],
+                'remaining_percentage': playback_state['remaining_percentage']
             }
+
             track_time_tracker.update(current_track)
+            logging.debug(f"Current track: {current_track}")
             return current_track
 
     return None
@@ -140,6 +158,15 @@ def play_song(player, song):
 
 async def play_queue_on_device():
     """Play the entire queue on the active Plex device."""
+    global playback_active
+
+    # Mark playback as active at the start of the queue
+    if playback_active:
+        logging.info("Playback already active. Skipping queue start.")
+        return  # Skip if playback is already active
+
+    playback_active = True
+
     try:
         player = get_active_player()
         if not player:
@@ -152,12 +179,21 @@ async def play_queue_on_device():
 
         if not playback_queue:
             logging.warning("Playback queue is empty.")
+            playback_active = False
             return
 
         logging.debug(f"Playback queue: {playback_queue}")
 
         # Play each track in the queue
         for song in playback_queue:
+            if not playback_active:
+                logging.info("Playback stopped by user. Exiting the queue.")
+                break  # Exit the loop if playback is stopped by the user
+
+            if not playback_active:
+                logging.info("Playback stopped by the user, breaking out of the queue loop.")
+                break
+
             item_id = song["item_id"]
             track = get_track(item_id)
             if not track:
@@ -195,6 +231,30 @@ async def monitor_song_progress(track, total_time):
             track_time_tracker.stop()  # Stop tracking when the song finishes
             break
         await asyncio.sleep(1)
+
+def stop_playback():
+    """Stop the currently playing track on the active Plex player."""
+    global playback_active
+
+    try:
+        player = get_active_player()
+        if player:
+            logging.info(f"Stopping playback on {player.title}")
+            player.stop(mtype="music")
+
+            # Set the playback_active flag to False when stopping playback
+            playback_active = False
+
+            # Reset playback state
+            track_time_tracker.reset()
+            return {"message": "Playback stopped successfully."}
+        else:
+            logging.error("No active player found.")
+            raise HTTPException(status_code=400, detail="No active player found.")
+    except Exception as e:
+        logging.error(f"Error stopping playback: {e}")
+        raise HTTPException(status_code=500, detail=f"Error stopping playback: {e}")
+
 
 
 def fetch_all_artists():

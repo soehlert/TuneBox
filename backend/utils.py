@@ -34,6 +34,7 @@ def is_song_in_queue(item):
 
 class TrackTimeTracker:
     def __init__(self):
+        self.current_track = None
         self.start_time = None
         self.elapsed_time = 0
         self.is_playing = False
@@ -69,6 +70,13 @@ class TrackTimeTracker:
         self.is_playing = False
         self.track_name = None
         self.last_update_time = None
+        
+
+    def reset(self):
+        self.stop()
+        self.current_track = None
+        self.elapsed_time = 0
+        self.last_update_time = None
 
     def get_elapsed_time(self, track_name):
         """Get the elapsed time for the currently playing track."""
@@ -77,7 +85,7 @@ class TrackTimeTracker:
                 # Update elapsed time based on the last update time
                 time_diff = time.time() - self.last_update_time
                 self.elapsed_time += time_diff  # Increase elapsed time while playing
-                self.last_update_time = time.time()  # Update last update time
+                self.last_update_time = time.time()
             return self.elapsed_time
         # We are not tracking this song
         return 0

@@ -38,6 +38,7 @@ TuneBox is built with the following technologies:
 - A running Plex server
 - Docker
 - Docker Compose
+- A running Plex Client available for remote play (`NOTE:` Needs to be on the same subnet as your plex server or have the necessary broadcast traffic forwarded between subnets)
 
 ### Steps
 1. Clone the repository:
@@ -49,7 +50,7 @@ TuneBox is built with the following technologies:
 3. Create a .env file in the root directory and configure it with your Plex server details. The .env file 
 should look like this (where CLIENT_NAME is according to your Plex client):
     ```bash
-    PLEX_BASE_URL=your_plex_server_ip
+    PLEX_BASE_URL=your_plex_server_ip # Example: https:/192.0.2.0:32400
     PLEX_TOKEN=your_plex_token
     CLIENT_NAME=Macbook Pro Personal
     REDIS_URL=redis://localhost:6379
