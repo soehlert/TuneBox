@@ -24,12 +24,13 @@ function TrackList() {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [severity, setSeverity] = useState<"success" | "warning" | "error">("success");
-
+  const backendUrl = import.meta.env.VITE_TUNEBOX_URL;
 
   useEffect(() => {
     const fetchTracks = async () => {
       try {
-        const response = await axios.get(`http://backend:8000/api/music/albums/${albumId}/tracks`);
+        const albumUrl = `http://${backendUrl}:8000/api/music/albums/${albumId}/tracks`;
+        const response = await axios.get(albumUrl);
         setAlbumData(response.data);
       } catch (error) {
         console.error("Error fetching album tracks:", error);
@@ -56,7 +57,8 @@ function TrackList() {
 
    const addToQueue = async (trackId: number) => {
     try {
-      await axios.post(`http://backend:8000/api/music/queue/${trackId}`);
+      const queueUrl = `http://${backendUrl}:8000/api/music/queue/${trackId}`;
+      await axios.post(queueUrl);
       showSnackbar("Track added to queue!", "success");
     } catch (error) {
       // Type assertion to tell TypeScript that this error is an AxiosError
@@ -87,7 +89,7 @@ function TrackList() {
               <h1>{albumData.album_title}</h1>
               {(
                 <img
-                  src={`http://backend:8000/api/music/album-art/${albumId}`}
+                  src={`http://${backendUrl}:8000/api/music/album-art/${albumId}`}
                   alt={albumData.album_title}
                   className="album-banner"
                 />
