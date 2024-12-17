@@ -100,7 +100,7 @@ function TrackList() {
                   <Grid item xs={12} sm={6} md={4} key={track.track_id}>
                     <Card className="track-card">
                       <CardContent>
-                        <Typography variant="h6" className="track-title">{track.title}</Typography>
+                        <Typography variant="h6" className="album-track-title">{track.title}</Typography>
                         <Typography variant="body2" className="track-duration">
                           {formatDuration(track.duration)}
                         </Typography>
