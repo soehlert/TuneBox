@@ -2,7 +2,7 @@ import asyncio
 import logging
 
 from fastapi import FastAPI
-from config import settings
+from backend.config import settings
 from backend.routers import music
 from backend.websockets import router as websockets_router
 from backend.websockets import update_websocket_clients
