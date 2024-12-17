@@ -6,6 +6,7 @@ class Settings(BaseSettings):
     plex_token: str
     client_name: str
     redis_url: str
+    tunebox_url: str
 
     class Config:
         env_file = ".env"
