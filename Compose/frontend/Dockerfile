@@ -1,7 +1,7 @@
 # Step 1: Build the React app using Vite
 
 # Use the official Node.js image as the build environment
-FROM node:18 AS build
+FROM node:22 AS build
 
 # Set the working directory
 WORKDIR /app
