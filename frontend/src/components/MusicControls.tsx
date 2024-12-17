@@ -16,11 +16,14 @@ const MusicControlsComponent = () => {
   const lastUpdateRef = useRef<number>(0); // Timestamp of the last update
   const lastElapsedTimeRef = useRef<number>(0); // Last known elapsed time
   const targetProgressRef = useRef<number>(0); // Target progress based on the latest WebSocket message
+  const backendUrl = import.meta.env.VITE_TUNEBOX_URL;
+
 
   useEffect(() => {
     const connectWebSocket = () => {
       if (!socketRef.current) {
-        socketRef.current = new WebSocket("ws://backend:8000/ws");
+        const webSocketUrl = `ws://${backendUrl}:8000/ws`;
+        socketRef.current = new WebSocket(webSocketUrl);
 
         socketRef.current.onopen = () => {
           console.log("WebSocket connected to MusicControlsComponent");
@@ -114,7 +117,8 @@ const MusicControlsComponent = () => {
   // Function to handle play/pause and trigger the play-queue API endpoint
   const handlePlayPause = async () => {
     try {
-      const response = await fetch('http://backend:8000/api/music/play-queue', {
+      const apiURL = `http://${backendUrl}:8000/api/music/play-queue`;
+      const response = await fetch(apiURL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

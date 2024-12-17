@@ -1,16 +1,20 @@
 import { useEffect, useState, useRef } from 'react';
 import { Box, Typography } from '@mui/material';
 
+
 const QueueComponent = () => {
   const [queue, setQueue] = useState<any[]>([]);
   const socketRef = useRef<WebSocket | null>(null);
   const pingIntervalRef = useRef<number | null>(null);
   const pongTimeoutRef = useRef<number | null>(null);
 
+  const backendUrl = import.meta.env.VITE_TUNEBOX_URL;
+
   useEffect(() => {
     const connectWebSocket = () => {
       if (!socketRef.current) {
-        socketRef.current = new WebSocket("ws://backend:8000/ws");
+        const webSocketUrl = `ws://${backendUrl}:8000/ws`;
+        socketRef.current = new WebSocket(webSocketUrl);
 
         socketRef.current.onopen = () => {
           console.log("WebSocket connected to QueueComponent");
@@ -44,13 +48,13 @@ const QueueComponent = () => {
         };
 
         // Heartbeat
-        pingIntervalRef.current = setInterval(() => {
+        pingIntervalRef.current = window.setInterval(() => {
           if (socketRef.current?.readyState === WebSocket.OPEN) {
             socketRef.current?.send(JSON.stringify({
               type: "heartbeat",
               message: "ping"
             }));
-            pongTimeoutRef.current = setTimeout(() => {
+            pongTimeoutRef.current = window.setTimeout(() => {
               console.error("No pong received, attempting reconnect...");
               socketRef.current?.close();
             }, 5000); // Wait for 5 seconds for the pong
@@ -66,12 +70,12 @@ const QueueComponent = () => {
     return () => {
       if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
         socketRef.current.close();
-        clearInterval(pingIntervalRef.current!);
-        clearTimeout(pongTimeoutRef.current!);
+        clearInterval(pingIntervalRef.current as number);
+        clearTimeout(pongTimeoutRef.current as number);
         console.log("WebSocket connection closed on component unmount.");
       }
     };
-  }, []); // Empty dependency array ensures this runs only once
+  }, [backendUrl]);
 
   return (
     <Box className="queue-container" sx={{ padding: 2 }}>
