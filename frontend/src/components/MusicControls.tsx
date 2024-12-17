@@ -11,12 +11,7 @@ const MusicControlsComponent = () => {
   const [elapsedTime, setElapsedTime] = useState<string>('00:00'); // To store the current elapsed time in mm:ss format
   const [duration, setDuration] = useState<string>('00:00'); // To store the song's total duration in mm:ss format
   const socketRef = useRef<WebSocket | null>(null);
-  const pingIntervalRef = useRef<number | null>(null);
-  const pongTimeoutRef = useRef<number | null>(null);
-
-  const lastUpdateRef = useRef<number>(0); // Timestamp of the last update
-  const lastElapsedTimeRef = useRef<number>(0); // Last known elapsed time
-  const targetProgressRef = useRef<number>(0); // Target progress based on the latest WebSocket message
+  const timerRef = useRef<any>(null); // Timer reference for interval updates
   const backendUrl = import.meta.env.VITE_TUNEBOX_URL;
 
 
