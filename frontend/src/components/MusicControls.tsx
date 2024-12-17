@@ -11,12 +11,20 @@ const MusicControlsComponent = () => {
   const [elapsedTime, setElapsedTime] = useState<string>('00:00'); // To store the current elapsed time in mm:ss format
   const [duration, setDuration] = useState<string>('00:00'); // To store the song's total duration in mm:ss format
   const socketRef = useRef<WebSocket | null>(null);
-  const timerRef = useRef<any>(null); // Timer reference for interval updates
+  const pingIntervalRef = useRef<number | null>(null);
+  const pongTimeoutRef = useRef<number | null>(null);
+
+  const lastUpdateRef = useRef<number>(0); // Timestamp of the last update
+  const lastElapsedTimeRef = useRef<number>(0); // Last known elapsed time
+  const targetProgressRef = useRef<number>(0); // Target progress based on the latest WebSocket message
+  const backendUrl = import.meta.env.VITE_TUNEBOX_URL;
+
 
   useEffect(() => {
     const connectWebSocket = () => {
       if (!socketRef.current) {
-        socketRef.current = new WebSocket("ws://backend:8000/ws");
+        const webSocketUrl = `ws://${backendUrl}:8000/ws`;
+        socketRef.current = new WebSocket(webSocketUrl);
 
         socketRef.current.onopen = () => {
           console.log("WebSocket connected to MusicControlsComponent");
@@ -109,7 +117,8 @@ const MusicControlsComponent = () => {
 
   const handleStartQueue = async () => {
     try {
-      const response = await fetch('http://backend:8000/api/music/play-queue', {
+      const apiURL = `http://${backendUrl}:8000/api/music/play-queue`;
+      const response = await fetch(apiURL, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

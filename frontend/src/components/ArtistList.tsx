@@ -10,6 +10,7 @@ import "./ArtistList.css";
 const useDebounce = (value: string, delay: number) => {
   const [debouncedValue, setDebouncedValue] = useState(value);
 
+
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedValue(value);
@@ -36,6 +37,7 @@ function ArtistList() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredArtists, setFilteredArtists] = useState<Artist[]>([]);
+  const backendUrl = import.meta.env.VITE_TUNEBOX_URL;
 
   // Using the debounced search term
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
@@ -45,9 +47,11 @@ function ArtistList() {
 useEffect(() => {
   const fetchArtists = async () => {
     try {
+      const searchURL = `http://{backendUrl}:8000/api/music/search?query=${encodeURIComponent(searchTerm)}`
+      const artistListURL = `http://${backendUrl}:8000/api/music/artists`;
       const endpoint = debouncedSearchTerm
-        ? `http://backend:8000/api/music/search?query=${encodeURIComponent(searchTerm)}`
-        : "http://backend:8000/api/music/artists";
+        ? searchURL
+        : artistListURL;
 
       const response = await axios.get(endpoint);
       let data = response.data;
@@ -160,7 +164,7 @@ useEffect(() => {
                   <CardContent>
                     {(
                       <img
-                        src={`http://backend:8000/api/music/artist-image/${artist.artist_id}`}
+                        src={`http://${backendUrl}:8000/api/music/artist-image/${artist.artist_id}`}
                         alt={artist.name}
                         className="artist-photo"
                       />
