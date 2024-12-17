@@ -2,6 +2,7 @@ import asyncio
 import logging
 
 from fastapi import FastAPI
+from config import settings
 from backend.routers import music
 from backend.websockets import router as websockets_router
 from backend.websockets import update_websocket_clients
@@ -25,7 +26,8 @@ app.add_middleware(
     allow_origins=[
         "http://frontend:80",
         "http://localhost",
-        "http://localhost:5173"
+        "http://localhost:5173",
+        settings.tunebox_url
     ],
     allow_methods=["*"],
     allow_headers=["*"],
