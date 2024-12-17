@@ -49,14 +49,20 @@ TuneBox is built with the following technologies:
 3. Create a .env file in the root directory and configure it with your Plex server details. The .env file 
 should look like this (where CLIENT_NAME is according to your Plex client):
     ```bash
-    PLEX_SERVER_IP=your_plex_server_ip
+    PLEX_BASE_URL=your_plex_server_ip
     PLEX_TOKEN=your_plex_token
     CLIENT_NAME=Macbook Pro Personal
     REDIS_URL=redis://localhost:6379
-4. Build the Docker images and start the services:
+    TUNEBOX_URL=localhost:8000 # or DNS name or IP address of your Tunebox host
+4. Create a frontend/.env file and configure it with. Unfortunately Vite requires us to use a separate .env file 
+   inside the frontend directory
+    ```bash
+    VITE_TUNEBOX_URL=localhost # or DNS name or IP address of your Tunebox host
+    ```
+5. Build the Docker images and start the services:
     ```bash
    docker compose up -d --build
-5. Access the webUI(s):
+6. Access the webUI(s):
    1. main page: http://localhost
    2. fastAPI swagger page: http://0.0.0.0:8000/docs#/
 
