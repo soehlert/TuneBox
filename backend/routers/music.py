@@ -26,10 +26,7 @@ from backend.websockets import send_queue
 from plexapi.exceptions import PlexApiException
 
 
-router = APIRouter(
-    prefix="/api/music",
-    tags=["Music"]
-)
+router = APIRouter(prefix="/api/music", tags=["Music"])
 
 
 @router.post("/queue/{item_id}")
@@ -38,10 +35,8 @@ async def add_to_queue(item_id: int, background_tasks: BackgroundTasks):
     try:
         song = get_track(item_id)
 
-        # Add the song to the Redis queue
         add_to_queue_redis(song)
 
-        # Call the WebSocket function to notify clients of the updated queue
         background_tasks.add_task(send_queue)
 
         return {"message": f"Added {song.title} to the playback queue."}
@@ -63,7 +58,6 @@ async def remove_from_queue(item_id: int, background_tasks: BackgroundTasks):
         logging.debug(f"Removing song: {song.title}")
         result = remove_from_redis_queue(item_id)
 
-        # Notify clients via WebSocket that the queue has been updated
         background_tasks.add_task(send_queue)
 
         return result
@@ -90,7 +84,7 @@ def get_playback_queue():
                 "title": item["title"],
                 "artist": item.get("artist", "Unknown Artist"),
                 "duration": item.get("duration", "0:00"),
-                "album_art": item.get("album_art", None)
+                "album_art": item.get("album_art", None),
             }
             for item in queue
         ]
@@ -105,7 +99,6 @@ async def clear_the_queue(background_tasks: BackgroundTasks):
     try:
         result = clear_redis_queue()
 
-        # Notify clients via WebSocket that the queue has been cleared
         background_tasks.add_task(send_queue)
 
         return result
@@ -121,11 +114,12 @@ async def play_queue(background_tasks: BackgroundTasks):
     background_tasks.add_task(play_queue_on_device)
     return {"message": "Playback started in the background."}
 
+
 @router.post("/stop-queue")
 async def stop_queue(background_tasks: BackgroundTasks):
     """Stop playback on the active player."""
-    result = stop_playback()  # Call the stop_playback function from plex.py
-    background_tasks.add_task(send_queue)  # You may want to notify clients about the updated state
+    result = stop_playback()
+    background_tasks.add_task(send_queue)
     return result
 
 
@@ -148,6 +142,7 @@ def get_albums_for_artist(artist_id: int):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching albums for artist {artist_id}: {e}")
 
+
 # Fetch tracks for a specific album
 @router.get("/albums/{album_id}/tracks")
 def get_tracks_for_album(album_id: int):
@@ -157,6 +152,7 @@ def get_tracks_for_album(album_id: int):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching tracks for album {album_id}: {e}")
 
+
 # Search for artists, albums, or tracks
 @router.get("/search")
 def search_music_endpoint(query: str):
@@ -165,6 +161,7 @@ def search_music_endpoint(query: str):
         return search_music(query)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error searching music library: {e}")
+
 
 # Fetch the list of available playback devices (players)
 @router.get("/players")
@@ -185,7 +182,7 @@ def get_active_player_endpoint():
         return {
             "player_id": active_player.machineIdentifier,
             "name": active_player.title,
-            "device": active_player.device
+            "device": active_player.device,
         }
     except Exception as e:
         logging.error(f"Error fetching active player: {e}")
@@ -206,11 +203,9 @@ def get_current_playing():
         return {"current_track": current_track}
 
     except HTTPException as e:
-        # Catch HTTPException and let FastAPI handle it
         raise e
 
     except Exception as e:
-        # Log unexpected errors and raise a 500 error
         logging.error(f"Error fetching current track: {e}")
         raise HTTPException(status_code=500, detail=f"Error fetching current track: {str(e)}")
 
@@ -230,10 +225,8 @@ async def clear_redis_cache(key: str):
 def get_artist_image(artist_id: int):
     """Fetch and proxy the artist image from Plex."""
     try:
-        # Call the combined function to get the artist image
         response = fetch_art(artist_id, "artist")
 
-        # Return the image as a streaming response
         return StreamingResponse(response.iter_content(chunk_size=1024), media_type="image/jpeg")
 
     except HTTPException as e:
@@ -246,10 +239,8 @@ def get_artist_image(artist_id: int):
 def get_album_art(album_id: int):
     """Fetch and proxy the album art from Plex."""
     try:
-        # Call the combined function to get the album art
         response = fetch_art(album_id, "album")
 
-        # Return the image as a streaming response
         return StreamingResponse(response.iter_content(chunk_size=1024), media_type="image/jpeg")
 
     except HTTPException as e:

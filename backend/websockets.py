@@ -10,9 +10,10 @@ router = APIRouter()
 # Dictionary to store WebSocket connections categorized by type
 active_connections = {
     "music_control": {},  # Store music control connections
-    "queue_update": {},   # Store queue update connections
+    "queue_update": {},  # Store queue update connections
     "unknown": {},
 }
+
 
 async def send_to_specific_client(session_id: str, message: dict, message_type: str):
     """Send a message to a specific WebSocket client based on session ID."""
@@ -31,7 +32,7 @@ async def send_queue():
     message = {
         "type": "queue_update",
         "message": "Queue update",
-        "queue": play_queue  # No need for json.dumps here
+        "queue": play_queue,  # No need for json.dumps here
     }
     logging.debug(f"Sending play queue: {play_queue}")
 
@@ -64,10 +65,7 @@ async def send_current_playing():
             }
 
             # Prepare the message
-            message = {
-                "message": "Current track update",
-                "current_track": track_data
-            }
+            message = {"message": "Current track update", "current_track": track_data}
 
             logging.debug(f"Sending current playing track: {track_data}")
 
@@ -121,8 +119,10 @@ async def websocket_handler(websocket: WebSocket):
     logging.debug(f"Current active connections for '{message_type}': {active_connections[message_type]}")
     logging.debug(f"Stored WebSocket connection {session_id} under {message_type}")
 
-    logging.info(f"New WebSocket connection of type '{message_type}' from {websocket.client} "
-                 f"Active connections: {len(active_connections)}")
+    logging.info(
+        f"New WebSocket connection of type '{message_type}' from {websocket.client} "
+        f"Active connections: {len(active_connections)}"
+    )
 
     try:
         while True:
@@ -148,13 +148,14 @@ async def websocket_handler(websocket: WebSocket):
                 logging.debug("sending current_playing")
                 await send_current_playing()
 
-    except WebSocketDisconnect as e:
+    except WebSocketDisconnect:
         # Remove the WebSocket connection from active_connections on disconnect
         for key in active_connections:
             if session_id in active_connections[key]:
                 active_connections[key].pop(session_id, None)
-        logging.info(f"WebSocket connection from {websocket.client} closed. "
-                     f"Active connections: {len(active_connections)}")
+        logging.info(
+            f"WebSocket connection from {websocket.client} closed. Active connections: {len(active_connections)}"
+        )
     except Exception as e:
         logging.error(f"Error handling WebSocket message: {e}")
 

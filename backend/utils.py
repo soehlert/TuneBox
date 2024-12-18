@@ -12,6 +12,7 @@ def is_track_object(item):
     """Check if the given item is a track object (not a video)."""
     return isinstance(item, Track)
 
+
 def milliseconds_to_seconds(milliseconds):
     """Convert duration in milliseconds to total seconds."""
     seconds = milliseconds // 1000
@@ -25,7 +26,7 @@ def is_song_in_queue(item):
 
         queue_items = [json.loads(item) for item in queue]
 
-        return any(track['item_id'] == item.ratingKey for track in queue_items)
+        return any(track["item_id"] == item.ratingKey for track in queue_items)
 
     except Exception as e:
         logging.error(f"Error checking if song is in queue: {e}")
@@ -52,7 +53,7 @@ class TrackTimeTracker:
     def pause(self):
         """Pause the track and record elapsed time."""
         if self.is_playing:
-            self.elapsed_time = time.time() - self.start_time  # Save elapsed time
+            self.elapsed_time = time.time() - self.start_time
             self.is_playing = False
             self.last_update_time = None  # Stop tracking time
 
@@ -70,7 +71,6 @@ class TrackTimeTracker:
         self.is_playing = False
         self.track_name = None
         self.last_update_time = None
-        
 
     def reset(self):
         self.stop()
@@ -84,10 +84,9 @@ class TrackTimeTracker:
             if self.is_playing:
                 # Update elapsed time based on the last update time
                 time_diff = time.time() - self.last_update_time
-                self.elapsed_time += time_diff  # Increase elapsed time while playing
+                self.elapsed_time += time_diff
                 self.last_update_time = time.time()
             return self.elapsed_time
-        # We are not tracking this song
         return 0
 
     def update(self, current_track):
@@ -101,7 +100,5 @@ class TrackTimeTracker:
         if current_track["track_state"] == "paused":
             self.pause()
         elif current_track["track_state"] == "playing":
-            # If the track is playing, resume or continue tracking
             if not self.is_playing:
                 self.resume()
-
