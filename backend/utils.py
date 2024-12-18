@@ -12,6 +12,7 @@ def is_track_object(item):
     """Check if the given item is a track object (not a video)."""
     return isinstance(item, Track)
 
+
 def milliseconds_to_seconds(milliseconds):
     """Convert duration in milliseconds to total seconds."""
     seconds = milliseconds // 1000
@@ -25,7 +26,7 @@ def is_song_in_queue(item):
 
         queue_items = [json.loads(item) for item in queue]
 
-        return any(track['item_id'] == item.ratingKey for track in queue_items)
+        return any(track["item_id"] == item.ratingKey for track in queue_items)
 
     except Exception as e:
         logging.error(f"Error checking if song is in queue: {e}")
@@ -70,7 +71,6 @@ class TrackTimeTracker:
         self.is_playing = False
         self.track_name = None
         self.last_update_time = None
-        
 
     def reset(self):
         self.stop()
@@ -104,4 +104,3 @@ class TrackTimeTracker:
             # If the track is playing, resume or continue tracking
             if not self.is_playing:
                 self.resume()
-

@@ -12,6 +12,7 @@ redis_cache_client = redis.StrictRedis.from_url(settings.redis_url, db=1, decode
 
 CACHE_TTL = 21600
 
+
 def add_to_queue_redis(song):
     """Add a song to the Redis queue, including album art."""
     try:
@@ -22,8 +23,7 @@ def add_to_queue_redis(song):
         if is_song_in_queue(song):
             logging.info(f"Song {song.title} is already in the Redis queue.")
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Song {song.title} is already in the queue."
+                status_code=status.HTTP_400_BAD_REQUEST, detail=f"Song {song.title} is already in the queue."
             )
 
         song_data = {
@@ -31,11 +31,13 @@ def add_to_queue_redis(song):
             "title": song.title,
             "artist": getattr(song, "grandparentTitle", "Unknown Artist"),
             "duration": song.duration,
-            "album_art": song.thumb if hasattr(song, "thumb") else None  # Grab the album art URL if available
+            "album_art": song.thumb if hasattr(song, "thumb") else None,
         }
 
         # Store the song as a JSON object in Redis
-        redis_queue_client.rpush("playback_queue", json.dumps(song_data))  # Use json.dumps to convert the dict to a JSON string
+        redis_queue_client.rpush(
+            "playback_queue", json.dumps(song_data)
+        )
         logging.info(f"Added {song.title} to the Redis playback queue.")
     except Exception as e:
         logging.error(f"Error adding song to Redis queue: {e}")
@@ -45,10 +47,8 @@ def add_to_queue_redis(song):
 def remove_from_redis_queue(item_id):
     """Remove a song from the Redis playback queue by its item_id."""
     try:
-        # Fetch all items from the queue
         queue = redis_queue_client.lrange("playback_queue", 0, -1)
 
-        # Loop through the queue to find the song with the given item_id
         for song_data in queue:
             song = json.loads(song_data)
             if song["item_id"] == item_id:

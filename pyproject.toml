@@ -1,0 +1,65 @@
+# ===== ruff ====
+[tool.ruff]
+exclude = []
+
+line-length = 119
+target-version = 'py313'
+preview = true
+
+[tool.ruff.lint]
+select = [
+    "A",     # builtins
+    "ASYNC", # async
+    "B",     # bugbear
+    "BLE",   # blind-except
+    "C4",    # comprehensions
+    "C90",   # complexity
+    "COM",   # commas
+    "D",     # pydocstyle
+    "DJ",    # django
+    "DOC",   # pydoclint
+    "DTZ",   # datetimez
+    "E",     # pycodestyle
+    "EM",    # errmsg
+    "ERA",   # eradicate
+    "F",     # pyflakes
+    "FBT",   # boolean-trap
+    "FLY",   # flynt
+    "G",     # logging-format
+    "I",     # isort
+    "ICN",   # import-conventions
+    "ISC",   # implicit-str-concat
+    "LOG",   # logging
+    "N",     # pep8-naming
+    "PERF",  # perflint
+    "PIE",   # pie
+    "PL",    # pylint
+    "PTH",   # use-pathlib
+    "Q",     # quotes
+    "RET",   # return
+    "RSE",   # raise
+    "RUF",   # Ruff
+    "S",     # bandit
+    "SIM",   # simplify
+    "SLF",   # self
+    "SLOT",  # slots
+    "T20",   # print
+    "TRY",   # tryceratops
+    "UP",    # pyupgrade
+]
+ignore = [
+    "COM812", # handled by the formatter
+    "DOC501", # add possible exceptions to the docstring (TODO)
+    "ISC001", # handled by the formatter
+    "RUF012", # need more widespread typing
+    "SIM102", # Use a single `if` statement instead of nested `if` statements
+    "SIM108", # Use ternary operator instead of `if`-`else`-block
+]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 7
+
+[tool.ruff.lint.per-file-ignores]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"

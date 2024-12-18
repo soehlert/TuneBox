@@ -10,6 +10,7 @@ from backend.utils import TrackTimeTracker, milliseconds_to_seconds
 from backend.services.redis import get_redis_queue, cache_data, get_cached_data, remove_from_redis_queue
 
 import urllib3
+
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 
@@ -51,10 +52,10 @@ def calculate_playback_state(session):
         remaining_percentage = 0
 
     return {
-        'total_time': total_time,
-        'elapsed_time': elapsed_time,
-        'remaining_time': remaining_time,
-        'remaining_percentage': remaining_percentage
+        "total_time": total_time,
+        "elapsed_time": elapsed_time,
+        "remaining_time": remaining_time,
+        "remaining_percentage": remaining_percentage,
     }
 
 
@@ -76,14 +77,14 @@ def get_current_playing_track():
             logging.debug(f"Playback state: {playback_state}")
 
             current_track = {
-                'title': session.title,
-                'artist': session.grandparentTitle,
-                'album': session.parentTitle,
-                'track_state': session.player.state,
-                'total_time': playback_state['total_time'],
-                'elapsed_time': playback_state['elapsed_time'],
-                'remaining_time': playback_state['remaining_time'],
-                'remaining_percentage': playback_state['remaining_percentage']
+                "title": session.title,
+                "artist": session.grandparentTitle,
+                "album": session.parentTitle,
+                "track_state": session.player.state,
+                "total_time": playback_state["total_time"],
+                "elapsed_time": playback_state["elapsed_time"],
+                "remaining_time": playback_state["remaining_time"],
+                "remaining_percentage": playback_state["remaining_percentage"],
             }
 
             track_time_tracker.update(current_track)
@@ -102,7 +103,10 @@ def get_all_players():
         if not players:
             raise PlexApiException("No active players found.")
 
-        return [{"player_id": player.machineIdentifier, "name": player.title, "device": player.device} for player in players]
+        return [
+            {"player_id": player.machineIdentifier, "name": player.title, "device": player.device}
+            for player in players
+        ]
     except PlexApiException as e:
         logging.error(f"Error fetching active players: {e}")
         raise
@@ -202,7 +206,7 @@ async def play_queue_on_device():
             else:
                 logging.debug(f"Track found: {track.title}")
 
-            if hasattr(track, 'duration'):
+            if hasattr(track, "duration"):
                 total_time = milliseconds_to_seconds(track.duration)
             else:
                 logging.error(f"Track {track.title} has no 'duration' attribute. Skipping track.")
@@ -222,6 +226,7 @@ async def play_queue_on_device():
         logging.error(f"Error playing queue on device: {e}")
         raise
 
+
 async def monitor_song_progress(track, total_time):
     """Monitor the progress of the song without blocking the event loop."""
     while track_time_tracker.is_playing:
@@ -231,6 +236,7 @@ async def monitor_song_progress(track, total_time):
             track_time_tracker.stop()  # Stop tracking when the song finishes
             break
         await asyncio.sleep(1)
+
 
 def stop_playback():
     """Stop the currently playing track on the active Plex player."""
@@ -256,7 +262,6 @@ def stop_playback():
         raise HTTPException(status_code=500, detail=f"Error stopping playback: {e}")
 
 
-
 def fetch_all_artists():
     """Fetch all artists from the Plex music library with Redis caching."""
     cache_key = "all_artists"
@@ -274,7 +279,9 @@ def fetch_all_artists():
             {
                 "artist_id": artist.ratingKey,
                 "name": artist.title,
-            } for artist in artists]
+            }
+            for artist in artists
+        ]
 
         # Cache the result in Redis
         cache_data(cache_key, artist_list)
@@ -284,6 +291,7 @@ def fetch_all_artists():
     except Exception as e:
         logging.error(f"Error fetching all artists: {e}")
         raise
+
 
 def fetch_albums_for_artist(artist_id):
     """Fetch albums for a specific artist by their ID with Redis caching."""
@@ -336,10 +344,10 @@ def fetch_tracks_for_album(album_id):
                 {
                     "track_id": track.ratingKey,
                     "title": track.title,
-                    "duration": milliseconds_to_seconds(track.duration) if track.duration else 0
+                    "duration": milliseconds_to_seconds(track.duration) if track.duration else 0,
                 }
                 for track in tracks
-            ]
+            ],
         }
 
         # Cache the result in Redis
@@ -366,12 +374,20 @@ def search_music(query):
         for item in artist_results:
             formatted_results.append({"name": item.title, "type": item.type, "artist_id": item.ratingKey})
         for item in album_results:
-            formatted_results.append({"title": item.title, "type": item.type, "album_id": item.ratingKey, "artist": item.parentTitle})
+            formatted_results.append({
+                "title": item.title,
+                "type": item.type,
+                "album_id": item.ratingKey,
+                "artist": item.parentTitle,
+            })
         for item in track_results:
             formatted_results.append({
-                "title": item.title, "type": item.type, "track_id": item.ratingKey,
+                "title": item.title,
+                "type": item.type,
+                "track_id": item.ratingKey,
                 "duration": milliseconds_to_seconds(item.duration) if item.duration else 0,
-                "artist": item.grandparentTitle, "album": item.parentTitle
+                "artist": item.grandparentTitle,
+                "album": item.parentTitle,
             })
 
         return formatted_results
@@ -410,4 +426,3 @@ def fetch_art(item_id: int, item_type: str):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching {item_type} image: {e}")
-

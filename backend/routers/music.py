@@ -26,10 +26,7 @@ from backend.websockets import send_queue
 from plexapi.exceptions import PlexApiException
 
 
-router = APIRouter(
-    prefix="/api/music",
-    tags=["Music"]
-)
+router = APIRouter(prefix="/api/music", tags=["Music"])
 
 
 @router.post("/queue/{item_id}")
@@ -90,7 +87,7 @@ def get_playback_queue():
                 "title": item["title"],
                 "artist": item.get("artist", "Unknown Artist"),
                 "duration": item.get("duration", "0:00"),
-                "album_art": item.get("album_art", None)
+                "album_art": item.get("album_art", None),
             }
             for item in queue
         ]
@@ -121,6 +118,7 @@ async def play_queue(background_tasks: BackgroundTasks):
     background_tasks.add_task(play_queue_on_device)
     return {"message": "Playback started in the background."}
 
+
 @router.post("/stop-queue")
 async def stop_queue(background_tasks: BackgroundTasks):
     """Stop playback on the active player."""
@@ -148,6 +146,7 @@ def get_albums_for_artist(artist_id: int):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching albums for artist {artist_id}: {e}")
 
+
 # Fetch tracks for a specific album
 @router.get("/albums/{album_id}/tracks")
 def get_tracks_for_album(album_id: int):
@@ -157,6 +156,7 @@ def get_tracks_for_album(album_id: int):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching tracks for album {album_id}: {e}")
 
+
 # Search for artists, albums, or tracks
 @router.get("/search")
 def search_music_endpoint(query: str):
@@ -165,6 +165,7 @@ def search_music_endpoint(query: str):
         return search_music(query)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error searching music library: {e}")
+
 
 # Fetch the list of available playback devices (players)
 @router.get("/players")
@@ -185,7 +186,7 @@ def get_active_player_endpoint():
         return {
             "player_id": active_player.machineIdentifier,
             "name": active_player.title,
-            "device": active_player.device
+            "device": active_player.device,
         }
     except Exception as e:
         logging.error(f"Error fetching active player: {e}")
