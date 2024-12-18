@@ -18,7 +18,6 @@ app = FastAPI(
     title="TuneBox API", description="A Jukebox experience, using your local music", version="1.0.0"
 )
 
-# Add CORS middleware to allow WebSocket connections from the frontend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://frontend:80", "http://localhost", "http://localhost:5173", settings.tunebox_url],

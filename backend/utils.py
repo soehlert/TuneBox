@@ -53,7 +53,7 @@ class TrackTimeTracker:
     def pause(self):
         """Pause the track and record elapsed time."""
         if self.is_playing:
-            self.elapsed_time = time.time() - self.start_time  # Save elapsed time
+            self.elapsed_time = time.time() - self.start_time
             self.is_playing = False
             self.last_update_time = None  # Stop tracking time
 
@@ -84,10 +84,9 @@ class TrackTimeTracker:
             if self.is_playing:
                 # Update elapsed time based on the last update time
                 time_diff = time.time() - self.last_update_time
-                self.elapsed_time += time_diff  # Increase elapsed time while playing
+                self.elapsed_time += time_diff
                 self.last_update_time = time.time()
             return self.elapsed_time
-        # We are not tracking this song
         return 0
 
     def update(self, current_track):
@@ -101,6 +100,5 @@ class TrackTimeTracker:
         if current_track["track_state"] == "paused":
             self.pause()
         elif current_track["track_state"] == "playing":
-            # If the track is playing, resume or continue tracking
             if not self.is_playing:
                 self.resume()

@@ -35,7 +35,6 @@ def calculate_playback_state(session):
     """Calculate the playback state including elapsed time, remaining time, and progress."""
     total_time = milliseconds_to_seconds(session.duration)
 
-    # Call the method on the instance of TrackTimeTracker
     elapsed_time = track_time_tracker.get_elapsed_time(session.title)
 
     # Ensure that elapsed_time doesn't go negative or exceed total_time
@@ -164,10 +163,9 @@ async def play_queue_on_device():
     """Play the entire queue on the active Plex device."""
     global playback_active
 
-    # Mark playback as active at the start of the queue
     if playback_active:
         logging.info("Playback already active. Skipping queue start.")
-        return  # Skip if playback is already active
+        return
 
     playback_active = True
 
@@ -188,7 +186,6 @@ async def play_queue_on_device():
 
         logging.debug(f"Playback queue: {playback_queue}")
 
-        # Play each track in the queue
         for song in playback_queue:
             if not playback_active:
                 logging.info("Playback stopped by user. Exiting the queue.")
@@ -233,7 +230,7 @@ async def monitor_song_progress(track, total_time):
         elapsed_time = track_time_tracker.get_elapsed_time(track.title)
         if elapsed_time >= total_time:
             logging.debug(f"Finished playing {track.title}. Moving to the next song.")
-            track_time_tracker.stop()  # Stop tracking when the song finishes
+            track_time_tracker.stop()
             break
         await asyncio.sleep(1)
 
@@ -248,7 +245,6 @@ def stop_playback():
             logging.info(f"Stopping playback on {player.title}")
             player.stop(mtype="music")
 
-            # Set the playback_active flag to False when stopping playback
             playback_active = False
 
             # Reset playback state
@@ -283,7 +279,6 @@ def fetch_all_artists():
             for artist in artists
         ]
 
-        # Cache the result in Redis
         cache_data(cache_key, artist_list)
         logging.info(f"Caching artists: {len(artist_list)}")
 
@@ -315,7 +310,6 @@ def fetch_albums_for_artist(artist_id):
             for album in albums
         ]
 
-        # Cache the result in Redis
         cache_data(cache_key, album_list)
         logging.info(f"Caching {len(album_list)} albums for artist {artist_id}.")
 
@@ -350,7 +344,6 @@ def fetch_tracks_for_album(album_id):
             ],
         }
 
-        # Cache the result in Redis
         cache_data(cache_key, track_list)
         logging.info(f"Caching tracks for album {album_id}.")
 
@@ -401,7 +394,6 @@ def fetch_art(item_id: int, item_type: str):
     try:
         plex = get_plex_connection()
 
-        # Fetch the item (artist or album) based on the item_type
         if item_type == "artist":
             item = plex.fetchItem(item_id)
         elif item_type == "album":
@@ -409,19 +401,15 @@ def fetch_art(item_id: int, item_type: str):
         else:
             raise HTTPException(status_code=400, detail="Invalid item type. Must be 'artist' or 'album'.")
 
-        # Check if the item has a thumbnail
         if not item.thumb:
             raise HTTPException(status_code=404, detail=f"No image available for this {item_type}.")
 
-        # Construct the URL to fetch the image from Plex
         image_url = f"{settings.plex_base_url}{item.thumb}?X-Plex-Token={settings.plex_token}"
 
-        # Fetch the image
-        response = requests.get(image_url, stream=True, verify=False)  # Disable SSL verification if needed
+        response = requests.get(image_url, stream=True, verify=False)
         if not response.ok:
             raise HTTPException(status_code=500, detail=f"Error fetching {item_type} image from Plex.")
 
-        # Return the image response
         return response
 
     except Exception as e:
