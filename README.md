@@ -1,5 +1,7 @@
 # TuneBox
 
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+
 TuneBox is a web-based jukebox suite that allows you to manage and play music from your Plex server. The idea is to have
 a central Jukebox, but still allow access to other devices. Meant for collective music listening at parties. It features 
 a modern interface for interacting with your Plex music library, managing the queue, and controlling music playback.
