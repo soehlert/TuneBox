@@ -53,7 +53,8 @@ def test_add_to_queue_redis(mock_redis, mock_plex_track, mocker):
 
     # Check that the rpush method was called with the correct arguments
     mock_redis[0].rpush.assert_called_once_with(
-        "playback_queue", '{"item_id": "12345", "title": "Test Song", "artist": "Test Artist", "duration": 180, "album_art": "http://example.com/album_art.jpg"}'
+        "playback_queue",
+        '{"item_id": "12345", "title": "Test Song", "artist": "Test Artist", "duration": 180, "album_art": "http://example.com/album_art.jpg"}',
     )
 
 
@@ -67,7 +68,9 @@ def test_remove_from_redis_queue(mock_redis, mock_plex_track):
     response = remove_from_redis_queue("12345")
 
     mock_redis[0].lrem.assert_called_once_with(
-        "playback_queue", 0, '{"item_id": "12345", "title": "Test Song", "artist": "Test Artist", "duration": 180, "album_art": "http://example.com/album_art.jpg"}'
+        "playback_queue",
+        0,
+        '{"item_id": "12345", "title": "Test Song", "artist": "Test Artist", "duration": 180, "album_art": "http://example.com/album_art.jpg"}',
     )
     assert response == {"message": "Removed Test Song from the queue."}
 
