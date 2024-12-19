@@ -3,12 +3,30 @@ import redis
 import json
 
 from fastapi import HTTPException, status
-
-from backend.config import settings
 from backend.utils import is_song_in_queue, is_track_object
+from backend.config import settings
 
-redis_queue_client = redis.StrictRedis.from_url(settings.redis_url, db=0, decode_responses=True)
-redis_cache_client = redis.StrictRedis.from_url(settings.redis_url, db=1, decode_responses=True)
+
+def get_redis_queue_client():
+    """Lazy initialization of the Redis queue client."""
+    if not hasattr(get_redis_queue_client, "client"):
+        try:
+            get_redis_queue_client.client = redis.StrictRedis.from_url(settings.redis_url, db=0, decode_responses=True)
+        except Exception as e:
+            logging.error(f"Redis queue client connection error: {e}")
+            raise
+    return get_redis_queue_client.client
+
+def get_redis_cache_client():
+    """Lazy initialization of the Redis cache client."""
+    if not hasattr(get_redis_cache_client, "client"):
+        try:
+            get_redis_cache_client.client = redis.StrictRedis.from_url(settings.redis_url, db=1, decode_responses=True)
+        except Exception as e:
+            logging.error(f"Redis cache client connection error: {e}")
+            raise
+    return get_redis_cache_client.client
+
 
 CACHE_TTL = 21600
 
@@ -35,7 +53,7 @@ def add_to_queue_redis(song):
         }
 
         # Store the song as a JSON object in Redis
-        redis_queue_client.rpush(
+        get_redis_queue_client().rpush(
             "playback_queue", json.dumps(song_data)
         )
         logging.info(f"Added {song.title} to the Redis playback queue.")
@@ -47,13 +65,13 @@ def add_to_queue_redis(song):
 def remove_from_redis_queue(item_id):
     """Remove a song from the Redis playback queue by its item_id."""
     try:
-        queue = redis_queue_client.lrange("playback_queue", 0, -1)
+        queue = get_redis_queue_client().lrange("playback_queue", 0, -1)
 
         for song_data in queue:
             song = json.loads(song_data)
             if song["item_id"] == item_id:
                 # Remove the song from the queue
-                redis_queue_client.lrem("playback_queue", 0, song_data)
+                get_redis_queue_client().lrem("playback_queue", 0, song_data)
                 logging.info(f"Removed {song['title']} from the Redis playback queue.")
                 return {"message": f"Removed {song['title']} from the queue."}
 
@@ -69,7 +87,7 @@ def remove_from_redis_queue(item_id):
 def get_redis_queue():
     """Get all songs in the Redis playback queue (metadata only)."""
     try:
-        queue = redis_queue_client.lrange("playback_queue", 0, -1)
+        queue = get_redis_queue_client().lrange("playback_queue", 0, -1)
 
         queue_items = []
         for item_data in queue:
@@ -85,7 +103,7 @@ def get_redis_queue():
 def clear_redis_queue():
     """Clear the entire Redis playback queue."""
     try:
-        redis_queue_client.delete("playback_queue")
+        get_redis_queue_client().delete("playback_queue")
         logging.info("The Redis playback queue has been cleared.")
         return {"message": "The queue has been cleared."}
     except Exception as e:
@@ -96,7 +114,7 @@ def clear_redis_queue():
 def cache_data(key, data):
     """Cache data in Redis."""
     try:
-        redis_cache_client.setex(key, CACHE_TTL, json.dumps(data))
+        get_redis_cache_client().setex(key, CACHE_TTL, json.dumps(data))
         logging.info(f"Cached data under key: {key}")
     except Exception as e:
         logging.error(f"Error caching data under key {key}: {e}")
@@ -106,7 +124,7 @@ def cache_data(key, data):
 def get_cached_data(key):
     """Retrieve cached data from Redis."""
     try:
-        cached_data = redis_cache_client.get(key)
+        cached_data = get_redis_cache_client().get(key)
         if cached_data:
             return json.loads(cached_data)
         else:
@@ -120,7 +138,7 @@ def get_cached_data(key):
 def clear_cache(key: str):
     """Clear a specific cache key in Redis."""
     try:
-        redis_cache_client.delete(key)
+        get_redis_cache_client().delete(key)
         logging.info(f"Cache cleared for key: {key}")
         return {"message": f"Cache cleared for key: {key}"}
     except Exception as e:

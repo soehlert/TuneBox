@@ -5,7 +5,16 @@ import redis
 from backend.config import settings
 from plexapi.audio import Track
 
-redis_client = redis.StrictRedis(host=settings.redis_url, port=6379, db=0, decode_responses=True)
+
+def get_redis_queue_client():
+    """Lazy initialization of the Redis queue client."""
+    if not hasattr(get_redis_queue_client, "client"):
+        try:
+            get_redis_queue_client.client = redis.StrictRedis.from_url(settings.redis_url, db=0, decode_responses=True)
+        except Exception as e:
+            logging.error(f"Redis queue client connection error: {e}")
+            raise
+    return get_redis_queue_client.client
 
 
 def is_track_object(item):
@@ -22,7 +31,8 @@ def milliseconds_to_seconds(milliseconds):
 def is_song_in_queue(item):
     """Check if a song with the same ratingKey already exists in the Redis queue."""
     try:
-        queue = redis_client.lrange("playback_queue", 0, -1)
+        redis_queue_client = get_redis_queue_client()
+        queue = redis_queue_client.lrange("playback_queue", 0, -1)
 
         queue_items = [json.loads(item) for item in queue]
 
