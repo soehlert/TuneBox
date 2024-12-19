@@ -55,9 +55,7 @@ def add_to_queue_redis(song):
         }
 
         # Store the song as a JSON object in Redis
-        get_redis_queue_client().rpush(
-            "playback_queue", json.dumps(song_data)
-        )
+        get_redis_queue_client().rpush("playback_queue", json.dumps(song_data))
         logging.info(f"Added {song.title} to the Redis playback queue.")
     except Exception as e:
         logging.exception(f"Error adding song to Redis queue: {e}")
