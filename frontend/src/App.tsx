@@ -6,7 +6,7 @@ import TrackList from "./components/TrackList";
 import MusicControls from "./components/MusicControls";
 import Queue from "./components/Queue";
 import theme from "./theme";
-import TuneBoxLogo from './assets/TuneBox.svg';
+import TuneBoxLogo from '../public/TuneBox.svg';
 import "./App.css";
 import "./components/Queue.css";
 import "./components/Pagination.css";
