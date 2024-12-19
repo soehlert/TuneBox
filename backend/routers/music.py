@@ -1,30 +1,30 @@
 import logging
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, HTTPException
 from fastapi.responses import StreamingResponse
+from plexapi.exceptions import PlexApiException
+
 from backend.services.plex import (
-    fetch_all_artists,
     fetch_albums_for_artist,
+    fetch_all_artists,
+    fetch_art,
     fetch_tracks_for_album,
-    play_queue_on_device,
-    stop_playback,
+    get_active_player,
     get_all_players,
     get_current_playing_track,
     get_track,
-    get_active_player,
+    play_queue_on_device,
     search_music,
-    fetch_art,
+    stop_playback,
 )
 from backend.services.redis import (
-    clear_redis_queue,
     add_to_queue_redis,
-    remove_from_redis_queue,
-    get_redis_queue,
     clear_cache,
+    clear_redis_queue,
+    get_redis_queue,
+    remove_from_redis_queue,
 )
 from backend.websockets import send_queue
-from plexapi.exceptions import PlexApiException
-
 
 router = APIRouter(prefix="/api/music", tags=["Music"])
 
@@ -89,8 +89,8 @@ def get_playback_queue():
             for item in queue
         ]
     except Exception as e:
-        logging.error(f"Error fetching the queue: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error fetching the queue: {str(e)}")
+        logging.exception(f"Error fetching the queue: {e!s}")
+        raise HTTPException(status_code=500, detail=f"Error fetching the queue: {e!s}")
 
 
 @router.post("/clear-queue")
@@ -104,7 +104,7 @@ async def clear_the_queue(background_tasks: BackgroundTasks):
         return result
 
     except Exception as e:
-        logging.error(f"Error clearing the queue: {e}")
+        logging.exception(f"Error clearing the queue: {e}")
         raise HTTPException(status_code=500, detail=f"Error clearing the queue: {e}")
 
 
@@ -185,7 +185,7 @@ def get_active_player_endpoint():
             "device": active_player.device,
         }
     except Exception as e:
-        logging.error(f"Error fetching active player: {e}")
+        logging.exception(f"Error fetching active player: {e}")
         raise HTTPException(status_code=500, detail=f"Error fetching active player: {e}")
 
 
@@ -206,8 +206,8 @@ def get_current_playing():
         raise e
 
     except Exception as e:
-        logging.error(f"Error fetching current track: {e}")
-        raise HTTPException(status_code=500, detail=f"Error fetching current track: {str(e)}")
+        logging.exception(f"Error fetching current track: {e}")
+        raise HTTPException(status_code=500, detail=f"Error fetching current track: {e!s}")
 
 
 @router.post("/clear-cache/{key}")
@@ -217,7 +217,7 @@ async def clear_redis_cache(key: str):
         result = clear_cache(key)
         return result
     except Exception as e:
-        logging.error(f"Error clearing cache for key {key}: {e}")
+        logging.exception(f"Error clearing cache for key {key}: {e}")
         raise HTTPException(status_code=500, detail=f"Error clearing cache: {e}")
 
 

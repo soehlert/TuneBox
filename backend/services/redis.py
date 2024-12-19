@@ -1,10 +1,11 @@
-import logging
-import redis
 import json
+import logging
 
+import redis
 from fastapi import HTTPException, status
-from backend.utils import is_song_in_queue, is_track_object
+
 from backend.config import settings
+from backend.utils import is_song_in_queue, is_track_object
 
 
 def get_redis_queue_client():
@@ -13,9 +14,10 @@ def get_redis_queue_client():
         try:
             get_redis_queue_client.client = redis.StrictRedis.from_url(settings.redis_url, db=0, decode_responses=True)
         except Exception as e:
-            logging.error(f"Redis queue client connection error: {e}")
+            logging.exception(f"Redis queue client connection error: {e}")
             raise
     return get_redis_queue_client.client
+
 
 def get_redis_cache_client():
     """Lazy initialization of the Redis cache client."""
@@ -23,7 +25,7 @@ def get_redis_cache_client():
         try:
             get_redis_cache_client.client = redis.StrictRedis.from_url(settings.redis_url, db=1, decode_responses=True)
         except Exception as e:
-            logging.error(f"Redis cache client connection error: {e}")
+            logging.exception(f"Redis cache client connection error: {e}")
             raise
     return get_redis_cache_client.client
 
@@ -58,7 +60,7 @@ def add_to_queue_redis(song):
         )
         logging.info(f"Added {song.title} to the Redis playback queue.")
     except Exception as e:
-        logging.error(f"Error adding song to Redis queue: {e}")
+        logging.exception(f"Error adding song to Redis queue: {e}")
         raise
 
 
@@ -80,7 +82,7 @@ def remove_from_redis_queue(item_id):
         return {"message": "Song not found in the queue."}
 
     except Exception as e:
-        logging.error(f"Error removing song from Redis queue: {e}")
+        logging.exception(f"Error removing song from Redis queue: {e}")
         raise
 
 
@@ -96,7 +98,7 @@ def get_redis_queue():
 
         return queue_items
     except Exception as e:
-        logging.error(f"Error fetching the Redis playback queue: {e}")
+        logging.exception(f"Error fetching the Redis playback queue: {e}")
         raise
 
 
@@ -107,7 +109,7 @@ def clear_redis_queue():
         logging.info("The Redis playback queue has been cleared.")
         return {"message": "The queue has been cleared."}
     except Exception as e:
-        logging.error(f"Error clearing Redis queue: {e}")
+        logging.exception(f"Error clearing Redis queue: {e}")
         raise
 
 
@@ -117,7 +119,7 @@ def cache_data(key, data):
         get_redis_cache_client().setex(key, CACHE_TTL, json.dumps(data))
         logging.info(f"Cached data under key: {key}")
     except Exception as e:
-        logging.error(f"Error caching data under key {key}: {e}")
+        logging.exception(f"Error caching data under key {key}: {e}")
         raise
 
 
@@ -127,11 +129,10 @@ def get_cached_data(key):
         cached_data = get_redis_cache_client().get(key)
         if cached_data:
             return json.loads(cached_data)
-        else:
-            logging.info(f"No cached data found for key: {key}")
-            return None
+        logging.info(f"No cached data found for key: {key}")
+        return None
     except Exception as e:
-        logging.error(f"Error retrieving cached data for key {key}: {e}")
+        logging.exception(f"Error retrieving cached data for key {key}: {e}")
         raise
 
 
@@ -142,5 +143,5 @@ def clear_cache(key: str):
         logging.info(f"Cache cleared for key: {key}")
         return {"message": f"Cache cleared for key: {key}"}
     except Exception as e:
-        logging.error(f"Error clearing cache for key {key}: {e}")
+        logging.exception(f"Error clearing cache for key {key}: {e}")
         raise

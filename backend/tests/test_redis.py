@@ -1,7 +1,17 @@
-import pytest
 from unittest.mock import MagicMock
-from backend.services.redis import add_to_queue_redis, remove_from_redis_queue, get_redis_queue, clear_redis_queue, cache_data, get_cached_data, clear_cache
+
+import pytest
 from plexapi.audio import Track
+
+from backend.services.redis import (
+    add_to_queue_redis,
+    cache_data,
+    clear_cache,
+    clear_redis_queue,
+    get_cached_data,
+    get_redis_queue,
+    remove_from_redis_queue,
+)
 
 
 @pytest.fixture

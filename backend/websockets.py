@@ -1,7 +1,8 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+import asyncio
 import json
 import logging
-import asyncio
+
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from backend.services.plex import get_current_playing_track, get_redis_queue
 
@@ -21,9 +22,9 @@ async def send_to_specific_client(session_id: str, message: dict, message_type: 
         connection = active_connections[message_type][session_id]
         await connection.send_text(json.dumps(message))
     except KeyError:
-        logging.error(f"Session ID {session_id} not found in {message_type}")
+        logging.exception(f"Session ID {session_id} not found in {message_type}")
     except Exception as e:
-        logging.error(f"Error sending message to client {session_id}: {e}")
+        logging.exception(f"Error sending message to client {session_id}: {e}")
 
 
 async def send_queue():
@@ -42,7 +43,7 @@ async def send_queue():
             logging.debug(f"Sending queue to connection {session_id}")
             await send_to_specific_client(session_id, message, "queue_update")
         except Exception as e:
-            logging.error(f"Error sending message to client {session_id}: {e}")
+            logging.exception(f"Error sending message to client {session_id}: {e}")
             # If sending fails, remove the connection from active_connections
             active_connections["queue_update"].pop(session_id, None)
 
@@ -75,13 +76,13 @@ async def send_current_playing():
                     logging.debug(f"Sending current track to connection {session_id}")
                     await send_to_specific_client(session_id, message, "music_control")
                 except Exception as e:
-                    logging.error(f"Error sending message to client {session_id}: {e}")
+                    logging.exception(f"Error sending message to client {session_id}: {e}")
                     active_connections["music_control"].pop(session_id, None)
 
         else:
             logging.warning("No current track found.")
     except Exception as e:
-        logging.error(f"Error fetching current track: {e}")
+        logging.exception(f"Error fetching current track: {e}")
 
 
 async def update_websocket_clients():
@@ -157,7 +158,7 @@ async def websocket_handler(websocket: WebSocket):
             f"WebSocket connection from {websocket.client} closed. Active connections: {len(active_connections)}"
         )
     except Exception as e:
-        logging.error(f"Error handling WebSocket message: {e}")
+        logging.exception(f"Error handling WebSocket message: {e}")
 
 
 @router.websocket("/ws")

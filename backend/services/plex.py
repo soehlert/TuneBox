@@ -1,15 +1,15 @@
 import asyncio
 import logging
 
-from fastapi import HTTPException
-from plexapi.server import PlexServer
-from plexapi.exceptions import PlexApiException
-from backend.config import settings
 import requests
-from backend.utils import TrackTimeTracker, milliseconds_to_seconds
-from backend.services.redis import get_redis_queue, cache_data, get_cached_data, remove_from_redis_queue
-
 import urllib3
+from fastapi import HTTPException
+from plexapi.exceptions import PlexApiException
+from plexapi.server import PlexServer
+
+from backend.config import settings
+from backend.services.redis import cache_data, get_cached_data, get_redis_queue, remove_from_redis_queue
+from backend.utils import TrackTimeTracker, milliseconds_to_seconds
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -27,7 +27,7 @@ def get_plex_connection():
         plex = PlexServer(settings.plex_base_url, settings.plex_token, session=session)
         return plex
     except Exception as e:
-        logging.error(f"Plex connection error: {e}")
+        logging.exception(f"Plex connection error: {e}")
         raise
 
 
@@ -38,10 +38,8 @@ def calculate_playback_state(session):
     elapsed_time = track_time_tracker.get_elapsed_time(session.title)
 
     # Ensure that elapsed_time doesn't go negative or exceed total_time
-    if elapsed_time < 0:
-        elapsed_time = 0
-    if elapsed_time > total_time:
-        elapsed_time = total_time
+    elapsed_time = max(elapsed_time, 0)
+    elapsed_time = min(elapsed_time, total_time)
 
     remaining_time = total_time - elapsed_time
 
@@ -107,7 +105,7 @@ def get_all_players():
             for player in players
         ]
     except PlexApiException as e:
-        logging.error(f"Error fetching active players: {e}")
+        logging.exception(f"Error fetching active players: {e}")
         raise
 
 
@@ -125,8 +123,7 @@ def get_active_player(client_name: str = None):
         active_player = next((p for p in players if p.title == client_name), None)
         if active_player:
             return active_player
-        else:
-            logging.debug(f"No player found with name {client_name}, falling back to first player.")
+        logging.debug(f"No player found with name {client_name}, falling back to first player.")
 
     # Select the first available player otherwise
     active_player = players[0]
@@ -143,7 +140,7 @@ def get_track(item_id):
         logging.debug(f"Fetched track: {item.title}")
         return item
     except PlexApiException as e:
-        logging.error(f"Error adding item to playback queue: {e}")
+        logging.exception(f"Error adding item to playback queue: {e}")
         raise
 
 
@@ -155,7 +152,7 @@ def play_song(player, song):
         track_time_tracker.start(song.title)
         logging.info(f"Song {song.title} started playing on player: {player.title}")
     except Exception as e:
-        logging.error(f"Error playing media: {e}")
+        logging.exception(f"Error playing media: {e}")
         raise
 
 
@@ -174,8 +171,7 @@ async def play_queue_on_device():
         if not player:
             logging.error("No active player found.")
             raise HTTPException(status_code=400, detail="No active player found.")
-        else:
-            logging.debug(f"Active player found: {player.title}")
+        logging.debug(f"Active player found: {player.title}")
 
         playback_queue = get_redis_queue()
 
@@ -200,8 +196,7 @@ async def play_queue_on_device():
             if not track:
                 logging.error(f"Track with item_id {item_id} not found. Skipping track.")
                 continue
-            else:
-                logging.debug(f"Track found: {track.title}")
+            logging.debug(f"Track found: {track.title}")
 
             if hasattr(track, "duration"):
                 total_time = milliseconds_to_seconds(track.duration)
@@ -220,7 +215,7 @@ async def play_queue_on_device():
 
             remove_from_redis_queue(item_id)
     except Exception as e:
-        logging.error(f"Error playing queue on device: {e}")
+        logging.exception(f"Error playing queue on device: {e}")
         raise
 
 
@@ -250,11 +245,10 @@ def stop_playback():
             # Reset playback state
             track_time_tracker.reset()
             return {"message": "Playback stopped successfully."}
-        else:
-            logging.error("No active player found.")
-            raise HTTPException(status_code=400, detail="No active player found.")
+        logging.error("No active player found.")
+        raise HTTPException(status_code=400, detail="No active player found.")
     except Exception as e:
-        logging.error(f"Error stopping playback: {e}")
+        logging.exception(f"Error stopping playback: {e}")
         raise HTTPException(status_code=500, detail=f"Error stopping playback: {e}")
 
 
@@ -284,7 +278,7 @@ def fetch_all_artists():
 
         return artist_list
     except Exception as e:
-        logging.error(f"Error fetching all artists: {e}")
+        logging.exception(f"Error fetching all artists: {e}")
         raise
 
 
@@ -315,7 +309,7 @@ def fetch_albums_for_artist(artist_id):
 
         return album_list
     except Exception as e:
-        logging.error(f"Error fetching albums for artist {artist_id}: {e}")
+        logging.exception(f"Error fetching albums for artist {artist_id}: {e}")
         raise
 
 
@@ -349,7 +343,7 @@ def fetch_tracks_for_album(album_id):
 
         return track_list
     except Exception as e:
-        logging.error(f"Error fetching tracks for album {album_id}: {e}")
+        logging.exception(f"Error fetching tracks for album {album_id}: {e}")
         raise
 
 
@@ -385,7 +379,7 @@ def search_music(query):
 
         return formatted_results
     except Exception as e:
-        logging.error(f"Error searching music library: {e}")
+        logging.exception(f"Error searching music library: {e}")
         raise
 
 
@@ -394,9 +388,7 @@ def fetch_art(item_id: int, item_type: str):
     try:
         plex = get_plex_connection()
 
-        if item_type == "artist":
-            item = plex.fetchItem(item_id)
-        elif item_type == "album":
+        if item_type == "artist" or item_type == "album":
             item = plex.fetchItem(item_id)
         else:
             raise HTTPException(status_code=400, detail="Invalid item type. Must be 'artist' or 'album'.")

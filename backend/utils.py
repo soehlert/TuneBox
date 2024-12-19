@@ -1,9 +1,11 @@
-import time
 import json
 import logging
+import time
+
 import redis
-from backend.config import settings
 from plexapi.audio import Track
+
+from backend.config import settings
 
 
 def get_redis_queue_client():
@@ -12,7 +14,7 @@ def get_redis_queue_client():
         try:
             get_redis_queue_client.client = redis.StrictRedis.from_url(settings.redis_url, db=0, decode_responses=True)
         except Exception as e:
-            logging.error(f"Redis queue client connection error: {e}")
+            logging.exception(f"Redis queue client connection error: {e}")
             raise
     return get_redis_queue_client.client
 
@@ -39,7 +41,7 @@ def is_song_in_queue(item):
         return any(track["item_id"] == item.ratingKey for track in queue_items)
 
     except Exception as e:
-        logging.error(f"Error checking if song is in queue: {e}")
+        logging.exception(f"Error checking if song is in queue: {e}")
         return False
 
 
