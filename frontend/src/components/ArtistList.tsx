@@ -47,7 +47,7 @@ function ArtistList() {
 useEffect(() => {
   const fetchArtists = async () => {
     try {
-      const searchURL = `http://{backendUrl}:8000/api/music/search?query=${encodeURIComponent(searchTerm)}`
+      const searchURL = `http://${backendUrl}:8000/api/music/search?query=${encodeURIComponent(searchTerm)}`
       const artistListURL = `http://${backendUrl}:8000/api/music/artists`;
       const endpoint = debouncedSearchTerm
         ? searchURL
