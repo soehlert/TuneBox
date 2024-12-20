@@ -1,3 +1,5 @@
+"""Set up the basics of TuneBox backend."""
+
 import asyncio
 import logging
 
@@ -30,13 +32,14 @@ app.include_router(music.router)
 app.include_router(websockets_router)
 
 
-# Start the background task for periodic updates
 @app.on_event("startup")
 async def start_background_tasks():
+    """Start background tasks for periodic updates."""
     asyncio.create_task(update_websocket_clients())
 
 
 # Root endpoint
 @app.get("/", tags=["Root"])
 def read_root():
+    """Set up our base path."""
     return {"message": "Welcome to the Tunebox API!"}
