@@ -126,7 +126,11 @@ def get_cached_data(key):
     try:
         cached_data = get_redis_cache_client().get(key)
         if cached_data:
-            return json.loads(cached_data)
+            try:
+                return json.loads(cached_data)
+            except json.JSONDecodeError as e:
+                logging.error(f"Invalid JSON data in cache for key {key}: {e}")
+                return None
         logging.info(f"No cached data found for key: {key}")
         return None
     except Exception as e:
