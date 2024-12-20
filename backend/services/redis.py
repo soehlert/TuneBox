@@ -129,7 +129,7 @@ def get_cached_data(key):
             try:
                 return json.loads(cached_data)
             except json.JSONDecodeError as e:
-                logging.error(f"Invalid JSON data in cache for key {key}: {e}")
+                logging.exception(f"Invalid JSON data in cache for key {key}: {e}")
                 return None
         logging.info(f"No cached data found for key: {key}")
         return None

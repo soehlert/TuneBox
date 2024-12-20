@@ -1,7 +1,10 @@
-import pytest
+"""Test utils functions"""
 import time
 from unittest.mock import MagicMock, patch
+
+import pytest
 from plexapi.audio import Track
+
 from backend.services.redis import get_redis_queue_client
 from backend.utils import (
     TrackTimeTracker,
@@ -13,20 +16,21 @@ from backend.utils import (
 # Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def mock_redis(mocker):
-    """
-    Mock Redis client to avoid actual Redis connection.
+    """Mock Redis client to avoid actual Redis connection.
+
     Returns a MagicMock object that simulates Redis client behavior.
     """
     mock_redis_queue = MagicMock()
     mocker.patch("backend.utils.get_redis_queue_client", return_value=mock_redis_queue)
     return mock_redis_queue
 
+
 @pytest.fixture
 def mock_plex_track():
-    """
-    Create a mock Plex Track object with standard test attributes.
+    """Create a mock Plex Track object with standard test attributes.
     Returns a MagicMock object simulating a Plex Track.
     """
     track = MagicMock()
@@ -36,10 +40,10 @@ def mock_plex_track():
     track.duration = 180
     return track
 
+
 @pytest.fixture
 def tracker():
-    """
-    Create a fresh TrackTimeTracker instance for testing.
+    """Create a fresh TrackTimeTracker instance for testing.
     Returns a new TrackTimeTracker object.
     """
     return TrackTimeTracker()
@@ -47,6 +51,7 @@ def tracker():
 # ============================================================================
 # Redis Client Tests
 # ============================================================================
+
 
 @patch("backend.services.redis.redis.StrictRedis.from_url")
 def test_get_redis_queue_client(mock_redis):
@@ -63,6 +68,7 @@ def test_get_redis_queue_client(mock_redis):
 # Track Object Tests
 # ============================================================================
 
+
 def test_is_track_object():
     """Test identification of valid Plex Track objects."""
     track = MagicMock(spec=Track)
@@ -75,6 +81,7 @@ def test_is_track_object():
 # Queue Tests
 # ============================================================================
 
+
 def test_song_found_in_queue(mock_redis, mock_plex_track):
     """Test when a song exists in the queue."""
     mock_redis.lrange.return_value = [
@@ -83,6 +90,7 @@ def test_song_found_in_queue(mock_redis, mock_plex_track):
     assert is_song_in_queue(mock_plex_track) is True
     mock_redis.lrange.assert_called_once_with("playback_queue", 0, -1)
 
+
 def test_song_not_in_queue(mock_redis, mock_plex_track):
     """Test when a song is not in the queue."""
     mock_redis.lrange.return_value = [
@@ -90,20 +98,24 @@ def test_song_not_in_queue(mock_redis, mock_plex_track):
     ]
     assert is_song_in_queue(mock_plex_track) is False
 
+
 def test_empty_queue(mock_redis, mock_plex_track):
     """Test behavior with an empty queue."""
     mock_redis.lrange.return_value = []
     assert is_song_in_queue(mock_plex_track) is False
+
 
 def test_redis_exception_handling(mock_redis, mock_plex_track):
     """Test exception handling for Redis failures."""
     mock_redis.lrange.side_effect = Exception("Redis connection failed")
     assert is_song_in_queue(mock_plex_track) is False
 
+
 def test_invalid_json_in_queue(mock_redis, mock_plex_track):
     """Test handling of invalid JSON in the queue."""
     mock_redis.lrange.return_value = ["{invalid json}"]
     assert is_song_in_queue(mock_plex_track) is False
+
 
 def test_multiple_items_in_queue(mock_redis, mock_plex_track):
     """Test with multiple items in the queue."""
@@ -118,6 +130,7 @@ def test_multiple_items_in_queue(mock_redis, mock_plex_track):
 # TrackTimeTracker Tests
 # ============================================================================
 
+
 def test_tracker_start(tracker):
     """Test starting track playback."""
     tracker.start("Test Track")
@@ -126,6 +139,7 @@ def test_tracker_start(tracker):
     assert tracker.start_time is not None
     assert tracker.last_update_time is not None
 
+
 def test_tracker_pause(tracker):
     """Test pausing track playback."""
     tracker.start("Test Track")
@@ -133,6 +147,7 @@ def test_tracker_pause(tracker):
     tracker.pause()
     assert tracker.is_playing is False
     assert tracker.elapsed_time > 0
+
 
 def test_tracker_resume(tracker):
     """Test resuming track playback."""
@@ -145,6 +160,7 @@ def test_tracker_resume(tracker):
     assert tracker.start_time is not None
     assert tracker.elapsed_time > 0
 
+
 def test_tracker_stop(tracker):
     """Test stopping track playback."""
     tracker.start("Test Track")
@@ -155,6 +171,7 @@ def test_tracker_stop(tracker):
     assert tracker.track_name is None
     assert tracker.last_update_time is None
 
+
 def test_tracker_reset(tracker):
     """Test resetting the tracker state."""
     tracker.start("Test Track")
@@ -164,6 +181,7 @@ def test_tracker_reset(tracker):
     assert tracker.track_name is None
     assert tracker.elapsed_time == 0
 
+
 def test_tracker_get_elapsed_time(tracker):
     """Test elapsed time calculation."""
     tracker.start("Test Track")
@@ -172,6 +190,7 @@ def test_tracker_get_elapsed_time(tracker):
     assert elapsed_time > 0
     tracker.stop()
     assert tracker.get_elapsed_time("Test Track") == 0
+
 
 def test_tracker_update(tracker):
     """Test updating tracker with new track information."""
