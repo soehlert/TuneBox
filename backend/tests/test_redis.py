@@ -78,7 +78,7 @@ def test_add_to_queue_redis_invalid_track(mock_redis, mocker):
     # Create an invalid track object (just a plain dict instead of a Track)
     invalid_track = {"title": "Test Song"}
 
-    with pytest.raises(ValueError, match="Only songs can be added to the queue."):
+    with pytest.raises(ValueError, match=r"Only songs can be added to the queue."):
         add_to_queue_redis(invalid_track)
 
     mock_redis_queue.rpush.assert_not_called()
