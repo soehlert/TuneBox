@@ -1,10 +1,10 @@
 """Set up reusable components for pytest."""
 
+import pytest
+
 from unittest.mock import MagicMock, patch
 
 from backend.config import Settings
-
-import pytest
 
 
 @pytest.fixture(autouse=True)
