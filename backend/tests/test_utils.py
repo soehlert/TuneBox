@@ -1,4 +1,4 @@
-"""Test utils functions"""
+"""Test utils functions."""
 import time
 from unittest.mock import MagicMock, patch
 
@@ -11,10 +11,6 @@ from backend.utils import (
     is_song_in_queue,
     is_track_object,
 )
-
-# ============================================================================
-# Fixtures
-# ============================================================================
 
 
 @pytest.fixture
@@ -31,6 +27,7 @@ def mock_redis(mocker):
 @pytest.fixture
 def mock_plex_track():
     """Create a mock Plex Track object with standard test attributes.
+
     Returns a MagicMock object simulating a Plex Track.
     """
     track = MagicMock()
@@ -44,13 +41,10 @@ def mock_plex_track():
 @pytest.fixture
 def tracker():
     """Create a fresh TrackTimeTracker instance for testing.
+
     Returns a new TrackTimeTracker object.
     """
     return TrackTimeTracker()
-
-# ============================================================================
-# Redis Client Tests
-# ============================================================================
 
 
 @patch("backend.services.redis.redis.StrictRedis.from_url")
@@ -64,10 +58,6 @@ def test_get_redis_queue_client(mock_redis):
         assert client is mock_redis_queue
         mock_redis.assert_called_once_with("redis://redis:6379", db=0, decode_responses=True)
 
-# ============================================================================
-# Track Object Tests
-# ============================================================================
-
 
 def test_is_track_object():
     """Test identification of valid Plex Track objects."""
@@ -76,10 +66,6 @@ def test_is_track_object():
 
     assert is_track_object(track) is True
     assert is_track_object(not_a_track) is False
-
-# ============================================================================
-# Queue Tests
-# ============================================================================
 
 
 def test_song_found_in_queue(mock_redis, mock_plex_track):
@@ -125,10 +111,6 @@ def test_multiple_items_in_queue(mock_redis, mock_plex_track):
         '{"item_id": "22222", "title": "Song 2"}'
     ]
     assert is_song_in_queue(mock_plex_track) is True
-
-# ============================================================================
-# TrackTimeTracker Tests
-# ============================================================================
 
 
 def test_tracker_start(tracker):
