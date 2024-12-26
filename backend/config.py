@@ -1,4 +1,4 @@
-"""Config reader for TuneBox"""
+"""Config reader for TuneBox."""
 
 from pydantic_settings import BaseSettings
 
