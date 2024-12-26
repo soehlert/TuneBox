@@ -1,3 +1,5 @@
+"""Set up reusable components for pytest."""
+
 from unittest.mock import MagicMock
 
 import pytest

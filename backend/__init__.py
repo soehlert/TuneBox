@@ -1,4 +1,4 @@
-"""The fastAPI project for TuneBox"""
+"""The fastAPI project for TuneBox."""
 
 __author__ = "Sam Oehlert"
 __version__ = "0.5.0"
