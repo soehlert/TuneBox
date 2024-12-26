@@ -54,6 +54,7 @@ ignore = [
     "RUF012", # need more widespread typing
     "SIM102", # Use a single `if` statement instead of nested `if` statements
     "SIM108", # Use ternary operator instead of `if`-`else`-block
+    "TRY301", # I like to raise redundant exceptions if it's coming from a different module or even far away function
 ]
 
 [tool.ruff.lint.mccabe]
@@ -75,6 +76,6 @@ convention = "google"
 
 # ===== pytest ====
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["backend/tests"]
 pythonpath = ["."]
 asyncio_default_fixture_loop_scope = "function"

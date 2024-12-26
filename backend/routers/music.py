@@ -249,7 +249,6 @@ def get_current_playing():
         current_track = get_current_playing_track()
         logger.debug("Current playing track: %s", current_track)
         if not current_track:
-            # ruff: noqa: TRY301
             raise HTTPException(status_code=404, detail="No track is currently playing")
     except HTTPException:
         raise
