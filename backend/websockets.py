@@ -96,14 +96,20 @@ async def update_websocket_clients():
 
 async def websocket_handler(websocket: WebSocket):
     """Handle incoming WebSocket connections."""
+    logging.debug("websocket_handler: Starting handler")
     await websocket.accept()
+    logging.debug("websocket_handler: Connection accepted")
+
 
     # Wait for the first message from the client to get the type
     message = await websocket.receive_text()
+    logging.debug(f"websocket_handler: Received message: {message}")
     data = json.loads(message)
 
     # Extract the 'type' field to determine how to store the WebSocket connection
     message_type = data.get("type")
+    logging.debug(f"websocket_handler: Extracted message type: {message_type}")
+
     if not message_type:
         logging.error("Received message with no 'type'.")
         await websocket.close()
