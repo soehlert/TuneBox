@@ -1,3 +1,5 @@
+"""Test redis functionality."""
+
 import json
 from unittest.mock import MagicMock
 
@@ -14,27 +16,10 @@ from backend.services.redis import (
     remove_from_redis_queue,
 )
 
+
 # ============================================================================
 # Fixtures
 # ============================================================================
-
-
-@pytest.fixture
-def mock_redis(mocker):
-    """Mock Redis clients to avoid actual Redis connection.
-
-    Returns:
-        tuple: (mock_redis_queue, mock_redis_cache) - Mocked Redis clients for queue and cache
-    """
-    mock_redis_queue = MagicMock()
-    mock_redis_cache = MagicMock()
-
-    mocker.patch("backend.services.redis.get_redis_queue_client", return_value=mock_redis_queue)
-    mocker.patch("backend.services.redis.get_redis_cache_client", return_value=mock_redis_cache)
-
-    return mock_redis_queue, mock_redis_cache
-
-
 @pytest.fixture
 def mock_plex_track():
     """Create a mock Plex Track object with test attributes.
