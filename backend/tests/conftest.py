@@ -1,15 +1,14 @@
 """Set up reusable components for pytest."""
 
-from unittest.mock import MagicMock, patch
-
 import pytest
+from unittest.mock import MagicMock, patch
 
 from backend.config import Settings
 
 
 @pytest.fixture(autouse=True)
 def mock_settings():
-    """Mock settings for all tests"""
+    """Mock settings for all tests."""
     mock_settings = Settings(
         plex_base_url="http://fake-plex:32400",
         plex_token="fake-token",
@@ -18,7 +17,7 @@ def mock_settings():
         tunebox_url="http://fake-tunebox:8000"
     )
 
-    with patch('backend.config.settings', mock_settings):
+    with patch("backend.config.settings", mock_settings):
         yield mock_settings
 
 
