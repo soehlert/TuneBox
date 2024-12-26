@@ -60,6 +60,13 @@ ignore = [
 max-complexity = 7
 
 [tool.ruff.lint.per-file-ignores]
+"**/{tests}/*" = [
+    "DOC201", # documenting return values
+    "DOC402", # documenting yield values
+    "PLR6301", # could be a static method
+    "S101", # use of assert
+    "S106", # hardcoded password
+]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
