@@ -1,8 +1,8 @@
 """Set up reusable components for pytest."""
 
-import pytest
-
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from backend.config import Settings
 
