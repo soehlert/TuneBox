@@ -48,8 +48,9 @@ def sample_track_json():
         "title": "Test Song",
         "artist": "Test Artist",
         "duration": 180,
-        "album_art": "http://example.com/album_art.jpg"
+        "album_art": "http://example.com/album_art.jpg",
     })
+
 
 # ============================================================================
 # Queue Operation Tests
@@ -137,6 +138,7 @@ def test_clear_redis_queue(mock_redis):
 
     mock_redis_queue.delete.assert_called_once_with("playback_queue")
     assert response == {"message": "The queue has been cleared."}
+
 
 # ============================================================================
 # Cache Operation Tests

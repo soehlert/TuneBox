@@ -1,4 +1,5 @@
 """Test utils functions."""
+
 import time
 from unittest.mock import MagicMock, patch
 
@@ -70,18 +71,14 @@ def test_is_track_object():
 
 def test_song_found_in_queue(mock_redis, mock_plex_track):
     """Test when a song exists in the queue."""
-    mock_redis.lrange.return_value = [
-        '{"item_id": "12345", "title": "Mock Song", "artist": "Mock Artist"}'
-    ]
+    mock_redis.lrange.return_value = ['{"item_id": "12345", "title": "Mock Song", "artist": "Mock Artist"}']
     assert is_song_in_queue(mock_plex_track) is True
     mock_redis.lrange.assert_called_once_with("playback_queue", 0, -1)
 
 
 def test_song_not_in_queue(mock_redis, mock_plex_track):
     """Test when a song is not in the queue."""
-    mock_redis.lrange.return_value = [
-        '{"item_id": "67890", "title": "Different Song", "artist": "Different Artist"}'
-    ]
+    mock_redis.lrange.return_value = ['{"item_id": "67890", "title": "Different Song", "artist": "Different Artist"}']
     assert is_song_in_queue(mock_plex_track) is False
 
 
@@ -108,7 +105,7 @@ def test_multiple_items_in_queue(mock_redis, mock_plex_track):
     mock_redis.lrange.return_value = [
         '{"item_id": "11111", "title": "Song 1"}',
         '{"item_id": "12345", "title": "Mock Song"}',
-        '{"item_id": "22222", "title": "Song 2"}'
+        '{"item_id": "22222", "title": "Song 2"}',
     ]
     assert is_song_in_queue(mock_plex_track) is True
 

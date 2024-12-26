@@ -55,6 +55,7 @@ def is_song_in_queue(item):
 
 class TrackTimeTracker:
     """Keep track of what time a song is at even when paused/resumed or stopped."""
+
     def __init__(self):
         """Initialize a TrackTimeTracker object."""
         self.current_track = None

@@ -16,9 +16,7 @@ logging.basicConfig(level=logging.DEBUG)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 
 # Initialize the FastAPI backend
-app = FastAPI(
-    title="TuneBox API", description="A Jukebox experience, using your local music", version="1.0.0"
-)
+app = FastAPI(title="TuneBox API", description="A Jukebox experience, using your local music", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,

@@ -84,7 +84,7 @@ class MockWebSocket(WebSocket):
         try:
             message = await self.receive_queue.get()
             if message == "__DISCONNECT__":
-                logger .debug("MockWebSocket: Simulating disconnect")
+                logger.debug("MockWebSocket: Simulating disconnect")
                 raise WebSocketDisconnect
         except asyncio.QueueEmpty:
             logger.debug("MockWebSocket: Queue is empty, raising WebSocketDisconnect")

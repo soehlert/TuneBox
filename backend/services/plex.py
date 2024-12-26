@@ -114,8 +114,7 @@ def get_all_players():
         raise PlexApiException(msg)
 
     return [
-        {"player_id": player.machineIdentifier, "name": player.title, "device": player.device}
-        for player in players
+        {"player_id": player.machineIdentifier, "name": player.title, "device": player.device} for player in players
     ]
 
 
@@ -166,7 +165,7 @@ def play_song(player, song):
     player.playMedia(song)
     track_time_tracker.start(song.title)
     logger.info("Song %s started playing on player: %s", song.title, player.title)
-    
+
 
 # ruff: noqa: C901
 async def play_queue_on_device():
@@ -412,4 +411,3 @@ def fetch_art(item_id: int, item_type: str):
         raise HTTPException(status_code=500, detail=f"Error fetching {item_type} image: {e}") from e
     else:
         return response
-
