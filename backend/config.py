@@ -14,6 +14,7 @@ class Settings(BaseSettings):
 
     class Config:
         """Define our settings file."""
+
         env_file = ".env"
 
 
