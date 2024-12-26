@@ -48,13 +48,14 @@ select = [
     "UP",    # pyupgrade
 ]
 ignore = [
-    "COM812", # handled by the formatter
-    "DOC501", # add possible exceptions to the docstring (TODO)
-    "ISC001", # handled by the formatter
-    "RUF012", # need more widespread typing
-    "SIM102", # Use a single `if` statement instead of nested `if` statements
-    "SIM108", # Use ternary operator instead of `if`-`else`-block
-    "TRY301", # I like to raise redundant exceptions if it's coming from a different module or even far away function
+    "COM812",  # handled by the formatter
+    "DOC501",  # add possible exceptions to the docstring (TODO)
+    "ISC001",  # handled by the formatter
+    "RUF012",  # need more widespread typing
+    "SIM102",  # Use a single `if` statement instead of nested `if` statements
+    "SIM108",  # Use ternary operator instead of `if`-`else`-block
+    "TRY301",  # I like to raise redundant exceptions if it's coming from a different module or even far away function
+    "PERF401", # I think list comprehensions are usually harder to read quickly
 ]
 
 [tool.ruff.lint.mccabe]
