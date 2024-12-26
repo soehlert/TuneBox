@@ -1,8 +1,22 @@
 """Set up reusable components for pytest."""
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
+
+from backend.config import Settings
 
 import pytest
+
+@pytest.fixture(autouse=True)
+def mock_settings():
+    with patch("backend.config.Settings") as mock_settings:
+        mock_settings.return_value = Settings(
+            plex_base_url="http://fake-plex:32400",
+            plex_token="fake-token",
+            client_name="test-client",
+            redis_url="redis://fake-redis:6379",
+            tunebox_url="http://fake-tunebox:8000"
+        )
+        yield mock_settings
 
 
 @pytest.fixture
