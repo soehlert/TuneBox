@@ -3,7 +3,7 @@
 import asyncio
 import json
 import logging
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi import FastAPI, WebSocket
@@ -12,11 +12,12 @@ from fastapi.websockets import WebSocketDisconnect
 from starlette.websockets import WebSocketState
 
 from backend.routers.music import router
-
 from backend.websockets import active_connections, send_current_playing, send_queue, websocket_handler
 
 app = FastAPI()
 app.include_router(router)
+
+logger = logging.getLogger(__name__)
 
 
 @pytest.fixture
@@ -50,7 +51,6 @@ class MockWebSocket(WebSocket):
 
     def __init__(self):
         """Initialize a mock WebSocket instance."""
-
         scope = {
             "type": "websocket",
             "path": "/ws",
@@ -58,9 +58,9 @@ class MockWebSocket(WebSocket):
             "client": ("127.0.0.1", 50000),
             "server": ("127.0.0.1", 8000),
         }
-        self._receive_queue = asyncio.Queue()
+        self.receive_queue = asyncio.Queue()
         self._send_queue = asyncio.Queue()
-        super().__init__(scope, self._receive_queue.get, self._send_queue.put)
+        super().__init__(scope, self.receive_queue.get, self._send_queue.put)
 
         self.sent_messages = []
         self.closed = False
@@ -69,35 +69,32 @@ class MockWebSocket(WebSocket):
 
     async def accept(self):
         """Simulate accepting a WebSocket connection."""
-
         self.client_state = WebSocketState.CONNECTED
-        logging.debug("MockWebSocket: Connection accepted.")
+        logger.debug("MockWebSocket: Connection accepted.")
         return await super().accept()
 
     async def send_text(self, message: str):
         """Simulate sending a message."""
-
         self.sent_messages.append(message)
         return await super().send_text(message)
 
     async def receive_text(self):
         """Simulate receiving a message."""
-
         self._receive_count += 1
         try:
-            message = await self._receive_queue.get()
+            message = await self.receive_queue.get()
             if message == "__DISCONNECT__":
-                logging.debug("MockWebSocket: Simulating disconnect")
-                raise WebSocketDisconnect()
-            logging.debug(f"MockWebSocket: Returning message: {message}")
-            return message
+                logger .debug("MockWebSocket: Simulating disconnect")
+                raise WebSocketDisconnect
         except asyncio.QueueEmpty:
-            logging.debug("MockWebSocket: Queue is empty, raising WebSocketDisconnect")
-            raise WebSocketDisconnect()
+            logger.debug("MockWebSocket: Queue is empty, raising WebSocketDisconnect")
+            raise WebSocketDisconnect from self
+        else:
+            logger.debug("MockWebSocket: Returning message: %s", message)
+            return message
 
     async def close(self):
         """Simulate closing the WebSocket connection."""
-
         self.closed = True
         self.client_state = WebSocketState.DISCONNECTED
         return await super().close()
@@ -119,10 +116,9 @@ async def test_websocket_handler_connection():
 
         await asyncio.sleep(0.1)
 
-        await mock_ws._receive_queue.put(json.dumps({"type": "music_control"}))
+        await mock_ws.receive_queue.put(json.dumps({"type": "music_control"}))
         await asyncio.sleep(0.1)
 
-        print(f"Active connections after sending message: {active_connections}")
         assert len(active_connections["music_control"]) > 0
 
         handler_task.cancel()
@@ -130,9 +126,6 @@ async def test_websocket_handler_connection():
             await handler_task
         except asyncio.CancelledError:
             pass
-
-
-from unittest.mock import MagicMock
 
 
 @pytest.mark.asyncio
@@ -198,8 +191,6 @@ async def test_send_queue(mock_queue, mock_redis):
 @pytest.mark.asyncio
 async def test_websocket_heartbeat(caplog):
     """Test the heartbeat functionality."""
-    caplog.set_level(logging.DEBUG)
-
     mock_ws = MockWebSocket()
 
     with (
@@ -211,10 +202,10 @@ async def test_websocket_heartbeat(caplog):
 
         handler_task = asyncio.create_task(websocket_handler(mock_ws))
 
-        await mock_ws._receive_queue.put(json.dumps({"type": "music_control"}))
+        await mock_ws.receive_queue.put(json.dumps({"type": "music_control"}))
         await asyncio.sleep(0.1)
 
-        await mock_ws._receive_queue.put(json.dumps({"type": "heartbeat"}))
+        await mock_ws.receive_queue.put(json.dumps({"type": "heartbeat"}))
         await asyncio.sleep(0.1)
 
         assert any('"message": "pong"' in message for message in mock_ws.sent_messages), (
@@ -247,9 +238,9 @@ async def test_websocket_disconnect(caplog):
 
     handler_task = asyncio.create_task(simulate_disconnect())
 
-    await mock_ws._receive_queue.put(json.dumps({"type": "music_control"}))
+    await mock_ws.receive_queue.put(json.dumps({"type": "music_control"}))
     await asyncio.sleep(0.1)
-    await mock_ws._receive_queue.put("__DISCONNECT__")
+    await mock_ws.receive_queue.put("__DISCONNECT__")
     await asyncio.sleep(0.1)
 
     for connection_type in active_connections:

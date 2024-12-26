@@ -66,6 +66,7 @@ max-complexity = 7
     "PLR6301", # could be a static method
     "S101", # use of assert
     "S106", # hardcoded password
+    "SIM105", # try-except-pass
 ]
 
 [tool.ruff.lint.pydocstyle]
