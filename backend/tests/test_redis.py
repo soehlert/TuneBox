@@ -1,10 +1,9 @@
 """Test redis functionality."""
 
 import json
+from unittest.mock import patch
 
 import pytest
-
-from unittest.mock import patch
 
 from backend.services.redis import (
     add_to_queue_redis,

@@ -3,6 +3,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+from plexapi.audio import Track
 
 mock_env = {
     "PLEX_BASE_URL": "http://fake-plex:32400",
@@ -21,6 +22,22 @@ def mock_settings():
     """Mock settings for all tests."""
     with patch("backend.config.settings", settings):
         yield settings
+
+
+@pytest.fixture
+def mock_plex_track():
+    """Create a mock Plex Track object with test attributes.
+
+    Returns:
+        MagicMock: Simulated Plex Track object
+    """
+    mock_track = MagicMock(spec=Track)
+    mock_track.ratingKey = "12345"
+    mock_track.title = "Test Song"
+    mock_track.duration = 180
+    mock_track.thumb = "http://example.com/album_art.jpg"
+    mock_track.grandparentTitle = "Test Artist"
+    return mock_track
 
 
 @pytest.fixture

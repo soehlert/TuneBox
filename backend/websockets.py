@@ -47,7 +47,8 @@ async def send_queue():
             await send_to_specific_client(session_id, message, "queue_update")
         # ruff: noqa: BLE001
         except Exception as e:
-            logger.error("Failed to send to session %s: %s", session_id, e)
+            # ruff: noqa: TRY401
+            logger.exception("Failed to send to session %s: %s", session_id, e)
             active_connections["queue_update"].pop(session_id, None)
 
 
@@ -77,7 +78,8 @@ async def send_current_playing():
                 logger.debug("Sending current track to connection %s", session_id)
                 await send_to_specific_client(session_id, message, "music_control")
             except Exception as e:
-                logger.error(f"Failed to send to session %s: %s", session_id, e)
+                # ruff: noqa: TRY401
+                logger.exception("Failed to send to session %s: %s", session_id, e)
                 active_connections["music_control"].pop(session_id, None)
     else:
         logger.warning("No current track found.")
