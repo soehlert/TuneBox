@@ -17,9 +17,6 @@ from backend.services.redis import (
 )
 
 
-# ============================================================================
-# Fixtures
-# ============================================================================
 @pytest.fixture
 def mock_plex_track():
     """Create a mock Plex Track object with test attributes.
@@ -50,11 +47,6 @@ def sample_track_json():
         "duration": 180,
         "album_art": "http://example.com/album_art.jpg",
     })
-
-
-# ============================================================================
-# Queue Operation Tests
-# ============================================================================
 
 
 def test_add_to_queue_redis(mock_redis, mock_plex_track, mocker):
@@ -138,11 +130,6 @@ def test_clear_redis_queue(mock_redis):
 
     mock_redis_queue.delete.assert_called_once_with("playback_queue")
     assert response == {"message": "The queue has been cleared."}
-
-
-# ============================================================================
-# Cache Operation Tests
-# ============================================================================
 
 
 def test_cache_data_success(mock_redis):
