@@ -50,7 +50,7 @@ def mock_redis(mocker, mock_settings):
     mock_redis_queue = MagicMock()
     mock_redis_cache = MagicMock()
 
-    mocker.patch("backend.services.redis.get_redis_queue_client", return_value=mock_redis_queue)
-    mocker.patch("backend.services.redis.get_redis_cache_client", return_value=mock_redis_cache)
+    mocker.patch("backend.services.redis_client.get_redis_queue_client", return_value=mock_redis_queue)
+    mocker.patch("backend.services.redis_client.get_redis_cache_client", return_value=mock_redis_cache)
 
     return mock_redis_queue, mock_redis_cache

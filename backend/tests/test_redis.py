@@ -37,7 +37,7 @@ def test_add_to_queue_redis(mock_redis, mock_plex_track, mocker):
     mocker.patch("backend.utils.is_track_object", return_value=True)
     mock_redis_queue, _ = mock_redis
 
-    with patch("backend.utils.get_redis_queue_client", return_value=mock_redis_queue):
+    with patch("backend.services.redis.get_redis_queue_client", return_value=mock_redis_queue):
         add_to_queue_redis(mock_plex_track)
 
     mock_redis_queue.rpush.assert_called_once()
@@ -66,7 +66,8 @@ def test_remove_from_redis_queue(mock_redis, sample_track_json):
     mock_redis_queue, _ = mock_redis
     mock_redis_queue.lrange.return_value = [sample_track_json]
 
-    response = remove_from_redis_queue("12345")
+    with patch("backend.services.redis.get_redis_queue_client", return_value=mock_redis_queue):
+        response = remove_from_redis_queue("12345")
 
     mock_redis_queue.lrem.assert_called_once_with("playback_queue", 0, sample_track_json)
     assert response == {"message": "Removed Test Song from the queue."}
@@ -77,7 +78,8 @@ def test_remove_from_redis_queue_not_found(mock_redis):
     mock_redis_queue, _ = mock_redis
     mock_redis_queue.lrange.return_value = []
 
-    response = remove_from_redis_queue("99999")
+    with patch("backend.services.redis.get_redis_queue_client", return_value=mock_redis_queue):
+        response = remove_from_redis_queue("99999")
 
     mock_redis_queue.lrem.assert_not_called()
     assert response == {"message": "Song not found in the queue."}
@@ -88,7 +90,8 @@ def test_get_redis_queue_with_items(mock_redis, sample_track_json):
     mock_redis_queue, _ = mock_redis
     mock_redis_queue.lrange.return_value = [sample_track_json]
 
-    queue = get_redis_queue()
+    with patch("backend.services.redis.get_redis_queue_client", return_value=mock_redis_queue):
+        queue = get_redis_queue()
 
     assert len(queue) == 1
     assert queue[0]["title"] == "Test Song"
@@ -100,7 +103,8 @@ def test_get_redis_queue_empty(mock_redis):
     mock_redis_queue, _ = mock_redis
     mock_redis_queue.lrange.return_value = []
 
-    queue = get_redis_queue()
+    with patch("backend.services.redis.get_redis_queue_client", return_value=mock_redis_queue):
+        queue = get_redis_queue()
 
     assert len(queue) == 0
     mock_redis_queue.lrange.assert_called_once_with("playback_queue", 0, -1)
@@ -110,7 +114,8 @@ def test_clear_redis_queue(mock_redis):
     """Test clearing the entire Redis queue."""
     mock_redis_queue, _ = mock_redis
 
-    response = clear_redis_queue()
+    with patch("backend.services.redis.get_redis_queue_client", return_value=mock_redis_queue):
+        response = clear_redis_queue()
 
     mock_redis_queue.delete.assert_called_once_with("playback_queue")
     assert response == {"message": "The queue has been cleared."}
@@ -122,7 +127,8 @@ def test_cache_data_success(mock_redis):
     key = "test_key"
     data = {"some": "data"}
 
-    cache_data(key, data)
+    with patch("backend.services.redis.get_redis_cache_client", return_value=mock_redis_cache):
+        cache_data("test_key", {"some": "data"})
 
     mock_redis_cache.setex.assert_called_once_with(key, 21600, json.dumps(data))
 
@@ -132,7 +138,8 @@ def test_get_cached_data_exists(mock_redis):
     _, mock_redis_cache = mock_redis
     mock_redis_cache.get.return_value = '{"some": "data"}'
 
-    data = get_cached_data("test_key")
+    with patch("backend.services.redis.get_redis_cache_client", return_value=mock_redis_cache):
+        data = get_cached_data("test_key")
 
     assert data == {"some": "data"}
     mock_redis_cache.get.assert_called_once_with("test_key")
@@ -143,7 +150,8 @@ def test_get_cached_data_not_found(mock_redis):
     _, mock_redis_cache = mock_redis
     mock_redis_cache.get.return_value = None
 
-    data = get_cached_data("test_key")
+    with patch("backend.services.redis.get_redis_cache_client", return_value=mock_redis_cache):
+        data = get_cached_data("test_key")
 
     assert data is None
     mock_redis_cache.get.assert_called_once_with("test_key")
@@ -154,7 +162,8 @@ def test_clear_cache_success(mock_redis):
     _, mock_redis_cache = mock_redis
     key = "test_key"
 
-    response = clear_cache(key)
+    with patch("backend.services.redis.get_redis_cache_client", return_value=mock_redis_cache):
+        response = clear_cache("test_key")
 
     mock_redis_cache.delete.assert_called_once_with(key)
     assert response == {"message": f"Cache cleared for key: {key}"}

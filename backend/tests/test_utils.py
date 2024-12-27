@@ -23,7 +23,7 @@ def tracker():
     return TrackTimeTracker()
 
 
-@patch("backend.services.redis.redis.StrictRedis.from_url")
+@patch("backend.services.redis_client.redis.StrictRedis.from_url")
 def test_get_redis_queue_client(mock_redis):
     """Test the lazy initialization of Redis client."""
     mock_redis_queue = MagicMock()
@@ -49,6 +49,7 @@ def test_song_found_in_queue(mock_redis, mock_plex_track):
     mock_redis_queue, _ = mock_redis
     with patch("backend.utils.get_redis_queue_client", return_value=mock_redis_queue):
         mock_redis_queue.lrange.return_value = ['{"item_id": "12345", "title": "Mock Song", "artist": "Mock Artist"}']
+
         assert is_song_in_queue(mock_plex_track) is True
         mock_redis_queue.lrange.assert_called_once_with("playback_queue", 0, -1)
 
@@ -56,7 +57,7 @@ def test_song_found_in_queue(mock_redis, mock_plex_track):
 def test_song_not_in_queue(mock_redis, mock_plex_track):
     """Test when a song is not in the queue."""
     mock_redis_queue, _ = mock_redis
-    with patch("backend.utils.get_redis_queue_client", return_value=mock_redis_queue):
+    with patch("backend.services.redis_client.get_redis_queue_client", return_value=mock_redis_queue):
         mock_redis_queue.lrange.return_value = [
             '{"item_id": "67890", "title": "Different Song", "artist": "Different Artist"}'
         ]
@@ -66,7 +67,7 @@ def test_song_not_in_queue(mock_redis, mock_plex_track):
 def test_empty_queue(mock_redis, mock_plex_track):
     """Test behavior with an empty queue."""
     mock_redis_queue, _ = mock_redis
-    with patch("backend.utils.get_redis_queue_client", return_value=mock_redis_queue):
+    with patch("backend.services.redis_client.get_redis_queue_client", return_value=mock_redis_queue):
         mock_redis_queue.lrange.return_value = []
         assert is_song_in_queue(mock_plex_track) is False
 

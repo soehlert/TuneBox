@@ -180,7 +180,8 @@ async def test_send_queue(mock_queue, mock_redis):
     mock_redis_queue, _ = mock_redis
     mock_redis_queue.lrange.return_value = [json.dumps(item) for item in mock_queue]
 
-    await send_queue()
+    with patch("backend.services.redis.get_redis_queue_client", return_value=mock_redis_queue):
+        await send_queue()
 
     assert len(mock_ws.sent_messages) == 1
     sent_data = json.loads(mock_ws.sent_messages[0])
