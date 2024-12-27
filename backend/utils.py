@@ -3,22 +3,9 @@
 import json
 import time
 
-import redis
 from plexapi.audio import Track
 
-from backend.config import settings
-
-
-def get_redis_queue_client():
-    """Lazy initialization of the Redis queue client.
-
-    Returns:
-        A Redis queue client.
-    """
-    if not hasattr(get_redis_queue_client, "client"):
-        get_redis_queue_client.client = redis.StrictRedis.from_url(settings.redis_url, db=0, decode_responses=True)
-
-    return get_redis_queue_client.client
+from backend.services.redis_client import get_redis_queue_client
 
 
 def is_track_object(item):

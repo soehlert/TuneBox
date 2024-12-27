@@ -3,39 +3,14 @@
 import json
 import logging
 
-import redis
 from fastapi import HTTPException, status
 
-from backend.config import settings
+from backend.services.redis_client import get_redis_cache_client, get_redis_queue_client
 from backend.utils import is_song_in_queue, is_track_object
 
 logger = logging.getLogger(__name__)
 
 CACHE_TTL = 21600
-
-
-def get_redis_queue_client():
-    """Lazy initialization of the Redis queue client.
-
-    Returns:
-        A Redis queue client.
-    """
-    if not hasattr(get_redis_queue_client, "client"):
-        get_redis_queue_client.client = redis.StrictRedis.from_url(settings.redis_url, db=0, decode_responses=True)
-
-    return get_redis_queue_client.client
-
-
-def get_redis_cache_client():
-    """Lazy initialization of the Redis cache client.
-
-    Returns:
-        A redis cache client.
-    """
-    if not hasattr(get_redis_cache_client, "client"):
-        get_redis_cache_client.client = redis.StrictRedis.from_url(settings.redis_url, db=1, decode_responses=True)
-
-    return get_redis_cache_client.client
 
 
 def add_to_queue_redis(song):
