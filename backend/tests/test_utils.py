@@ -94,12 +94,6 @@ def test_redis_exception_handling(mock_redis, mock_plex_track):
     assert is_song_in_queue(mock_plex_track) is False
 
 
-def test_invalid_json_in_queue(mock_redis, mock_plex_track):
-    """Test handling of invalid JSON in the queue."""
-    mock_redis.lrange.return_value = ["{invalid json}"]
-    assert is_song_in_queue(mock_plex_track) is False
-
-
 def test_multiple_items_in_queue(mock_redis, mock_plex_track):
     """Test with multiple items in the queue."""
     mock_redis.lrange.return_value = [

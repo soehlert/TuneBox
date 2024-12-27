@@ -41,12 +41,13 @@ async def send_queue():
     logger.debug("Sending play queue: %s", play_queue)
 
     # Send the queue to all active connections of message_type 'queue_update'
-    for session_id in active_connections["queue_update"]:
+    for session_id in list(active_connections["queue_update"].keys()):
         try:
             logger.debug("Sending queue to connection %s", session_id)
             await send_to_specific_client(session_id, message, "queue_update")
         # ruff: noqa: BLE001
-        except Exception:
+        except Exception as e:
+            logger.error("Failed to send to session %s: %s", session_id, e)
             active_connections["queue_update"].pop(session_id, None)
 
 
@@ -71,11 +72,12 @@ async def send_current_playing():
         logger.debug("Sending current playing track: %s", track_data)
 
         # Send the message to all active connections of message_type 'music_control'
-        for session_id in active_connections["music_control"]:
+        for session_id in list(active_connections["music_control"].keys()):
             try:
                 logger.debug("Sending current track to connection %s", session_id)
                 await send_to_specific_client(session_id, message, "music_control")
-            except Exception:
+            except Exception as e:
+                logger.error(f"Failed to send to session %s: %s", session_id, e)
                 active_connections["music_control"].pop(session_id, None)
     else:
         logger.warning("No current track found.")
@@ -150,8 +152,7 @@ async def websocket_handler(websocket: WebSocket):
                 await send_current_playing()
 
     except WebSocketDisconnect:
-        # Remove the WebSocket connection from active_connections on disconnect
-        for key in active_connections.items():
+        for key in list(active_connections.keys()):
             if session_id in active_connections[key]:
                 active_connections[key].pop(session_id, None)
         logger.info(
