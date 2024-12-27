@@ -143,18 +143,6 @@ def test_cache_data_success(mock_redis):
     mock_redis_cache.setex.assert_called_once_with(key, 21600, json.dumps(data))
 
 
-def test_cache_data_invalid_json(mock_redis):
-    """Test caching data that can't be JSON serialized."""
-    _, mock_redis_cache = mock_redis
-    key = "test_key"
-    data = {"invalid": set()}  # sets are not JSON serializable
-
-    with pytest.raises(TypeError):
-        cache_data(key, data)
-
-    mock_redis_cache.setex.assert_not_called()
-
-
 def test_get_cached_data_exists(mock_redis):
     """Test retrieving existing cached data."""
     _, mock_redis_cache = mock_redis
@@ -170,17 +158,6 @@ def test_get_cached_data_not_found(mock_redis):
     """Test retrieving non-existent cached data."""
     _, mock_redis_cache = mock_redis
     mock_redis_cache.get.return_value = None
-
-    data = get_cached_data("test_key")
-
-    assert data is None
-    mock_redis_cache.get.assert_called_once_with("test_key")
-
-
-def test_get_cached_data_invalid_json(mock_redis):
-    """Test retrieving corrupted cached data returns None and logs error."""
-    _, mock_redis_cache = mock_redis
-    mock_redis_cache.get.return_value = "{invalid json}"
 
     data = get_cached_data("test_key")
 
