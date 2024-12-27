@@ -18,10 +18,11 @@ def get_redis_queue_client():
     """Lazy initialization of the Redis queue client.
 
     Returns:
-        A redis queue client.
+        A Redis queue client.
     """
     if not hasattr(get_redis_queue_client, "client"):
         get_redis_queue_client.client = redis.StrictRedis.from_url(settings.redis_url, db=0, decode_responses=True)
+
     return get_redis_queue_client.client
 
 

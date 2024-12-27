@@ -1,10 +1,10 @@
 """Test redis functionality."""
 
 import json
-from unittest.mock import MagicMock
 
 import pytest
-from plexapi.audio import Track
+
+from unittest.mock import patch
 
 from backend.services.redis import (
     add_to_queue_redis,
@@ -15,22 +15,6 @@ from backend.services.redis import (
     get_redis_queue,
     remove_from_redis_queue,
 )
-
-
-@pytest.fixture
-def mock_plex_track():
-    """Create a mock Plex Track object with test attributes.
-
-    Returns:
-        MagicMock: Simulated Plex Track object
-    """
-    mock_track = MagicMock(spec=Track)
-    mock_track.ratingKey = "12345"
-    mock_track.title = "Test Song"
-    mock_track.duration = 180
-    mock_track.thumb = "http://example.com/album_art.jpg"
-    mock_track.grandparentTitle = "Test Artist"
-    return mock_track
 
 
 @pytest.fixture
@@ -54,7 +38,8 @@ def test_add_to_queue_redis(mock_redis, mock_plex_track, mocker):
     mocker.patch("backend.utils.is_track_object", return_value=True)
     mock_redis_queue, _ = mock_redis
 
-    add_to_queue_redis(mock_plex_track)
+    with patch("backend.utils.get_redis_queue_client", return_value=mock_redis_queue):
+        add_to_queue_redis(mock_plex_track)
 
     mock_redis_queue.rpush.assert_called_once()
     called_args = mock_redis_queue.rpush.call_args[0]
