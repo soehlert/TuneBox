@@ -31,11 +31,8 @@ COPY ./Compose/frontend/nginx.conf /etc/nginx/nginx.conf.template
 # Copy the build output from the previous stage to the nginx container
 COPY --from=build /app/dist /usr/share/nginx/html
 
-# Run envsubst at runtime to replace the TUNEBOX_URL environment variable
-CMD envsubst '$TUNEBOX_URL' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf && nginx -g "daemon off;"
-
 # Expose the default nginx port
 EXPOSE 80
 
-# Run nginx to serve the static files
-CMD ["nginx", "-g", "daemon off;"]
+# Run envsubst at runtime to replace the TUNEBOX_URL environment variable
+CMD envsubst '$TUNEBOX_URL' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf && nginx -g "daemon off;"
