@@ -2,11 +2,11 @@
 
 import asyncio
 import logging
+from typing import Optional
 
 import requests
 import urllib3
 from fastapi import HTTPException
-from typing import Optional
 from plexapi.exceptions import PlexApiException
 from plexapi.server import PlexServer
 
