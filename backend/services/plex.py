@@ -6,6 +6,7 @@ import logging
 import requests
 import urllib3
 from fastapi import HTTPException
+from typing import Optional
 from plexapi.exceptions import PlexApiException
 from plexapi.server import PlexServer
 
@@ -118,7 +119,7 @@ def get_all_players():
     ]
 
 
-def get_active_player(client_name: None):
+def get_active_player(client_name: Optional[str] = None):
     """Get the first active Plex player.
 
     Returns:
