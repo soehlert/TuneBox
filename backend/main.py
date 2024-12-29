@@ -34,8 +34,8 @@ app.include_router(websockets_router)
 async def start_background_tasks():
     """Start background tasks for periodic updates."""
     # We need to assign the async tasks to something otherwise it could get garbage collected, thought that upsets ruff
-    # ruff: noqa: F841
-    tasks = await asyncio.create_task(update_websocket_clients())
+    # ruff: noqa: F841 RUF029 RUF006
+    asyncio.create_task(update_websocket_clients())
 
 
 # Root endpoint

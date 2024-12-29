@@ -118,7 +118,7 @@ def get_all_players():
     ]
 
 
-def get_active_player(client_name: None):
+def get_active_player(client_name: str | None = None):
     """Get the first active Plex player.
 
     Returns:
