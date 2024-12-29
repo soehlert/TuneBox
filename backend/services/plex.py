@@ -2,7 +2,6 @@
 
 import asyncio
 import logging
-from typing import Optional
 
 import requests
 import urllib3
@@ -119,7 +118,7 @@ def get_all_players():
     ]
 
 
-def get_active_player(client_name: Optional[str] = None):
+def get_active_player(client_name: str | None = None):
     """Get the first active Plex player.
 
     Returns:
