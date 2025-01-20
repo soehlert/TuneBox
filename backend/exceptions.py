@@ -7,6 +7,7 @@ class PlexConnectionError(Exception):
     Attributes:
         original_error (Optional[Exception]): The original exception that caused this error
     """
+
     default_message = "Failed to connect to Plex server"
 
     def __init__(self, original_error: Exception | None = None) -> None:

@@ -37,10 +37,7 @@ def get_plex_connection():
         session.verify = False
 
         # Connect to Plex via MyPlexAccount
-        account = MyPlexAccount(
-            username=settings.plex_username,
-            password=settings.plex_password
-        )
+        account = MyPlexAccount(username=settings.plex_username, password=settings.plex_password)
 
         # Get the specific server by its name
         plex_server = account.resource(settings.plex_server_name).connect()
