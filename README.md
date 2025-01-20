@@ -52,10 +52,11 @@ TuneBox is built with the following technologies:
 3. Create a .env file in the root directory and configure it with your Plex server details. The .env file 
 should look like this (where CLIENT_NAME is according to your Plex client):
     ```bash
-    PLEX_BASE_URL=your_plex_server_ip # Example: https:/192.0.2.0:32400
-    PLEX_TOKEN=your_plex_token
+    PLEX_USERNAME=usernamehere
+    PLEX_PASSWORD=passwordhere
+    PLEX_SERVER_NAME=plex-server
     CLIENT_NAME=Macbook Pro Personal
-    REDIS_URL=redis://localhost:6379
+    REDIS_URL=redis://redis:6379
     TUNEBOX_URL=localhost:8000 # or DNS name or IP address of your Tunebox host
 4. Create a frontend/.env file and configure it with. Unfortunately Vite requires us to use a separate .env file 
    inside the frontend directory

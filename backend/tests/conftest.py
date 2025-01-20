@@ -6,8 +6,9 @@ import pytest
 from plexapi.audio import Track
 
 mock_env = {
-    "PLEX_BASE_URL": "http://fake-plex:32400",
-    "PLEX_TOKEN": "fake-token",
+    "PLEX_USERNAME": "testuser",
+    "PLEX_PASSWORD": "testpassword",
+    "PLEX_SERVER_NAME": "plexserver",
     "CLIENT_NAME": "test-client",
     "REDIS_URL": "redis://fake-redis:6379",
     "TUNEBOX_URL": "http://fake-tunebox:8000",

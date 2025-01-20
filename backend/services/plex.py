@@ -2,14 +2,16 @@
 
 import asyncio
 import logging
+from functools import lru_cache
 
 import requests
 import urllib3
 from fastapi import HTTPException
 from plexapi.exceptions import PlexApiException
-from plexapi.server import PlexServer
+from plexapi.myplex import MyPlexAccount
 
 from backend.config import settings
+from backend.exceptions import PlexConnectionError
 from backend.services.redis import cache_data, get_cached_data, get_redis_queue, remove_from_redis_queue
 from backend.utils import TrackTimeTracker, milliseconds_to_seconds
 
@@ -23,15 +25,27 @@ track_time_tracker = TrackTimeTracker()
 playback_active = False
 
 
+@lru_cache
 def get_plex_connection():
-    """Establish a connection to the Plex server.
+    """Establish a connection to the Plex server via MyPlexAccount.
 
     Returns:
         A PlexServer instance to run our API calls against.
     """
-    session = requests.Session()
-    session.verify = False
-    return PlexServer(settings.plex_base_url, settings.plex_token, session=session)
+    try:
+        session = requests.Session()
+        session.verify = False
+
+        # Connect to Plex via MyPlexAccount
+        account = MyPlexAccount(username=settings.plex_username, password=settings.plex_password)
+
+        # Get the specific server by its name
+        plex_server = account.resource(settings.plex_server_name).connect()
+        logger.info("Connected to Plex server %s", plex_server)
+    except Exception as e:
+        raise PlexConnectionError(original_error=e) from e
+    else:
+        return plex_server
 
 
 def calculate_playback_state(session):
@@ -401,7 +415,10 @@ def fetch_art(item_id: int, item_type: str):
         if not item.thumb:
             raise HTTPException(status_code=404, detail=f"No image available for this {item_type}.")
 
-        image_url = f"{settings.plex_base_url}{item.thumb}?X-Plex-Token={settings.plex_token}"
+        # Get the server URL and token from the established connection
+        server_url = plex.baseurl
+        token = plex.token
+        image_url = f"{server_url}{item.thumb}?X-Plex-Token={token}"
 
         # ruff: noqa: S501
         response = requests.get(image_url, stream=True, verify=False, timeout=5)

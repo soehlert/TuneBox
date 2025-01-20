@@ -6,8 +6,9 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     """Define the settings we need."""
 
-    plex_base_url: str
-    plex_token: str
+    plex_username: str
+    plex_password: str
+    plex_server_name: str
     client_name: str
     redis_url: str
     tunebox_url: str

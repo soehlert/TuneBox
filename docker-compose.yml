@@ -5,6 +5,10 @@ services:
       dockerfile: Compose/frontend/Dockerfile
     ports:
       - "80:80"
+    environment:
+      - TUNEBOX_URL=${TUNEBOX_URL}
+    volumes:
+      - ./frontend/.env:/app/.env
     depends_on:
       - backend
 
