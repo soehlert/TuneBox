@@ -56,7 +56,6 @@ ignore = [
     "SIM108",  # Use ternary operator instead of `if`-`else`-block
     "TRY301",  # I like to raise redundant exceptions if it's coming from a different module or even far away function
     "PERF401", # I think list comprehensions are usually harder to read quickly
-    "SLF001", # I need to use private members in this case
 ]
 
 [tool.ruff.lint.mccabe]

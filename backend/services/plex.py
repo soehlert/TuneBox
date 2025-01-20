@@ -416,9 +416,9 @@ def fetch_art(item_id: int, item_type: str):
             raise HTTPException(status_code=404, detail=f"No image available for this {item_type}.")
 
         # Get the server URL and token from the established connection
-        # ruff: noqa SLF001
+        # ruff: noqa: SLF001
         server_url = plex._baseurl
-        # ruff: noqa SLF001
+        # ruff: noqa: SLF001
         token = plex._token
         image_url = f"{server_url}{item.thumb}?X-Plex-Token={token}"
 
