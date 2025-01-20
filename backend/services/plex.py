@@ -2,15 +2,16 @@
 
 import asyncio
 import logging
+from functools import lru_cache
 
 import requests
 import urllib3
 from fastapi import HTTPException
-from functools import lru_cache
 from plexapi.exceptions import PlexApiException
 from plexapi.myplex import MyPlexAccount
 
 from backend.config import settings
+from backend.exceptions import PlexConnectionError
 from backend.services.redis import cache_data, get_cached_data, get_redis_queue, remove_from_redis_queue
 from backend.utils import TrackTimeTracker, milliseconds_to_seconds
 
@@ -24,7 +25,7 @@ track_time_tracker = TrackTimeTracker()
 playback_active = False
 
 
-@lru_cache()
+@lru_cache
 def get_plex_connection():
     """Establish a connection to the Plex server via MyPlexAccount.
 
@@ -44,11 +45,10 @@ def get_plex_connection():
         # Get the specific server by its name
         plex_server = account.resource(settings.plex_server_name).connect()
         logger.info("Connected to Plex server %s", plex_server)
-
-        return plex_server
-
     except Exception as e:
-        raise Exception(f"Failed to connect to Plex server: {str(e)}")
+        raise PlexConnectionError(original_error=e) from e
+    else:
+        return plex_server
 
 
 def calculate_playback_state(session):
@@ -419,8 +419,8 @@ def fetch_art(item_id: int, item_type: str):
             raise HTTPException(status_code=404, detail=f"No image available for this {item_type}.")
 
         # Get the server URL and token from the established connection
-        server_url = plex._baseurl
-        token = plex._token
+        server_url = plex.baseurl
+        token = plex.token
         image_url = f"{server_url}{item.thumb}?X-Plex-Token={token}"
 
         # ruff: noqa: S501
