@@ -1,6 +1,8 @@
 """Config reader for TuneBox."""
 
 from pydantic_settings import BaseSettings
+from typing import Optional
+from pydantic import BaseModel
 
 
 class Settings(BaseSettings):
@@ -8,8 +10,8 @@ class Settings(BaseSettings):
 
     plex_username: str
     plex_password: str
-    plex_server_name: str
-    client_name: str
+    plex_server_name: Optional[str] = None
+    client_name: Optional[str] = None
     redis_url: str
     tunebox_url: str
 
@@ -17,6 +19,12 @@ class Settings(BaseSettings):
         """Define our settings file."""
 
         env_file = ".env"
+
+
+class UserSettings(BaseModel):
+    """Define our user configurable settings."""
+    plex_server_name: Optional[str]
+    client_name: Optional[str]
 
 
 settings = Settings()
