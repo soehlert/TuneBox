@@ -5,7 +5,8 @@ import logging
 
 from fastapi import HTTPException, status
 
-from backend.services.redis_client import get_redis_cache_client, get_redis_queue_client
+from backend.config import settings
+from backend.services.redis_client import get_redis_cache_client, get_redis_queue_client, get_redis_settings_client
 from backend.utils import is_song_in_queue, is_track_object
 
 logger = logging.getLogger(__name__)
@@ -118,3 +119,12 @@ def clear_cache(key: str):
     get_redis_cache_client().delete(key)
     logger.info("Cache cleared for key: %s", key)
     return {"message": f"Cache cleared for key: {key}"}
+
+
+def get_setting(setting_name: str) -> str | None:
+    """Get settings from Redis."""
+    r = get_redis_settings_client()
+    value = r.get(setting_name)
+    if value:
+        return value
+    return getattr(settings, setting_name, None)
