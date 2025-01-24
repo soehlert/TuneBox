@@ -1,11 +1,13 @@
 """Define our routes for music based API endpoints."""
 
+import json
 import logging
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Body, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from plexapi.exceptions import PlexApiException
 
+from backend.config import UserSettings
 from backend.services.plex import (
     fetch_albums_for_artist,
     fetch_all_artists,
@@ -26,6 +28,7 @@ from backend.services.redis import (
     get_redis_queue,
     remove_from_redis_queue,
 )
+from backend.services.redis_client import get_redis_settings_client
 from backend.websockets import send_queue
 
 router = APIRouter(prefix="/api/music", tags=["Music"])
@@ -305,3 +308,17 @@ def get_album_art(album_id: int):
         raise HTTPException(status_code=500, detail=f"Error fetching album art: {e}") from e
     else:
         return StreamingResponse(response.iter_content(chunk_size=1024), media_type="image/jpeg")
+
+
+@router.post("/settings")
+async def save_settings(user_settings: UserSettings = Body(...)):
+    """Save Tunexbox settings"""
+    try:
+        r = get_redis_settings_client()
+        for field, value in user_settings.model_dump(exclude_unset=True).items():
+            if value is not None:
+                r.set(field, value)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+    else:
+        return {"message": "Settings saved successfully"}
