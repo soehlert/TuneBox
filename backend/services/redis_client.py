@@ -25,3 +25,14 @@ def get_redis_cache_client():
     if not hasattr(get_redis_cache_client, "client"):
         get_redis_cache_client.client = redis.StrictRedis.from_url(settings.redis_url, db=1, decode_responses=True)
     return get_redis_cache_client.client
+
+
+def get_redis_settings_client():
+    """Lazy initialization of the Redis settings client.
+
+    Returns:
+        A Redis settings client.
+    """
+    if not hasattr(get_redis_settings_client, "client"):
+        get_redis_settings_client.client = redis.StrictRedis.from_url(settings.redis_url, db=2, decode_responses=True)
+    return get_redis_settings_client.client
