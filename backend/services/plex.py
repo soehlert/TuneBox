@@ -12,7 +12,7 @@ from plexapi.myplex import MyPlexAccount
 
 from backend.config import settings
 from backend.exceptions import PlexConnectionError
-from backend.services.redis import cache_data, get_cached_data, get_redis_queue, remove_from_redis_queue
+from backend.services.redis import cache_data, get_cached_data, get_redis_queue, remove_from_redis_queue, get_setting
 from backend.utils import TrackTimeTracker, milliseconds_to_seconds
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
@@ -39,8 +39,9 @@ def get_plex_connection():
         # Connect to Plex via MyPlexAccount
         account = MyPlexAccount(username=settings.plex_username, password=settings.plex_password)
 
+        server_name = get_setting("plex_server_name")
         # Get the specific server by its name
-        plex_server = account.resource(settings.plex_server_name).connect()
+        plex_server = account.resource(server_name).connect()
         logger.info("Connected to Plex server %s", plex_server)
     except Exception as e:
         raise PlexConnectionError(original_error=e) from e
