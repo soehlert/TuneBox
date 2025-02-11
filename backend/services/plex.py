@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import uuid
 from functools import lru_cache
 
 import requests
@@ -9,6 +10,7 @@ import urllib3
 from fastapi import HTTPException
 from plexapi.exceptions import PlexApiException
 from plexapi.myplex import MyPlexAccount
+from plexapi.myplex import MyPlexPinLogin
 
 from backend.config import settings
 from backend.exceptions import PlexConnectionError
@@ -24,29 +26,81 @@ track_time_tracker = TrackTimeTracker()
 # Declare the global variable to manage playback state
 playback_active = False
 
+# Dictionary to store PIN login instances and their status
+pin_logins = {}
+
+def start_plex_pin_login():
+    """Starts a PIN login process and returns the PIN and a unique identifier."""
+    try:
+        pin_login = MyPlexPinLogin()
+        identifier = str(uuid.uuid4())
+        pin_logins[identifier] = {"login": pin_login, "status": "pending", "token": None}
+        return pin_login.pin, identifier
+    except Exception as e:
+        raise Exception(f"Error starting PIN login: {e}")
+
+
+def check_plex_pin_login(identifier):
+    """Checks the status of a PIN login process."""
+    try:
+        login_data = pin_logins.get(identifier)
+        if not login_data:
+            raise Exception("Invalid identifier")
+
+        if login_data["status"] == "success":
+            return "success", login_data["token"]
+        elif login_data["status"] == "failed":
+            return "failed", None
+
+        if login_data["login"].checkLogin():
+            login_data["status"] = "success"
+            token = login_data["login"].token
+            account = MyPlexAccount(token=token)
+            login_data["account"] = account
+            return "success", token
+        elif login_data["login"].expired:
+            login_data["status"] = "failed"
+            return "failed", None
+        else:
+            return "pending", None
+
+    except Exception as e:
+        raise Exception(f"Error checking PIN login: {e}")
+
 
 @lru_cache
-def get_plex_connection():
-    """Establish a connection to the Plex server via MyPlexAccount.
+def get_plex_connection(identifier=None):
+    """Establish a connection to the Plex server.
+
+    Args:
+        identifier (str, optional): The identifier used for PIN login. If provided,
+            the function will attempt to use the cached account associated with this identifier.
 
     Returns:
-        A PlexServer instance to run our API calls against.
+        A PlexServer instance.
     """
     try:
         session = requests.Session()
-        session.verify = False
+        session.verify = False  # Not recommended for production
 
-        # Connect to Plex via MyPlexAccount
-        account = MyPlexAccount(username=settings.plex_username, password=settings.plex_password)
+        pin_login = MyPlexPinLogin()
+        pin = pin_login.pin
+        print(f"Enter this PIN at https://plex.tv/link: {pin}")
 
-        server_name = get_setting("plex_server_name")
-        # Get the specific server by its name
-        plex_server = account.resource(server_name).connect()
-        logger.info("Connected to Plex server %s", plex_server)
+        token = pin_login.waitForLogin() # Wait for user to login
+
+        if token:
+            account = MyPlexAccount(token=token)
+            server_name = get_setting("plex_server_name")
+            plex_server = account.resource(server_name).connect()
+            logger.info("Connected to Plex server %s", plex_server)
+            return plex_server
+        else:
+            raise PlexConnectionError("PIN login failed or timed out.")
+
+
     except Exception as e:
         raise PlexConnectionError(original_error=e) from e
-    else:
-        return plex_server
 
 
 def calculate_playback_state(session):

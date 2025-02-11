@@ -1,10 +1,10 @@
 """Define our routes for music based API endpoints."""
 
-import json
 import logging
 
 from fastapi import APIRouter, BackgroundTasks, Body, HTTPException, Request
 from fastapi.responses import StreamingResponse
+from urllib.parse import quote
 from plexapi.exceptions import PlexApiException
 
 from backend.config import UserSettings
@@ -17,6 +17,8 @@ from backend.services.plex import (
     get_all_players,
     get_current_playing_track,
     get_track,
+    start_plex_pin_login,
+    check_plex_pin_login,
     play_queue_on_device,
     search_music,
     stop_playback,
@@ -322,3 +324,23 @@ async def save_settings(user_settings: UserSettings = Body(...)):
         raise HTTPException(status_code=500, detail=str(e)) from e
     else:
         return {"message": "Settings saved successfully"}
+
+
+@router.get("/start_pin_login")
+async def start_plex_login():
+    try:
+        pin, identifier = start_plex_pin_login()
+        identifier = quote(identifier)
+        plex_url = "https://plex.tv/link"
+        return {"pin": pin, "identifier": identifier, "url": plex_url}
+    except Exception as e:
+        raise HTTPException(500, detail=str(e))
+
+
+@router.get("/check_pin_login/{identifier}")
+async def check_login_status(identifier: str):
+    try:
+        status, token = check_plex_pin_login(identifier)
+        return {"status": status, "token": token}  # Only return token on success
+    except Exception as e:
+        raise HTTPException(500, detail=str(e))
