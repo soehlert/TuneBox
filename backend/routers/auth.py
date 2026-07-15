@@ -3,8 +3,9 @@
 import asyncio
 import logging
 import pathlib
+import secrets
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Header, HTTPException
 from plexapi.myplex import MyPlexAccount, MyPlexPinLogin
 from pydantic import BaseModel
 
@@ -23,7 +24,13 @@ MOCK_PIN_ID = 9999
 MOCK_TOKEN = "mock_token_12345"  # noqa: S105
 
 
-def write_settings_to_env(token: str, server_name: str, client_name: str, plex_username: str = ""):
+def write_settings_to_env(
+    token: str,
+    server_name: str,
+    client_name: str,
+    plex_username: str = "",
+    admin_token: str = ""
+):
     """Write settings back to the .env file."""
     env_path = "/app/.env"
     if not pathlib.Path(env_path).exists():
@@ -39,6 +46,7 @@ def write_settings_to_env(token: str, server_name: str, client_name: str, plex_u
             "PLEX_SERVER_NAME": server_name,
             "CLIENT_NAME": client_name,
             "PLEX_USERNAME": plex_username,
+            "ADMIN_TOKEN": admin_token or settings.admin_token,
         }
 
         new_lines = []
@@ -60,7 +68,13 @@ def write_settings_to_env(token: str, server_name: str, client_name: str, plex_u
 
 def write_token_to_env(token: str):
     """Write the Plex authToken back to the .env file."""
-    write_settings_to_env(token, settings.plex_server_name, settings.client_name, settings.plex_username)
+    write_settings_to_env(
+        token,
+        settings.plex_server_name,
+        settings.client_name,
+        settings.plex_username,
+        settings.admin_token
+    )
 
 
 @router.get("/status")
@@ -238,14 +252,90 @@ class ConfigurationRequest(BaseModel):
 @router.post("/configure")
 async def configure_resources(req: ConfigurationRequest):
     """Save selected Plex Server and Client Player to .env and settings."""
+    token = settings.admin_token or secrets.token_hex(16)
+    settings.admin_token = token
     settings.plex_username = req.plex_username
     settings.client_name = req.client_name
     settings.plex_server_name = req.plex_server_name
 
-    write_settings_to_env(settings.plex_token, req.plex_server_name, req.client_name, req.plex_username)
+    write_settings_to_env(
+        settings.plex_token,
+        req.plex_server_name,
+        req.client_name,
+        req.plex_username,
+        admin_token=token
+    )
 
     reinitialize_plex()
 
-    return {"message": "Configuration successfully saved and reinitialized!"}
+    return {
+        "message": "Configuration successfully saved and reinitialized!",
+        "admin_token": token
+    }
 
 
+class SettingsUpdateRequest(BaseModel):
+    """Schema for settings modifications request payload."""
+
+    plex_username: str
+    client_name: str
+    plex_server_name: str
+
+
+@router.get("/settings")
+async def get_settings(x_admin_token: str | None = Header(None)):
+    """Fetch current instance config settings."""
+    if not settings.admin_token or x_admin_token != settings.admin_token:
+        raise HTTPException(status_code=401, detail="Unauthorized: Invalid admin token")
+    return {
+        "plex_username": settings.plex_username,
+        "client_name": settings.client_name,
+        "plex_server_name": settings.plex_server_name,
+    }
+
+
+@router.post("/settings")
+async def update_settings(req: SettingsUpdateRequest, x_admin_token: str | None = Header(None)):
+    """Save updated connection/instance settings live."""
+    if not settings.admin_token or x_admin_token != settings.admin_token:
+        raise HTTPException(status_code=401, detail="Unauthorized: Invalid admin token")
+
+    settings.plex_username = req.plex_username
+    settings.client_name = req.client_name
+    settings.plex_server_name = req.plex_server_name
+
+    write_settings_to_env(
+        settings.plex_token,
+        req.plex_server_name,
+        req.client_name,
+        req.plex_username,
+        settings.admin_token
+    )
+    reinitialize_plex()
+
+    return {"message": "Settings successfully updated!"}
+
+
+@router.get("/verify-username")
+async def verify_username(username: str):
+    """Check if a display name matches a Plex friend or home user of the owner."""
+    if not settings.plex_token:
+        raise HTTPException(status_code=503, detail="Jukebox not configured yet")
+
+    if settings.testing:
+        # In testing mode, treat usernames starting with "friend_" as verified
+        is_member = username.lower().startswith("friend_")
+        return {"username": username, "is_member": is_member, "role": "member" if is_member else "guest"}
+
+    try:
+        account = MyPlexAccount(token=settings.plex_token)
+        friend_names = {u.username.lower() for u in account.users()}
+        home_names = {u.title.lower() for u in account.myPlexAccount().systemAccounts() if hasattr(u, "title")}
+        verified_names = friend_names | home_names
+        is_member = username.lower() in verified_names
+        return {"username": username, "is_member": is_member, "role": "member" if is_member else "guest"}
+    except Exception as e:
+        logger.exception("Failed to look up Plex friends list")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to verify username: {e}"
+        ) from e

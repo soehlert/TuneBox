@@ -2,13 +2,14 @@ import { useState, useEffect } from "react";
 import { Routes, Route, Link } from "react-router-dom";
 import { ThemeProvider } from "@mui/material/styles";
 import axios from "axios";
+import { QRCodeSVG } from "qrcode.react";
 import ArtistList from "./components/ArtistList";
 import ArtistAlbums from "./components/ArtistAlbums";
 import TrackList from "./components/TrackList";
 import MusicControls from "./components/MusicControls";
 import Queue from "./components/Queue";
 import theme from "./theme";
-import TuneBoxLogo from '../public/TuneBox.svg';
+import TuneBoxLogo from "../public/TuneBox.svg";
 import "./App.css";
 import "./components/Queue.css";
 import "./components/Pagination.css";
@@ -19,27 +20,360 @@ const getApiUrl = (path: string) => {
   return `${base}${path}`;
 };
 
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface GuestProfile {
+  name: string;
+  role: "member" | "guest";
+}
+
+// ─── Shared style helpers ─────────────────────────────────────────────────────
+
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  padding: "10px",
+  background: "#2a2a2a",
+  color: "#fff",
+  border: "1px solid #444",
+  borderRadius: "6px",
+  fontSize: "14px",
+  boxSizing: "border-box",
+};
+
+const btnStyle: React.CSSProperties = {
+  width: "100%",
+  padding: "14px",
+  background: "#f5a623",
+  color: "#121212",
+  border: "none",
+  borderRadius: "6px",
+  cursor: "pointer",
+  fontWeight: "bold",
+  fontSize: "15px",
+  transition: "background 0.2s",
+};
+
+const labelStyle: React.CSSProperties = {
+  display: "block",
+  color: "#ccc",
+  fontSize: "13px",
+  fontWeight: "bold",
+  marginBottom: "8px",
+};
+
+// ─── Settings Modal ───────────────────────────────────────────────────────────
+
+interface SettingsModalProps {
+  adminToken: string;
+  onClose: () => void;
+}
+
+function SettingsModal({ adminToken, onClose }: SettingsModalProps) {
+  const [plexUsername, setPlexUsername] = useState("");
+  const [instanceName, setInstanceName] = useState("");
+  const [servers, setServers] = useState<string[]>([]);
+  const [selectedServer, setSelectedServer] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  useEffect(() => {
+    axios
+      .get(getApiUrl("/api/auth/settings"), {
+        headers: { "x-admin-token": adminToken },
+      })
+      .then((res) => {
+        setPlexUsername(res.data.plex_username ?? "");
+        setInstanceName(res.data.client_name ?? "");
+        setSelectedServer(res.data.plex_server_name ?? "");
+      })
+      .catch(console.error);
+
+    axios
+      .get(getApiUrl("/api/auth/resources"))
+      .then((res) => {
+        setServers(res.data.servers ?? []);
+      })
+      .catch(console.error);
+  }, [adminToken]);
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    setMsg("");
+    try {
+      await axios.post(
+        getApiUrl("/api/auth/settings"),
+        { plex_username: plexUsername, client_name: instanceName, plex_server_name: selectedServer },
+        { headers: { "x-admin-token": adminToken } }
+      );
+      setMsg("✓ Settings saved!");
+    } catch {
+      setMsg("✗ Failed to save settings.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.7)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 1000,
+      }}
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div
+        style={{
+          background: "#1e1e1e",
+          border: "1px solid #333",
+          borderRadius: "12px",
+          padding: "36px",
+          width: "440px",
+          maxWidth: "90vw",
+          boxShadow: "0 20px 60px rgba(0,0,0,0.8)",
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
+          <h2 style={{ margin: 0, color: "#f5a623", fontSize: "20px" }}>⚙ Jukebox Settings</h2>
+          <button
+            onClick={onClose}
+            style={{ background: "none", border: "none", color: "#777", fontSize: "22px", cursor: "pointer" }}
+          >
+            ✕
+          </button>
+        </div>
+
+        <form onSubmit={handleSave} style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
+          <div>
+            <label style={labelStyle}>Plex Username</label>
+            <input
+              type="text"
+              value={plexUsername}
+              onChange={(e) => setPlexUsername(e.target.value)}
+              style={inputStyle}
+            />
+          </div>
+          <div>
+            <label style={labelStyle}>TuneBox Instance Name</label>
+            <input
+              type="text"
+              value={instanceName}
+              onChange={(e) => setInstanceName(e.target.value)}
+              style={inputStyle}
+            />
+          </div>
+          <div>
+            <label style={labelStyle}>Plex Media Server</label>
+            {servers.length > 0 ? (
+              <select
+                value={selectedServer}
+                onChange={(e) => setSelectedServer(e.target.value)}
+                style={{ ...inputStyle, cursor: "pointer" }}
+              >
+                {servers.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                type="text"
+                placeholder="Enter server name manually"
+                value={selectedServer}
+                onChange={(e) => setSelectedServer(e.target.value)}
+                style={inputStyle}
+              />
+            )}
+          </div>
+
+          {msg && (
+            <div
+              style={{
+                padding: "10px",
+                borderRadius: "6px",
+                background: msg.startsWith("✓") ? "#1a3a1a" : "#3a1a1a",
+                color: msg.startsWith("✓") ? "#5cdd5c" : "#ff6b6b",
+                fontSize: "13px",
+                textAlign: "center",
+              }}
+            >
+              {msg}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={saving}
+            style={btnStyle}
+            onMouseOver={(e) => (e.currentTarget.style.background = "#d48b17")}
+            onMouseOut={(e) => (e.currentTarget.style.background = "#f5a623")}
+          >
+            {saving ? "Saving..." : "Save Settings"}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── Guest Registration Modal ─────────────────────────────────────────────────
+
+interface GuestModalProps {
+  onJoin: (profile: GuestProfile) => void;
+}
+
+function GuestModal({ onJoin }: GuestModalProps) {
+  const [name, setName] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleJoin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    setLoading(true);
+    setError("");
+    try {
+      const res = await axios.get(getApiUrl(`/api/auth/verify-username?username=${encodeURIComponent(trimmed)}`));
+      const profile: GuestProfile = { name: trimmed, role: res.data.role };
+      localStorage.setItem("tunebox_guest", JSON.stringify(profile));
+      onJoin(profile);
+    } catch {
+      setError("Could not verify username. Joining as guest.");
+      const profile: GuestProfile = { name: trimmed, role: "guest" };
+      localStorage.setItem("tunebox_guest", JSON.stringify(profile));
+      onJoin(profile);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.85)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 1000,
+      }}
+    >
+      <div
+        style={{
+          background: "#1e1e1e",
+          border: "1px solid #333",
+          borderRadius: "16px",
+          padding: "40px",
+          width: "380px",
+          maxWidth: "90vw",
+          textAlign: "center",
+          boxShadow: "0 20px 60px rgba(0,0,0,0.9)",
+        }}
+      >
+        <div style={{ fontSize: "40px", marginBottom: "16px" }}>🎵</div>
+        <h2 style={{ color: "#f5a623", margin: "0 0 8px 0", fontSize: "22px" }}>Welcome to TuneBox!</h2>
+        <p style={{ color: "#888", fontSize: "14px", marginBottom: "28px", lineHeight: "1.5" }}>
+          Enter your Plex username to get verified voting power, or any nickname to join as a guest.
+        </p>
+
+        <form onSubmit={handleJoin} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+          <input
+            type="text"
+            placeholder="Your name or Plex username"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            style={{ ...inputStyle, textAlign: "center", fontSize: "16px", padding: "12px" }}
+            autoFocus
+          />
+          {error && <div style={{ color: "#aaa", fontSize: "12px" }}>{error}</div>}
+          <button
+            type="submit"
+            disabled={loading || !name.trim()}
+            style={{ ...btnStyle, opacity: !name.trim() ? 0.5 : 1, cursor: !name.trim() ? "not-allowed" : "pointer" }}
+            onMouseOver={(e) => name.trim() && (e.currentTarget.style.background = "#d48b17")}
+            onMouseOut={(e) => (e.currentTarget.style.background = "#f5a623")}
+          >
+            {loading ? "Joining..." : "Join Jukebox"}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── User Badge ───────────────────────────────────────────────────────────────
+
+function UserBadge({ profile, onLeave }: { profile: GuestProfile; onLeave: () => void }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "8px",
+        padding: "6px 12px",
+        background: "#1e1e1e",
+        borderRadius: "20px",
+        border: "1px solid #333",
+        cursor: "pointer",
+        fontSize: "13px",
+        color: "#ccc",
+      }}
+      title="Click to leave"
+      onClick={onLeave}
+    >
+      <span style={{ color: profile.role === "member" ? "#5cdd5c" : "#f5a623" }}>
+        {profile.role === "member" ? "✓" : "◉"}
+      </span>
+      <span>{profile.name}</span>
+      {profile.role === "member" && (
+        <span style={{ fontSize: "10px", background: "#1a3a1a", color: "#5cdd5c", padding: "2px 6px", borderRadius: "10px", fontWeight: "bold" }}>
+          2× votes
+        </span>
+      )}
+    </div>
+  );
+}
+
+// ─── Main App ─────────────────────────────────────────────────────────────────
+
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [isConfigured, setIsConfigured] = useState<boolean>(false);
 
-  // Wizard States
+  // Wizard states
   const [step, setStep] = useState<number>(1);
   const [pinCode, setPinCode] = useState<string>("");
   const [pinId, setPinId] = useState<number | null>(null);
   const [authUrl, setAuthUrl] = useState<string>("");
 
-  // Input States
+  // Input states
   const [plexUsername, setPlexUsername] = useState<string>("");
-  const [localUsername, setLocalUsername] = useState<string>(""); // TuneBox Instance Name
+  const [localUsername, setLocalUsername] = useState<string>("");
 
-  // Discovered Resources
+  // Resources
   const [servers, setServers] = useState<string[]>([]);
   const [selectedServer, setSelectedServer] = useState<string>("");
   const [isManualConfig, setIsManualConfig] = useState<boolean>(false);
   const [customServer, setCustomServer] = useState<string>("");
   const [isFetchingResources, setIsFetchingResources] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+
+  // Admin / guest state
+  const adminToken = localStorage.getItem("tunebox_admin_token") ?? "";
+  const isAdmin = Boolean(adminToken);
+  const [showSettings, setShowSettings] = useState(false);
+  const [guestProfile, setGuestProfile] = useState<GuestProfile | null>(() => {
+    const raw = localStorage.getItem("tunebox_guest");
+    return raw ? (JSON.parse(raw) as GuestProfile) : null;
+  });
 
   useEffect(() => {
     checkStatus();
@@ -75,7 +409,6 @@ function App() {
       alert("Please enter both Plex username and TuneBox Instance Name.");
       return;
     }
-
     try {
       const res = await axios.post(getApiUrl("/api/auth/pin"));
       setPinCode(res.data.code);
@@ -124,19 +457,21 @@ function App() {
     e.preventDefault();
     setIsSubmitting(true);
     const serverName = isManualConfig ? customServer : selectedServer;
-
     if (!serverName) {
       alert("Please select or enter a Plex server name.");
       setIsSubmitting(false);
       return;
     }
-
     try {
-      await axios.post(getApiUrl("/api/auth/configure"), {
+      const res = await axios.post(getApiUrl("/api/auth/configure"), {
         plex_username: plexUsername,
         client_name: localUsername,
-        plex_server_name: serverName
+        plex_server_name: serverName,
       });
+      // Store admin token from configure response
+      if (res.data.admin_token) {
+        localStorage.setItem("tunebox_admin_token", res.data.admin_token);
+      }
       setIsConfigured(true);
       setStep(4);
     } catch (err) {
@@ -147,6 +482,14 @@ function App() {
     }
   };
 
+  const handleGuestLeave = () => {
+    localStorage.removeItem("tunebox_guest");
+    setGuestProfile(null);
+  };
+
+  const joinUrl = `${window.location.protocol}//${window.location.hostname}${window.location.port ? `:${window.location.port}` : ""}`;
+
+  // ── Loading spinner ──────────────────────────────────────────────────────────
   if (isAuthenticated === null) {
     return (
       <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh", background: "#121212", color: "white" }}>
@@ -155,7 +498,7 @@ function App() {
     );
   }
 
-  // If authenticated and configured, show Jukebox player
+  // ── Jukebox Dashboard (configured) ──────────────────────────────────────────
   if (isAuthenticated && isConfigured && step === 4) {
     return (
       <ThemeProvider theme={theme}>
@@ -168,6 +511,12 @@ function App() {
             <div className="music-controls-container">
               <MusicControls />
             </div>
+            {/* User badge (top-right, for guests who have joined) */}
+            {!isAdmin && guestProfile && (
+              <div style={{ marginLeft: "auto", paddingRight: "16px" }}>
+                <UserBadge profile={guestProfile} onLeave={handleGuestLeave} />
+              </div>
+            )}
           </div>
 
           {/* Main content area */}
@@ -179,14 +528,93 @@ function App() {
                 <Route path="/albums/:albumId/tracks" element={<TrackList />} />
               </Routes>
             </div>
-            <Queue />
+
+            {/* Sidebar: Queue + QR Code (non-admin shared display) */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+              <Queue />
+              {!isAdmin && (
+                <div
+                  style={{
+                    background: "#1e1e1e",
+                    border: "1px solid #2a2a2a",
+                    borderRadius: "12px",
+                    padding: "20px",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: "12px",
+                  }}
+                >
+                  <p style={{ color: "#aaa", fontSize: "12px", margin: 0, textAlign: "center", fontWeight: "bold", letterSpacing: "0.5px", textTransform: "uppercase" }}>
+                    Scan to Join
+                  </p>
+                  <QRCodeSVG
+                    value={joinUrl}
+                    size={140}
+                    bgColor="#1e1e1e"
+                    fgColor="#f5a623"
+                    level="M"
+                  />
+                  <p style={{ color: "#555", fontSize: "11px", margin: 0, textAlign: "center" }}>
+                    {joinUrl}
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
+
+          {/* Admin Settings Gear — bottom-left, admin-only */}
+          {isAdmin && (
+            <button
+              onClick={() => setShowSettings(true)}
+              style={{
+                position: "fixed",
+                bottom: "24px",
+                left: "24px",
+                width: "48px",
+                height: "48px",
+                borderRadius: "50%",
+                background: "#2a2a2a",
+                border: "1px solid #444",
+                color: "#f5a623",
+                fontSize: "22px",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                boxShadow: "0 4px 16px rgba(0,0,0,0.6)",
+                transition: "background 0.2s, transform 0.2s",
+                zIndex: 100,
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.background = "#383838";
+                e.currentTarget.style.transform = "scale(1.1)";
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.background = "#2a2a2a";
+                e.currentTarget.style.transform = "scale(1)";
+              }}
+              title="Settings"
+            >
+              ⚙
+            </button>
+          )}
+
+          {/* Settings Modal */}
+          {showSettings && isAdmin && (
+            <SettingsModal adminToken={adminToken} onClose={() => setShowSettings(false)} />
+          )}
+
+          {/* Guest Registration Modal (non-admin, no profile yet) */}
+          {!isAdmin && !guestProfile && (
+            <GuestModal onJoin={(profile) => setGuestProfile(profile)} />
+          )}
         </div>
       </ThemeProvider>
     );
   }
 
-  // Otherwise, render Wizard Screen
+  // ── Setup Wizard ─────────────────────────────────────────────────────────────
   return (
     <ThemeProvider theme={theme}>
       <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh", background: "#121212", color: "white", padding: "20px" }}>
@@ -194,26 +622,22 @@ function App() {
 
           <img src={TuneBoxLogo} alt="TuneBox Logo" style={{ height: "45px", marginBottom: "25px" }} />
 
-          {/* STEP 1: PROFILE SETUP */}
+          {/* STEP 1: Profile Setup */}
           {step === 1 && (
             <form onSubmit={handleStartLinking} style={{ textAlign: "left" }}>
               <h2 style={{ margin: "0 0 10px 0", color: "#f5a623", textAlign: "center" }}>First Setup Wizard</h2>
               <p style={{ color: "#aaa", fontSize: "14px", marginBottom: "30px", lineHeight: "1.5", textAlign: "center" }}>
                 Welcome! Let's get your details set up to link your Jukebox.
               </p>
-
-              {/* User inputs */}
               <div style={{ marginBottom: "20px" }}>
-                <label style={{ display: "block", color: "#ccc", fontSize: "13px", fontWeight: "bold", marginBottom: "8px" }}>Plex Username</label>
-                <input type="text" placeholder="e.g. plex_user" value={plexUsername} onChange={(e) => setPlexUsername(e.target.value)} style={{ width: "100%", padding: "10px", background: "#2a2a2a", color: "#fff", border: "1px solid #444", borderRadius: "6px", fontSize: "14px", boxSizing: "border-box" }} required />
+                <label style={labelStyle}>Plex Username</label>
+                <input type="text" placeholder="e.g. plex_user" value={plexUsername} onChange={(e) => setPlexUsername(e.target.value)} style={inputStyle} required />
               </div>
-
               <div style={{ marginBottom: "25px" }}>
-                <label style={{ display: "block", color: "#ccc", fontSize: "13px", fontWeight: "bold", marginBottom: "8px" }}>TuneBox Instance Name</label>
-                <input type="text" placeholder="e.g. Steve's Jukebox" value={localUsername} onChange={(e) => setLocalUsername(e.target.value)} style={{ width: "100%", padding: "10px", background: "#2a2a2a", color: "#fff", border: "1px solid #444", borderRadius: "6px", fontSize: "14px", boxSizing: "border-box" }} required />
+                <label style={labelStyle}>TuneBox Instance Name</label>
+                <input type="text" placeholder="e.g. Steve's Jukebox" value={localUsername} onChange={(e) => setLocalUsername(e.target.value)} style={inputStyle} required />
               </div>
-
-              <button type="submit" style={{ width: "100%", padding: "14px", background: "#f5a623", color: "#121212", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "bold", fontSize: "15px", marginTop: "15px", transition: "background 0.2s" }}
+              <button type="submit" style={btnStyle}
                 onMouseOver={(e) => (e.currentTarget.style.background = "#d48b17")}
                 onMouseOut={(e) => (e.currentTarget.style.background = "#f5a623")}>
                 Connect to Plex
@@ -221,31 +645,25 @@ function App() {
             </form>
           )}
 
-          {/* STEP 2: LINK PLEX ACCOUNT */}
+          {/* STEP 2: Plex PIN Authorization */}
           {step === 2 && (
             <div>
               <h2 style={{ margin: "0 0 10px 0", color: "#f5a623" }}>Plex PIN Authorization</h2>
               <p style={{ color: "#aaa", fontSize: "14px", marginBottom: "25px" }}>
                 Sign in to your Plex account and authorize this TuneBox client.
               </p>
-
               <div style={{ background: "#2a2a2a", padding: "20px", borderRadius: "8px", marginBottom: "25px", fontSize: "36px", letterSpacing: "4px", fontWeight: "bold", fontFamily: "monospace", color: "#fff", border: "1px dashed #555" }}>
                 {pinCode || "Loading..."}
               </div>
-
               <p style={{ color: "#eee", fontSize: "14px", textAlign: "left", margin: "0 0 25px 0", lineHeight: "1.6" }}>
                 1. Open <a href="https://plex.tv/link" target="_blank" rel="noopener noreferrer" style={{ color: "#f5a623", textDecoration: "underline" }}>plex.tv/link</a> in a web browser.<br />
-                2. Sign in as **{plexUsername}** and enter the 4-character code above.
+                2. Sign in as <strong>{plexUsername}</strong> and enter the 4-character code above.
               </p>
-
               {authUrl && (
-                <a href={authUrl} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", width: "100%", padding: "12px", background: "#f5a623", color: "#121212", borderRadius: "6px", textDecoration: "none", fontWeight: "bold", marginBottom: "15px", textAlign: "center", transition: "background 0.2s" }}
-                   onMouseOver={(e) => (e.currentTarget.style.background = "#d48b17")}
-                   onMouseOut={(e) => (e.currentTarget.style.background = "#f5a623")}>
+                <a href={authUrl} target="_blank" rel="noopener noreferrer" style={{ display: "inline-block", width: "100%", padding: "12px", background: "#f5a623", color: "#121212", borderRadius: "6px", textDecoration: "none", fontWeight: "bold", marginBottom: "15px", textAlign: "center" }}>
                   Go to Plex Link
                 </a>
               )}
-
               <div style={{ color: "#777", fontSize: "12px", display: "flex", justifyContent: "center", alignItems: "center", gap: "8px" }}>
                 <span className="spinner" style={{ display: "inline-block", width: "12px", height: "12px", border: "2px solid #555", borderTopColor: "#f5a623", borderRadius: "50%", animation: "spin 1s linear infinite" }}></span>
                 Waiting for Plex authorization...
@@ -253,14 +671,13 @@ function App() {
             </div>
           )}
 
-          {/* STEP 3: SERVER SELECTION */}
+          {/* STEP 3: Server Selection */}
           {step === 3 && (
             <form onSubmit={handleSaveConfiguration} style={{ textAlign: "left" }}>
               <h2 style={{ margin: "0 0 10px 0", color: "#f5a623", textAlign: "center" }}>Select Plex Server</h2>
               <p style={{ color: "#aaa", fontSize: "14px", marginBottom: "25px", textAlign: "center", lineHeight: "1.4" }}>
                 Select the Plex Media Server containing your music library.
               </p>
-
               {isFetchingResources ? (
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "30px 0" }}>
                   <span className="spinner" style={{ display: "inline-block", width: "30px", height: "30px", border: "3px solid #333", borderTopColor: "#f5a623", borderRadius: "50%", animation: "spin 1s linear infinite", marginBottom: "15px" }}></span>
@@ -270,9 +687,9 @@ function App() {
                 <div>
                   {!isManualConfig ? (
                     <div style={{ marginBottom: "20px" }}>
-                      <label style={{ display: "block", color: "#ccc", fontSize: "13px", fontWeight: "bold", marginBottom: "8px" }}>Plex Media Server</label>
+                      <label style={labelStyle}>Plex Media Server</label>
                       {servers.length > 0 ? (
-                        <select value={selectedServer} onChange={(e) => setSelectedServer(e.target.value)} style={{ width: "100%", padding: "10px", background: "#2a2a2a", color: "#fff", border: "1px solid #444", borderRadius: "6px", fontSize: "14px" }}>
+                        <select value={selectedServer} onChange={(e) => setSelectedServer(e.target.value)} style={{ ...inputStyle, cursor: "pointer" }}>
                           {servers.map((s) => <option key={s} value={s}>{s}</option>)}
                         </select>
                       ) : (
@@ -281,18 +698,15 @@ function App() {
                     </div>
                   ) : (
                     <div style={{ marginBottom: "20px" }}>
-                      <label style={{ display: "block", color: "#ccc", fontSize: "13px", fontWeight: "bold", marginBottom: "8px" }}>Custom Plex Server Name</label>
-                      <input type="text" placeholder="e.g. MyHomeServer" value={customServer} onChange={(e) => setCustomServer(e.target.value)} style={{ width: "100%", padding: "10px", background: "#2a2a2a", color: "#fff", border: "1px solid #444", borderRadius: "6px", fontSize: "14px", boxSizing: "border-box" }} required />
+                      <label style={labelStyle}>Custom Plex Server Name</label>
+                      <input type="text" placeholder="e.g. MyHomeServer" value={customServer} onChange={(e) => setCustomServer(e.target.value)} style={inputStyle} required />
                     </div>
                   )}
-
-                  {/* Manual config override toggle */}
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px", margin: "25px 0 25px 0" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", margin: "25px 0" }}>
                     <input type="checkbox" id="manual-toggle" checked={isManualConfig} onChange={(e) => setIsManualConfig(e.target.checked)} style={{ cursor: "pointer" }} />
                     <label htmlFor="manual-toggle" style={{ color: "#aaa", fontSize: "13px", cursor: "pointer", userSelect: "none" }}>Configure server manually</label>
                   </div>
-
-                  <button type="submit" disabled={isSubmitting} style={{ width: "100%", padding: "14px", background: "#f5a623", color: "#121212", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "bold", fontSize: "15px", transition: "background 0.2s" }}
+                  <button type="submit" disabled={isSubmitting} style={btnStyle}
                     onMouseOver={(e) => (e.currentTarget.style.background = "#d48b17")}
                     onMouseOut={(e) => (e.currentTarget.style.background = "#f5a623")}>
                     {isSubmitting ? "Saving Configuration..." : "Save & Finish Setup"}
@@ -302,13 +716,11 @@ function App() {
             </form>
           )}
 
-          {/* STEP 4: DONE STATE (TRANSITIONING) */}
+          {/* STEP 4: Transition */}
           {step === 4 && (
             <div>
               <h2 style={{ margin: "0 0 10px 0", color: "#f5a623" }}>Setup Completed!</h2>
-              <p style={{ color: "#aaa", fontSize: "14px", marginBottom: "30px" }}>
-                Connecting to your Jukebox...
-              </p>
+              <p style={{ color: "#aaa", fontSize: "14px", marginBottom: "30px" }}>Connecting to your Jukebox...</p>
               <div style={{ display: "flex", justifyContent: "center", padding: "20px 0" }}>
                 <span className="spinner" style={{ display: "inline-block", width: "40px", height: "40px", border: "4px solid #333", borderTopColor: "#f5a623", borderRadius: "50%", animation: "spin 1s linear infinite" }}></span>
               </div>

@@ -24,18 +24,22 @@ def reset_settings():
     original_server = settings.plex_server_name
     original_client = settings.client_name
     original_testing = settings.testing
+    original_admin_token = settings.admin_token
 
     settings.plex_token = ""
     settings.plex_username = ""
     settings.plex_server_name = ""
     settings.client_name = ""
     settings.testing = True
+    settings.admin_token = ""
     yield
     settings.plex_token = original_token
     settings.plex_username = original_username
     settings.plex_server_name = original_server
     settings.client_name = original_client
     settings.testing = original_testing
+    settings.admin_token = original_admin_token
+
 
 
 def test_auth_status_unauthenticated(client):
@@ -187,4 +191,118 @@ def test_simulation_disabled_in_production(client):
     assert "only allowed when testing is enabled" in response.json()["detail"]
 
 
+def test_configure_generates_admin_token(client):
+    """Test that configure endpoint generates an admin_token and returns it."""
+    settings.plex_token = "some_token"
 
+    with (
+        patch("backend.routers.auth.reinitialize_plex"),
+        patch("pathlib.Path.exists", return_value=True),
+        patch("pathlib.Path.read_text", return_value=""),
+        patch("pathlib.Path.write_text"),
+    ):
+        payload = {
+            "plex_username": "AdminUser",
+            "plex_server_name": "MyServer",
+            "client_name": "MyJukebox",
+        }
+        response = client.post("/api/auth/configure", json=payload)
+        assert response.status_code == 200
+        data = response.json()
+        assert "admin_token" in data
+        assert len(data["admin_token"]) == 32  # secrets.token_hex(16) = 32 hex chars
+        # Token should also be persisted in settings
+        assert settings.admin_token == data["admin_token"]
+
+
+def test_settings_get_requires_admin_token(client):
+    """Test that GET /settings is rejected without a valid admin token."""
+    settings.admin_token = "valid_token_abc"
+
+    # No header → 401
+    response = client.get("/api/auth/settings")
+    assert response.status_code == 401
+
+    # Wrong token → 401
+    response = client.get("/api/auth/settings", headers={"x-admin-token": "wrong"})
+    assert response.status_code == 401
+
+
+def test_settings_get_with_valid_token(client):
+    """Test that GET /settings returns config data with a valid admin token."""
+    settings.admin_token = "valid_token_abc"
+    settings.plex_username = "OwnerUser"
+    settings.client_name = "MyJukebox"
+    settings.plex_server_name = "MyServer"
+
+    response = client.get("/api/auth/settings", headers={"x-admin-token": "valid_token_abc"})
+    assert response.status_code == 200
+    data = response.json()
+    assert data["plex_username"] == "OwnerUser"
+    assert data["client_name"] == "MyJukebox"
+    assert data["plex_server_name"] == "MyServer"
+
+
+def test_settings_post_requires_admin_token(client):
+    """Test that POST /settings is rejected without a valid admin token."""
+    settings.admin_token = "valid_token_abc"
+    payload = {"plex_username": "X", "client_name": "Y", "plex_server_name": "Z"}
+
+    response = client.post("/api/auth/settings", json=payload)
+    assert response.status_code == 401
+
+    response = client.post("/api/auth/settings", json=payload, headers={"x-admin-token": "bad"})
+    assert response.status_code == 401
+
+
+def test_settings_post_updates_config(client):
+    """Test that POST /settings with valid token persists updated config."""
+    settings.admin_token = "valid_token_abc"
+    settings.plex_token = "plex_tok"
+
+    with (
+        patch("backend.routers.auth.reinitialize_plex"),
+        patch("pathlib.Path.exists", return_value=True),
+        patch("pathlib.Path.read_text", return_value=""),
+        patch("pathlib.Path.write_text"),
+    ):
+        payload = {"plex_username": "NewUser", "client_name": "NewJukebox", "plex_server_name": "NewServer"}
+        response = client.post(
+            "/api/auth/settings",
+            json=payload,
+            headers={"x-admin-token": "valid_token_abc"},
+        )
+        assert response.status_code == 200
+        assert settings.plex_username == "NewUser"
+        assert settings.plex_server_name == "NewServer"
+
+
+def test_verify_username_unconfigured(client):
+    """Test verify-username returns 503 when Jukebox is not yet configured."""
+    settings.plex_token = ""
+    response = client.get("/api/auth/verify-username?username=anyone")
+    assert response.status_code == 503
+
+
+def test_verify_username_guest_in_testing(client):
+    """Test verify-username returns guest role for unknown names in testing mode."""
+    settings.plex_token = "some_token"
+    settings.testing = True
+
+    response = client.get("/api/auth/verify-username?username=randomguy")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["role"] == "guest"
+    assert data["is_member"] is False
+
+
+def test_verify_username_member_in_testing(client):
+    """Test verify-username returns member role for friend_ prefix names in testing mode."""
+    settings.plex_token = "some_token"
+    settings.testing = True
+
+    response = client.get("/api/auth/verify-username?username=friend_alice")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["role"] == "member"
+    assert data["is_member"] is True
