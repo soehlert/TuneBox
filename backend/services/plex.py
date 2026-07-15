@@ -59,6 +59,12 @@ def get_plex_connection():
         return plex_server
 
 
+def reinitialize_plex():
+    """Clear cached connection and force connection reload."""
+    get_plex_connection.cache_clear()
+    logger.info("Plex connection cache cleared for reinitialization.")
+
+
 def get_current_playing_track():
     """Fetch the currently playing track details from cache and the local tracker.
 

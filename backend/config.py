@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     client_name: str = ""
     redis_url: str = "redis://redis:6379"
     tunebox_url: str = ""
+    testing: bool = False
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 

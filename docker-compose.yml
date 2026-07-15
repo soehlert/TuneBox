@@ -25,6 +25,7 @@ services:
       - CLIENT_NAME=${CLIENT_NAME}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}
       - TUNEBOX_URL=${TUNEBOX_URL:-backend:8000}
+      - TESTING=${TESTING:-false}
     volumes:
       - ./backend:/app/backend
       - ./.env:/app/.env
