@@ -161,6 +161,13 @@ async def request_pin(simulate: bool = False):
         pinlogin = MyPlexPinLogin(oauth=False)
         await asyncio.to_thread(pinlogin.run)
         active_pins[pinlogin._id] = pinlogin
+        active_pins[str(pinlogin._id)] = pinlogin
+        logger.debug(
+            "Stored PIN ID: %s (type: %s) in active_pins. Current keys: %s",
+            pinlogin._id,
+            type(pinlogin._id),
+            list(active_pins.keys()),
+        )
         return {
             "pin_id": pinlogin._id,
             "code": pinlogin.pin,
@@ -176,6 +183,12 @@ async def request_pin(simulate: bool = False):
 @router.get("/check")
 async def check_pin(pin_id: int):
     """Check if the PIN has been claimed/authorized by the user."""
+    logger.debug(
+        "Checking PIN ID: %s (type: %s). Current keys in active_pins: %s",
+        pin_id,
+        type(pin_id),
+        list(active_pins.keys()),
+    )
     if pin_id == MOCK_PIN_ID:
         if settings.testing:
             settings.plex_token = MOCK_TOKEN
@@ -193,7 +206,7 @@ async def check_pin(pin_id: int):
             return {"authenticated": True, "token": MOCK_TOKEN}
         return {"authenticated": False}
 
-    pinlogin = active_pins.get(pin_id)
+    pinlogin = active_pins.get(str(pin_id)) or active_pins.get(pin_id)
     if not pinlogin:
         raise HTTPException(status_code=404, detail="PIN session not found or expired.")
 
@@ -210,6 +223,7 @@ async def check_pin(pin_id: int):
 
         write_token_to_env(token)
         get_plex_connection.cache_clear()
+        active_pins.pop(str(pin_id), None)
         active_pins.pop(pin_id, None)
 
         return {"authenticated": True, "token": token}
