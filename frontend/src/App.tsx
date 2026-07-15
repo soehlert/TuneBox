@@ -694,11 +694,11 @@ function App() {
 
   useEffect(() => {
     checkStatus();
-    if (!isConfigured) {
+    if (!isAuthenticated) {
       const interval = setInterval(checkStatus, 3000);
       return () => clearInterval(interval);
     }
-  }, [isConfigured]);
+  }, [isAuthenticated]);
 
   const checkStatus = async () => {
     try {
