@@ -13,6 +13,7 @@ from plexapi.myplex import MyPlexAccount
 
 from backend.config import settings
 from backend.exceptions import PlexConnectionError
+from backend.services.mock_data import MOCK_ALBUMS, MOCK_ARTISTS, MOCK_TRACKS
 from backend.services.redis import (
     cache_data,
     clear_cache,
@@ -114,6 +115,15 @@ def get_all_players():
     Returns:
         A list of all available Plex players.
     """
+    if settings.testing:
+        return [
+            {
+                "player_id": "mock_player_123",
+                "name": settings.client_name or "Mock Jukebox Player",
+                "device": "Mock Device",
+            }
+        ]
+
     plex = get_plex_connection()
     players = plex.clients()
 
@@ -137,6 +147,16 @@ def get_active_player(client_name: str | None = None):
     Returns:
         The active player according to plex.
     """
+    if settings.testing:
+
+        class MockPlayer:
+            title = client_name or settings.client_name or "Mock Jukebox Player"
+
+            def playMedia(self, media):
+                pass
+
+        return MockPlayer()
+
     plex = get_plex_connection()
     players = plex.clients()
 
@@ -166,6 +186,28 @@ def get_track(item_id):
     Returns:
         A track object from Plex.
     """
+    if settings.testing:
+        found_track = None
+        for album_id, tracks in MOCK_TRACKS.items():
+            for t in tracks:
+                if t["track_id"] == int(item_id):
+                    found_track = t
+                    break
+            if found_track:
+                break
+        if found_track:
+
+            class MockTrack:
+                ratingKey = found_track["track_id"]
+                title = found_track["title"]
+                grandparentTitle = found_track["artist"]
+                parentTitle = found_track["album"]
+                duration = found_track["duration"] * 1000  # in ms
+                thumb = f"/api/music/album-art/{album_id}"
+
+            return MockTrack()
+        raise HTTPException(status_code=404, detail="Track not found")
+
     plex = get_plex_connection()
     logger.debug("Fetching track: %s", item_id)
     track = plex.fetchItem(item_id)
@@ -480,6 +522,9 @@ def fetch_all_artists():
     Returns:
         A list of all the artists in a Plex music library.
     """
+    if settings.testing:
+        return MOCK_ARTISTS
+
     cache_key = "all_artists"
     cached_artists = get_cached_data(cache_key)
 
@@ -509,6 +554,9 @@ def fetch_albums_for_artist(artist_id):
     Returns:
         A list of albums for an artist.
     """
+    if settings.testing:
+        return MOCK_ALBUMS.get(int(artist_id), [])
+
     cache_key = f"albums_for_artist_{artist_id}"
     cached_albums = get_cached_data(cache_key)
 
@@ -540,6 +588,26 @@ def fetch_tracks_for_album(album_id):
     Returns:
         A list of tracks for an album.
     """
+    if settings.testing:
+        album_title = "Unknown Album"
+        for artist_id, albums in MOCK_ALBUMS.items():
+            for alb in albums:
+                if alb["album_id"] == int(album_id):
+                    album_title = alb["title"]
+                    break
+        tracks = MOCK_TRACKS.get(int(album_id), [])
+        return {
+            "album_title": album_title,
+            "tracks": [
+                {
+                    "track_id": t["track_id"],
+                    "title": t["title"],
+                    "duration": t["duration"],
+                }
+                for t in tracks
+            ],
+        }
+
     cache_key = f"tracks_for_album_{album_id}"
     cached_tracks = get_cached_data(cache_key)
 
@@ -576,6 +644,51 @@ def search_music(query):
     Returns:
         A list of artists, albums, and/or tracks.
     """
+    if settings.testing:
+        query_lower = query.lower()
+        results = []
+
+        # 1. Search artists
+        for artist in MOCK_ARTISTS:
+            if query_lower in artist["name"].lower():
+                results.append(
+                    {
+                        "name": artist["name"],
+                        "type": "artist",
+                        "artist_id": artist["artist_id"],
+                    }
+                )
+
+        # 2. Search albums
+        for artist_id, albums in MOCK_ALBUMS.items():
+            for album in albums:
+                if query_lower in album["title"].lower():
+                    results.append(
+                        {
+                            "title": album["title"],
+                            "type": "album",
+                            "album_id": album["album_id"],
+                            "artist": album["artist"],
+                        }
+                    )
+
+        # 3. Search tracks
+        for album_id, tracks in MOCK_TRACKS.items():
+            for track in tracks:
+                if query_lower in track["title"].lower():
+                    results.append(
+                        {
+                            "title": track["title"],
+                            "type": "track",
+                            "track_id": track["track_id"],
+                            "duration": track["duration"],
+                            "artist": track["artist"],
+                            "album": track["album"],
+                        }
+                    )
+
+        return results
+
     plex = get_plex_connection()
     music_library = plex.library.section("Music")
 
@@ -620,6 +733,20 @@ def fetch_art(item_id: int, item_type: str):
     Returns:
         An image to serve to the frontend.
     """
+    if settings.testing:
+
+        class MockResponse:
+            ok = True
+
+            def iter_content(self, chunk_size=1024):
+                yield (
+                    b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06"
+                    b"\x00\x00\x00\x1f\x15c4\x00\x00\x00\rIDATx\x9cc`\x00\x01\x00\x00\x05\x00\x01"
+                    b"\xa5\xf9\xd0\xb1\x00\x00\x00\x00IEND\xaeB`\x82"
+                )
+
+        return MockResponse()
+
     try:
         plex = get_plex_connection()
 
