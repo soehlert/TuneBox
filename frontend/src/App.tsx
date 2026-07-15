@@ -535,7 +535,7 @@ function App() {
             {/* Sidebar: Queue + QR Code (non-admin shared display) */}
             <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
               <Queue />
-              {!isAdmin && (
+              {!isAdmin && !guestProfile && (
                 <div
                   style={{
                     background: "#1e1e1e",
