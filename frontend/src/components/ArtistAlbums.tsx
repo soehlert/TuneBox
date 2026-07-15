@@ -16,13 +16,13 @@ function ArtistAlbums() {
   const [albums, setAlbums] = useState<Album[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-  const backendUrl = import.meta.env.VITE_TUNEBOX_URL;
-
+  const isDev = window.location.port === "5173";
+  const apiBase = isDev ? "http://localhost:8000" : window.location.origin;
 
   useEffect(() => {
     const fetchAlbums = async () => {
       try {
-        const artistAlbumsUrl = `http://${backendUrl}:8000/api/music/artists/${artistId}/albums`;
+        const artistAlbumsUrl = `${apiBase}/api/music/artists/${artistId}/albums`;
         const response = await axios.get(artistAlbumsUrl);
         setAlbums(response.data);
       } catch (error) {
@@ -50,7 +50,7 @@ function ArtistAlbums() {
                       component="img"
                       alt={album.title}
                       height="200"
-                      image={`http://${backendUrl}:8000/api/music/album-art/${album.album_id}`}
+                      image={`${apiBase}/api/music/album-art/${album.album_id}`}
                       title={album.title}
                       className="album-cover"
                     />

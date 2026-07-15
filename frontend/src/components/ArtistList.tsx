@@ -37,18 +37,19 @@ function ArtistList() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filteredArtists, setFilteredArtists] = useState<Artist[]>([]);
-  const backendUrl = import.meta.env.VITE_TUNEBOX_URL;
+  const isDev = window.location.port === "5173";
+  const apiBase = isDev ? "http://localhost:8000" : window.location.origin;
 
   // Using the debounced search term
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const navigate = useNavigate();
 
-// Fetch artists and filter them based on the search term
-useEffect(() => {
-  const fetchArtists = async () => {
-    try {
-      const searchURL = `http://${backendUrl}:8000/api/music/search?query=${encodeURIComponent(searchTerm)}`
-      const artistListURL = `http://${backendUrl}:8000/api/music/artists`;
+  // Fetch artists and filter them based on the search term
+  useEffect(() => {
+    const fetchArtists = async () => {
+      try {
+        const searchURL = `${apiBase}/api/music/search?query=${encodeURIComponent(searchTerm)}`;
+        const artistListURL = `${apiBase}/api/music/artists`;
       const endpoint = debouncedSearchTerm
         ? searchURL
         : artistListURL;
@@ -164,7 +165,7 @@ useEffect(() => {
                   <CardContent>
                     {(
                       <img
-                        src={`http://${backendUrl}:8000/api/music/artist-image/${artist.artist_id}`}
+                        src={`${apiBase}/api/music/artist-image/${artist.artist_id}`}
                         alt={artist.name}
                         className="artist-photo"
                       />

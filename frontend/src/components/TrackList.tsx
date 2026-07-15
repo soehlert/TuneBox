@@ -24,12 +24,13 @@ function TrackList() {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [severity, setSeverity] = useState<"success" | "warning" | "error">("success");
-  const backendUrl = import.meta.env.VITE_TUNEBOX_URL;
+  const isDev = window.location.port === "5173";
+  const apiBase = isDev ? "http://localhost:8000" : window.location.origin;
 
   useEffect(() => {
     const fetchTracks = async () => {
       try {
-        const albumUrl = `http://${backendUrl}:8000/api/music/albums/${albumId}/tracks`;
+        const albumUrl = `${apiBase}/api/music/albums/${albumId}/tracks`;
         const response = await axios.get(albumUrl);
         setAlbumData(response.data);
       } catch (error) {
@@ -43,10 +44,11 @@ function TrackList() {
     }, [albumId]);
 
     // Utility function to convert seconds to mm:ss format
-    const formatDuration = (seconds: string) => {
-      const minutes = Math.floor(Number(seconds) / 60);
-      const remainingSeconds = Number(seconds) % 60;
-      return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+    const formatDuration = (secondsStr: string) => {
+      const seconds = parseInt(secondsStr, 10);
+      const mins = Math.floor(seconds / 60);
+      const secs = seconds % 60;
+      return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
     };
 
     const showSnackbar = (message: string, severity: "success" | "warning" | "error") => {
@@ -57,7 +59,7 @@ function TrackList() {
 
    const addToQueue = async (trackId: number) => {
     try {
-      const queueUrl = `http://${backendUrl}:8000/api/music/queue/${trackId}`;
+      const queueUrl = `${apiBase}/api/music/queue/${trackId}`;
       await axios.post(queueUrl);
       showSnackbar("Track added to queue!", "success");
     } catch (error) {
@@ -89,7 +91,7 @@ function TrackList() {
               <h1>{albumData.album_title}</h1>
               {(
                 <img
-                  src={`http://${backendUrl}:8000/api/music/album-art/${albumId}`}
+                  src={`${apiBase}/api/music/album-art/${albumId}`}
                   alt={albumData.album_title}
                   className="album-banner"
                 />

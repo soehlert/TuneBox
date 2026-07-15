@@ -12,13 +12,15 @@ const MusicControlsComponent = () => {
   const [duration, setDuration] = useState<string>('00:00'); // To store the song's total duration in mm:ss format
   const socketRef = useRef<WebSocket | null>(null);
   const timerRef = useRef<any>(null); // Timer reference for interval updates
-  const backendUrl = import.meta.env.VITE_TUNEBOX_URL;
-
+  const isDev = window.location.port === "5173";
+  const apiBase = isDev ? "http://localhost:8000" : window.location.origin;
+  const wsHost = isDev ? "localhost:8000" : window.location.host;
+  const wsProto = window.location.protocol === "https:" ? "wss:" : "ws:";
 
   useEffect(() => {
     const connectWebSocket = () => {
       if (!socketRef.current) {
-        const webSocketUrl = `ws://${backendUrl}:8000/ws`;
+        const webSocketUrl = `${wsProto}//${wsHost}/ws`;
         socketRef.current = new WebSocket(webSocketUrl);
 
         socketRef.current.onopen = () => {
@@ -89,7 +91,7 @@ const MusicControlsComponent = () => {
   const handlePlayStop = async () => {
     try {
       const endpoint = isPlaying ? "/api/music/stop-queue" : "/api/music/play-queue";  // Switch endpoint to stop when playing
-      const response = await fetch(`http://localhost:8000${endpoint}`, {
+      const response = await fetch(`${apiBase}${endpoint}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -112,7 +114,7 @@ const MusicControlsComponent = () => {
 
   const handleStartQueue = async () => {
     try {
-      const apiURL = `http://${backendUrl}:8000/api/music/play-queue`;
+      const apiURL = `${apiBase}/api/music/play-queue`;
       const response = await fetch(apiURL, {
         method: 'POST',
         headers: {

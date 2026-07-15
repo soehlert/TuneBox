@@ -8,12 +8,14 @@ const QueueComponent = () => {
   const pingIntervalRef = useRef<number | null>(null);
   const pongTimeoutRef = useRef<number | null>(null);
 
-  const backendUrl = import.meta.env.VITE_TUNEBOX_URL;
+  const isDev = window.location.port === "5173";
+  const wsHost = isDev ? "localhost:8000" : window.location.host;
+  const wsProto = window.location.protocol === "https:" ? "wss:" : "ws:";
 
   useEffect(() => {
     const connectWebSocket = () => {
       if (!socketRef.current) {
-        const webSocketUrl = `ws://${backendUrl}:8000/ws`;
+        const webSocketUrl = `${wsProto}//${wsHost}/ws`;
         socketRef.current = new WebSocket(webSocketUrl);
 
         socketRef.current.onopen = () => {
@@ -74,7 +76,7 @@ const QueueComponent = () => {
         console.log("WebSocket connection closed on component unmount.");
       }
     };
-  }, [backendUrl]);
+  }, [wsHost]);
 
   return (
     <Box className="queue-container" sx={{ padding: 2 }}>
