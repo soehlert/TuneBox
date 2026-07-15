@@ -23,8 +23,8 @@ from backend.services.redis import (
 )
 from backend.utils import TrackTimeTracker, milliseconds_to_seconds
 
-HEARTBEAT_INTERVAL = 12
-DRIFT_THRESHOLD = 3.0
+HEARTBEAT_INTERVAL = 5
+DRIFT_THRESHOLD = 1.5
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -392,6 +392,14 @@ async def check_plexamp_resync():
 
     # In testing mode there is no real Plex connection, so skip the resync entirely.
     if settings.testing:
+        return
+
+    # Skip resync if Plex isn't fully configured yet to prevent logs/connection spam.
+    if not settings.plex_token and not (
+        settings.plex_username and settings.plex_password
+    ):
+        return
+    if not settings.plex_server_name:
         return
 
     try:
