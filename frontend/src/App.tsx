@@ -377,6 +377,22 @@ function App() {
     return raw ? (JSON.parse(raw) as GuestProfile) : null;
   });
 
+  // Display / kiosk mode — set by visiting /?display once; persists in localStorage
+  const [isDisplay, setIsDisplay] = useState<boolean>(
+    () => localStorage.getItem("tunebox_display") === "true"
+  );
+
+  // Auto-activate display mode when ?display is in the URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("display") && !isDisplay) {
+      localStorage.setItem("tunebox_display", "true");
+      setIsDisplay(true);
+      // Clean the URL so the param doesn't persist in browser history
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
+
   useEffect(() => {
     checkStatus();
   }, []);
@@ -490,7 +506,9 @@ function App() {
     setGuestProfile(null);
   };
 
+  // Plain base URL for QR — no query params so guests don't accidentally enter display mode
   const joinUrl = `${window.location.protocol}//${window.location.hostname}${window.location.port ? `:${window.location.port}` : ""}`;
+  const displayUrl = `${joinUrl}?display`;
 
   // ── Loading spinner ──────────────────────────────────────────────────────────
   if (isAuthenticated === null) {
@@ -535,7 +553,7 @@ function App() {
             {/* Sidebar: Queue + QR Code (non-admin shared display) */}
             <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
               <Queue />
-              {!isAdmin && !guestProfile && (
+              {isDisplay && (
                 <div
                   style={{
                     background: "#1e1e1e",
@@ -608,8 +626,8 @@ function App() {
             <SettingsModal adminToken={adminToken} onClose={() => setShowSettings(false)} />
           )}
 
-          {/* Guest Registration Modal (non-admin, no profile yet) */}
-          {!isAdmin && !guestProfile && (
+          {/* Guest Registration Modal — only for non-admin, non-display devices without a profile */}
+          {!isAdmin && !isDisplay && !guestProfile && (
             <GuestModal onJoin={(profile) => setGuestProfile(profile)} />
           )}
         </div>
