@@ -95,9 +95,10 @@ interface SettingsModalProps {
 
 function SettingsModal({ adminToken, onClose }: SettingsModalProps) {
   const [plexUsername, setPlexUsername] = useState("");
-  const [instanceName, setInstanceName] = useState("");
   const [servers, setServers] = useState<string[]>([]);
   const [selectedServer, setSelectedServer] = useState("");
+  const [players, setPlayers] = useState<string[]>([]);
+  const [selectedPlayer, setSelectedPlayer] = useState("");
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
   const [clients, setClients] = useState<ClientSession[]>([]);
@@ -120,8 +121,8 @@ function SettingsModal({ adminToken, onClose }: SettingsModalProps) {
       })
       .then((res) => {
         setPlexUsername(res.data.plex_username ?? "");
-        setInstanceName(res.data.client_name ?? "");
         setSelectedServer(res.data.plex_server_name ?? "");
+        setSelectedPlayer(res.data.client_name ?? "");
       })
       .catch(console.error);
 
@@ -129,6 +130,7 @@ function SettingsModal({ adminToken, onClose }: SettingsModalProps) {
       .get(getApiUrl("/api/auth/resources"))
       .then((res) => {
         setServers(res.data.servers ?? []);
+        setPlayers(res.data.players ?? []);
       })
       .catch(console.error);
   }, [adminToken]);
@@ -159,7 +161,7 @@ function SettingsModal({ adminToken, onClose }: SettingsModalProps) {
     try {
       await axios.post(
         getApiUrl("/api/auth/settings"),
-        { plex_username: plexUsername, client_name: instanceName, plex_server_name: selectedServer },
+        { plex_username: plexUsername, client_name: selectedPlayer, plex_server_name: selectedServer },
         { headers: { "x-admin-token": adminToken } }
       );
       setMsg("✓ Settings saved!");
@@ -215,13 +217,28 @@ function SettingsModal({ adminToken, onClose }: SettingsModalProps) {
             />
           </div>
           <div>
-            <label style={labelStyle}>TuneBox Instance Name</label>
-            <input
-              type="text"
-              value={instanceName}
-              onChange={(e) => setInstanceName(e.target.value)}
-              style={inputStyle}
-            />
+            <label style={labelStyle}>Plex Player (Playback Device)</label>
+            {players.length > 0 ? (
+              <select
+                value={selectedPlayer}
+                onChange={(e) => setSelectedPlayer(e.target.value)}
+                style={{ ...inputStyle, cursor: "pointer" }}
+              >
+                {players.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                type="text"
+                placeholder="Enter player name manually"
+                value={selectedPlayer}
+                onChange={(e) => setSelectedPlayer(e.target.value)}
+                style={inputStyle}
+              />
+            )}
           </div>
           <div>
             <label style={labelStyle}>Plex Media Server</label>
@@ -480,6 +497,9 @@ function App() {
   // Resources
   const [servers, setServers] = useState<string[]>([]);
   const [selectedServer, setSelectedServer] = useState<string>("");
+  const [players, setPlayers] = useState<string[]>([]);
+  const [selectedPlayer, setSelectedPlayer] = useState<string>("");
+  const [customPlayer, setCustomPlayer] = useState<string>("");
   const [isManualConfig, setIsManualConfig] = useState<boolean>(false);
   const [customServer, setCustomServer] = useState<string>("");
   const [isFetchingResources, setIsFetchingResources] = useState<boolean>(false);
@@ -775,6 +795,14 @@ function App() {
       const res = await axios.get(getApiUrl("/api/auth/resources"));
       setServers(res.data.servers);
       if (res.data.servers.length > 0) setSelectedServer(res.data.servers[0]);
+
+      const fetchedPlayers = res.data.players || [];
+      setPlayers(fetchedPlayers);
+      if (fetchedPlayers.length > 0) {
+        setSelectedPlayer(fetchedPlayers[0]);
+      } else {
+        setSelectedPlayer(localUsername);
+      }
     } catch (err) {
       console.error("Failed to fetch resources:", err);
       setIsManualConfig(true);
@@ -787,6 +815,7 @@ function App() {
     e.preventDefault();
     setIsSubmitting(true);
     const serverName = isManualConfig ? customServer : selectedServer;
+    const playerClientName = isManualConfig ? customPlayer : selectedPlayer;
     if (!serverName) {
       alert("Please select or enter a Plex server name.");
       setIsSubmitting(false);
@@ -795,7 +824,7 @@ function App() {
     try {
       const res = await axios.post(getApiUrl("/api/auth/configure"), {
         plex_username: plexUsername,
-        client_name: localUsername,
+        client_name: playerClientName || localUsername,
         plex_server_name: serverName,
       });
       // Store admin token and update state so gear icon appears immediately
@@ -1082,21 +1111,39 @@ function App() {
               ) : (
                 <div>
                   {!isManualConfig ? (
-                    <div style={{ marginBottom: "20px" }}>
-                      <label style={labelStyle}>Plex Media Server</label>
-                      {servers.length > 0 ? (
-                        <select value={selectedServer} onChange={(e) => setSelectedServer(e.target.value)} style={{ ...inputStyle, cursor: "pointer" }}>
-                          {servers.map((s) => <option key={s} value={s}>{s}</option>)}
-                        </select>
-                      ) : (
-                        <div style={{ color: "#ff6b6b", fontSize: "13px", padding: "5px 0" }}>No Plex Media Servers found.</div>
-                      )}
-                    </div>
+                    <>
+                      <div style={{ marginBottom: "20px" }}>
+                        <label style={labelStyle}>Plex Media Server</label>
+                        {servers.length > 0 ? (
+                          <select value={selectedServer} onChange={(e) => setSelectedServer(e.target.value)} style={{ ...inputStyle, cursor: "pointer" }}>
+                            {servers.map((s) => <option key={s} value={s}>{s}</option>)}
+                          </select>
+                        ) : (
+                          <div style={{ color: "#ff6b6b", fontSize: "13px", padding: "5px 0" }}>No Plex Media Servers found.</div>
+                        )}
+                      </div>
+                      <div style={{ marginBottom: "20px" }}>
+                        <label style={labelStyle}>Plex Player (Playback Device)</label>
+                        {players.length > 0 ? (
+                          <select value={selectedPlayer} onChange={(e) => setSelectedPlayer(e.target.value)} style={{ ...inputStyle, cursor: "pointer" }}>
+                            {players.map((p) => <option key={p} value={p}>{p}</option>)}
+                          </select>
+                        ) : (
+                          <input type="text" placeholder="e.g. Living Room Plexamp" value={selectedPlayer} onChange={(e) => setSelectedPlayer(e.target.value)} style={inputStyle} required />
+                        )}
+                      </div>
+                    </>
                   ) : (
-                    <div style={{ marginBottom: "20px" }}>
-                      <label style={labelStyle}>Custom Plex Server Name</label>
-                      <input type="text" placeholder="e.g. MyHomeServer" value={customServer} onChange={(e) => setCustomServer(e.target.value)} style={inputStyle} required />
-                    </div>
+                    <>
+                      <div style={{ marginBottom: "20px" }}>
+                        <label style={labelStyle}>Custom Plex Server Name</label>
+                        <input type="text" placeholder="e.g. MyHomeServer" value={customServer} onChange={(e) => setCustomServer(e.target.value)} style={inputStyle} required />
+                      </div>
+                      <div style={{ marginBottom: "20px" }}>
+                        <label style={labelStyle}>Custom Plex Player Name</label>
+                        <input type="text" placeholder="e.g. Living Room Plexamp" value={customPlayer} onChange={(e) => setCustomPlayer(e.target.value)} style={inputStyle} required />
+                      </div>
+                    </>
                   )}
                   <div style={{ display: "flex", alignItems: "center", gap: "8px", margin: "25px 0" }}>
                     <input type="checkbox" id="manual-toggle" checked={isManualConfig} onChange={(e) => setIsManualConfig(e.target.checked)} style={{ cursor: "pointer" }} />
