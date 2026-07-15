@@ -140,9 +140,9 @@ async def request_pin(simulate: bool = False):
     try:
         pinlogin = MyPlexPinLogin(oauth=True)
         await asyncio.to_thread(pinlogin.run)
-        active_pins[pinlogin.pinId] = pinlogin
+        active_pins[pinlogin._id] = pinlogin
         return {
-            "pin_id": pinlogin.pinId,
+            "pin_id": pinlogin._id,
             "code": pinlogin.code,
             "url": pinlogin.oauthUrl()
         }
