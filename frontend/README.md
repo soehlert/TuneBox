@@ -48,3 +48,51 @@ export default tseslint.config({
   },
 })
 ```
+
+---
+
+## Local Development (Testing Mode)
+
+Set `TESTING=true` in the root `.env` to run TuneBox without a real Plex server.
+The backend uses mock data (10 artists × 6 albums × 15 tracks) and a mock player.
+
+### Day-to-day dev workflow
+
+```bash
+# 1. Ensure TESTING=true is in root .env
+echo "TESTING=true" >> ../.env
+
+# 2. Start Redis (required for queue operations)
+docker compose up redis -d
+
+# 3. Start the backend
+cd .. && uv run uvicorn backend.main:app --reload
+
+# 4. Start the frontend (separate terminal)
+cd frontend && npm run dev
+```
+
+On **first load**, the setup wizard appears — but the mock PIN flow is instant:
+
+1. Enter any username / jukebox name and click **Connect to Plex**
+2. The PIN shows as `MOCK` — visit the mock-claim URL or just wait (auto-claims in testing mode)
+3. Select the mock server and click **Save & Finish Setup**
+4. You land on the dashboard in **admin mode** — all navigation and queue features work
+
+On every **subsequent load** the wizard is skipped automatically (admin token is persisted).
+
+### Testing the setup wizard flow
+
+Force the wizard at any time by adding `?wizard` to the URL:
+
+```
+http://localhost:5173/?wizard
+```
+
+This clears the stored admin token and guest profile so the wizard runs again. The `?wizard`
+param is stripped from the URL immediately so normal navigation is unaffected.
+
+### Full reset
+
+Remove the `ADMIN_TOKEN` value from root `.env` (leave the key, just clear the value)
+and clear your browser's `localStorage` for `localhost:5173`.

@@ -81,6 +81,21 @@ def write_token_to_env(token: str):
 @router.get("/status")
 async def status():
     """Retrieve the current connection and authentication status."""
+    # Testing-mode bypass: if mock setup was already completed (admin_token is set),
+    # skip the wizard and return a fully authenticated mock state. This lets developers
+    # do day-to-day work without re-running the wizard on every reload.
+    # Fresh starts (empty admin_token) still show the wizard so the flow can be tested.
+    if settings.testing and settings.admin_token:
+        return {
+            "authenticated": True,
+            "username": settings.plex_username or "MockUser",
+            "plex_server_name": settings.plex_server_name or "[Mock] Local Jukebox Server",
+            "client_name": settings.client_name or "Mock Jukebox",
+            "is_configured": True,
+            "testing": True,
+            "admin_token": settings.admin_token,
+        }
+
     is_configured = bool(
         settings.plex_token and settings.plex_server_name and settings.client_name
     ) or bool(

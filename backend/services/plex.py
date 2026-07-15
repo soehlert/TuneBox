@@ -363,11 +363,16 @@ async def check_plexamp_resync():
     """Align local playback state and timer with actual Plexamp sessions to catch drift and manual interactions."""
     global playback_active
 
+    # In testing mode there is no real Plex connection, so skip the resync entirely.
+    if settings.testing:
+        return
+
     try:
         plex = get_plex_connection()
         try:
             player = get_active_player()
         except Exception:  # noqa: BLE001
+
             # No active player is reachable right now
             return
 

@@ -505,6 +505,22 @@ function App() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // ── ?wizard URL param: force wizard flow for setup-flow testing ──────────────
+  // When the URL contains ?wizard, clear stored admin token and guest profile so
+  // the setup wizard always runs. Only runs once on mount.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.has("wizard")) {
+      localStorage.removeItem("tunebox_admin_token");
+      localStorage.removeItem("tunebox_guest");
+      setAdminToken("");
+      setGuestProfile(null);
+      // Strip ?wizard from URL without a reload so the app behaves normally after
+      const cleanUrl = window.location.pathname;
+      window.history.replaceState({}, "", cleanUrl);
+    }
+  }, []);
+
   const [artists, setArtists] = useState<any[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [artistsPerPage] = useState(24);
@@ -692,6 +708,13 @@ function App() {
 
       if (res.data.plex_username) setPlexUsername(res.data.plex_username);
       if (res.data.client_name) setLocalUsername(res.data.client_name);
+
+      // Testing-mode bypass: backend returns admin_token in status when TESTING=true
+      // and setup has been completed. Store it so admin mode activates immediately.
+      if (res.data.admin_token && !adminToken) {
+        localStorage.setItem("tunebox_admin_token", res.data.admin_token);
+        setAdminToken(res.data.admin_token);
+      }
 
       if (res.data.authenticated) {
         if (res.data.is_configured) {

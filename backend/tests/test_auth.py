@@ -42,12 +42,36 @@ def reset_settings():
 
 
 def test_auth_status_unauthenticated(client):
-    """Test retrieving auth status when credentials are not configured."""
+    """Test retrieving auth status when credentials are not configured (non-testing path)."""
+    # Explicitly disable testing mode to exercise the real unauthenticated code path.
+    settings.testing = False
     response = client.get("/api/auth/status")
     assert response.status_code == 200
     data = response.json()
     assert data["authenticated"] is False
     assert data["username"] == ""
+
+
+def test_auth_status_testing_bypass(client):
+    """Testing bypass fires when TESTING=True and admin_token is set (setup already done)."""
+    settings.admin_token = "mock-admin-token"
+    response = client.get("/api/auth/status")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["authenticated"] is True
+    assert data["is_configured"] is True
+    assert data["admin_token"] == "mock-admin-token"
+    assert data["testing"] is True
+
+
+def test_auth_status_testing_no_bypass(client):
+    """No bypass when TESTING=True but admin_token is empty (fresh start shows wizard)."""
+    # admin_token is already "" from the autouse fixture — bypass should NOT fire.
+    assert settings.admin_token == ""
+    response = client.get("/api/auth/status")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["authenticated"] is False
 
 
 def test_auth_status_authenticated(client):
