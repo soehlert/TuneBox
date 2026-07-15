@@ -41,7 +41,6 @@ def reset_settings():
     settings.admin_token = original_admin_token
 
 
-
 def test_auth_status_unauthenticated(client):
     """Test retrieving auth status when credentials are not configured."""
     response = client.get("/api/auth/status")
@@ -76,7 +75,9 @@ def test_simulation_auth_flow(client, mock_redis):
     mock_cache.setex.side_effect = mock_setex
     mock_cache.get.side_effect = mock_get
 
-    with patch("backend.services.redis.get_redis_cache_client", return_value=mock_cache):
+    with patch(
+        "backend.services.redis.get_redis_cache_client", return_value=mock_cache
+    ):
         # 1. Request simulated PIN
         response = client.post("/api/auth/pin")
         assert response.status_code == 200
@@ -100,7 +101,9 @@ def test_simulation_auth_flow(client, mock_redis):
         settings.testing = True
         claim_response = client.post("/api/auth/mock-claim")
         assert claim_response.status_code == 200
-        assert claim_response.json()["message"] == "Simulated PIN authorized successfully!"
+        assert (
+            claim_response.json()["message"] == "Simulated PIN authorized successfully!"
+        )
 
         # 5. Check login status after claiming (should be True under settings.testing = False)
         settings.testing = False
@@ -235,7 +238,9 @@ def test_settings_get_with_valid_token(client):
     settings.client_name = "MyJukebox"
     settings.plex_server_name = "MyServer"
 
-    response = client.get("/api/auth/settings", headers={"x-admin-token": "valid_token_abc"})
+    response = client.get(
+        "/api/auth/settings", headers={"x-admin-token": "valid_token_abc"}
+    )
     assert response.status_code == 200
     data = response.json()
     assert data["plex_username"] == "OwnerUser"
@@ -251,7 +256,9 @@ def test_settings_post_requires_admin_token(client):
     response = client.post("/api/auth/settings", json=payload)
     assert response.status_code == 401
 
-    response = client.post("/api/auth/settings", json=payload, headers={"x-admin-token": "bad"})
+    response = client.post(
+        "/api/auth/settings", json=payload, headers={"x-admin-token": "bad"}
+    )
     assert response.status_code == 401
 
 
@@ -266,7 +273,11 @@ def test_settings_post_updates_config(client):
         patch("pathlib.Path.read_text", return_value=""),
         patch("pathlib.Path.write_text"),
     ):
-        payload = {"plex_username": "NewUser", "client_name": "NewJukebox", "plex_server_name": "NewServer"}
+        payload = {
+            "plex_username": "NewUser",
+            "client_name": "NewJukebox",
+            "plex_server_name": "NewServer",
+        }
         response = client.post(
             "/api/auth/settings",
             json=payload,
@@ -319,7 +330,9 @@ def test_clients_endpoints_requires_admin_token(client):
     response = client.post("/api/auth/clients/some_id/set-display")
     assert response.status_code == 401
 
-    response = client.post("/api/auth/clients/some_id/set-display", headers={"x-admin-token": "bad_token"})
+    response = client.post(
+        "/api/auth/clients/some_id/set-display", headers={"x-admin-token": "bad_token"}
+    )
     assert response.status_code == 401
 
 
@@ -328,15 +341,18 @@ def test_get_clients_and_set_display(client):
     settings.admin_token = "valid_admin_token"
 
     from backend.websockets import client_registry
+
     client_registry.clear()
     client_registry["uuid_123"] = {
         "name": "Living Room TV",
         "role": "guest",
         "is_display": False,
-        "connected_at": "2026-07-15T12:00:00Z"
+        "connected_at": "2026-07-15T12:00:00Z",
     }
 
-    response = client.get("/api/auth/clients", headers={"x-admin-token": "valid_admin_token"})
+    response = client.get(
+        "/api/auth/clients", headers={"x-admin-token": "valid_admin_token"}
+    )
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 1
@@ -347,9 +363,30 @@ def test_get_clients_and_set_display(client):
     with patch("backend.websockets.send_to_client_id") as mock_send:
         response = client.post(
             "/api/auth/clients/uuid_123/set-display",
-            headers={"x-admin-token": "valid_admin_token"}
+            headers={"x-admin-token": "valid_admin_token"},
         )
         assert response.status_code == 200
         assert client_registry["uuid_123"]["is_display"] is True
         mock_send.assert_called_once_with("uuid_123", {"type": "set_display_mode"})
 
+
+def test_production_pin_flow_mocked(client):
+    """Test requesting a real PIN in production mode (mocked MyPlexPinLogin)."""
+    settings.testing = False
+
+    mock_pinlogin = MagicMock()
+    mock_pinlogin._id = 12345
+    mock_pinlogin.pin = "CODE"
+
+    with patch(
+        "backend.routers.auth.MyPlexPinLogin", return_value=mock_pinlogin
+    ) as mock_class:
+        response = client.post("/api/auth/pin")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["pin_id"] == 12345
+        assert data["code"] == "CODE"
+        assert data["url"] == "https://plex.tv/link"
+
+        mock_class.assert_called_once_with(oauth=False)
+        mock_pinlogin.run.assert_called_once()

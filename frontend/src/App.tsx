@@ -303,6 +303,10 @@ function SettingsModal({ adminToken, onClose }: SettingsModalProps) {
                     <span style={{ color: "#5cdd5c", fontSize: "12px", fontWeight: "bold" }}>
                       ✓ Display
                     </span>
+                  ) : c.role === "admin" ? (
+                    <span style={{ color: "#888", fontSize: "12px", fontStyle: "italic" }}>
+                      Admin
+                    </span>
                   ) : (
                     <button
                       onClick={() => handleSetDisplay(c.client_id)}
@@ -465,8 +469,12 @@ function App() {
   const [authUrl, setAuthUrl] = useState<string>("");
 
   // Input states
-  const [plexUsername, setPlexUsername] = useState<string>("");
-  const [localUsername, setLocalUsername] = useState<string>("");
+  const [plexUsername, setPlexUsername] = useState<string>(
+    () => localStorage.getItem("tunebox_setup_plex_username") ?? ""
+  );
+  const [localUsername, setLocalUsername] = useState<string>(
+    () => localStorage.getItem("tunebox_setup_local_username") ?? ""
+  );
 
   // Resources
   const [servers, setServers] = useState<string[]>([]);
@@ -476,21 +484,21 @@ function App() {
   const [isFetchingResources, setIsFetchingResources] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
+  // Display / kiosk mode — designated by the admin; persists in localStorage
+  const [isDisplay, setIsDisplay] = useState<boolean>(
+    () => localStorage.getItem("tunebox_display") === "true"
+  );
+
   // Admin / guest state — must be React state so changes trigger re-renders
   const [adminToken, setAdminToken] = useState<string>(
     () => localStorage.getItem("tunebox_admin_token") ?? ""
   );
-  const isAdmin = Boolean(adminToken);
+  const isAdmin = Boolean(adminToken) && !isDisplay;
   const [showSettings, setShowSettings] = useState(false);
   const [guestProfile, setGuestProfile] = useState<GuestProfile | null>(() => {
     const raw = localStorage.getItem("tunebox_guest");
     return raw ? (JSON.parse(raw) as GuestProfile) : null;
   });
-
-  // Display / kiosk mode — designated by the admin; persists in localStorage
-  const [isDisplay, setIsDisplay] = useState<boolean>(
-    () => localStorage.getItem("tunebox_display") === "true"
-  );
 
   // Manage client_control WebSocket connection
   useEffect(() => {
@@ -578,7 +586,11 @@ function App() {
 
   useEffect(() => {
     checkStatus();
-  }, []);
+    if (!isConfigured) {
+      const interval = setInterval(checkStatus, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [isConfigured]);
 
   const checkStatus = async () => {
     try {
@@ -611,6 +623,8 @@ function App() {
       return;
     }
     try {
+      localStorage.setItem("tunebox_setup_plex_username", plexUsername);
+      localStorage.setItem("tunebox_setup_local_username", localUsername);
       const res = await axios.post(getApiUrl("/api/auth/pin"));
       setPinCode(res.data.code);
       setPinId(res.data.pin_id);
@@ -674,6 +688,8 @@ function App() {
         localStorage.setItem("tunebox_admin_token", res.data.admin_token);
         setAdminToken(res.data.admin_token);
       }
+      localStorage.removeItem("tunebox_setup_plex_username");
+      localStorage.removeItem("tunebox_setup_local_username");
       setIsConfigured(true);
       setStep(4);
     } catch (err) {
@@ -766,8 +782,8 @@ function App() {
             </div>
           </div>
 
-          {/* Admin Settings Gear — bottom-left, admin-only */}
-          {isAdmin && (
+          {/* Admin Settings Gear — bottom-left, admin-only, hidden on displays */}
+          {isAdmin && !isDisplay && (
             <button
               onClick={() => setShowSettings(true)}
               style={{

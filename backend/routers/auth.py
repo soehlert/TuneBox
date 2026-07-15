@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from backend.config import settings
 from backend.services.plex import get_plex_connection, reinitialize_plex
 from backend.services.redis import cache_data, get_cached_data
+from backend import websockets as ws
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +30,7 @@ def write_settings_to_env(
     server_name: str,
     client_name: str,
     plex_username: str = "",
-    admin_token: str = ""
+    admin_token: str = "",
 ):
     """Write settings back to the .env file."""
     env_path = "/app/.env"
@@ -73,7 +74,7 @@ def write_token_to_env(token: str):
         settings.plex_server_name,
         settings.client_name,
         settings.plex_username,
-        settings.admin_token
+        settings.admin_token,
     )
 
 
@@ -81,9 +82,7 @@ def write_token_to_env(token: str):
 async def status():
     """Retrieve the current connection and authentication status."""
     is_configured = bool(
-        settings.plex_token
-        and settings.plex_server_name
-        and settings.client_name
+        settings.plex_token and settings.plex_server_name and settings.client_name
     ) or bool(
         settings.plex_username
         and settings.plex_password
@@ -91,7 +90,9 @@ async def status():
         and settings.client_name
     )
 
-    if not settings.plex_token and not (settings.plex_username and settings.plex_password):
+    if not settings.plex_token and not (
+        settings.plex_username and settings.plex_password
+    ):
         return {
             "authenticated": False,
             "username": "",
@@ -128,23 +129,27 @@ async def request_pin(simulate: bool = False):
     """Request a new login PIN from Plex or start a simulation session."""
     if simulate and not settings.testing:
         raise HTTPException(
-            status_code=400, detail="Simulation mode is only allowed when testing is enabled."
+            status_code=400,
+            detail="Simulation mode is only allowed when testing is enabled.",
         )
 
     if settings.testing or simulate:
         code = "MOCK"
         url = "http://localhost/api/auth/mock-claim"
-        cache_data("mock_pin_active", {"pin_id": MOCK_PIN_ID, "code": code, "authorized": False})
+        cache_data(
+            "mock_pin_active",
+            {"pin_id": MOCK_PIN_ID, "code": code, "authorized": False},
+        )
         return {"pin_id": MOCK_PIN_ID, "code": code, "url": url}
 
     try:
-        pinlogin = MyPlexPinLogin(oauth=True)
+        pinlogin = MyPlexPinLogin(oauth=False)
         await asyncio.to_thread(pinlogin.run)
         active_pins[pinlogin._id] = pinlogin
         return {
             "pin_id": pinlogin._id,
-            "code": pinlogin.code,
-            "url": pinlogin.oauthUrl()
+            "code": pinlogin.pin,
+            "url": "https://plex.tv/link",
         }
     except Exception as e:
         logger.exception("Plex PIN request failed.")
@@ -197,16 +202,20 @@ async def check_pin(pin_id: int):
     return {"authenticated": False}
 
 
+@router.get("/mock-claim")
 @router.post("/mock-claim")
 async def mock_claim():
     """Simulate a successful login authorization for offline testing."""
     if not settings.testing:
         raise HTTPException(
-            status_code=400, detail="Simulation mode is only allowed when testing is enabled."
+            status_code=400,
+            detail="Simulation mode is only allowed when testing is enabled.",
         )
     mock_data = get_cached_data("mock_pin_active")
     if not mock_data:
-        raise HTTPException(status_code=404, detail="No active simulated PIN request found.")
+        raise HTTPException(
+            status_code=404, detail="No active simulated PIN request found."
+        )
 
     mock_data["authorized"] = True
     cache_data("mock_pin_active", mock_data)
@@ -263,14 +272,14 @@ async def configure_resources(req: ConfigurationRequest):
         req.plex_server_name,
         req.client_name,
         req.plex_username,
-        admin_token=token
+        admin_token=token,
     )
 
     reinitialize_plex()
 
     return {
         "message": "Configuration successfully saved and reinitialized!",
-        "admin_token": token
+        "admin_token": token,
     }
 
 
@@ -295,7 +304,9 @@ async def get_settings(x_admin_token: str | None = Header(None)):
 
 
 @router.post("/settings")
-async def update_settings(req: SettingsUpdateRequest, x_admin_token: str | None = Header(None)):
+async def update_settings(
+    req: SettingsUpdateRequest, x_admin_token: str | None = Header(None)
+):
     """Save updated connection/instance settings live."""
     if not settings.admin_token or x_admin_token != settings.admin_token:
         raise HTTPException(status_code=401, detail="Unauthorized: Invalid admin token")
@@ -309,7 +320,7 @@ async def update_settings(req: SettingsUpdateRequest, x_admin_token: str | None 
         req.plex_server_name,
         req.client_name,
         req.plex_username,
-        settings.admin_token
+        settings.admin_token,
     )
     reinitialize_plex()
 
@@ -325,15 +336,27 @@ async def verify_username(username: str):
     if settings.testing:
         # In testing mode, treat usernames starting with "friend_" as verified
         is_member = username.lower().startswith("friend_")
-        return {"username": username, "is_member": is_member, "role": "member" if is_member else "guest"}
+        return {
+            "username": username,
+            "is_member": is_member,
+            "role": "member" if is_member else "guest",
+        }
 
     try:
         account = MyPlexAccount(token=settings.plex_token)
         friend_names = {u.username.lower() for u in account.users()}
-        home_names = {u.title.lower() for u in account.myPlexAccount().systemAccounts() if hasattr(u, "title")}
+        home_names = {
+            u.title.lower()
+            for u in account.myPlexAccount().systemAccounts()
+            if hasattr(u, "title")
+        }
         verified_names = friend_names | home_names
         is_member = username.lower() in verified_names
-        return {"username": username, "is_member": is_member, "role": "member" if is_member else "guest"}
+        return {
+            "username": username,
+            "is_member": is_member,
+            "role": "member" if is_member else "guest",
+        }
     except Exception as e:
         logger.exception("Failed to look up Plex friends list")
         raise HTTPException(
@@ -347,8 +370,7 @@ async def get_clients(x_admin_token: str | None = Header(None)):
     if not settings.admin_token or x_admin_token != settings.admin_token:
         raise HTTPException(status_code=401, detail="Unauthorized: Invalid admin token")
 
-    from backend.websockets import client_registry
-    return [{"client_id": cid, **info} for cid, info in client_registry.items()]
+    return [{"client_id": cid, **info} for cid, info in ws.client_registry.items()]
 
 
 @router.post("/clients/{client_id}/set-display")
@@ -357,11 +379,9 @@ async def set_client_display(client_id: str, x_admin_token: str | None = Header(
     if not settings.admin_token or x_admin_token != settings.admin_token:
         raise HTTPException(status_code=401, detail="Unauthorized: Invalid admin token")
 
-    from backend.websockets import client_registry, send_to_client_id
-    if client_id not in client_registry:
+    if client_id not in ws.client_registry:
         raise HTTPException(status_code=404, detail="Client not found")
 
-    client_registry[client_id]["is_display"] = True
-    await send_to_client_id(client_id, {"type": "set_display_mode"})
+    ws.client_registry[client_id]["is_display"] = True
+    await ws.send_to_client_id(client_id, {"type": "set_display_mode"})
     return {"message": f"Client {client_id} set as shared display"}
-

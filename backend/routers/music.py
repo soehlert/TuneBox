@@ -52,7 +52,9 @@ async def add_to_queue(item_id: int, background_tasks: BackgroundTasks):
         # Ensure 400 exceptions (like 'Song is already in the queue') are caught and returned correctly
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error adding item to queue: {e}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Error adding item to queue: {e}"
+        ) from e
     else:
         return {"message": f"Added {song.title} to the playback queue."}
 
@@ -77,7 +79,9 @@ async def remove_from_queue(item_id: int, background_tasks: BackgroundTasks):
         # Ensure 404 exceptions (like 'Song not found in the queue') are caught and returned correctly
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error removing item from queue: {e}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Error removing item from queue: {e}"
+        ) from e
     else:
         return result
 
@@ -92,7 +96,9 @@ def get_playback_queue():
     try:
         queue = get_redis_queue()
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching the queue: {e!s}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Error fetching the queue: {e!s}"
+        ) from e
     else:
         return [
             {
@@ -119,7 +125,9 @@ async def clear_the_queue(background_tasks: BackgroundTasks):
         background_tasks.add_task(send_queue)
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error clearing the queue: {e}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Error clearing the queue: {e}"
+        ) from e
     else:
         return result
 
@@ -158,7 +166,9 @@ def get_all_artists():
     try:
         return fetch_all_artists()
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching artists: {e}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Error fetching artists: {e}"
+        ) from e
 
 
 # Fetch albums for a specific artist
@@ -172,7 +182,9 @@ def get_albums_for_artist(artist_id: int):
     try:
         return fetch_albums_for_artist(artist_id)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching albums for artist {artist_id}: {e}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Error fetching albums for artist {artist_id}: {e}"
+        ) from e
 
 
 # Fetch tracks for a specific album
@@ -186,7 +198,9 @@ def get_tracks_for_album(album_id: int):
     try:
         return fetch_tracks_for_album(album_id)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching tracks for album {album_id}: {e}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Error fetching tracks for album {album_id}: {e}"
+        ) from e
 
 
 # Search for artists, albums, or tracks
@@ -200,7 +214,9 @@ def search_music_endpoint(query: str):
     try:
         return search_music(query)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error searching music library: {e}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Error searching music library: {e}"
+        ) from e
 
 
 # Fetch the list of available playback devices (players)
@@ -214,7 +230,9 @@ def get_players():
     try:
         players = get_all_players()
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching players: {e}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Error fetching players: {e}"
+        ) from e
     else:
         return players
 
@@ -229,7 +247,9 @@ def get_active_player_endpoint():
     try:
         active_player = get_active_player()
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching active player: {e}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Error fetching active player: {e}"
+        ) from e
     else:
         return {
             "player_id": active_player.machineIdentifier,
@@ -253,7 +273,9 @@ def get_current_playing():
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching current track: {e!s}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Error fetching current track: {e!s}"
+        ) from e
     else:
         return {"current_track": current_track}
 
@@ -285,9 +307,13 @@ def get_artist_image(artist_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching artist image: {e}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Error fetching artist image: {e}"
+        ) from e
     else:
-        return StreamingResponse(response.iter_content(chunk_size=1024), media_type="image/jpeg")
+        return StreamingResponse(
+            response.iter_content(chunk_size=1024), media_type="image/jpeg"
+        )
 
 
 @router.get("/album-art/{album_id}")
@@ -302,6 +328,10 @@ def get_album_art(album_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching album art: {e}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Error fetching album art: {e}"
+        ) from e
     else:
-        return StreamingResponse(response.iter_content(chunk_size=1024), media_type="image/jpeg")
+        return StreamingResponse(
+            response.iter_content(chunk_size=1024), media_type="image/jpeg"
+        )

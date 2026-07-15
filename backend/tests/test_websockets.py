@@ -12,7 +12,12 @@ from fastapi.websockets import WebSocketDisconnect
 from starlette.websockets import WebSocketState
 
 from backend.routers.music import router
-from backend.websockets import active_connections, send_current_playing, send_queue, websocket_handler
+from backend.websockets import (
+    active_connections,
+    send_current_playing,
+    send_queue,
+    websocket_handler,
+)
 
 app = FastAPI()
 app.include_router(router)
@@ -43,7 +48,10 @@ def mock_current_track():
 @pytest.fixture
 def mock_queue():
     """Provide a mock playback queue for testing."""
-    return [{"id": 1, "title": "Song 1", "artist": "Artist 1"}, {"id": 2, "title": "Song 2", "artist": "Artist 2"}]
+    return [
+        {"id": 1, "title": "Song 1", "artist": "Artist 1"},
+        {"id": 2, "title": "Song 2", "artist": "Artist 2"},
+    ]
 
 
 class MockWebSocket(WebSocket):
@@ -135,10 +143,14 @@ async def test_send_current_playing(mock_current_track):
     session_id = str(id(mock_ws))
     active_connections["music_control"][session_id] = mock_ws
 
-    with patch("backend.websockets.get_current_playing_track", return_value=mock_current_track):
+    with patch(
+        "backend.websockets.get_current_playing_track", return_value=mock_current_track
+    ):
         await send_current_playing()
 
-        assert len(mock_ws.sent_messages) == 1, f"Expected 1 message, found {len(mock_ws.sent_messages)}"
+        assert (
+            len(mock_ws.sent_messages) == 1
+        ), f"Expected 1 message, found {len(mock_ws.sent_messages)}"
         sent_data = json.loads(mock_ws.sent_messages[0])
 
         assert sent_data["current_track"]["title"] == mock_current_track["title"]
@@ -155,7 +167,9 @@ async def test_send_queue(mock_queue, mock_redis):
     mock_redis_queue, _ = mock_redis
     mock_redis_queue.lrange.return_value = [json.dumps(item) for item in mock_queue]
 
-    with patch("backend.services.redis.get_redis_queue_client", return_value=mock_redis_queue):
+    with patch(
+        "backend.services.redis.get_redis_queue_client", return_value=mock_redis_queue
+    ):
         await send_queue()
 
     assert len(mock_ws.sent_messages) == 1
@@ -184,9 +198,9 @@ async def test_websocket_heartbeat(caplog):
         await mock_ws.receive_queue.put(json.dumps({"type": "heartbeat"}))
         await asyncio.sleep(0.1)
 
-        assert any('"message": "pong"' in message for message in mock_ws.sent_messages), (
-            f"Expected 'pong' in sent messages, found: {mock_ws.sent_messages}"
-        )
+        assert any(
+            '"message": "pong"' in message for message in mock_ws.sent_messages
+        ), f"Expected 'pong' in sent messages, found: {mock_ws.sent_messages}"
 
         handler_task.cancel()
         try:
@@ -220,9 +234,9 @@ async def test_websocket_disconnect(caplog):
     await asyncio.sleep(0.1)
 
     for connection_type in active_connections:
-        assert session_id not in active_connections[connection_type], (
-            f"Connection {session_id} was not removed from {connection_type}"
-        )
+        assert (
+            session_id not in active_connections[connection_type]
+        ), f"Connection {session_id} was not removed from {connection_type}"
 
     handler_task.cancel()
     try:
@@ -235,6 +249,7 @@ async def test_websocket_disconnect(caplog):
 async def test_websocket_client_control_registration():
     """Test client control registration, client_registry updates, and heartbeat/re-register."""
     from backend.websockets import client_registry
+
     client_registry.clear()
 
     mock_ws = MockWebSocket()
@@ -249,13 +264,17 @@ async def test_websocket_client_control_registration():
     handler_task = asyncio.create_task(run_handler())
 
     # Send initial message to establish client_control connection
-    await mock_ws.receive_queue.put(json.dumps({
-        "type": "client_control",
-        "client_id": client_id,
-        "name": "TV Client",
-        "role": "guest",
-        "is_display": False
-    }))
+    await mock_ws.receive_queue.put(
+        json.dumps(
+            {
+                "type": "client_control",
+                "client_id": client_id,
+                "name": "TV Client",
+                "role": "guest",
+                "is_display": False,
+            }
+        )
+    )
     await asyncio.sleep(0.1)
 
     # Verify registered
@@ -265,13 +284,17 @@ async def test_websocket_client_control_registration():
     assert client_registry[client_id]["is_display"] is False
 
     # Send re-register payload via loop
-    await mock_ws.receive_queue.put(json.dumps({
-        "type": "client_control",
-        "client_id": client_id,
-        "name": "TV Client Promoted",
-        "role": "display",
-        "is_display": True
-    }))
+    await mock_ws.receive_queue.put(
+        json.dumps(
+            {
+                "type": "client_control",
+                "client_id": client_id,
+                "name": "TV Client Promoted",
+                "role": "display",
+                "is_display": True,
+            }
+        )
+    )
     await asyncio.sleep(0.1)
 
     assert client_registry[client_id]["name"] == "TV Client Promoted"

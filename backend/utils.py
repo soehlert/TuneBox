@@ -138,4 +138,3 @@ class TrackTimeTracker:
         elif current_track["track_state"] == "playing":
             if self.state == "paused":
                 self.resume()
-

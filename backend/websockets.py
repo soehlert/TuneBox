@@ -32,7 +32,9 @@ async def send_to_specific_client(session_id: str, message: dict, message_type: 
         connection = active_connections[message_type][session_id]
         await connection.send_text(json.dumps(message))
     except KeyError:
-        logger.exception("Session ID %s not found in %s", session_id, active_connections)
+        logger.exception(
+            "Session ID %s not found in %s", session_id, active_connections
+        )
 
 
 async def send_to_client_id(client_id: str, message: dict):
@@ -162,8 +164,14 @@ async def websocket_handler(websocket: WebSocket):
         session_id = str(id(websocket))
         active_connections[message_type][session_id] = websocket
 
-    logger.debug("Current active connections for '%s': %s", message_type, active_connections[message_type])
-    logger.info("New WebSocket connection of type %s, session %s", message_type, session_id)
+    logger.debug(
+        "Current active connections for '%s': %s",
+        message_type,
+        active_connections[message_type],
+    )
+    logger.info(
+        "New WebSocket connection of type %s, session %s", message_type, session_id
+    )
 
     # Send initial state update immediately to the new client
     try:
@@ -215,7 +223,9 @@ async def websocket_handler(websocket: WebSocket):
         if message_type == "client_control":
             client_registry.pop(session_id, None)
         logger.info(
-            "WebSocket connection from %s closed. Active connections: %d", websocket.client, len(active_connections)
+            "WebSocket connection from %s closed. Active connections: %d",
+            websocket.client,
+            len(active_connections),
         )
 
 

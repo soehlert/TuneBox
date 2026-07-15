@@ -46,7 +46,12 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://frontend:80", "http://localhost", "http://localhost:5173", settings.tunebox_url],
+    allow_origins=[
+        "http://frontend:80",
+        "http://localhost",
+        "http://localhost:5173",
+        settings.tunebox_url,
+    ],
     allow_methods=["*"],
     allow_headers=["*"],
 )

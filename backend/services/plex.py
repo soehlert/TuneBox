@@ -13,7 +13,13 @@ from plexapi.myplex import MyPlexAccount
 
 from backend.config import settings
 from backend.exceptions import PlexConnectionError
-from backend.services.redis import cache_data, clear_cache, get_cached_data, get_redis_queue, remove_from_redis_queue
+from backend.services.redis import (
+    cache_data,
+    clear_cache,
+    get_cached_data,
+    get_redis_queue,
+    remove_from_redis_queue,
+)
 from backend.utils import TrackTimeTracker, milliseconds_to_seconds
 
 HEARTBEAT_INTERVAL = 12
@@ -37,7 +43,9 @@ def get_plex_connection():
     Returns:
         A PlexServer instance to run our API calls against.
     """
-    if not settings.plex_token and not (settings.plex_username and settings.plex_password):
+    if not settings.plex_token and not (
+        settings.plex_username and settings.plex_password
+    ):
         raise PlexConnectionError
 
     try:
@@ -48,7 +56,9 @@ def get_plex_connection():
         if settings.plex_token:
             account = MyPlexAccount(token=settings.plex_token)
         else:
-            account = MyPlexAccount(username=settings.plex_username, password=settings.plex_password)
+            account = MyPlexAccount(
+                username=settings.plex_username, password=settings.plex_password
+            )
 
         # Get the specific server by its name
         plex_server = account.resource(settings.plex_server_name).connect()
@@ -112,7 +122,12 @@ def get_all_players():
         raise PlexApiException(msg)
 
     return [
-        {"player_id": player.machineIdentifier, "name": player.title, "device": player.device} for player in players
+        {
+            "player_id": player.machineIdentifier,
+            "name": player.title,
+            "device": player.device,
+        }
+        for player in players
     ]
 
 
@@ -135,7 +150,9 @@ def get_active_player(client_name: str | None = None):
         active_player = next((p for p in players if p.title == client_name), None)
         if active_player:
             return active_player
-        logger.debug("No player found with name %s, falling back to first player.", client_name)
+        logger.debug(
+            "No player found with name %s, falling back to first player.", client_name
+        )
 
     # Select the first available player otherwise
     active_player = players[0]
@@ -195,6 +212,7 @@ async def play_queue_on_device():
 
                 # Lazy import websockets to avoid circular imports
                 from backend.websockets import send_current_playing, send_queue  # noqa: PLC0415
+
                 await send_queue()
                 await send_current_playing()
             except Exception:
@@ -216,13 +234,18 @@ async def playback_orchestrator():
     while True:
         try:
             # Skip loop if server is unauthenticated (unconfigured)
-            if not settings.plex_token and not (settings.plex_username and settings.plex_password):
+            if not settings.plex_token and not (
+                settings.plex_username and settings.plex_password
+            ):
                 await asyncio.sleep(5)
                 continue
 
             # 1. Drive the queue if nothing is currently playing
             if playback_active:
-                if not track_time_tracker.is_playing and track_time_tracker.state != "paused":
+                if (
+                    not track_time_tracker.is_playing
+                    and track_time_tracker.state != "paused"
+                ):
                     # Get the current queue
                     queue = get_redis_queue()
                     if queue:
@@ -236,7 +259,11 @@ async def playback_orchestrator():
                             await asyncio.to_thread(play_song, player, track)
 
                             # Lazy import websockets to avoid circular imports
-                            from backend.websockets import send_current_playing, send_queue  # noqa: PLC0415
+                            from backend.websockets import (
+                                send_current_playing,
+                                send_queue,
+                            )  # noqa: PLC0415
+
                             await send_queue()
                             await send_current_playing()
                         except Exception:
@@ -244,12 +271,14 @@ async def playback_orchestrator():
                             # To prevent infinite looping on failure, we can remove the item
                             remove_from_redis_queue(next_song["item_id"])
                             from backend.websockets import send_queue  # noqa: PLC0415
+
                             await send_queue()
                     else:
                         # Queue finished
                         playback_active = False
                         clear_cache("now_playing")
                         from backend.websockets import send_current_playing  # noqa: PLC0415
+
                         await send_current_playing()
 
                 # 2. Check for natural track completion
@@ -259,13 +288,20 @@ async def playback_orchestrator():
                     if cached_track:
                         total_time = cached_track.get("duration", 0)
                         if total_time > 0 and elapsed >= total_time:
-                            logger.info("Track %s finished. Advancing queue.", cached_track["title"])
+                            logger.info(
+                                "Track %s finished. Advancing queue.",
+                                cached_track["title"],
+                            )
                             # Stop current tracking
                             track_time_tracker.stop()
                             # Remove finished track
                             remove_from_redis_queue(cached_track["item_id"])
 
-                            from backend.websockets import send_current_playing, send_queue  # noqa: PLC0415
+                            from backend.websockets import (
+                                send_current_playing,
+                                send_queue,
+                            )  # noqa: PLC0415
+
                             await send_queue()
                             await send_current_playing()
 
@@ -298,7 +334,10 @@ async def check_plexamp_resync():
         # Look for a session running on our active player
         active_session = None
         for session in sessions:
-            if getattr(session, "player", None) and session.player.machineIdentifier == player.machineIdentifier:
+            if (
+                getattr(session, "player", None)
+                and session.player.machineIdentifier == player.machineIdentifier
+            ):
                 active_session = session
                 break
 
@@ -308,8 +347,14 @@ async def check_plexamp_resync():
         if active_session:
             # We found an active session on the player!
             session_title = active_session.title
-            session_state = active_session.player.state  # 'playing', 'paused', 'stopped'
-            session_duration = milliseconds_to_seconds(active_session.duration) if active_session.duration else 0
+            session_state = (
+                active_session.player.state
+            )  # 'playing', 'paused', 'stopped'
+            session_duration = (
+                milliseconds_to_seconds(active_session.duration)
+                if active_session.duration
+                else 0
+            )
 
             # Check elapsed time from Plex session
             plex_elapsed = (
@@ -321,13 +366,17 @@ async def check_plexamp_resync():
             # 1. Check if track changed (manual skip/change on Plexamp)
             cached_track = get_cached_data("now_playing")
             if not cached_track or cached_track.get("title") != session_title:
-                logger.info("Detected track change on Plexamp: '%s'. Resynced.", session_title)
+                logger.info(
+                    "Detected track change on Plexamp: '%s'. Resynced.", session_title
+                )
 
                 # Fetch details and cache them
                 song_data = {
                     "item_id": active_session.ratingKey,
                     "title": session_title,
-                    "artist": getattr(active_session, "grandparentTitle", "Unknown Artist"),
+                    "artist": getattr(
+                        active_session, "grandparentTitle", "Unknown Artist"
+                    ),
                     "album": getattr(active_session, "parentTitle", "Unknown Album"),
                     "duration": session_duration,
                     "album_art": getattr(active_session, "thumb", None),
@@ -346,7 +395,9 @@ async def check_plexamp_resync():
 
                 # Align elapsed time
                 track_time_tracker.accumulated_elapsed = float(plex_elapsed)
-                track_time_tracker.last_resume_time = time.time() if session_state == "playing" else None
+                track_time_tracker.last_resume_time = (
+                    time.time() if session_state == "playing" else None
+                )
 
                 playback_active = True
                 await send_current_playing()
@@ -372,7 +423,9 @@ async def check_plexamp_resync():
                     )
                     # Align elapsed time
                     track_time_tracker.accumulated_elapsed = float(plex_elapsed)
-                    track_time_tracker.last_resume_time = time.time() if session_state == "playing" else None
+                    track_time_tracker.last_resume_time = (
+                        time.time() if session_state == "playing" else None
+                    )
                     state_changed = True
 
                 if state_changed:
@@ -416,7 +469,9 @@ def stop_playback():
             return {"message": "Playback stopped successfully."}
         raise HTTPException(status_code=400, detail="No active player found.")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error stopping playback: {e}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Error stopping playback: {e}"
+        ) from e
 
 
 def fetch_all_artists():
@@ -501,7 +556,9 @@ def fetch_tracks_for_album(album_id):
             {
                 "track_id": track.ratingKey,
                 "title": track.title,
-                "duration": milliseconds_to_seconds(track.duration) if track.duration else 0,
+                "duration": milliseconds_to_seconds(track.duration)
+                if track.duration
+                else 0,
             }
             for track in tracks
         ],
@@ -528,23 +585,31 @@ def search_music(query):
 
     formatted_results = []
     for item in artist_results:
-        formatted_results.append({"name": item.title, "type": item.type, "artist_id": item.ratingKey})
+        formatted_results.append(
+            {"name": item.title, "type": item.type, "artist_id": item.ratingKey}
+        )
     for item in album_results:
-        formatted_results.append({
-            "title": item.title,
-            "type": item.type,
-            "album_id": item.ratingKey,
-            "artist": item.parentTitle,
-        })
+        formatted_results.append(
+            {
+                "title": item.title,
+                "type": item.type,
+                "album_id": item.ratingKey,
+                "artist": item.parentTitle,
+            }
+        )
     for item in track_results:
-        formatted_results.append({
-            "title": item.title,
-            "type": item.type,
-            "track_id": item.ratingKey,
-            "duration": milliseconds_to_seconds(item.duration) if item.duration else 0,
-            "artist": item.grandparentTitle,
-            "album": item.parentTitle,
-        })
+        formatted_results.append(
+            {
+                "title": item.title,
+                "type": item.type,
+                "track_id": item.ratingKey,
+                "duration": milliseconds_to_seconds(item.duration)
+                if item.duration
+                else 0,
+                "artist": item.grandparentTitle,
+                "album": item.parentTitle,
+            }
+        )
 
     return formatted_results
 
@@ -561,10 +626,15 @@ def fetch_art(item_id: int, item_type: str):
         if item_type in {"artist", "album"}:
             item = plex.fetchItem(item_id)
         else:
-            raise HTTPException(status_code=400, detail="Invalid item type. Must be 'artist' or 'album'.")
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid item type. Must be 'artist' or 'album'.",
+            )
 
         if not item.thumb:
-            raise HTTPException(status_code=404, detail=f"No image available for this {item_type}.")
+            raise HTTPException(
+                status_code=404, detail=f"No image available for this {item_type}."
+            )
 
         # Get the server URL and token from the established connection
         # ruff: noqa: SLF001
@@ -576,8 +646,12 @@ def fetch_art(item_id: int, item_type: str):
         # ruff: noqa: S501
         response = requests.get(image_url, stream=True, verify=False, timeout=5)
         if not response.ok:
-            raise HTTPException(status_code=500, detail=f"Error fetching {item_type} image from Plex.")
+            raise HTTPException(
+                status_code=500, detail=f"Error fetching {item_type} image from Plex."
+            )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error fetching {item_type} image: {e}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Error fetching {item_type} image: {e}"
+        ) from e
     else:
         return response

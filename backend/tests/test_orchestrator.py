@@ -6,13 +6,18 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from backend.services.plex import check_plexamp_resync, playback_orchestrator, track_time_tracker
+from backend.services.plex import (
+    check_plexamp_resync,
+    playback_orchestrator,
+    track_time_tracker,
+)
 
 
 @pytest.fixture(autouse=True)
 def clean_state():
     """Ensure variables are in a clean state before and after each test."""
     import backend.services.plex  # noqa: PLC0415
+
     backend.services.plex.playback_active = False
     track_time_tracker.stop()
     yield
@@ -24,9 +29,17 @@ def clean_state():
 async def test_orchestrator_starts_song(mocker):
     """Verify that when playback is active and the tracker is idle, a track from the queue starts playing."""
     import backend.services.plex  # noqa: PLC0415
+
     backend.services.plex.playback_active = True
 
-    mock_queue = [{"item_id": "123", "title": "Queue Song", "artist": "Queue Artist", "duration": 180}]
+    mock_queue = [
+        {
+            "item_id": "123",
+            "title": "Queue Song",
+            "artist": "Queue Artist",
+            "duration": 180,
+        }
+    ]
     mocker.patch("backend.services.plex.get_redis_queue", return_value=mock_queue)
 
     mock_player = MagicMock()
@@ -74,7 +87,10 @@ async def test_resync_detects_drift(mocker):
 
     mocker.patch("backend.services.plex.get_plex_connection", return_value=mock_plex)
     mocker.patch("backend.services.plex.get_active_player", return_value=mock_player)
-    mocker.patch("backend.services.plex.get_cached_data", return_value={"title": "Sync Song", "duration": 180})
+    mocker.patch(
+        "backend.services.plex.get_cached_data",
+        return_value={"title": "Sync Song", "duration": 180},
+    )
     mocker.patch("backend.services.plex.cache_data")
     mocker.patch("backend.websockets.send_current_playing")
 
@@ -83,4 +99,3 @@ async def test_resync_detects_drift(mocker):
     expected_elapsed = 10.0
     # The accumulated elapsed time should be adjusted to 10s (Plex's offset)
     assert pytest.approx(track_time_tracker.accumulated_elapsed) == expected_elapsed
-
