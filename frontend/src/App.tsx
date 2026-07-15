@@ -91,10 +91,13 @@ const labelStyle: React.CSSProperties = {
 interface SettingsModalProps {
   adminToken: string;
   onClose: () => void;
+  instanceName: string;
+  setInstanceName: (val: string) => void;
 }
 
-function SettingsModal({ adminToken, onClose }: SettingsModalProps) {
+function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: SettingsModalProps) {
   const [plexUsername, setPlexUsername] = useState("");
+  const [localInstanceName, setLocalInstanceName] = useState(instanceName);
   const [servers, setServers] = useState<string[]>([]);
   const [selectedServer, setSelectedServer] = useState("");
   const [players, setPlayers] = useState<string[]>([]);
@@ -159,6 +162,9 @@ function SettingsModal({ adminToken, onClose }: SettingsModalProps) {
     setSaving(true);
     setMsg("");
     try {
+      localStorage.setItem("tunebox_instance_name", localInstanceName);
+      setInstanceName(localInstanceName);
+
       await axios.post(
         getApiUrl("/api/auth/settings"),
         { plex_username: plexUsername, client_name: selectedPlayer, plex_server_name: selectedServer },
@@ -213,6 +219,15 @@ function SettingsModal({ adminToken, onClose }: SettingsModalProps) {
               type="text"
               value={plexUsername}
               onChange={(e) => setPlexUsername(e.target.value)}
+              style={inputStyle}
+            />
+          </div>
+          <div>
+            <label style={labelStyle}>TuneBox Instance Name</label>
+            <input
+              type="text"
+              value={localInstanceName}
+              onChange={(e) => setLocalInstanceName(e.target.value)}
               style={inputStyle}
             />
           </div>
@@ -293,11 +308,45 @@ function SettingsModal({ adminToken, onClose }: SettingsModalProps) {
 
         <div style={{ marginTop: "24px", borderTop: "1px solid #333", paddingTop: "20px" }}>
           <h3 style={{ margin: "0 0 12px 0", color: "#f5a623", fontSize: "16px" }}>💻 Connected Devices</h3>
-          {clients.filter(c => c.client_id !== getClientId()).length === 0 ? (
-            <p style={{ color: "#777", fontSize: "13px", margin: 0 }}>No other devices connected.</p>
+          {clients.length === 0 ? (
+            <p style={{ color: "#777", fontSize: "13px", margin: 0 }}>No devices connected.</p>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px", maxHeight: "150px", overflowY: "auto" }}>
-              {clients.filter(c => c.client_id !== getClientId()).map((c) => (
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px", maxHeight: "200px", overflowY: "auto" }}>
+              {/* Display screens at the top */}
+              {clients.filter(c => c.is_display).map((c) => (
+                <div
+                  key={c.client_id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "8px 12px",
+                    background: "rgba(92, 221, 92, 0.08)",
+                    border: "1px solid rgba(92, 221, 92, 0.2)",
+                    borderRadius: "6px",
+                  }}
+                >
+                  <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                    <span style={{ color: "#fff", fontSize: "14px", fontWeight: "bold" }}>
+                      {c.name} {c.client_id === getClientId() ? " (This Device)" : ""}
+                    </span>
+                    <span style={{ color: "#888", fontSize: "11px", textTransform: "capitalize" }}>
+                      Role: {c.role} • Display Screen
+                    </span>
+                  </div>
+                  <span style={{ color: "#5cdd5c", fontSize: "12px", fontWeight: "bold" }}>
+                    ✓ Display
+                  </span>
+                </div>
+              ))}
+
+              {/* Divider if displays and others both exist */}
+              {clients.filter(c => c.is_display).length > 0 && clients.filter(c => !c.is_display).length > 0 && (
+                <div style={{ height: "1px", background: "#333", margin: "8px 0" }} />
+              )}
+
+              {/* Other instances */}
+              {clients.filter(c => !c.is_display).map((c) => (
                 <div
                   key={c.client_id}
                   style={{
@@ -311,39 +360,29 @@ function SettingsModal({ adminToken, onClose }: SettingsModalProps) {
                 >
                   <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
                     <span style={{ color: "#fff", fontSize: "14px", fontWeight: "bold" }}>
-                      {c.name}
+                      {c.name} {c.client_id === getClientId() ? " (This Device)" : ""}
                     </span>
                     <span style={{ color: "#888", fontSize: "11px", textTransform: "capitalize" }}>
-                      Role: {c.role} {c.is_display && "• Display"}
+                      Role: {c.role}
                     </span>
                   </div>
-                  {c.is_display ? (
-                    <span style={{ color: "#5cdd5c", fontSize: "12px", fontWeight: "bold" }}>
-                      ✓ Display
-                    </span>
-                  ) : c.role === "admin" ? (
-                    <span style={{ color: "#888", fontSize: "12px", fontStyle: "italic" }}>
-                      Admin
-                    </span>
-                  ) : (
-                    <button
-                      onClick={() => handleSetDisplay(c.client_id)}
-                      style={{
-                        background: "#f5a623",
-                        color: "#121212",
-                        border: "none",
-                        borderRadius: "4px",
-                        padding: "6px 10px",
-                        fontSize: "11px",
-                        fontWeight: "bold",
-                        cursor: "pointer",
-                      }}
-                      onMouseOver={(e) => (e.currentTarget.style.background = "#d48b17")}
-                      onMouseOut={(e) => (e.currentTarget.style.background = "#f5a623")}
-                    >
-                      Make Display
-                    </button>
-                  )}
+                  <button
+                    onClick={() => handleSetDisplay(c.client_id)}
+                    style={{
+                      background: "#f5a623",
+                      color: "#121212",
+                      border: "none",
+                      borderRadius: "4px",
+                      padding: "6px 10px",
+                      fontSize: "11px",
+                      fontWeight: "bold",
+                      cursor: "pointer",
+                    }}
+                    onMouseOver={(e) => (e.currentTarget.style.background = "#d48b17")}
+                    onMouseOut={(e) => (e.currentTarget.style.background = "#f5a623")}
+                  >
+                    Make Display
+                  </button>
                 </div>
               ))}
             </div>
@@ -505,6 +544,11 @@ function App() {
   const [isFetchingResources, setIsFetchingResources] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
+  // Instance name for this browser session (stored in localStorage)
+  const [instanceName, setInstanceName] = useState<string>(
+    () => localStorage.getItem("tunebox_instance_name") ?? "Jukebox Screen"
+  );
+
   // Display / kiosk mode — designated by the admin; persists in localStorage
   const [isDisplay, setIsDisplay] = useState<boolean>(
     () => localStorage.getItem("tunebox_display") === "true"
@@ -645,7 +689,7 @@ function App() {
         let name = "Unknown";
         let role = "guest";
         if (isAdmin) {
-          name = `Admin (${localUsername || "Owner"})`;
+          name = `Admin (${instanceName})`;
           role = "admin";
         } else if (isDisplay) {
           name = localStorage.getItem("tunebox_display_name") || "Shared Display";
@@ -710,7 +754,7 @@ function App() {
     return () => {
       ws.close();
     };
-  }, [isAdmin, isDisplay, guestProfile, localUsername]);
+  }, [isAdmin, isDisplay, guestProfile, instanceName]);
 
   useEffect(() => {
     checkStatus();
@@ -1026,8 +1070,8 @@ function App() {
           )}
 
           {/* Settings Modal */}
-          {showSettings && isAdmin && (
-            <SettingsModal adminToken={adminToken} onClose={() => setShowSettings(false)} />
+          {showSettings && (
+            <SettingsModal adminToken={adminToken} onClose={() => setShowSettings(false)} instanceName={instanceName} setInstanceName={setInstanceName} />
           )}
 
           {/* Guest Registration Modal — only for non-admin, non-display devices without a profile */}
