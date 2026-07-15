@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { Routes, Route, Link } from "react-router-dom";
+import { Routes, Route, Link, useNavigate, useLocation } from "react-router-dom";
 import { ThemeProvider } from "@mui/material/styles";
+import { TextField } from "@mui/material";
 import axios from "axios";
 import { QRCodeSVG } from "qrcode.react";
 import ArtistList from "./components/ArtistList";
@@ -500,6 +501,97 @@ function App() {
     return raw ? (JSON.parse(raw) as GuestProfile) : null;
   });
 
+  // Artist library / Search states
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const [artists, setArtists] = useState<any[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [artistsPerPage] = useState(24);
+  const [loadingArtists, setLoadingArtists] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedLetter, setSelectedLetter] = useState("");
+  const [filteredArtists, setFilteredArtists] = useState<any[]>([]);
+
+  // Debouncing hook logic
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    // Only fetch if configured
+    if (!isConfigured) return;
+
+    const fetchArtists = async () => {
+      try {
+        const searchURL = getApiUrl(`/api/music/search?query=${encodeURIComponent(searchTerm)}`);
+        const artistListURL = getApiUrl("/api/music/artists");
+        const endpoint = debouncedSearchTerm ? searchURL : artistListURL;
+
+        const response = await axios.get(endpoint);
+        let data = response.data;
+
+        // Only keep artists (exclude albums, tracks, etc.)
+        data = data.filter((item: any) => item.name);
+
+        // Sort the fetched data alphabetically by artist name
+        const sortedArtists = data.sort((a: any, b: any) =>
+          a.name && b.name ? a.name.localeCompare(b.name) : -1
+        );
+
+        setArtists(sortedArtists);
+        setFilteredArtists(sortedArtists);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      } finally {
+        setLoadingArtists(false);
+      }
+    };
+
+    if (debouncedSearchTerm === "" || debouncedSearchTerm) {
+      fetchArtists();
+    } else {
+      setLoadingArtists(false);
+      setArtists([]);
+    }
+  }, [debouncedSearchTerm, isConfigured]);
+
+  // Reset pagination whenever search term changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filteredArtists]);
+
+  const handleAlphabetClick = (character: string) => {
+    setSelectedLetter(character);
+    setSearchTerm(""); // Clear search term so the alphabet filter is visible
+
+    // Redirect to root if not on root
+    if (location.pathname !== "/") {
+      navigate("/");
+    }
+
+    const filtered = character === "0-9"
+      ? artists.filter((artist) => artist.name[0].match(/^\d/))
+      : artists.filter((artist) => artist.name[0].toUpperCase() === character.toUpperCase());
+
+    setFilteredArtists(filtered);
+    setCurrentPage(1); // Reset pagination to first page
+
+    // Scroll to the first matching artist
+    if (filtered.length > 0) {
+      setTimeout(() => {
+        const firstArtistElement = document.getElementById(`artist-${filtered[0].artist_id}`);
+        if (firstArtistElement) {
+          firstArtistElement.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 100);
+    }
+  };
+
   // Manage client_control WebSocket connection
   useEffect(() => {
     // Only connect if the user has completed the wizard (admin), joined as guest, or is in display mode
@@ -740,12 +832,74 @@ function App() {
 
           {/* Main content area */}
           <div className="main-content">
-            <div className="artist-grid-container">
-              <Routes>
-                <Route path="/" element={<ArtistList />} />
-                <Route path="/artists/:artistId/albums" element={<ArtistAlbums />} />
-                <Route path="/albums/:albumId/tracks" element={<TrackList />} />
-              </Routes>
+            <div className="artist-grid-container" style={{ display: 'flex', flexDirection: 'column', width: '100%', padding: '20px', overflowY: 'auto' }}>
+              {/* Persistent Search Bar */}
+              <TextField
+                label="Search Artists"
+                variant="outlined"
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setSelectedLetter("");
+                  if (location.pathname !== "/") {
+                    navigate("/");
+                  }
+                }}
+                fullWidth
+                margin="normal"
+                sx={{
+                  input: { color: "white" },
+                  label: { color: "#aaa" },
+                  "& .MuiOutlinedInput-root": {
+                    "& fieldset": { borderColor: "#333" },
+                    "&:hover fieldset": { borderColor: "#555" },
+                    "&.Mui-focused fieldset": { borderColor: "#f5a623" },
+                  },
+                  "& .MuiInputLabel-root.Mui-focused": { color: "#f5a623" }
+                }}
+              />
+
+              {/* Persistent layout containing alphabet filter on left and subpage content on right */}
+              <div className="artist-list-container">
+                {/* Persistent Alphabet Filter */}
+                <div className="alphabet-filter">
+                  <button
+                    onClick={() => handleAlphabetClick("0-9")}
+                    className={selectedLetter === "0-9" ? "active" : ""}
+                  >
+                    0
+                  </button>
+                  {"ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map((letter) => (
+                    <button
+                      key={letter}
+                      onClick={() => handleAlphabetClick(letter)}
+                      className={selectedLetter === letter ? "active" : ""}
+                    >
+                      {letter}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Subpage content */}
+                <div style={{ width: '100%' }}>
+                  <Routes>
+                    <Route
+                      path="/"
+                      element={
+                        <ArtistList
+                          filteredArtists={filteredArtists}
+                          loading={loadingArtists}
+                          currentPage={currentPage}
+                          setCurrentPage={setCurrentPage}
+                          artistsPerPage={artistsPerPage}
+                        />
+                      }
+                    />
+                    <Route path="/artists/:artistId/albums" element={<ArtistAlbums />} />
+                    <Route path="/albums/:albumId/tracks" element={<TrackList />} />
+                  </Routes>
+                </div>
+              </div>
             </div>
 
             {/* Sidebar: Queue + QR Code (non-admin shared display) */}
