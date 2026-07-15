@@ -25,6 +25,13 @@ def mock_settings():
         yield settings
 
 
+@pytest.fixture(autouse=True)
+def mock_write_settings():
+    """Mock pathlib.Path.write_text to avoid modifying the actual .env file during tests."""
+    with patch("pathlib.Path.write_text") as mock_write:
+        yield mock_write
+
+
 @pytest.fixture
 def mock_plex_track():
     """Create a mock Plex Track object with test attributes.
