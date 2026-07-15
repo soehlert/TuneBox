@@ -1,7 +1,0 @@
-feat: implement Plex OAuth PIN auth flow and simulation
-
-- Added plex_token configuration parameter
-- Integrated token-based Plex connection in get_plex_connection
-- Implemented `/api/auth` endpoints for status checking, PIN generation, check polling, and simulation claims
-- Configured React frontend with setup overlay card and simulated link triggers
-- Added full unit test suite for the authentication router
