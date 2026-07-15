@@ -366,8 +366,10 @@ function App() {
   const [isFetchingResources, setIsFetchingResources] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-  // Admin / guest state
-  const adminToken = localStorage.getItem("tunebox_admin_token") ?? "";
+  // Admin / guest state — must be React state so changes trigger re-renders
+  const [adminToken, setAdminToken] = useState<string>(
+    () => localStorage.getItem("tunebox_admin_token") ?? ""
+  );
   const isAdmin = Boolean(adminToken);
   const [showSettings, setShowSettings] = useState(false);
   const [guestProfile, setGuestProfile] = useState<GuestProfile | null>(() => {
@@ -468,9 +470,10 @@ function App() {
         client_name: localUsername,
         plex_server_name: serverName,
       });
-      // Store admin token from configure response
+      // Store admin token and update state so gear icon appears immediately
       if (res.data.admin_token) {
         localStorage.setItem("tunebox_admin_token", res.data.admin_token);
+        setAdminToken(res.data.admin_token);
       }
       setIsConfigured(true);
       setStep(4);
