@@ -231,6 +231,68 @@ async def test_websocket_disconnect(caplog):
         pass
 
 
+@pytest.mark.asyncio
+async def test_websocket_client_control_registration():
+    """Test client control registration, client_registry updates, and heartbeat/re-register."""
+    from backend.websockets import client_registry
+    client_registry.clear()
+
+    mock_ws = MockWebSocket()
+    client_id = "test_uuid_999"
+
+    async def run_handler():
+        try:
+            await websocket_handler(mock_ws)
+        except WebSocketDisconnect:
+            pass
+
+    handler_task = asyncio.create_task(run_handler())
+
+    # Send initial message to establish client_control connection
+    await mock_ws.receive_queue.put(json.dumps({
+        "type": "client_control",
+        "client_id": client_id,
+        "name": "TV Client",
+        "role": "guest",
+        "is_display": False
+    }))
+    await asyncio.sleep(0.1)
+
+    # Verify registered
+    assert client_id in client_registry
+    assert client_registry[client_id]["name"] == "TV Client"
+    assert client_registry[client_id]["role"] == "guest"
+    assert client_registry[client_id]["is_display"] is False
+
+    # Send re-register payload via loop
+    await mock_ws.receive_queue.put(json.dumps({
+        "type": "client_control",
+        "client_id": client_id,
+        "name": "TV Client Promoted",
+        "role": "display",
+        "is_display": True
+    }))
+    await asyncio.sleep(0.1)
+
+    assert client_registry[client_id]["name"] == "TV Client Promoted"
+    assert client_registry[client_id]["role"] == "display"
+    assert client_registry[client_id]["is_display"] is True
+
+    # Disconnect
+    await mock_ws.receive_queue.put("__DISCONNECT__")
+    await asyncio.sleep(0.1)
+
+    # Verify cleaned up
+    assert client_id not in client_registry
+    assert client_id not in active_connections["client_control"]
+
+    handler_task.cancel()
+    try:
+        await handler_task
+    except asyncio.CancelledError:
+        pass
+
+
 @pytest.fixture(autouse=True)
 def cleanup():
     """Clean up mock websocket connections."""

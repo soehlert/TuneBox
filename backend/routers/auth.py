@@ -339,3 +339,29 @@ async def verify_username(username: str):
         raise HTTPException(
             status_code=500, detail=f"Failed to verify username: {e}"
         ) from e
+
+
+@router.get("/clients")
+async def get_clients(x_admin_token: str | None = Header(None)):
+    """Get active connected client sessions. Requires admin token."""
+    if not settings.admin_token or x_admin_token != settings.admin_token:
+        raise HTTPException(status_code=401, detail="Unauthorized: Invalid admin token")
+
+    from backend.websockets import client_registry
+    return [{"client_id": cid, **info} for cid, info in client_registry.items()]
+
+
+@router.post("/clients/{client_id}/set-display")
+async def set_client_display(client_id: str, x_admin_token: str | None = Header(None)):
+    """Designate a client session as a shared display. Requires admin token."""
+    if not settings.admin_token or x_admin_token != settings.admin_token:
+        raise HTTPException(status_code=401, detail="Unauthorized: Invalid admin token")
+
+    from backend.websockets import client_registry, send_to_client_id
+    if client_id not in client_registry:
+        raise HTTPException(status_code=404, detail="Client not found")
+
+    client_registry[client_id]["is_display"] = True
+    await send_to_client_id(client_id, {"type": "set_display_mode"})
+    return {"message": f"Client {client_id} set as shared display"}
+

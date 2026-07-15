@@ -306,3 +306,50 @@ def test_verify_username_member_in_testing(client):
     data = response.json()
     assert data["role"] == "member"
     assert data["is_member"] is True
+
+
+def test_clients_endpoints_requires_admin_token(client):
+    """Test that client endpoints require a valid admin token."""
+    response = client.get("/api/auth/clients")
+    assert response.status_code == 401
+
+    response = client.get("/api/auth/clients", headers={"x-admin-token": "bad_token"})
+    assert response.status_code == 401
+
+    response = client.post("/api/auth/clients/some_id/set-display")
+    assert response.status_code == 401
+
+    response = client.post("/api/auth/clients/some_id/set-display", headers={"x-admin-token": "bad_token"})
+    assert response.status_code == 401
+
+
+def test_get_clients_and_set_display(client):
+    """Test retrieving client list and designating one as display."""
+    settings.admin_token = "valid_admin_token"
+
+    from backend.websockets import client_registry
+    client_registry.clear()
+    client_registry["uuid_123"] = {
+        "name": "Living Room TV",
+        "role": "guest",
+        "is_display": False,
+        "connected_at": "2026-07-15T12:00:00Z"
+    }
+
+    response = client.get("/api/auth/clients", headers={"x-admin-token": "valid_admin_token"})
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["client_id"] == "uuid_123"
+    assert data[0]["name"] == "Living Room TV"
+    assert data[0]["is_display"] is False
+
+    with patch("backend.websockets.send_to_client_id") as mock_send:
+        response = client.post(
+            "/api/auth/clients/uuid_123/set-display",
+            headers={"x-admin-token": "valid_admin_token"}
+        )
+        assert response.status_code == 200
+        assert client_registry["uuid_123"]["is_display"] is True
+        mock_send.assert_called_once_with("uuid_123", {"type": "set_display_mode"})
+

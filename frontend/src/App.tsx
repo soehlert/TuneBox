@@ -20,12 +20,36 @@ const getApiUrl = (path: string) => {
   return `${base}${path}`;
 };
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
 interface GuestProfile {
   name: string;
   role: "member" | "guest";
 }
+
+interface ClientSession {
+  client_id: string;
+  name: string;
+  role: string;
+  is_display: boolean;
+  connected_at: string;
+}
+
+const getClientId = () => {
+  let cid = localStorage.getItem("tunebox_client_id");
+  if (!cid) {
+    cid = typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : Math.random().toString(36).substring(2) + Date.now().toString(36);
+    localStorage.setItem("tunebox_client_id", cid);
+  }
+  return cid;
+};
+
+const getWsUrl = () => {
+  const isDev = window.location.port === "5173";
+  const host = isDev ? "localhost:8000" : window.location.host;
+  const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  return `${protocol}//${host}/ws`;
+};
 
 // ─── Shared style helpers ─────────────────────────────────────────────────────
 
@@ -75,6 +99,18 @@ function SettingsModal({ adminToken, onClose }: SettingsModalProps) {
   const [selectedServer, setSelectedServer] = useState("");
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
+  const [clients, setClients] = useState<ClientSession[]>([]);
+
+  const fetchClients = () => {
+    axios
+      .get(getApiUrl("/api/auth/clients"), {
+        headers: { "x-admin-token": adminToken },
+      })
+      .then((res) => {
+        setClients(res.data ?? []);
+      })
+      .catch(console.error);
+  };
 
   useEffect(() => {
     axios
@@ -95,6 +131,25 @@ function SettingsModal({ adminToken, onClose }: SettingsModalProps) {
       })
       .catch(console.error);
   }, [adminToken]);
+
+  useEffect(() => {
+    fetchClients();
+    const interval = setInterval(fetchClients, 3000);
+    return () => clearInterval(interval);
+  }, [adminToken]);
+
+  const handleSetDisplay = async (clientId: string) => {
+    try {
+      await axios.post(
+        getApiUrl(`/api/auth/clients/${clientId}/set-display`),
+        {},
+        { headers: { "x-admin-token": adminToken } }
+      );
+      fetchClients();
+    } catch (err) {
+      console.error("Failed to set display:", err);
+    }
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -133,7 +188,7 @@ function SettingsModal({ adminToken, onClose }: SettingsModalProps) {
           border: "1px solid #333",
           borderRadius: "12px",
           padding: "36px",
-          width: "440px",
+          width: "480px",
           maxWidth: "90vw",
           boxShadow: "0 20px 60px rgba(0,0,0,0.8)",
         }}
@@ -217,6 +272,61 @@ function SettingsModal({ adminToken, onClose }: SettingsModalProps) {
             {saving ? "Saving..." : "Save Settings"}
           </button>
         </form>
+
+        <div style={{ marginTop: "24px", borderTop: "1px solid #333", paddingTop: "20px" }}>
+          <h3 style={{ margin: "0 0 12px 0", color: "#f5a623", fontSize: "16px" }}>💻 Connected Devices</h3>
+          {clients.filter(c => c.client_id !== getClientId()).length === 0 ? (
+            <p style={{ color: "#777", fontSize: "13px", margin: 0 }}>No other devices connected.</p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px", maxHeight: "150px", overflowY: "auto" }}>
+              {clients.filter(c => c.client_id !== getClientId()).map((c) => (
+                <div
+                  key={c.client_id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "8px 12px",
+                    background: "#2a2a2a",
+                    borderRadius: "6px",
+                  }}
+                >
+                  <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                    <span style={{ color: "#fff", fontSize: "14px", fontWeight: "bold" }}>
+                      {c.name}
+                    </span>
+                    <span style={{ color: "#888", fontSize: "11px", textTransform: "capitalize" }}>
+                      Role: {c.role} {c.is_display && "• Display"}
+                    </span>
+                  </div>
+                  {c.is_display ? (
+                    <span style={{ color: "#5cdd5c", fontSize: "12px", fontWeight: "bold" }}>
+                      ✓ Display
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => handleSetDisplay(c.client_id)}
+                      style={{
+                        background: "#f5a623",
+                        color: "#121212",
+                        border: "none",
+                        borderRadius: "4px",
+                        padding: "6px 10px",
+                        fontSize: "11px",
+                        fontWeight: "bold",
+                        cursor: "pointer",
+                      }}
+                      onMouseOver={(e) => (e.currentTarget.style.background = "#d48b17")}
+                      onMouseOut={(e) => (e.currentTarget.style.background = "#f5a623")}
+                    >
+                      Make Display
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -377,21 +487,94 @@ function App() {
     return raw ? (JSON.parse(raw) as GuestProfile) : null;
   });
 
-  // Display / kiosk mode — set by visiting /?display once; persists in localStorage
+  // Display / kiosk mode — designated by the admin; persists in localStorage
   const [isDisplay, setIsDisplay] = useState<boolean>(
     () => localStorage.getItem("tunebox_display") === "true"
   );
 
-  // Auto-activate display mode when ?display is in the URL
+  // Manage client_control WebSocket connection
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.has("display") && !isDisplay) {
-      localStorage.setItem("tunebox_display", "true");
-      setIsDisplay(true);
-      // Clean the URL so the param doesn't persist in browser history
-      window.history.replaceState({}, "", window.location.pathname);
+    // Only connect if the user has completed the wizard (admin), joined as guest, or is in display mode
+    if (!isAdmin && !isDisplay && !guestProfile) {
+      return;
     }
-  }, []);
+
+    const wsUrl = getWsUrl();
+    const ws = new WebSocket(wsUrl);
+    let pingInterval: number;
+    let pongTimeout: number;
+
+    const register = () => {
+      if (ws.readyState === WebSocket.OPEN) {
+        let name = "Unknown";
+        let role = "guest";
+        if (isAdmin) {
+          name = `Admin (${localUsername || "Owner"})`;
+          role = "admin";
+        } else if (isDisplay) {
+          name = localStorage.getItem("tunebox_display_name") || "Shared Display";
+          role = "display";
+        } else if (guestProfile) {
+          name = guestProfile.name;
+          role = guestProfile.role;
+        }
+
+        ws.send(
+          JSON.stringify({
+            type: "client_control",
+            client_id: getClientId(),
+            name,
+            role,
+            is_display: isDisplay,
+          })
+        );
+      }
+    };
+
+    ws.onopen = () => {
+      console.log("Client control WS opened");
+      register();
+
+      // Start ping heartbeat
+      pingInterval = window.setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: "heartbeat", message: "ping" }));
+          pongTimeout = window.setTimeout(() => {
+            console.warn("Client control WS ping timeout, closing");
+            ws.close();
+          }, 4000);
+        }
+      }, 10000);
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === "set_display_mode") {
+          console.log("Received set_display_mode WS push!");
+          localStorage.setItem("tunebox_display", "true");
+          setIsDisplay(true);
+          if (guestProfile) {
+            localStorage.setItem("tunebox_display_name", guestProfile.name);
+          }
+        } else if (data.message === "pong") {
+          window.clearTimeout(pongTimeout);
+        }
+      } catch (err) {
+        console.error("Error parsing WS message:", err);
+      }
+    };
+
+    ws.onclose = () => {
+      console.log("Client control WS closed");
+      window.clearInterval(pingInterval);
+      window.clearTimeout(pongTimeout);
+    };
+
+    return () => {
+      ws.close();
+    };
+  }, [isAdmin, isDisplay, guestProfile, localUsername]);
 
   useEffect(() => {
     checkStatus();
@@ -508,7 +691,6 @@ function App() {
 
   // Plain base URL for QR — no query params so guests don't accidentally enter display mode
   const joinUrl = `${window.location.protocol}//${window.location.hostname}${window.location.port ? `:${window.location.port}` : ""}`;
-  const displayUrl = `${joinUrl}?display`;
 
   // ── Loading spinner ──────────────────────────────────────────────────────────
   if (isAuthenticated === null) {

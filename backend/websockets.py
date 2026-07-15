@@ -3,6 +3,7 @@
 import asyncio
 import json
 import logging
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
@@ -17,8 +18,12 @@ logger = logging.getLogger(__name__)
 active_connections = {
     "music_control": {},  # Store music control connections
     "queue_update": {},  # Store queue update connections
+    "client_control": {},  # Store per-browser control connections
     "unknown": {},
 }
+
+# Registry of named browser sessions keyed by client_id (browser-generated UUID)
+client_registry: dict[str, dict] = {}
 
 
 async def send_to_specific_client(session_id: str, message: dict, message_type: str):
@@ -28,6 +33,18 @@ async def send_to_specific_client(session_id: str, message: dict, message_type: 
         await connection.send_text(json.dumps(message))
     except KeyError:
         logger.exception("Session ID %s not found in %s", session_id, active_connections)
+
+
+async def send_to_client_id(client_id: str, message: dict):
+    """Send a message to all WS connections belonging to a browser client_id."""
+    ws = active_connections["client_control"].get(client_id)
+    if ws:
+        try:
+            await ws.send_text(json.dumps(message))
+        except Exception:
+            logger.exception("Failed to send to client_id %s", client_id)
+            active_connections["client_control"].pop(client_id, None)
+            client_registry.pop(client_id, None)
 
 
 async def send_queue():
@@ -96,6 +113,17 @@ async def update_websocket_clients():
         await asyncio.sleep(1)
 
 
+def _register_client(client_id: str, name: str, role: str, is_display: bool = False):
+    """Upsert a client entry in the registry."""
+    existing = client_registry.get(client_id, {})
+    client_registry[client_id] = {
+        "name": name,
+        "role": role,
+        "is_display": is_display or existing.get("is_display", False),
+        "connected_at": existing.get("connected_at", datetime.now(UTC).isoformat()),
+    }
+
+
 # ruff: noqa: C901
 async def websocket_handler(websocket: WebSocket):
     """Handle incoming WebSocket connections."""
@@ -121,15 +149,21 @@ async def websocket_handler(websocket: WebSocket):
     if message_type not in active_connections:
         active_connections[message_type] = {}
 
-    session_id = str(id(websocket))  # Using id(websocket) as the unique identifier
+    # client_control connections are keyed by client_id (browser-generated UUID)
+    if message_type == "client_control":
+        client_id = data.get("client_id", str(id(websocket)))
+        name = data.get("name", "Unknown")
+        role = data.get("role", "guest")
+        is_display = data.get("is_display", False)
+        _register_client(client_id, name, role, is_display)
+        active_connections["client_control"][client_id] = websocket
+        session_id = client_id
+    else:
+        session_id = str(id(websocket))
+        active_connections[message_type][session_id] = websocket
 
-    # Store the WebSocket connection under the correct type
-    active_connections[message_type][session_id] = websocket
     logger.debug("Current active connections for '%s': %s", message_type, active_connections[message_type])
-    logger.debug("Stored WebSocket connection %s under %s", session_id, message_type)
-
-    logger.info("New WebSocket connection of type %s from %s", message_type, active_connections[message_type])
-    logger.info("Active connections: %d", len(active_connections))
+    logger.info("New WebSocket connection of type %s, session %s", message_type, session_id)
 
     # Send initial state update immediately to the new client
     try:
@@ -164,10 +198,22 @@ async def websocket_handler(websocket: WebSocket):
                 logger.debug("sending current_playing")
                 await send_current_playing()
 
+            elif message_type == "client_control":
+                # Re-registration message (e.g. after page refresh)
+                client_id = data.get("client_id", session_id)
+                name = data.get("name", "Unknown")
+                role = data.get("role", "guest")
+                is_display = data.get("is_display", False)
+                _register_client(client_id, name, role, is_display)
+                active_connections["client_control"][client_id] = websocket
+
     except WebSocketDisconnect:
         for key in list(active_connections.keys()):
             if session_id in active_connections[key]:
                 active_connections[key].pop(session_id, None)
+        # Remove from client_registry only for client_control (keyed by client_id)
+        if message_type == "client_control":
+            client_registry.pop(session_id, None)
         logger.info(
             "WebSocket connection from %s closed. Active connections: %d", websocket.client, len(active_connections)
         )
