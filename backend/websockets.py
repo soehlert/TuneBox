@@ -177,7 +177,7 @@ async def websocket_handler(websocket: WebSocket):
     try:
         if message_type == "music_control":
             from backend.services.plex import check_plexamp_resync  # noqa: PLC0415
-            await check_plexamp_resync()
+            await check_plexamp_resync(force_align=True)
             await send_current_playing()
         elif message_type == "queue_update":
             await send_queue()

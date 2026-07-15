@@ -71,11 +71,11 @@ async def test_resync_detects_drift(mocker):
     track_time_tracker.accumulated_elapsed = 5.0
     track_time_tracker.last_resume_time = time.time()  # Active state calculation
 
-    # Mock Plex Session showing elapsed time as 10s (5s drift)
+    # Mock Plex Session showing elapsed time as 20s (15s drift)
     mock_session = MagicMock()
     mock_session.title = "Sync Song"
     mock_session.duration = 180000
-    mock_session.viewOffset = 10000  # 10s in ms
+    mock_session.viewOffset = 20000  # 20s in ms
     mock_session.player.state = "playing"
     mock_session.player.machineIdentifier = "mock_machine"
 
@@ -96,6 +96,6 @@ async def test_resync_detects_drift(mocker):
 
     await check_plexamp_resync()
 
-    expected_elapsed = 10.0
-    # The accumulated elapsed time should be adjusted to 10s (Plex's offset)
+    expected_elapsed = 20.0
+    # The accumulated elapsed time should be adjusted to 20s (Plex's offset)
     assert pytest.approx(track_time_tracker.accumulated_elapsed) == expected_elapsed

@@ -139,6 +139,12 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
   }, [adminToken]);
 
   useEffect(() => {
+    if (players.length > 0 && (!selectedPlayer || !players.includes(selectedPlayer))) {
+      setSelectedPlayer(players[0]);
+    }
+  }, [players, selectedPlayer]);
+
+  useEffect(() => {
     fetchClients();
     const interval = setInterval(fetchClients, 3000);
     return () => clearInterval(interval);

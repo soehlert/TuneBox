@@ -24,7 +24,7 @@ from backend.services.redis import (
 from backend.utils import TrackTimeTracker, milliseconds_to_seconds
 
 HEARTBEAT_INTERVAL = 5
-DRIFT_THRESHOLD = 1.5
+DRIFT_THRESHOLD = 8.0
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
@@ -386,7 +386,7 @@ async def playback_orchestrator():
         await asyncio.sleep(1)
 
 
-async def check_plexamp_resync():
+async def check_plexamp_resync(force_align: bool = False):
     """Align local playback state and timer with actual Plexamp sessions to catch drift and manual interactions."""
     global playback_active
 
@@ -498,10 +498,11 @@ async def check_plexamp_resync():
 
                 # 3. Check for elapsed time drift
                 local_elapsed = track_time_tracker.elapsed_time
-                if abs(local_elapsed - plex_elapsed) > DRIFT_THRESHOLD:
+                if force_align or abs(local_elapsed - plex_elapsed) > DRIFT_THRESHOLD:
                     logger.info(
-                        "Detected drift of %.1fs between local timer and Plexamp. Adjusting.",
+                        "Detected drift of %.1fs between local timer and Plexamp (force_align=%s). Adjusting.",
                         local_elapsed - plex_elapsed,
+                        force_align,
                     )
                     # Align elapsed time
                     track_time_tracker.accumulated_elapsed = float(plex_elapsed)
