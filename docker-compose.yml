@@ -1,0 +1,37 @@
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Compose/frontend/Dockerfile
+    ports:
+      - "80:80"
+    environment:
+      - TUNEBOX_URL=${TUNEBOX_URL:-backend:8000}
+    volumes:
+      - ./frontend/.env:/app/.env
+    depends_on:
+      - backend
+
+  backend:
+    build:
+      context: .
+      dockerfile: Compose/backend/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - PLEX_USERNAME=${PLEX_USERNAME}
+      - PLEX_PASSWORD=${PLEX_PASSWORD}
+      - PLEX_SERVER_NAME=${PLEX_SERVER_NAME}
+      - CLIENT_NAME=${CLIENT_NAME}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - TUNEBOX_URL=${TUNEBOX_URL:-backend:8000}
+    volumes:
+      - ./backend:/app/backend
+      - ./.env:/app/.env
+    depends_on:
+      - redis
+
+  redis:
+    image: "redis:alpine"
+    ports:
+      - "6379:6379"

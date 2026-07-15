@@ -1,0 +1,107 @@
+/* Container for the album grid */
+.album-grid-wrapper {
+  width: 100%;
+  display: block;
+  padding: 0 20px;
+  margin-top: 20px;
+  box-sizing: border-box;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Card layout for albums */
+.album-card {
+  background-color: #0077B6;
+  padding: 15px;
+  text-align: center;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+  color: #FFFFFF;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+  height: 300px;
+  width: 100%;
+  margin-bottom: 20px;
+  transition: background-color 0.3s ease-in-out;
+  overflow: hidden;
+}
+
+/* Center the album cover image inside the card */
+.album-cover {
+  width: 100%;
+  height: auto;
+  max-height: 200px;
+  object-fit: cover; /* Ensure the image covers the area without distorting */
+  border-radius: 8px;
+  margin-bottom: 10px;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Title text styling inside the album card */
+.album-card h3 {
+  font-size: calc(1rem + 1vw);
+  color: #FFFFFF;
+  margin-top: 10px;
+  font-weight: bold;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 10px;
+  line-height: 1.2;
+  max-width: 90%;
+}
+
+/* Hover effect for the album card */
+.album-card:hover {
+  background-color: #E59500;
+  color: white;
+}
+
+/* Custom grid layout */
+.album-grid {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: repeat(1, 1fr);
+  width: 100%;
+  margin-bottom: 20px;
+  grid-template-rows: auto;
+  align-items: start;
+  padding: 0 20px;
+  box-sizing: border-box;
+}
+
+.album-grid h1 {
+  text-align: center;
+  color: #E59500;
+  margin-bottom: 20px;
+}
+
+/* Responsive design: Making the grid responsive for different screen sizes */
+@media (min-width: 480px) {
+  .album-grid {
+    grid-template-columns: repeat(2, 1fr); /* 2 columns on medium screens */
+  }
+}
+
+@media (min-width: 600px) {
+  .album-grid {
+    grid-template-columns: repeat(3, 1fr); /* 3 columns on larger screens */
+  }
+}
+
+@media (min-width: 900px) {
+  .album-grid {
+    grid-template-columns: repeat(4, 1fr); /* 4 columns on large screens */
+  }
+}
+
+@media (min-width: 1200px) {
+  .album-grid {
+    grid-template-columns: repeat(6, 1fr); /* Keep 4 columns on extra-large screens */
+  }
+}

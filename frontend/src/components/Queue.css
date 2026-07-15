@@ -1,0 +1,61 @@
+/* Center the header in the Queue */
+.queue-container {
+  width: 100%;
+  max-width: 350px;
+  position: sticky;
+  top: 0;
+  background-color: #272929;
+  color: white;
+  padding: 8px 12px;
+  height: 100vh;
+  overflow-y: auto;
+  box-shadow: 2px 0px 10px rgba(0, 0, 0, 0.1); /* Slight shadow to separate from content */
+}
+
+/* Remove bullets from the list */
+.queue-list {
+  padding: 0;
+  list-style-type: none;
+  width: 100%;
+  margin: 0;
+}
+
+/* Queue Item Styling */
+.queue-item {
+  background-color: #373A40;
+  padding: 8px 12px;
+  margin-bottom: 4px;
+  border: 1px solid #555;
+  border-radius: 5px;
+  font-size: 1rem;
+  color: white;
+  transition: background-color 0.2s ease-in-out;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* Stripes effect */
+.queue-item:nth-child(even) {
+  background-color: #2a4261;
+}
+
+/* Hover effect for queue items */
+.queue-item:hover {
+  background-color: #E59500;
+}
+
+/* Styling for track title (strong) */
+.queue-item strong {
+  font-size: 1.25rem;
+  color: white;
+  margin-bottom: 2px;
+  word-wrap: break-word;
+}
+
+/* Styling for artist name */
+.queue-item .artist {
+  font-size: 1rem;
+  color: #AAAAAA;
+  margin: 0;
+}

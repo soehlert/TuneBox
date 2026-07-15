@@ -1,0 +1,120 @@
+[project]
+name = "plex-super"
+version = "0.1.0"
+description = "A custom centralized party jukebox powered by Plex"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn>=0.32.0",
+    "redis>=5.2.0",
+    "PlexAPI>=4.16.0",
+    "pydantic-settings>=2.6.0",
+    "python-multipart>=0.0.19",
+    "websockets>=14.1",
+    "requests>=2.32.3",
+    "httpx>=0.28.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.25.0",
+    "pytest-mock>=3.14.0",
+    "ruff>=0.8.3",
+]
+
+# ===== ruff ====
+[tool.ruff]
+exclude = []
+
+line-length = 119
+target-version = 'py313'
+preview = true
+
+[tool.ruff.lint]
+select = [
+    "A",     # builtins
+    "ASYNC", # async
+    "B",     # bugbear
+    "BLE",   # blind-except
+    "C4",    # comprehensions
+    "C90",   # complexity
+    "COM",   # commas
+    "D",     # pydocstyle
+    "DJ",    # django
+    "DOC",   # pydoclint
+    "DTZ",   # datetimez
+    "E",     # pycodestyle
+    "EM",    # errmsg
+    "ERA",   # eradicate
+    "F",     # pyflakes
+    "FBT",   # boolean-trap
+    "FLY",   # flynt
+    "G",     # logging-format
+    "I",     # isort
+    "ICN",   # import-conventions
+    "ISC",   # implicit-str-concat
+    "LOG",   # logging
+    "N",     # pep8-naming
+    "PERF",  # perflint
+    "PIE",   # pie
+    "PL",    # pylint
+    "PTH",   # use-pathlib
+    "Q",     # quotes
+    "RET",   # return
+    "RSE",   # raise
+    "RUF",   # Ruff
+    "S",     # bandit
+    "SIM",   # simplify
+    "SLF",   # self
+    "SLOT",  # slots
+    "T20",   # print
+    "TRY",   # tryceratops
+    "UP",    # pyupgrade
+]
+ignore = [
+    "COM812",  # handled by the formatter
+    "DOC501",  # add possible exceptions to the docstring (TODO)
+    "ISC001",  # handled by the formatter
+    "RUF012",  # need more widespread typing
+    "SIM102",  # Use a single `if` statement instead of nested `if` statements
+    "SIM108",  # Use ternary operator instead of `if`-`else`-block
+    "TRY301",  # I like to raise redundant exceptions if it's coming from a different module or even far away function
+    "PERF401", # I think list comprehensions are usually harder to read quickly
+    "PLW0717", # Ignore too-many-statements-in-try-clause for ported code compatibility
+    "PLR0911", # Allow multiple return statements
+    "PLR0912", # Allow many branches in complex orchestrators
+    "PLR0913", # Allow multiple arguments in functions
+    "PLR0915", # Allow many statements in complex orchestrators
+    "PLR1702", # Allow nested blocks in complex async loops
+    "DOC201",  # Allow missing returns in docstrings
+    "DOC402",  # Allow missing yields in docstrings
+    "FBT001",  # Allow boolean-typed positional arguments
+    "FBT002",  # Allow boolean default value positional arguments
+    "TRY300",  # Allow returning from try blocks instead of else
+]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 7
+
+[tool.ruff.lint.per-file-ignores]
+"**/{tests}/*" = [
+    "DOC201", # documenting return values
+    "DOC402", # documenting yield values
+    "PLR6301", # could be a static method
+    "S101", # use of assert
+    "S105", # hardcoded password
+    "S106", # hardcoded password
+    "PLR2004", # magic-value-comparison
+    "PLC1901", # compare-to-empty-string
+    "SIM105", # try-except-pass
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+# ===== pytest ====
+[tool.pytest.ini_options]
+testpaths = ["backend/tests"]
+pythonpath = ["."]
+asyncio_default_fixture_loop_scope = "function"

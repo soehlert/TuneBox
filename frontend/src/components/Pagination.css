@@ -1,0 +1,50 @@
+/* Pagination component styles */
+.pagination {
+  margin-top: 20px;
+  text-align: center;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* First, Previous, Next, Last buttons with lighter gray */
+.pagination button:first-child,
+.pagination button:nth-child(2),
+.pagination button:nth-last-child(2),
+.pagination button:last-child{
+  background-color: #2a4261;
+  color: white;
+}
+
+/* Hover effect for First, Previous, Next, Last buttons */
+.pagination button:first-child:hover,
+.pagination button:nth-child(2):hover,
+.pagination button:nth-last-child(2):hover,
+.pagination button:last-child:hover{
+  background-color: #90A4AE;
+}
+
+.pagination button {
+  background-color: #373A40;
+  color: #FFFFFF;
+  transition: background-color 0.3s ease;
+  padding: 8px 16px;
+  min-width: 50px;
+  font-size: 1rem;
+  text-align: center;
+}
+
+.pagination button:hover {
+  background-color: #E59500;
+}
+
+.pagination button:disabled {
+  background-color: #90A4AE;
+}
+
+.pagination button.active {
+  background-color: #E59500;
+  color: white;
+}
