@@ -38,29 +38,33 @@ playback_active = False
 
 
 @lru_cache
-def get_plex_connection():
-    """Establish a connection to the Plex server via MyPlexAccount.
+def get_myplex_account():
+    """Establish a connection to MyPlexAccount.
 
     Returns:
-        A PlexServer instance to run our API calls against.
+        MyPlexAccount instance.
     """
     if not settings.plex_token and not (
         settings.plex_username and settings.plex_password
     ):
         raise PlexConnectionError
 
+    if settings.plex_token:
+        return MyPlexAccount(token=settings.plex_token)
+    return MyPlexAccount(
+        username=settings.plex_username, password=settings.plex_password
+    )
+
+
+@lru_cache
+def get_plex_connection():
+    """Establish a connection to the Plex server via MyPlexAccount.
+
+    Returns:
+        A PlexServer instance to run our API calls against.
+    """
     try:
-        session = requests.Session()
-        session.verify = False
-
-        # Connect to Plex via MyPlexAccount
-        if settings.plex_token:
-            account = MyPlexAccount(token=settings.plex_token)
-        else:
-            account = MyPlexAccount(
-                username=settings.plex_username, password=settings.plex_password
-            )
-
+        account = get_myplex_account()
         # Get the specific server by its name
         plex_server = account.resource(settings.plex_server_name).connect()
         logger.info("Connected to Plex server %s", plex_server)
@@ -72,6 +76,7 @@ def get_plex_connection():
 
 def reinitialize_plex():
     """Clear cached connection and force connection reload."""
+    get_myplex_account.cache_clear()
     get_plex_connection.cache_clear()
     logger.info("Plex connection cache cleared for reinitialization.")
 
@@ -157,27 +162,49 @@ def get_active_player(client_name: str | None = None):
 
         return MockPlayer()
 
-    plex = get_plex_connection()
-    players = plex.clients()
-
-    if not players:
-        msg = "No active Plex players found."
-        raise PlexApiException(msg)
-
     client_name = client_name or settings.client_name
+
+    # 1. Try resolving via local Plex Media Server client list (GDM)
+    try:
+        plex = get_plex_connection()
+        players = plex.clients()
+    except Exception as e:
+        logger.debug("Failed to fetch local Plex players: %s", e)
+        players = []
 
     if client_name:
         active_player = next((p for p in players if p.title == client_name), None)
         if active_player:
+            logger.info("Found player '%s' locally via PMS.", client_name)
             return active_player
-        logger.debug(
-            "No player found with name %s, falling back to first player.", client_name
-        )
 
-    # Select the first available player otherwise
-    active_player = players[0]
-    logger.debug("Active player found: %s", active_player.title)
-    return active_player
+        # 2. Fallback to MyPlex resource resolution for remote/relayed players (e.g. Plexamp)
+        try:
+            logger.info(
+                "Player '%s' not found locally. Querying MyPlex resources...",
+                client_name,
+            )
+            account = get_myplex_account()
+            player_resource = account.resource(client_name)
+            active_player = player_resource.connect()
+            logger.info(
+                "Successfully connected to player '%s' via MyPlex.", client_name
+            )
+            return active_player
+        except Exception as e:
+            logger.warning(
+                "Could not resolve player '%s' via MyPlex: %s", client_name, e
+            )
+
+    # 3. If no specific name was requested, or if specific name lookup failed, fallback to first available local player
+    if players:
+        active_player = players[0]
+        logger.info(
+            "Falling back to first available local player: %s", active_player.title
+        )
+        return active_player
+
+    raise PlexApiException("No active Plex players found or resolvable.")
 
 
 def get_track(item_id):
