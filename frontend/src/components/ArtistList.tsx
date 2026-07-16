@@ -1,6 +1,6 @@
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, Typography } from "@mui/material"; // MUI components
-import Pagination from "./Pagination";
 import "../App.css";
 import "./ArtistList.css";
 
@@ -13,32 +13,63 @@ interface Artist {
 interface ArtistListProps {
   filteredArtists: Artist[];
   loading: boolean;
-  currentPage: number;
-  setCurrentPage: (page: number) => void;
-  artistsPerPage: number;
 }
 
 function ArtistList({
   filteredArtists,
   loading,
-  currentPage,
-  setCurrentPage,
-  artistsPerPage,
 }: ArtistListProps) {
   const navigate = useNavigate();
   const isDev = window.location.port === "5173";
   const apiBase = isDev ? `http://${window.location.hostname}:8000` : window.location.origin;
+
+  const [visibleCount, setVisibleCount] = useState(48);
+  const loaderRef = useRef<HTMLDivElement | null>(null);
+
+  // Reset display count and scroll to top when list of filtered artists changes
+  useEffect(() => {
+    setVisibleCount(48);
+    const mainContent = document.querySelector(".main-content");
+    if (mainContent) {
+      mainContent.scrollTop = 0;
+    }
+  }, [filteredArtists]);
+
+  // Set up intersection observer to detect when user scrolls to bottom
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const first = entries[0];
+        if (first.isIntersecting) {
+          setVisibleCount((prev) => {
+            if (prev < filteredArtists.length) {
+              return Math.min(prev + 36, filteredArtists.length);
+            }
+            return prev;
+          });
+        }
+      },
+      { threshold: 0.1, rootMargin: "100px" }
+    );
+
+    const currentLoader = loaderRef.current;
+    if (currentLoader) {
+      observer.observe(currentLoader);
+    }
+
+    return () => {
+      if (currentLoader) {
+        observer.unobserve(currentLoader);
+      }
+    };
+  }, [filteredArtists.length]);
 
   // Function to handle card click and navigate to artist's album page
   const handleArtistClick = (artistId: number) => {
     navigate(`/artists/${artistId}/albums`);
   };
 
-  const indexOfLastArtist = currentPage * artistsPerPage;
-  const indexOfFirstArtist = indexOfLastArtist - artistsPerPage;
-  const currentArtists = filteredArtists.slice(indexOfFirstArtist, indexOfLastArtist);
-
-  const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
+  const currentArtists = filteredArtists.slice(0, visibleCount);
 
   return (
     <div className="artist-list-wrapper">
@@ -70,13 +101,15 @@ function ArtistList({
             ))}
           </div>
 
-          {/* Pagination */}
-          <Pagination
-            className="pagination"
-            currentPage={currentPage}
-            totalPages={Math.ceil(filteredArtists.length / artistsPerPage)}
-            paginate={paginate}
-          />
+          {/* Infinite Scroll Loader Target */}
+          {visibleCount < filteredArtists.length && (
+            <div ref={loaderRef} className="infinite-scroll-loader">
+              <div className="spinner-glass">
+                <span className="spinner-inner"></span>
+              </div>
+              <Typography className="loader-text">Loading more artists...</Typography>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -84,3 +117,4 @@ function ArtistList({
 }
 
 export default ArtistList;
+

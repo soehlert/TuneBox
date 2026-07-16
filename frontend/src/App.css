@@ -190,6 +190,12 @@
   box-sizing: border-box;
   z-index: 10;
   position: relative;
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.main-content::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
 }
 
 .header-gradient {

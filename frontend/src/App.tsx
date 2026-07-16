@@ -12,7 +12,6 @@ import theme from "./theme";
 import TuneBoxLogo from "../public/TuneBox.svg";
 import "./App.css";
 import "./components/Queue.css";
-import "./components/Pagination.css";
 
 const getApiUrl = (path: string) => {
   const isDev = window.location.port === "5173";
@@ -793,8 +792,6 @@ function App() {
   }, []);
 
   const [artists, setArtists] = useState<any[]>([]);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [artistsPerPage] = useState(24);
   const [loadingArtists, setLoadingArtists] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedLetter, setSelectedLetter] = useState("");
@@ -847,10 +844,7 @@ function App() {
     }
   }, [debouncedSearchTerm, isConfigured]);
 
-  // Reset pagination whenever search term changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [filteredArtists]);
+
 
   const handleAlphabetClick = (character: string) => {
     setSelectedLetter(character);
@@ -866,7 +860,6 @@ function App() {
       : artists.filter((artist) => artist.name[0].toUpperCase() === character.toUpperCase());
 
     setFilteredArtists(filtered);
-    setCurrentPage(1); // Reset pagination to first page
 
     // Scroll to the first matching artist
     if (filtered.length > 0) {
@@ -1234,9 +1227,6 @@ function App() {
                     <ArtistList
                       filteredArtists={filteredArtists}
                       loading={loadingArtists}
-                      currentPage={currentPage}
-                      setCurrentPage={setCurrentPage}
-                      artistsPerPage={artistsPerPage}
                     />
                   }
                 />
