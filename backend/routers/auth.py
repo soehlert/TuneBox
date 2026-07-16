@@ -459,3 +459,22 @@ async def unset_client_display(client_id: str, x_admin_token: str | None = Heade
     ws.client_registry[client_id]["is_display"] = False
     await ws.send_to_client_id(client_id, {"type": "unset_display_mode"})
     return {"message": f"Client {client_id} display mode removed"}
+
+
+class RenameClientRequest(BaseModel):
+    name: str
+
+
+@router.post("/clients/{client_id}/rename")
+async def rename_client(client_id: str, req: RenameClientRequest, x_admin_token: str | None = Header(None)):
+    """Rename a connected client session. Requires admin token."""
+    if not settings.admin_token or x_admin_token != settings.admin_token:
+        raise HTTPException(status_code=401, detail="Unauthorized: Invalid admin token")
+
+    if client_id not in ws.client_registry:
+        raise HTTPException(status_code=404, detail="Client not found")
+
+    ws.client_registry[client_id]["name"] = req.name
+    await ws.send_to_client_id(client_id, {"type": "rename_client", "name": req.name})
+    return {"message": f"Client {client_id} renamed to {req.name}"}
+

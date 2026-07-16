@@ -191,6 +191,24 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
     }
   };
 
+  const handleRenameClient = async (clientId: string, currentName: string) => {
+    const newName = window.prompt(`Enter new name for device "${currentName}":`, currentName);
+    if (newName === null) return;
+    const trimmed = newName.trim();
+    if (!trimmed) return;
+    try {
+      await axios.post(
+        getApiUrl(`/api/auth/clients/${clientId}/rename`),
+        { name: trimmed },
+        { headers: { "x-admin-token": adminToken } }
+      );
+      fetchClients();
+    } catch (err) {
+      console.error("Failed to rename device:", err);
+      alert("Failed to rename device.");
+    }
+  };
+
   const handleClearQueue = async () => {
     if (!window.confirm("Are you sure you want to clear the playback queue?")) {
       return;
@@ -427,8 +445,18 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                   }}
                 >
                   <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                    <span style={{ color: "#fff", fontSize: "14px", fontWeight: "bold" }}>
+                    <span style={{ color: "#fff", fontSize: "14px", fontWeight: "bold", display: "inline-flex", alignItems: "center", gap: "6px" }}>
                       {c.name} {c.client_id === getClientId() ? " (This Device)" : ""}
+                      <span 
+                        className="material-symbols-outlined" 
+                        onClick={() => handleRenameClient(c.client_id, c.name)} 
+                        style={{ fontSize: "16px", cursor: "pointer", color: "var(--color-primary)", opacity: 0.7, transition: "opacity 0.2s" }}
+                        onMouseOver={(e) => e.currentTarget.style.opacity = "1"}
+                        onMouseOut={(e) => e.currentTarget.style.opacity = "0.7"}
+                        title="Rename Device"
+                      >
+                        edit
+                      </span>
                     </span>
                     <span style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "11px", textTransform: "capitalize" }}>
                       Role: {c.role} • Display Screen
@@ -484,8 +512,18 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                   }}
                 >
                   <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                    <span style={{ color: "#fff", fontSize: "14px", fontWeight: "bold" }}>
+                    <span style={{ color: "#fff", fontSize: "14px", fontWeight: "bold", display: "inline-flex", alignItems: "center", gap: "6px" }}>
                       {c.name} {c.client_id === getClientId() ? " (This Device)" : ""}
+                      <span 
+                        className="material-symbols-outlined" 
+                        onClick={() => handleRenameClient(c.client_id, c.name)} 
+                        style={{ fontSize: "16px", cursor: "pointer", color: "var(--color-primary)", opacity: 0.7, transition: "opacity 0.2s" }}
+                        onMouseOver={(e) => e.currentTarget.style.opacity = "1"}
+                        onMouseOut={(e) => e.currentTarget.style.opacity = "0.7"}
+                        title="Rename Device"
+                      >
+                        edit
+                      </span>
                     </span>
                     <span style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "11px", textTransform: "capitalize" }}>
                       Role: {c.role}
@@ -522,9 +560,10 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
 
 interface GuestModalProps {
   onJoin: (profile: GuestProfile) => void;
+  onClose?: () => void;
 }
 
-function GuestModal({ onJoin }: GuestModalProps) {
+function GuestModal({ onJoin, onClose }: GuestModalProps) {
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -564,6 +603,7 @@ function GuestModal({ onJoin }: GuestModalProps) {
     >
       <div
         style={{
+          position: "relative",
           background: "#1e1e1e",
           border: "1px solid #333",
           borderRadius: "16px",
@@ -574,6 +614,26 @@ function GuestModal({ onJoin }: GuestModalProps) {
           boxShadow: "0 20px 60px rgba(0,0,0,0.9)",
         }}
       >
+        {onClose && (
+          <button
+            onClick={onClose}
+            style={{
+              position: "absolute",
+              top: "16px",
+              right: "16px",
+              background: "none",
+              border: "none",
+              color: "rgba(255, 255, 255, 0.4)",
+              fontSize: "20px",
+              cursor: "pointer",
+              transition: "color 0.2s"
+            }}
+            onMouseOver={(e) => e.currentTarget.style.color = "#fff"}
+            onMouseOut={(e) => e.currentTarget.style.color = "rgba(255, 255, 255, 0.4)"}
+          >
+            ✕
+          </button>
+        )}
         <div style={{ fontSize: "40px", marginBottom: "16px" }}>🎵</div>
         <h2 style={{ color: "#f5a623", margin: "0 0 8px 0", fontSize: "22px" }}>Welcome to TuneBox!</h2>
         <p style={{ color: "#888", fontSize: "14px", marginBottom: "28px", lineHeight: "1.5" }}>
@@ -607,33 +667,52 @@ function GuestModal({ onJoin }: GuestModalProps) {
 
 // ─── User Badge ───────────────────────────────────────────────────────────────
 
-function UserBadge({ profile, onLeave }: { profile: GuestProfile; onLeave: () => void }) {
+function UserBadge({ profile, onLeave, onEditName }: { profile: GuestProfile; onLeave: () => void; onEditName: () => void }) {
   return (
     <div
       style={{
         display: "flex",
         alignItems: "center",
-        gap: "8px",
+        gap: "10px",
         padding: "6px 12px",
         background: "#1e1e1e",
         borderRadius: "20px",
         border: "1px solid #333",
-        cursor: "pointer",
         fontSize: "13px",
         color: "#ccc",
       }}
-      title="Click to leave"
-      onClick={onLeave}
     >
-      <span style={{ color: profile.role === "member" ? "#5cdd5c" : "#f5a623" }}>
-        {profile.role === "member" ? "✓" : "◉"}
-      </span>
-      <span>{profile.name}</span>
-      {profile.role === "member" && (
-        <span style={{ fontSize: "10px", background: "#1a3a1a", color: "#5cdd5c", padding: "2px 6px", borderRadius: "10px", fontWeight: "bold" }}>
-          2× votes
+      <div 
+        onClick={onEditName} 
+        style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }} 
+        title="Click to edit name"
+      >
+        <span style={{ color: profile.role === "member" ? "#5cdd5c" : "#f5a623" }}>
+          {profile.role === "member" ? "✓" : "◉"}
         </span>
-      )}
+        <span style={{ fontWeight: 600 }}>{profile.name}</span>
+        {profile.role === "member" && (
+          <span style={{ fontSize: "10px", background: "#1a3a1a", color: "#5cdd5c", padding: "2px 6px", borderRadius: "10px", fontWeight: "bold" }}>
+            2× votes
+          </span>
+        )}
+      </div>
+      <span style={{ width: "1px", height: "12px", background: "rgba(255,255,255,0.15)" }}></span>
+      <span 
+        className="material-symbols-outlined" 
+        onClick={onLeave} 
+        style={{ 
+          fontSize: "15px", 
+          cursor: "pointer", 
+          color: "rgba(255, 255, 255, 0.4)", 
+          transition: "color 0.2s" 
+        }} 
+        onMouseOver={(e) => e.currentTarget.style.color = "#ff6b6b"}
+        onMouseOut={(e) => e.currentTarget.style.color = "rgba(255, 255, 255, 0.4)"}
+        title="Leave Jukebox"
+      >
+        logout
+      </span>
     </div>
   );
 }
@@ -767,6 +846,7 @@ function App() {
   const isAdmin = Boolean(adminToken) && !isDisplay;
   const [showSettings, setShowSettings] = useState(false);
   const [showNameModal, setShowNameModal] = useState(false);
+  const [dismissedGuestModal, setDismissedGuestModal] = useState(false);
   const [guestProfile, setGuestProfile] = useState<GuestProfile | null>(() => {
     const raw = localStorage.getItem("tunebox_guest");
     return raw ? (JSON.parse(raw) as GuestProfile) : null;
@@ -1083,6 +1163,8 @@ function App() {
       }
       localStorage.removeItem("tunebox_setup_plex_username");
       localStorage.removeItem("tunebox_setup_local_username");
+      localStorage.setItem("tunebox_instance_name", localUsername);
+      setInstanceName(localUsername);
       setIsConfigured(true);
       setStep(4);
     } catch (err) {
@@ -1096,6 +1178,7 @@ function App() {
   const handleGuestLeave = () => {
     localStorage.removeItem("tunebox_guest");
     setGuestProfile(null);
+    setDismissedGuestModal(false);
   };
 
   const handleSaveNewName = async (newName: string) => {
@@ -1161,37 +1244,43 @@ function App() {
 
               {/* User badge (top-right, for guests who have joined) */}
               {!isAdmin && guestProfile && (
-                <UserBadge profile={guestProfile} onLeave={handleGuestLeave} />
+                <UserBadge 
+                  profile={guestProfile} 
+                  onLeave={handleGuestLeave} 
+                  onEditName={() => setShowNameModal(true)} 
+                />
               )}
 
-              {/* User Profile Avatar Icon button to trigger name change */}
-              <button
-                className="navbar-profile-btn"
-                onClick={() => setShowNameModal(true)}
-                title="Change name"
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  color: "rgba(255, 255, 255, 0.6)",
-                  padding: "8px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  cursor: "pointer",
-                  transition: "color 0.2s, background-color 0.2s",
-                  borderRadius: "50%",
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.color = "var(--color-primary)";
-                  e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.05)";
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.color = "rgba(255, 255, 255, 0.6)";
-                  e.currentTarget.style.backgroundColor = "transparent";
-                }}
-              >
-                <span className="material-symbols-outlined">person</span>
-              </button>
+              {/* Join Jukebox button if guest dismissed registration modal */}
+              {!isAdmin && !isDisplay && !guestProfile && dismissedGuestModal && (
+                <button
+                  onClick={() => setDismissedGuestModal(false)}
+                  style={{
+                    background: "rgba(255, 255, 255, 0.05)",
+                    border: "1px solid rgba(255, 255, 255, 0.15)",
+                    color: "white",
+                    padding: "6px 14px",
+                    borderRadius: "20px",
+                    fontFamily: "var(--font-body)",
+                    fontSize: "12px",
+                    fontWeight: "bold",
+                    cursor: "pointer",
+                    transition: "all 0.2s"
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.borderColor = "var(--color-primary)";
+                    e.currentTarget.style.color = "var(--color-primary)";
+                    e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.08)";
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.15)";
+                    e.currentTarget.style.color = "white";
+                    e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.05)";
+                  }}
+                >
+                  Join Jukebox
+                </button>
+              )}
             </div>
           </div>
 
@@ -1291,8 +1380,11 @@ function App() {
           )}
 
           {/* Guest Registration Modal — only for non-admin, non-display devices without a profile */}
-          {!isAdmin && !isDisplay && !guestProfile && (
-            <GuestModal onJoin={(profile) => setGuestProfile(profile)} />
+          {!isAdmin && !isDisplay && !guestProfile && !dismissedGuestModal && (
+            <GuestModal 
+              onJoin={(profile) => setGuestProfile(profile)} 
+              onClose={() => setDismissedGuestModal(true)} 
+            />
           )}
 
           {/* Name Editing Modal */}
