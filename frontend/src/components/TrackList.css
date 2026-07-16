@@ -1,97 +1,105 @@
 /* Album banner for track list page */
 .album-banner {
   width: 100%;
-  max-width: 400px;
+  max-width: 300px;
   height: auto;
-  margin: 0 auto 20px;
+  margin: 0 auto 24px;
   display: block;
+  border-radius: var(--border-radius-card);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--color-glass-border);
 }
 
 /* Track List Layout */
 .track-list-page {
   display: flex;
   justify-content: center;
-  padding: 20px;
+  padding: 24px;
 }
 
 .track-list-container {
   width: 100%;
-  max-width: 1200px;
+  max-width: 1000px;
   display: flex;
   flex-direction: column;
-  gap: 30px;
-  padding-right: 10px;
+  gap: 24px;
 }
 
 .track-list h1 {
+  font-family: var(--font-title);
   text-align: center;
-  color: #E59500;
-  margin-bottom: 20px;
+  color: var(--color-primary);
+  margin-bottom: 24px;
+  text-shadow: 0 0 10px rgba(0, 240, 255, 0.25);
 }
 
 .track-list {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
 }
 
 .track-card {
-  background-color: #0077B6;
-  border-radius: 8px;
-  min-height: 150px;
-  text-align: center;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-  transition: background-color 0.3s ease;
-  min-width: 100%;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--color-glass-border);
+  border-radius: 16px;
+  min-height: 100px;
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  transition: border-color 0.3s, background-color 0.3s, transform 0.3s, box-shadow 0.3s;
+  cursor: pointer;
+}
+
+.track-card:hover {
+  background-color: rgba(255, 255, 255, 0.06);
+  border-color: var(--color-primary);
+  transform: translateY(-3px) scale(1.01);
+  box-shadow: 0 8px 24px rgba(0, 240, 255, 0.15);
 }
 
 .track-card .MuiTypography-root {
   color: white;
-  margin-bottom: 10px;
+  margin: 0;
+  font-family: var(--font-body);
 }
 
 .track-card .MuiButton-root {
-  background-color: #373A40;
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
   color: white;
+  font-family: var(--font-body);
+  font-weight: bold;
   text-transform: none;
-  margin-top: 10px;
-  display: block;
-  margin-left: auto;
-  margin-right: auto;
+  border-radius: 6px;
+  padding: 8px 16px;
+  box-shadow: 0 4px 12px rgba(0, 240, 255, 0.25);
+  transition: transform 0.2s, box-shadow 0.2s;
 }
 
 .track-card .MuiButton-root:hover {
-  background-color: #E59500;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(0, 240, 255, 0.4);
 }
 
 .album-track-title {
-  color: white !important;
+  font-family: var(--font-title) !important;
+  font-weight: 700 !important;
+  font-size: 1.1rem;
 }
 
 /* Styling for the duration text */
-.track-card .MuiTypography-body2 {
-  color: #B0BEC5;
-  margin-bottom: 15px;
+.track-card .track-duration {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.9rem;
+  font-weight: 500;
 }
 
 .track-card .track-title {
-  flex-grow: 1;
-  font-size: clamp(0.9rem, 2vw, 1.2rem);
-  text-align: center;
-  padding: 10px;
+  font-size: 1.1rem;
   font-weight: bold;
   overflow: hidden;
-  text-overflow: ellipsis; /* Ensure text doesn't overflow */
-  white-space: nowrap; /* Prevent text from wrapping to a new line */
-  max-height: 60px; /* Set a max-height to ensure text doesn't push out the card */
-}
-
-.track-card .track-duration {
-  color: #AAAAAA; /* Dimmed color for duration */
-  margin-bottom: 15px; /* Added spacing */
-  font-size: calc(1vw + 1vh); /* Dynamic font size for better readability */
-  text-align: center;
-  overflow: hidden;
-  text-overflow: ellipsis; /* Prevent overflow if text is too long */
+  text-overflow: ellipsis;
   white-space: nowrap;
 }

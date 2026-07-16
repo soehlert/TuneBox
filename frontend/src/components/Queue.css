@@ -1,67 +1,80 @@
-/* Center the header in the Queue */
-.queue-container {
-  width: 100%;
-  max-width: 350px;
-  position: sticky;
-  top: 0;
-  background-color: #272929;
-  color: white;
-  padding: 20px 24px 20px 16px;
-  height: 100vh;
-  overflow-y: auto;
-  box-shadow: 2px 0px 10px rgba(0, 0, 0, 0.1); /* Slight shadow to separate from content */
-}
-
 /* Remove bullets from the list */
 .queue-list {
   padding: 0;
   list-style-type: none;
   width: 100%;
   margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 /* Queue Item Styling */
 .queue-item {
-  background-color: #373A40;
-  padding: 5px 12px;
-  margin-bottom: 4px;
-  border: 1px solid #555;
-  border-radius: 5px;
-  font-size: 1rem;
+  background-color: rgba(255, 255, 255, 0.03);
+  padding: 6px 10px;
+  border: 1px solid var(--color-glass-border);
+  border-radius: 8px;
   color: white;
-  transition: background-color 0.2s ease-in-out;
+  transition: all 0.2s ease-in-out;
   display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-/* Stripes effect */
-.queue-item:nth-child(even) {
-  background-color: #2a4261;
+  align-items: center;
 }
 
 /* Hover effect for queue items */
 .queue-item:hover {
-  background-color: #E59500;
+  background-color: rgba(255, 255, 255, 0.08);
+  border-color: var(--color-primary);
+  transform: translateX(-2px);
+  box-shadow: 0 4px 12px rgba(0, 240, 255, 0.15);
 }
 
-/* Styling for track title (strong) */
-.queue-item strong {
-  font-size: 1rem;
-  color: white;
-  margin-bottom: 2px;
-  word-wrap: break-word;
+/* Album Art Thumbnail */
+.queue-item-art {
+  width: 36px;
+  height: 36px;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  flex-shrink: 0;
+}
+
+/* Fallback Thumbnail Placeholder */
+.queue-item-art-placeholder {
+  width: 36px;
+  height: 36px;
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.3);
+  flex-shrink: 0;
+}
+
+/* Styling for track title */
+.queue-item-title {
+  font-size: 0.95rem !important;
+  color: white !important;
+  font-family: var(--font-title);
+  font-weight: 600 !important;
+  margin: 0 !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
 }
 
 /* Styling for artist name */
-.queue-item .artist {
-  font-size: 0.85rem;
-  color: #AAAAAA;
-  margin: 0;
-}
-
-@media (max-width: 900px) {
-  .queue-container {
-    padding: 16px;
-  }
+.queue-item-artist {
+  font-size: 0.8rem !important;
+  color: rgba(255, 255, 255, 0.5) !important;
+  font-family: var(--font-body);
+  margin: 0 !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
 }

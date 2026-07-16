@@ -1,7 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import { Box, Typography } from '@mui/material';
 
-
 const QueueComponent = () => {
   const [queue, setQueue] = useState<any[]>([]);
   const socketRef = useRef<WebSocket | null>(null);
@@ -22,7 +21,8 @@ const QueueComponent = () => {
           console.log("WebSocket connected to QueueComponent");
           socketRef.current?.send(JSON.stringify({
             type: "queue_update",
-            message: "get_current_queue" }));
+            message: "get_current_queue"
+          }));
           console.log("Asked for queue");
         };
 
@@ -79,25 +79,38 @@ const QueueComponent = () => {
   }, [wsHost]);
 
   return (
-    <Box className="queue-container" sx={{ padding: 2 }}>
-      <Typography variant="h4" color="primary" sx={{ marginBottom: 1.5 }}>
+    <Box className="queue-container">
+      <Typography variant="h4" color="primary" sx={{ marginBottom: 2.5, fontWeight: 700, fontFamily: 'var(--font-title)' }}>
         Queue
       </Typography>
       <ul className="queue-list">
         {queue.map((track, index) => (
           <li key={index} className="queue-item">
-            <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-              <Typography
-                variant="h6"
-                component="strong"
-                color="primary"
-                sx={{ fontSize: '1rem', marginBottom: 0 }}
-              >
-                {track.title}
-              </Typography>
-              <Typography variant="body2" color="textSecondary" sx={{ fontSize: '0.85rem' }}>
-                {track.artist}
-              </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%' }}>
+              {track.album_art ? (
+                <img
+                  src={track.album_art}
+                  alt={track.album}
+                  className="queue-item-art"
+                />
+              ) : (
+                <Box className="queue-item-art-placeholder">
+                  🎵
+                </Box>
+              )}
+              <Box sx={{ display: 'flex', flexDirection: 'column', flexGrow: 1, minWidth: 0 }}>
+                <Typography
+                  variant="h6"
+                  component="strong"
+                  color="primary"
+                  className="queue-item-title"
+                >
+                  {track.title}
+                </Typography>
+                <Typography variant="body2" className="queue-item-artist">
+                  {track.artist}
+                </Typography>
+              </Box>
             </Box>
           </li>
         ))}
