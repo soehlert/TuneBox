@@ -307,7 +307,7 @@ async def play_queue_on_device():
         if queue:
             next_song = queue[0]
             try:
-                player = get_active_player()
+                player = await asyncio.to_thread(get_active_player)
                 track = get_track(next_song["item_id"])
                 await asyncio.to_thread(play_song, player, track)
 
@@ -353,7 +353,7 @@ async def playback_orchestrator():
                         # Fetch the first track
                         next_song = queue[0]
                         try:
-                            player = get_active_player()
+                            player = await asyncio.to_thread(get_active_player)
                             track = get_track(next_song["item_id"])
 
                             # Run play in thread pool to avoid blocking async loop
@@ -437,7 +437,7 @@ async def check_plexamp_resync(force_align: bool = False):
     try:
         plex = get_plex_connection()
         try:
-            player = get_active_player()
+            player = await asyncio.to_thread(get_active_player)
         except Exception:  # noqa: BLE001
 
             # No active player is reachable right now
