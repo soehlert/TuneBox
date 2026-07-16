@@ -81,6 +81,28 @@ def reinitialize_plex():
     logger.info("Plex connection cache cleared for reinitialization.")
 
 
+def pre_warm_all_caches():
+    """Trigger cache pre-warming for resources and artists in background."""
+    try:
+        from backend.config import settings
+        from backend.services.redis import clear_cache
+
+        # 1. Warm resources if plex token is configured
+        if settings.plex_token:
+            logger.info("Background warming Plex resources cache...")
+            from backend.routers.auth import fetch_and_cache_resources
+            fetch_and_cache_resources(refresh=True)
+
+        # 2. Warm artists if plex connection works
+        if settings.plex_token:
+            logger.info("Background warming Plex artists cache...")
+            clear_cache("all_artists")
+            fetch_all_artists()
+            logger.info("Background cache pre-warming complete.")
+    except Exception as e:
+        logger.error("Failed to pre-warm caches: %s", e)
+
+
 def get_current_playing_track():
     """Fetch the currently playing track details from cache and the local tracker.
 

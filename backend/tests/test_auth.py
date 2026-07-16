@@ -142,7 +142,7 @@ def test_simulation_auth_flow(client, mock_redis):
         assert settings.plex_username == "MockUser"
 
 
-def test_get_resources_simulation(client):
+def test_get_resources_simulation(client, mock_redis):
     """Test retrieving mock resources in simulation mode."""
     settings.plex_token = MOCK_TOKEN
     response = client.get("/api/auth/resources")
@@ -152,7 +152,7 @@ def test_get_resources_simulation(client):
     assert "[Mock] Living Room Plexamp" in data["players"]
 
 
-def test_get_resources_production(client):
+def test_get_resources_production(client, mock_redis):
     """Test retrieving servers and players in production mode with mocked Plex API."""
     settings.plex_token = "some_valid_token"
 

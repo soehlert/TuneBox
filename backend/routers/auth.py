@@ -5,12 +5,12 @@ import logging
 import pathlib
 import secrets
 
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Header, HTTPException, BackgroundTasks
 from plexapi.myplex import MyPlexAccount, MyPlexPinLogin
 from pydantic import BaseModel
 
 from backend.config import settings
-from backend.services.plex import get_plex_connection, reinitialize_plex
+from backend.services.plex import get_plex_connection, pre_warm_all_caches, reinitialize_plex
 from backend.services.redis import cache_data, get_cached_data
 from backend import websockets as ws
 
@@ -253,14 +253,23 @@ async def mock_claim():
     return {"message": "Simulated PIN authorized successfully!"}
 
 
-@router.get("/resources")
-async def get_resources():
-    """Get list of available Plex Media Servers and Player Clients."""
+def fetch_and_cache_resources(refresh: bool = False):
+    """Fetch list of available Plex Media Servers and Player Clients, caching results in Redis."""
+    cache_key = "plex_resources"
+
+    if not refresh:
+        cached = get_cached_data(cache_key)
+        if cached:
+            logger.info("Fetched Plex resources from Redis cache.")
+            return cached
+
     if settings.plex_token == MOCK_TOKEN or not settings.plex_token:
-        return {
+        mock_data = {
             "servers": ["[Mock] Local Jukebox Server", "[Mock] Home NAS"],
             "players": ["[Mock] Living Room Plexamp", "[Mock] Kitchen Speaker"],
         }
+        cache_data(cache_key, mock_data, ttl=180)
+        return mock_data
 
     try:
         account = MyPlexAccount(token=settings.plex_token)
@@ -273,12 +282,23 @@ async def get_resources():
             if "player" in provides or "client" in provides or "controller" in provides:
                 players.append(resource.name)
 
-        return {"servers": sorted(set(servers)), "players": sorted(set(players))}
+        resources_data = {
+            "servers": sorted(set(servers)),
+            "players": sorted(set(players)),
+        }
+        cache_data(cache_key, resources_data, ttl=180)
+        return resources_data
     except Exception as e:
         logger.exception("Failed to query Plex resources")
         raise HTTPException(
             status_code=500, detail=f"Failed to fetch resources from Plex: {e}"
         ) from e
+
+
+@router.get("/resources")
+async def get_resources(refresh: bool = False):
+    """Get list of available Plex Media Servers and Player Clients."""
+    return fetch_and_cache_resources(refresh=refresh)
 
 
 class ConfigurationRequest(BaseModel):
@@ -336,7 +356,9 @@ async def get_settings(x_admin_token: str | None = Header(None)):
 
 @router.post("/settings")
 async def update_settings(
-    req: SettingsUpdateRequest, x_admin_token: str | None = Header(None)
+    req: SettingsUpdateRequest,
+    background_tasks: BackgroundTasks,
+    x_admin_token: str | None = Header(None),
 ):
     """Save updated connection/instance settings live."""
     if not settings.admin_token or x_admin_token != settings.admin_token:
@@ -354,6 +376,9 @@ async def update_settings(
         settings.admin_token,
     )
     reinitialize_plex()
+
+    # Trigger pre-warming task in background
+    background_tasks.add_task(pre_warm_all_caches)
 
     return {"message": "Settings successfully updated!"}
 

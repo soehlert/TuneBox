@@ -25,6 +25,11 @@ async def lifespan(app: FastAPI):
     # Start background tasks
     ws_task = asyncio.create_task(update_websocket_clients())
     orch_task = asyncio.create_task(playback_orchestrator())
+
+    # Pre-warm caches asynchronously in a background thread
+    from backend.services.plex import pre_warm_all_caches  # noqa: PLC0415
+    asyncio.create_task(asyncio.to_thread(pre_warm_all_caches))
+
     try:
         yield
     finally:

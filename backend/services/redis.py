@@ -87,10 +87,10 @@ def clear_redis_queue():
     return {"message": "The queue has been cleared."}
 
 
-def cache_data(key, data):
-    """Cache data in Redis."""
-    get_redis_cache_client().setex(key, CACHE_TTL, json.dumps(data))
-    logger.info("Cached data under key: %s", key)
+def cache_data(key, data, ttl: int = CACHE_TTL):
+    """Cache data in Redis with custom TTL."""
+    get_redis_cache_client().setex(key, ttl, json.dumps(data))
+    logger.info("Cached data under key: %s (TTL: %d)", key, ttl)
 
 
 def get_cached_data(key):

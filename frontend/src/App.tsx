@@ -103,7 +103,24 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
   const [selectedPlayer, setSelectedPlayer] = useState("");
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
   const [clients, setClients] = useState<ClientSession[]>([]);
+
+  const handleRefreshResources = async () => {
+    setRefreshing(true);
+    setMsg("Refreshing devices...");
+    try {
+      const res = await axios.get(getApiUrl("/api/auth/resources?refresh=true"));
+      setServers(res.data.servers ?? []);
+      setPlayers(res.data.players ?? []);
+      setMsg("✓ Devices refreshed!");
+    } catch (err) {
+      console.error("Failed to refresh resources:", err);
+      setMsg("✗ Failed to refresh devices.");
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const fetchClients = () => {
     axios
@@ -267,7 +284,28 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
             />
           </div>
           <div>
-            <label style={labelStyle}>Plex Player (Playback Device)</label>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <label style={labelStyle}>Plex Player (Playback Device)</label>
+              <button
+                type="button"
+                onClick={handleRefreshResources}
+                disabled={refreshing}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "#ffc107",
+                  cursor: "pointer",
+                  fontSize: "12px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "4px",
+                  padding: "0 0 8px 0"
+                }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>refresh</span>
+                {refreshing ? "Refreshing..." : "Refresh"}
+              </button>
+            </div>
             {players.length > 0 ? (
               <select
                 value={selectedPlayer}
