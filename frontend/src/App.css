@@ -65,3 +65,20 @@
   height: 100vh;
   overflow-y: auto;
 }
+
+/* Responsive styles for viewports < 900px */
+@media (max-width: 900px) {
+  .main-content {
+    flex-direction: column;
+    height: auto;
+    overflow-y: visible;
+  }
+
+  .queue-container {
+    max-width: 100%;
+    height: auto;
+    max-height: 400px;
+    position: relative;
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.2);
+  }
+}

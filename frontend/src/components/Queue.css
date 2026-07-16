@@ -6,7 +6,7 @@
   top: 0;
   background-color: #272929;
   color: white;
-  padding: 8px 12px;
+  padding: 20px 24px 20px 16px;
   height: 100vh;
   overflow-y: auto;
   box-shadow: 2px 0px 10px rgba(0, 0, 0, 0.1); /* Slight shadow to separate from content */
@@ -23,7 +23,7 @@
 /* Queue Item Styling */
 .queue-item {
   background-color: #373A40;
-  padding: 8px 12px;
+  padding: 5px 12px;
   margin-bottom: 4px;
   border: 1px solid #555;
   border-radius: 5px;
@@ -47,7 +47,7 @@
 
 /* Styling for track title (strong) */
 .queue-item strong {
-  font-size: 1.25rem;
+  font-size: 1rem;
   color: white;
   margin-bottom: 2px;
   word-wrap: break-word;
@@ -55,7 +55,13 @@
 
 /* Styling for artist name */
 .queue-item .artist {
-  font-size: 1rem;
+  font-size: 0.85rem;
   color: #AAAAAA;
   margin: 0;
+}
+
+@media (max-width: 900px) {
+  .queue-container {
+    padding: 16px;
+  }
 }

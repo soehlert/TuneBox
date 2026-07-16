@@ -1038,14 +1038,14 @@ function App() {
             </div>
           </div>
 
-          {/* Admin Settings Gear — bottom-left, admin-only, hidden on displays */}
+          {/* Admin Settings Gear — bottom-right, admin-only, hidden on displays */}
           {isAdmin && !isDisplay && (
             <button
               onClick={() => setShowSettings(true)}
               style={{
                 position: "fixed",
                 bottom: "24px",
-                left: "24px",
+                right: "24px",
                 width: "48px",
                 height: "48px",
                 borderRadius: "50%",

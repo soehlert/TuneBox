@@ -80,7 +80,7 @@ const QueueComponent = () => {
 
   return (
     <Box className="queue-container" sx={{ padding: 2 }}>
-      <Typography variant="h4" color="primary" sx={{ marginBottom: 2 }}>
+      <Typography variant="h4" color="primary" sx={{ marginBottom: 1.5 }}>
         Queue
       </Typography>
       <ul className="queue-list">
@@ -91,11 +91,11 @@ const QueueComponent = () => {
                 variant="h6"
                 component="strong"
                 color="primary"
-                sx={{ fontSize: '1.25rem', marginBottom: 1 }}
+                sx={{ fontSize: '1rem', marginBottom: 0 }}
               >
                 {track.title}
               </Typography>
-              <Typography variant="body2" color="textSecondary" sx={{ fontSize: '1rem' }}>
+              <Typography variant="body2" color="textSecondary" sx={{ fontSize: '0.85rem' }}>
                 {track.artist}
               </Typography>
             </Box>
