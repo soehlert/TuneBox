@@ -420,17 +420,64 @@ async def check_plexamp_resync(force_align: bool = False):
             # No active player is reachable right now
             return
 
-        sessions = await asyncio.to_thread(plex.sessions)
-
         # Look for a session running on our active player
         active_session = None
-        for session in sessions:
-            if (
-                getattr(session, "player", None)
-                and session.player.machineIdentifier == player.machineIdentifier
-            ):
-                active_session = session
-                break
+
+        # Try querying the player timeline directly for real-time offset (zero lag)
+        if type(player).__name__ not in ("MagicMock", "Mock"):
+            try:
+                timeline = await asyncio.to_thread(getattr, player, "timeline", None)
+                if timeline and timeline.state != "stopped":
+                    rating_key = getattr(timeline, "ratingKey", None)
+                    if rating_key:
+                        class MockSession:
+                            pass
+
+                        mock_sess = MockSession()
+                        mock_sess.ratingKey = rating_key
+                        mock_sess.viewOffset = timeline.time
+                        mock_sess.duration = timeline.duration
+
+                        class MockPlayer:
+                            state = timeline.state
+                            machineIdentifier = player.machineIdentifier
+                        mock_sess.player = MockPlayer()
+
+                        # Resolve track metadata details
+                        cached_track = get_cached_data("now_playing")
+                        if cached_track and str(cached_track.get("item_id")) == str(rating_key):
+                            mock_sess.title = cached_track["title"]
+                            mock_sess.grandparentTitle = cached_track["artist"]
+                            mock_sess.parentTitle = cached_track["album"]
+                            mock_sess.thumb = cached_track["album_art"]
+                        else:
+                            # Fetch full track metadata from Plex
+                            track = await asyncio.to_thread(get_track, rating_key)
+                            if track:
+                                mock_sess.title = track.title
+                                mock_sess.grandparentTitle = getattr(track, "grandparentTitle", "Unknown Artist")
+                                mock_sess.parentTitle = getattr(track, "parentTitle", "Unknown Album")
+                                mock_sess.thumb = getattr(track, "thumb", None)
+                            else:
+                                mock_sess.title = "Unknown Track"
+                                mock_sess.grandparentTitle = "Unknown Artist"
+                                mock_sess.parentTitle = "Unknown Album"
+                                mock_sess.thumb = None
+
+                        active_session = mock_sess
+                        logger.debug("Successfully read direct player timeline for %s at %sms (state=%s)", mock_sess.title, mock_sess.viewOffset, timeline.state)
+            except Exception as e:
+                logger.warning("Could not poll player timeline directly: %s. Falling back to PMS sessions.", e)
+
+        if not active_session:
+            sessions = await asyncio.to_thread(plex.sessions)
+            for session in sessions:
+                if (
+                    getattr(session, "player", None)
+                    and session.player.machineIdentifier == player.machineIdentifier
+                ):
+                    active_session = session
+                    break
 
         # Lazy import websockets
         from backend.websockets import send_current_playing  # noqa: PLC0415
