@@ -413,4 +413,4 @@ def test_production_pin_flow_mocked(client):
         assert data["url"] == "https://plex.tv/link"
 
         mock_class.assert_called_once_with(oauth=False)
-        mock_pinlogin.run.assert_called_once()
+        mock_pinlogin.run.assert_not_called()

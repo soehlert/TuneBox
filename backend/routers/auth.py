@@ -159,7 +159,9 @@ async def request_pin(simulate: bool = False):
 
     try:
         pinlogin = MyPlexPinLogin(oauth=False)
-        await asyncio.to_thread(pinlogin.run)
+        # Accessing the .pin property fetches the code from Plex.tv and populates self._id.
+        # We run this in a threadpool since it performs a blocking HTTP request.
+        code = await asyncio.to_thread(lambda: pinlogin.pin)
         active_pins[pinlogin._id] = pinlogin
         active_pins[str(pinlogin._id)] = pinlogin
         logger.debug(
@@ -170,7 +172,7 @@ async def request_pin(simulate: bool = False):
         )
         return {
             "pin_id": pinlogin._id,
-            "code": pinlogin.pin,
+            "code": code,
             "url": "https://plex.tv/link",
         }
     except Exception as e:

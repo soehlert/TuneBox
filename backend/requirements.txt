@@ -22,7 +22,7 @@ MarkupSafe==3.0.2
 mdurl==0.1.2
 orjson==3.10.12
 packaging==24.2
-PlexAPI==4.16.0
+PlexAPI==4.18.2
 pluggy==1.5.0
 pydantic==2.10.3
 pydantic-extra-types==2.10.1
