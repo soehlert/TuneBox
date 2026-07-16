@@ -35,6 +35,8 @@ logger = logging.getLogger(__name__)
 track_time_tracker = TrackTimeTracker()
 # Declare the global variable to manage playback state
 playback_active = False
+_cached_active_player = None
+_cached_active_player_name = None
 
 
 @lru_cache
@@ -76,8 +78,11 @@ def get_plex_connection():
 
 def reinitialize_plex():
     """Clear cached connection and force connection reload."""
+    global _cached_active_player, _cached_active_player_name
     get_myplex_account.cache_clear()
     get_plex_connection.cache_clear()
+    _cached_active_player = None
+    _cached_active_player_name = None
     logger.info("Plex connection cache cleared for reinitialization.")
 
 
@@ -170,11 +175,9 @@ def get_all_players():
 
 
 def get_active_player(client_name: str | None = None):
-    """Get the first active Plex player.
+    """Get the first active Plex player."""
+    global _cached_active_player, _cached_active_player_name
 
-    Returns:
-        The active player according to plex.
-    """
     if settings.testing:
 
         class MockPlayer:
@@ -186,6 +189,9 @@ def get_active_player(client_name: str | None = None):
         return MockPlayer()
 
     client_name = client_name or settings.client_name
+
+    if _cached_active_player and _cached_active_player_name == client_name:
+        return _cached_active_player
 
     # 1. Try resolving via local Plex Media Server client list (GDM)
     try:
@@ -199,6 +205,8 @@ def get_active_player(client_name: str | None = None):
         active_player = next((p for p in players if p.title == client_name), None)
         if active_player:
             logger.info("Found player '%s' locally via PMS.", client_name)
+            _cached_active_player = active_player
+            _cached_active_player_name = client_name
             return active_player
 
         # 2. Fallback to MyPlex resource resolution for remote/relayed players (e.g. Plexamp)
@@ -213,6 +221,8 @@ def get_active_player(client_name: str | None = None):
             logger.info(
                 "Successfully connected to player '%s' via MyPlex.", client_name
             )
+            _cached_active_player = active_player
+            _cached_active_player_name = client_name
             return active_player
         except Exception as e:
             logger.warning(
@@ -225,6 +235,8 @@ def get_active_player(client_name: str | None = None):
         logger.info(
             "Falling back to first available local player: %s", active_player.title
         )
+        _cached_active_player = active_player
+        _cached_active_player_name = active_player.title
         return active_player
 
     raise PlexApiException("No active Plex players found or resolvable.")
@@ -491,6 +503,10 @@ async def check_plexamp_resync(force_align: bool = False):
                         logger.debug("Successfully read direct player timeline for %s at %sms (state=%s)", mock_sess.title, mock_sess.viewOffset, timeline.state)
             except Exception as e:
                 logger.warning("Could not poll player timeline directly: %s. Falling back to PMS sessions.", e)
+                # Invalidate player cache on direct connection failure
+                global _cached_active_player, _cached_active_player_name
+                _cached_active_player = None
+                _cached_active_player_name = None
 
         if not active_session:
             sessions = await asyncio.to_thread(plex.sessions)

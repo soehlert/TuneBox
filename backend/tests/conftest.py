@@ -32,6 +32,17 @@ def mock_write_settings():
         yield mock_write
 
 
+@pytest.fixture(autouse=True)
+def reset_player_cache():
+    """Reset the global player cache in plex service before and after each test."""
+    from backend.services import plex
+    plex._cached_active_player = None
+    plex._cached_active_player_name = None
+    yield
+    plex._cached_active_player = None
+    plex._cached_active_player_name = None
+
+
 @pytest.fixture
 def mock_plex_track():
     """Create a mock Plex Track object with test attributes.

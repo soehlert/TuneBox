@@ -16,7 +16,7 @@ import "./components/Pagination.css";
 
 const getApiUrl = (path: string) => {
   const isDev = window.location.port === "5173";
-  const base = isDev ? "http://localhost:8000" : window.location.origin;
+  const base = isDev ? `http://${window.location.hostname}:8000` : window.location.origin;
   return `${base}${path}`;
 };
 
@@ -46,7 +46,7 @@ const getClientId = () => {
 
 const getWsUrl = () => {
   const isDev = window.location.port === "5173";
-  const host = isDev ? "localhost:8000" : window.location.host;
+  const host = isDev ? `${window.location.hostname}:8000` : window.location.host;
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
   return `${protocol}//${host}/ws`;
 };

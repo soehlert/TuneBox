@@ -27,7 +27,7 @@ function ArtistList({
 }: ArtistListProps) {
   const navigate = useNavigate();
   const isDev = window.location.port === "5173";
-  const apiBase = isDev ? "http://localhost:8000" : window.location.origin;
+  const apiBase = isDev ? `http://${window.location.hostname}:8000` : window.location.origin;
 
   // Function to handle card click and navigate to artist's album page
   const handleArtistClick = (artistId: number) => {

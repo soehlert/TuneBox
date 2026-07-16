@@ -24,7 +24,7 @@ function TrackList() {
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [severity, setSeverity] = useState<"success" | "warning" | "error">("success");
   const isDev = window.location.port === "5173";
-  const apiBase = isDev ? "http://localhost:8000" : window.location.origin;
+  const apiBase = isDev ? `http://${window.location.hostname}:8000` : window.location.origin;
 
   useEffect(() => {
     const fetchTracks = async () => {

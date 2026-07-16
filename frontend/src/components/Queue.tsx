@@ -17,8 +17,8 @@ const QueueComponent = () => {
   const pongTimeoutRef = useRef<number | null>(null);
 
   const isDev = window.location.port === "5173";
-  const apiBase = isDev ? "http://localhost:8000" : window.location.origin;
-  const wsHost = isDev ? "localhost:8000" : window.location.host;
+  const apiBase = isDev ? `http://${window.location.hostname}:8000` : window.location.origin;
+  const wsHost = isDev ? `${window.location.hostname}:8000` : window.location.host;
   const wsProto = window.location.protocol === "https:" ? "wss:" : "ws:";
 
   useEffect(() => {
