@@ -36,6 +36,10 @@ function ArtistAlbums() {
 
   return (
     <div className="album-list-wrapper">
+      <button className="back-button" onClick={() => navigate("/")}>
+        <span className="material-symbols-outlined">arrow_back</span>
+        Back to Artists
+      </button>
       <header className="page-header">
         <Typography variant="h1" className="gradient-text">Albums</Typography>
         <Typography className="page-subtitle">Select an album to view tracks</Typography>

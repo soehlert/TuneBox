@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import axios, { AxiosError } from "axios";
 import { Button, Card, Typography, Snackbar, Alert } from "@mui/material";
 import "./TrackList.css";
@@ -18,6 +18,7 @@ interface AlbumData {
 
 function TrackList() {
   const { albumId } = useParams();
+  const navigate = useNavigate();
   const [albumData, setAlbumData] = useState<AlbumData | null>(null);
   const [loading, setLoading] = useState(true);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -82,6 +83,10 @@ function TrackList() {
   return (
     <div className="track-list-page">
       <div className="track-list-container">
+        <button className="back-button" onClick={() => navigate(-1)}>
+          <span className="material-symbols-outlined">arrow_back</span>
+          Back to Albums
+        </button>
         {loading ? (
           <Typography variant="h6">Loading...</Typography>
         ) : albumData ? (
