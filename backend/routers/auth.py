@@ -375,12 +375,16 @@ async def verify_username(username: str):
 
     try:
         account = MyPlexAccount(token=settings.plex_token)
-        friend_names = {u.username.lower() for u in account.users()}
-        home_names = {
-            u.title.lower()
-            for u in account.myPlexAccount().systemAccounts()
-            if hasattr(u, "title")
-        }
+        friend_names = {u.username.lower() for u in account.users() if getattr(u, "username", None)}
+        home_names = set()
+        try:
+            for u in account.home().users:
+                name = getattr(u, "title", None) or getattr(u, "username", None)
+                if name:
+                    home_names.add(name.lower())
+        except Exception as home_err:
+            logger.warning("Failed to fetch Plex Home users: %s", home_err)
+
         verified_names = friend_names | home_names
         is_member = username.lower() in verified_names
         return {
