@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
-import { Card, CardContent, Typography, CardMedia, Grid } from "@mui/material";
+import { Card, Typography } from "@mui/material";
 import "../App.css";
 import "./ArtistAlbums.css";
 
@@ -35,41 +35,35 @@ function ArtistAlbums() {
   }, [artistId]);
 
   return (
-    <div className="app-container">
-      <div className="content-container">
-        <h1>Albums</h1>
-        {loading ? (
-          <p>Loading...</p>
-        ) : (
-          <div className="album-grid-wrapper">
-            <Grid container spacing={6}>
-              {albums.map((album) => (
-                <Grid item key={album.album_id} xs={12} sm={6} md={4} lg={3}>
-                  <Card onClick={() => navigate(`/albums/${album.album_id}/tracks`)} className="album-card">
-                    <CardMedia
-                      component="img"
-                      alt={album.title}
-                      height="200"
-                      image={`${apiBase}/api/music/album-art/${album.album_id}`}
-                      title={album.title}
-                      className="album-cover"
-                    />
-                    <CardContent>
-                      <Typography
-                        variant="h5"
-                        className={album.title.length > 20 ? "long-title" : ""}
-                        style={{ textAlign: "center", fontWeight: "bold", color: "#FFFFFF" }}
-                      >
-                        {album.title}
-                      </Typography>
-                    </CardContent>
-                  </Card>
-                </Grid>
-              ))}
-            </Grid>
-          </div>
-        )}
-      </div>
+    <div className="album-list-wrapper">
+      <header className="page-header">
+        <Typography variant="h1" className="gradient-text">Albums</Typography>
+        <Typography className="page-subtitle">Select an album to view tracks</Typography>
+      </header>
+      {loading ? (
+        <Typography variant="h6">Loading...</Typography>
+      ) : (
+        <div className="album-grid">
+          {albums.map((album) => (
+            <Card
+              key={album.album_id}
+              onClick={() => navigate(`/albums/${album.album_id}/tracks`)}
+              className="album-card"
+            >
+              <img
+                src={`${apiBase}/api/music/album-art/${album.album_id}`}
+                alt={album.title}
+                className="album-cover"
+              />
+              <div className="album-card-overlay">
+                <Typography className="album-card-title">
+                  {album.title}
+                </Typography>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

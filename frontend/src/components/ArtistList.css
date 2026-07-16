@@ -1,154 +1,87 @@
-/* Individual Artist Card */
+/* Artist List Page Styles */
+.artist-list-wrapper {
+  width: 100%;
+}
+
+.artist-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 16px;
+  width: 100%;
+  margin-bottom: 24px;
+}
+
+@media (min-width: 600px) {
+  .artist-grid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 16px;
+  }
+}
+
+/* Individual Artist Card (Aspect Ratio 1/1, overlay text) */
 .artist-card {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--color-glass-border);
-  padding: 16px;
-  text-align: center;
-  border-radius: var(--border-radius-card);
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
-  color: #FFFFFF;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  height: auto;
-  min-height: 240px;
-  min-width: 150px;
-  transition: border-color 0.3s, background-color 0.3s, transform 0.3s, box-shadow 0.3s;
+  position: relative !important;
+  aspect-ratio: 1 / 1 !important;
+  background: var(--color-glass-bg) !important;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--color-glass-border) !important;
+  border-radius: var(--border-radius-card) !important;
+  box-shadow: 0 0 14px rgba(229, 149, 0, 0.08) !important;
   cursor: pointer;
+  transition: border-color 0.25s, transform 0.25s, box-shadow 0.25s !important;
+  overflow: hidden;
+  display: block !important;
+  padding: 0 !important;
+  margin: 0 !important;
 }
 
 .artist-card:hover {
-  background-color: rgba(255, 255, 255, 0.06);
-  border-color: var(--color-primary);
-  transform: translateY(-5px) scale(1.02);
-  box-shadow: 0 12px 30px rgba(0, 240, 255, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1);
-}
-
-/* Title Readability */
-.artist-card .MuiTypography-root {
-  text-align: center;
-  font-family: var(--font-title);
-  font-weight: 700;
-  color: #FFFFFF;
-  line-height: 1.3;
-  flex-grow: 1;
-  overflow: hidden;
-  font-size: clamp(14px, 2.5vw, 18px);
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  margin-top: 12px;
+  border-color: var(--color-primary) !important;
+  transform: translateY(-4px);
+  box-shadow: 0 0 24px rgba(229, 149, 0, 0.25) !important;
 }
 
 .artist-photo {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
-  height: 160px;
+  height: 100%;
   object-fit: cover;
-  border-radius: 16px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  transition: transform 0.3s ease-in-out;
+  border-radius: 0 !important;
 }
 
-.artist-name {
-  flex-grow: 1;
-  text-align: center;
-  padding: 8px 0;
+.artist-card:hover .artist-photo {
+  transform: scale(1.06);
+}
+
+/* Bottom shadow overlay for legible white text */
+.artist-card-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 50%;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.3) 65%, transparent 100%);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 12px;
+  box-sizing: border-box;
+  z-index: 5;
+}
+
+/* Card name style overrides */
+.artist-card-name {
   font-family: var(--font-title);
-  font-size: 1.1rem;
-  font-weight: bold;
+  font-weight: 700 !important;
+  color: white !important;
+  font-size: 0.9rem !important;
+  text-align: center;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* Container for the alphabet filter and artist grid */
-.artist-list-container {
-  display: grid;
-  grid-template-columns: 80px 1fr;
   width: 100%;
-  height: auto;
-  margin-top: 24px;
-  margin-bottom: 24px;
-  gap: 20px;
-}
-
-.artist-list-container .pagination {
-  grid-column: 2 / 3;
-  justify-self: center;
-}
-
-@media (max-width: 600px) {
-  .artist-list-container {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* Alphabet filter for quick scroll */
-.alphabet-filter {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-bottom: 20px;
-  max-width: 60px;
-}
-
-.alphabet-filter button {
-  background: rgba(255, 255, 255, 0.02);
-  color: rgba(255, 255, 255, 0.7);
-  border: 1px solid var(--color-glass-border);
-  padding: 6px 10px;
-  font-size: 0.85rem;
-  font-family: var(--font-body);
-  font-weight: bold;
-  cursor: pointer;
-  border-radius: 6px;
-  transition: all 0.2s ease-in-out;
-  text-align: center;
-  width: 100%;
-}
-
-.alphabet-filter button:hover {
-  background-color: rgba(0, 240, 255, 0.1);
-  border-color: var(--color-primary);
-  color: white;
-}
-
-.alphabet-filter button.active {
-  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
-  border-color: transparent;
-  color: white;
-  box-shadow: 0 0 10px rgba(0, 240, 255, 0.3);
-}
-
-/* Artist Grid Layout */
-.artist-grid {
-  display: grid;
-  gap: 1.5rem;
-  grid-template-columns: repeat(1, 1fr);
-  width: 100%;
-  margin-bottom: 20px;
-  grid-template-rows: auto;
-  align-items: start;
-}
-
-@media (min-width: 480px) {
-  .artist-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (min-width: 768px) {
-  .artist-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (min-width: 1024px) {
-  .artist-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-@media (min-width: 1400px) {
-  .artist-grid {
-    grid-template-columns: repeat(4, 1fr);
-  }
 }

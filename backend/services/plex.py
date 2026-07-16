@@ -103,6 +103,7 @@ def get_current_playing_track():
     remaining_percentage = (remaining_time / total_time * 100) if total_time > 0 else 0
 
     return {
+        "item_id": cached_track.get("item_id"),
         "title": cached_track["title"],
         "artist": cached_track.get("artist", "Unknown Artist"),
         "album": cached_track.get("album", "Unknown Album"),
@@ -864,12 +865,12 @@ def fetch_art(item_id: int, item_type: str):
     try:
         plex = get_plex_connection()
 
-        if item_type in {"artist", "album"}:
+        if item_type in {"artist", "album", "track"}:
             item = plex.fetchItem(item_id)
         else:
             raise HTTPException(
                 status_code=400,
-                detail="Invalid item type. Must be 'artist' or 'album'.",
+                detail="Invalid item type. Must be 'artist', 'album', or 'track'.",
             )
 
         if not item.thumb:

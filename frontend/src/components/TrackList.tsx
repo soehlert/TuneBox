@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import axios from "axios";
-import { AxiosError } from 'axios';
-import { Button, Grid, Card, CardContent, Typography, Snackbar, Alert } from "@mui/material";
+import axios, { AxiosError } from "axios";
+import { Button, Card, Typography, Snackbar, Alert } from "@mui/material";
 import "./TrackList.css";
 
 interface Track {
@@ -83,12 +82,14 @@ function TrackList() {
   return (
     <div className="track-list-page">
       <div className="track-list-container">
-        <div className="track-list">
-          {loading ? (
-            <p>Loading...</p>
-          ) : albumData ? (
-            <>
-              <h1>{albumData.album_title}</h1>
+        {loading ? (
+          <Typography variant="h6">Loading...</Typography>
+        ) : albumData ? (
+          <>
+            <header className="page-header">
+              <Typography variant="h1" className="gradient-text">{albumData.album_title}</Typography>
+              <Typography className="page-subtitle">Queue songs to the Jukebox</Typography>
+            </header>
               {(
                 <img
                   src={`${apiBase}/api/music/album-art/${albumId}`}
@@ -97,32 +98,30 @@ function TrackList() {
                 />
               )}
 
-              <Grid container spacing={2}>
+              <div className="track-list">
                 {albumData.tracks.map((track) => (
-                  <Grid item xs={12} sm={6} md={4} key={track.track_id}>
-                    <Card className="track-card">
-                      <CardContent>
-                        <Typography variant="h6" className="album-track-title">{track.title}</Typography>
-                        <Typography variant="body2" className="track-duration">
-                          {formatDuration(track.duration)}
-                        </Typography>
-                        <Button
-                          variant="contained"
-                          color="primary"
-                          onClick={() => addToQueue(track.track_id)}
-                        >
-                          Add to Queue
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  </Grid>
+                  <Card className="track-card" key={track.track_id}>
+                    <div className="track-card-left">
+                      <Typography className="album-track-title">{track.title}</Typography>
+                    </div>
+                    <div className="track-card-right">
+                      <Typography className="track-duration">
+                        {formatDuration(track.duration)}
+                      </Typography>
+                      <Button
+                        variant="contained"
+                        onClick={() => addToQueue(track.track_id)}
+                      >
+                        Add to Queue
+                      </Button>
+                    </div>
+                  </Card>
                 ))}
-              </Grid>
+              </div>
             </>
           ) : (
-            <p>No tracks found.</p>
+            <Typography variant="h6">No tracks found.</Typography>
           )}
-        </div>
       </div>
       <Snackbar
         open={snackbarOpen}

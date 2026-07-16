@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { Routes, Route, Link, useNavigate, useLocation } from "react-router-dom";
 import { ThemeProvider } from "@mui/material/styles";
-import { TextField } from "@mui/material";
 import axios from "axios";
 import { QRCodeSVG } from "qrcode.react";
 import ArtistList from "./components/ArtistList";
@@ -57,9 +56,9 @@ const getWsUrl = () => {
 const inputStyle: React.CSSProperties = {
   width: "100%",
   padding: "10px",
-  background: "#2a2a2a",
+  background: "#3a136b",
   color: "#fff",
-  border: "1px solid #444",
+  border: "1px solid rgba(255, 255, 255, 0.15)",
   borderRadius: "6px",
   fontSize: "14px",
   boxSizing: "border-box",
@@ -69,7 +68,7 @@ const btnStyle: React.CSSProperties = {
   width: "100%",
   padding: "14px",
   background: "#f5a623",
-  color: "#121212",
+  color: "#1d083b",
   border: "none",
   borderRadius: "6px",
   cursor: "pointer",
@@ -163,6 +162,36 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
     }
   };
 
+  const handleUnsetDisplay = async (clientId: string) => {
+    try {
+      await axios.post(
+        getApiUrl(`/api/auth/clients/${clientId}/unset-display`),
+        {},
+        { headers: { "x-admin-token": adminToken } }
+      );
+      fetchClients();
+    } catch (err) {
+      console.error("Failed to unset display:", err);
+    }
+  };
+
+  const handleClearQueue = async () => {
+    if (!window.confirm("Are you sure you want to clear the playback queue?")) {
+      return;
+    }
+    try {
+      await axios.post(
+        getApiUrl("/api/music/clear-queue"),
+        {},
+        { headers: { "x-admin-token": adminToken } }
+      );
+      setMsg("✓ Playback queue cleared!");
+    } catch (err) {
+      console.error("Failed to clear queue:", err);
+      setMsg("✗ Failed to clear queue.");
+    }
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -189,7 +218,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
       style={{
         position: "fixed",
         inset: 0,
-        background: "rgba(0,0,0,0.7)",
+        background: "rgba(29, 8, 59, 0.8)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -199,20 +228,20 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
     >
       <div
         style={{
-          background: "#1e1e1e",
-          border: "1px solid #333",
+          background: "#2a0d52",
+          border: "1px solid rgba(255, 255, 255, 0.1)",
           borderRadius: "12px",
           padding: "36px",
           width: "480px",
           maxWidth: "90vw",
-          boxShadow: "0 20px 60px rgba(0,0,0,0.8)",
+          boxShadow: "0 20px 60px rgba(29, 8, 59, 0.5)",
         }}
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
           <h2 style={{ margin: 0, color: "#f5a623", fontSize: "20px" }}>⚙ Jukebox Settings</h2>
           <button
             onClick={onClose}
-            style={{ background: "none", border: "none", color: "#777", fontSize: "22px", cursor: "pointer" }}
+            style={{ background: "none", border: "none", color: "rgba(255, 255, 255, 0.4)", fontSize: "22px", cursor: "pointer" }}
           >
             ✕
           </button>
@@ -301,21 +330,48 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
             </div>
           )}
 
-          <button
-            type="submit"
-            disabled={saving}
-            style={btnStyle}
-            onMouseOver={(e) => (e.currentTarget.style.background = "#d48b17")}
-            onMouseOut={(e) => (e.currentTarget.style.background = "#f5a623")}
-          >
-            {saving ? "Saving..." : "Save Settings"}
-          </button>
+          <div style={{ display: "flex", gap: "12px", marginTop: "10px" }}>
+            <button
+              type="submit"
+              disabled={saving}
+              style={{ ...btnStyle, flex: 1 }}
+              onMouseOver={(e) => (e.currentTarget.style.background = "#d48b17")}
+              onMouseOut={(e) => (e.currentTarget.style.background = "#f5a623")}
+            >
+              {saving ? "Saving..." : "Save Settings"}
+            </button>
+            <button
+              type="button"
+              onClick={handleClearQueue}
+              style={{
+                background: "rgba(255, 107, 107, 0.15)",
+                border: "1px solid #ff6b6b",
+                color: "#ff6b6b",
+                borderRadius: "8px",
+                padding: "10px 16px",
+                fontSize: "14px",
+                fontWeight: "bold",
+                cursor: "pointer",
+                transition: "background-color 0.2s, color 0.2s",
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.backgroundColor = "#ff6b6b";
+                e.currentTarget.style.color = "#fff";
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.backgroundColor = "rgba(255, 107, 107, 0.15)";
+                e.currentTarget.style.color = "#ff6b6b";
+              }}
+            >
+              Clear Queue
+            </button>
+          </div>
         </form>
 
-        <div style={{ marginTop: "24px", borderTop: "1px solid #333", paddingTop: "20px" }}>
+        <div style={{ marginTop: "24px", borderTop: "1px solid rgba(255, 255, 255, 0.15)", paddingTop: "20px" }}>
           <h3 style={{ margin: "0 0 12px 0", color: "#f5a623", fontSize: "16px" }}>💻 Connected Devices</h3>
           {clients.length === 0 ? (
-            <p style={{ color: "#777", fontSize: "13px", margin: 0 }}>No devices connected.</p>
+            <p style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "13px", margin: 0 }}>No devices connected.</p>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: "10px", maxHeight: "200px", overflowY: "auto" }}>
               {/* Display screens at the top */}
@@ -336,19 +392,43 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                     <span style={{ color: "#fff", fontSize: "14px", fontWeight: "bold" }}>
                       {c.name} {c.client_id === getClientId() ? " (This Device)" : ""}
                     </span>
-                    <span style={{ color: "#888", fontSize: "11px", textTransform: "capitalize" }}>
+                    <span style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "11px", textTransform: "capitalize" }}>
                       Role: {c.role} • Display Screen
                     </span>
                   </div>
-                  <span style={{ color: "#5cdd5c", fontSize: "12px", fontWeight: "bold" }}>
-                    ✓ Display
-                  </span>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span style={{ color: "#5cdd5c", fontSize: "12px", fontWeight: "bold", marginRight: "8px" }}>
+                      ✓ Display
+                    </span>
+                    <button
+                      onClick={() => handleUnsetDisplay(c.client_id)}
+                      style={{
+                        background: "transparent",
+                        border: "1px solid rgba(255, 107, 107, 0.4)",
+                        color: "#ff6b6b",
+                        borderRadius: "4px",
+                        padding: "6px 10px",
+                        fontSize: "11px",
+                        fontWeight: "bold",
+                        cursor: "pointer",
+                        transition: "background-color 0.2s",
+                      }}
+                      onMouseOver={(e) => {
+                        e.currentTarget.style.backgroundColor = "rgba(255, 107, 107, 0.1)";
+                      }}
+                      onMouseOut={(e) => {
+                        e.currentTarget.style.backgroundColor = "transparent";
+                      }}
+                    >
+                      Undisplay
+                    </button>
+                  </div>
                 </div>
               ))}
 
               {/* Divider if displays and others both exist */}
               {clients.filter(c => c.is_display).length > 0 && clients.filter(c => !c.is_display).length > 0 && (
-                <div style={{ height: "1px", background: "#333", margin: "8px 0" }} />
+                <div style={{ height: "1px", background: "rgba(255, 255, 255, 0.15)", margin: "8px 0" }} />
               )}
 
               {/* Other instances */}
@@ -360,7 +440,8 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                     alignItems: "center",
                     justifyContent: "space-between",
                     padding: "8px 12px",
-                    background: "#2a2a2a",
+                    background: "#3a136b",
+                    border: "1px solid rgba(255, 255, 255, 0.05)",
                     borderRadius: "6px",
                   }}
                 >
@@ -368,7 +449,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                     <span style={{ color: "#fff", fontSize: "14px", fontWeight: "bold" }}>
                       {c.name} {c.client_id === getClientId() ? " (This Device)" : ""}
                     </span>
-                    <span style={{ color: "#888", fontSize: "11px", textTransform: "capitalize" }}>
+                    <span style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "11px", textTransform: "capitalize" }}>
                       Role: {c.role}
                     </span>
                   </div>
@@ -376,7 +457,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                     onClick={() => handleSetDisplay(c.client_id)}
                     style={{
                       background: "#f5a623",
-                      color: "#121212",
+                      color: "#1d083b",
                       border: "none",
                       borderRadius: "4px",
                       padding: "6px 10px",
@@ -519,6 +600,87 @@ function UserBadge({ profile, onLeave }: { profile: GuestProfile; onLeave: () =>
   );
 }
 
+// ─── Name Editing Modal ───────────────────────────────────────────────────────
+
+interface NameModalProps {
+  currentName: string;
+  onSave: (newName: string) => void;
+  onClose: () => void;
+}
+
+function NameModal({ currentName, onSave, onClose }: NameModalProps) {
+  const [name, setName] = useState(currentName);
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    setLoading(true);
+    try {
+      await onSave(trimmed);
+      onClose();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(29, 8, 59, 0.8)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 1100,
+      }}
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div
+        style={{
+          background: "#2a0d52",
+          border: "1px solid rgba(255, 255, 255, 0.1)",
+          borderRadius: "16px",
+          padding: "36px",
+          width: "360px",
+          textAlign: "center",
+          boxShadow: "0 20px 60px rgba(29, 8, 59, 0.5)",
+        }}
+      >
+        <h3 style={{ color: "#f5a623", margin: "0 0 16px 0", fontSize: "20px" }}>Change Account Name</h3>
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+          <input
+            type="text"
+            placeholder="Enter new name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            style={{ ...inputStyle, textAlign: "center", fontSize: "16px", padding: "12px" }}
+            autoFocus
+          />
+          <div style={{ display: "flex", gap: "10px" }}>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{ ...btnStyle, background: "rgba(255,255,255,0.05)", color: "#fff", flex: 1 }}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading || !name.trim()}
+              style={{ ...btnStyle, flex: 1 }}
+            >
+              Save
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main App ─────────────────────────────────────────────────────────────────
 
 function App() {
@@ -566,6 +728,7 @@ function App() {
   );
   const isAdmin = Boolean(adminToken) && !isDisplay;
   const [showSettings, setShowSettings] = useState(false);
+  const [showNameModal, setShowNameModal] = useState(false);
   const [guestProfile, setGuestProfile] = useState<GuestProfile | null>(() => {
     const raw = localStorage.getItem("tunebox_guest");
     return raw ? (JSON.parse(raw) as GuestProfile) : null;
@@ -743,6 +906,10 @@ function App() {
           if (guestProfile) {
             localStorage.setItem("tunebox_display_name", guestProfile.name);
           }
+        } else if (data.type === "unset_display_mode") {
+          console.log("Received unset_display_mode WS push!");
+          localStorage.removeItem("tunebox_display");
+          setIsDisplay(false);
         } else if (data.message === "pong") {
           window.clearTimeout(pongTimeout);
         }
@@ -899,6 +1066,19 @@ function App() {
     setGuestProfile(null);
   };
 
+  const handleSaveNewName = async (newName: string) => {
+    try {
+      const res = await axios.get(getApiUrl(`/api/auth/verify-username?username=${encodeURIComponent(newName)}`));
+      const profile: GuestProfile = { name: newName, role: res.data.role };
+      localStorage.setItem("tunebox_guest", JSON.stringify(profile));
+      setGuestProfile(profile);
+    } catch {
+      const profile: GuestProfile = { name: newName, role: "guest" };
+      localStorage.setItem("tunebox_guest", JSON.stringify(profile));
+      setGuestProfile(profile);
+    }
+  };
+
   // Plain base URL for QR — no query params so guests don't accidentally enter display mode
   const joinUrl = `${window.location.protocol}//${window.location.hostname}${window.location.port ? `:${window.location.port}` : ""}`;
 
@@ -916,108 +1096,137 @@ function App() {
     return (
       <ThemeProvider theme={theme}>
         <div className="app-container">
-          {/* Navbar */}
+          {/* Ambient background glows */}
+          <div className="ambient-background">
+            <div className="glow-circle glow-top-right"></div>
+            <div className="glow-circle glow-bottom-left"></div>
+          </div>
+
+          {/* Top Navbar */}
           <div className="navbar">
             <Link to="/" className="app-title-link">
               <img src={TuneBoxLogo} alt="TuneBox Logo" className="logo" />
             </Link>
-            <div className="music-controls-container">
-              <MusicControls />
-            </div>
-            {/* User badge (top-right, for guests who have joined) */}
-            {!isAdmin && guestProfile && (
-              <div style={{ marginLeft: "auto", paddingRight: "16px" }}>
-                <UserBadge profile={guestProfile} onLeave={handleGuestLeave} />
+
+            <div className="navbar-right">
+              {/* Search Box in Navbar */}
+              <div className="navbar-search-container">
+                <span className="material-symbols-outlined" style={{ fontSize: "20px", color: "rgba(255,255,255,0.4)" }}>search</span>
+                <input
+                  type="text"
+                  className="navbar-search-input"
+                  placeholder="Search Jukebox..."
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setSelectedLetter("");
+                    if (location.pathname !== "/") {
+                      navigate("/");
+                    }
+                  }}
+                />
               </div>
-            )}
+
+              {/* User badge (top-right, for guests who have joined) */}
+              {!isAdmin && guestProfile && (
+                <UserBadge profile={guestProfile} onLeave={handleGuestLeave} />
+              )}
+
+              {/* User Profile Avatar Icon button to trigger name change */}
+              <button
+                className="navbar-profile-btn"
+                onClick={() => setShowNameModal(true)}
+                title="Change name"
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: "rgba(255, 255, 255, 0.6)",
+                  padding: "8px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  transition: "color 0.2s, background-color 0.2s",
+                  borderRadius: "50%",
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.color = "var(--color-primary)";
+                  e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.05)";
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.color = "rgba(255, 255, 255, 0.6)";
+                  e.currentTarget.style.backgroundColor = "transparent";
+                }}
+              >
+                <span className="material-symbols-outlined">person</span>
+              </button>
+            </div>
           </div>
 
-          {/* Main content area */}
-          <div className="main-content">
-            <div className="artist-grid-container" style={{ display: 'flex', flexDirection: 'column', width: '100%', padding: '20px', overflowY: 'auto' }}>
-              {/* Persistent Search Bar */}
-              <TextField
-                label="Search Artists"
-                variant="outlined"
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setSelectedLetter("");
-                  if (location.pathname !== "/") {
-                    navigate("/");
-                  }
-                }}
-                fullWidth
-                margin="normal"
-                sx={{
-                  input: { color: "white" },
-                  label: { color: "#aaa" },
-                  "& .MuiOutlinedInput-root": {
-                    "& fieldset": { borderColor: "#333" },
-                    "&:hover fieldset": { borderColor: "#555" },
-                    "&.Mui-focused fieldset": { borderColor: "#f5a623" },
-                  },
-                  "& .MuiInputLabel-root.Mui-focused": { color: "#f5a623" }
-                }}
-              />
+          {/* Persistent Alphabet Fast-Scroll Sidebar on Left */}
+          <aside className="left-sidebar">
+            <div className="alphabet-filter">
+              <button
+                onClick={() => handleAlphabetClick("0-9")}
+                className={selectedLetter === "0-9" ? "active" : ""}
+              >
+                #
+              </button>
+              {"ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map((letter) => (
+                <button
+                  key={letter}
+                  onClick={() => handleAlphabetClick(letter)}
+                  className={selectedLetter === letter ? "active" : ""}
+                >
+                  {letter}
+                </button>
+              ))}
+            </div>
+          </aside>
 
-              {/* Persistent layout containing alphabet filter on left and subpage content on right */}
-              <div className="artist-list-container">
-                {/* Persistent Alphabet Filter */}
-                <div className="alphabet-filter">
-                  <button
-                    onClick={() => handleAlphabetClick("0-9")}
-                    className={selectedLetter === "0-9" ? "active" : ""}
-                  >
-                    0
-                  </button>
-                  {"ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map((letter) => (
-                    <button
-                      key={letter}
-                      onClick={() => handleAlphabetClick(letter)}
-                      className={selectedLetter === letter ? "active" : ""}
-                    >
-                      {letter}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Subpage content */}
-                <div style={{ width: '100%' }}>
-                  <Routes>
-                    <Route
-                      path="/"
-                      element={
-                        <ArtistList
-                          filteredArtists={filteredArtists}
-                          loading={loadingArtists}
-                          currentPage={currentPage}
-                          setCurrentPage={setCurrentPage}
-                          artistsPerPage={artistsPerPage}
-                        />
-                      }
+          {/* Main Grid Wrapper */}
+          <div className="main-wrapper">
+            {/* Subpage content */}
+            <div className="main-content">
+              <div className="header-gradient"></div>
+              <Routes>
+                <Route
+                  path="/"
+                  element={
+                    <ArtistList
+                      filteredArtists={filteredArtists}
+                      loading={loadingArtists}
+                      currentPage={currentPage}
+                      setCurrentPage={setCurrentPage}
+                      artistsPerPage={artistsPerPage}
                     />
-                    <Route path="/artists/:artistId/albums" element={<ArtistAlbums />} />
-                    <Route path="/albums/:albumId/tracks" element={<TrackList />} />
-                  </Routes>
-                </div>
-              </div>
+                  }
+                />
+                <Route path="/artists/:artistId/albums" element={<ArtistAlbums />} />
+                <Route path="/albums/:albumId/tracks" element={<TrackList />} />
+              </Routes>
             </div>
 
             {/* Sidebar: Queue + QR Code (non-admin shared display) */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            <div className="queue-container">
               <Queue />
               {isDisplay && (
                 <div
+                  className="glass-panel"
                   style={{
-                    background: "#1e1e1e",
-                    border: "1px solid #2a2a2a",
-                    borderRadius: "12px",
+                    position: "absolute",
+                    bottom: "16px",
+                    left: "16px",
+                    right: "16px",
                     padding: "20px",
                     display: "flex",
                     flexDirection: "column",
                     alignItems: "center",
                     gap: "12px",
+                    background: "rgba(22, 6, 45, 0.95)",
+                    border: "1px solid var(--color-glass-border)",
+                    boxShadow: "0 -8px 32px rgba(0,0,0,0.5)",
+                    zIndex: 100,
                   }}
                 >
                   <p style={{ color: "#aaa", fontSize: "12px", margin: 0, textAlign: "center", fontWeight: "bold", letterSpacing: "0.5px", textTransform: "uppercase" }}>
@@ -1026,11 +1235,11 @@ function App() {
                   <QRCodeSVG
                     value={joinUrl}
                     size={140}
-                    bgColor="#1e1e1e"
-                    fgColor="#f5a623"
+                    bgColor="transparent"
+                    fgColor="var(--color-primary)"
                     level="M"
                   />
-                  <p style={{ color: "#555", fontSize: "11px", margin: 0, textAlign: "center" }}>
+                  <p style={{ color: "#888", fontSize: "11px", margin: 0, textAlign: "center", wordBreak: "break-all" }}>
                     {joinUrl}
                   </p>
                 </div>
@@ -1038,42 +1247,14 @@ function App() {
             </div>
           </div>
 
-          {/* Admin Settings Gear — bottom-right, admin-only, hidden on displays */}
-          {isAdmin && !isDisplay && (
-            <button
-              onClick={() => setShowSettings(true)}
-              style={{
-                position: "fixed",
-                bottom: "24px",
-                right: "24px",
-                width: "48px",
-                height: "48px",
-                borderRadius: "50%",
-                background: "#2a2a2a",
-                border: "1px solid #444",
-                color: "#f5a623",
-                fontSize: "22px",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                boxShadow: "0 4px 16px rgba(0,0,0,0.6)",
-                transition: "background 0.2s, transform 0.2s",
-                zIndex: 100,
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.background = "#383838";
-                e.currentTarget.style.transform = "scale(1.1)";
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.background = "#2a2a2a";
-                e.currentTarget.style.transform = "scale(1)";
-              }}
-              title="Settings"
-            >
-              ⚙
-            </button>
-          )}
+          {/* Persistent Bottom Playback Bar */}
+          <footer className="player-footer">
+            <MusicControls
+              instanceName={instanceName}
+              isAdmin={isAdmin}
+              onOpenSettings={() => setShowSettings(true)}
+            />
+          </footer>
 
           {/* Settings Modal */}
           {showSettings && (
@@ -1084,6 +1265,15 @@ function App() {
           {!isAdmin && !isDisplay && !guestProfile && (
             <GuestModal onJoin={(profile) => setGuestProfile(profile)} />
           )}
+
+          {/* Name Editing Modal */}
+          {showNameModal && (
+            <NameModal
+              currentName={guestProfile?.name || ""}
+              onSave={handleSaveNewName}
+              onClose={() => setShowNameModal(false)}
+            />
+          )}
         </div>
       </ThemeProvider>
     );
@@ -1092,8 +1282,8 @@ function App() {
   // ── Setup Wizard ─────────────────────────────────────────────────────────────
   return (
     <ThemeProvider theme={theme}>
-      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh", background: "#121212", color: "white", padding: "20px" }}>
-        <div style={{ background: "#1e1e1e", padding: "40px", borderRadius: "12px", maxWidth: "480px", width: "100%", textAlign: "center", border: "1px solid #333", boxShadow: "0 8px 30px rgba(0,0,0,0.5)" }}>
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh", background: "var(--color-bg)", color: "white", padding: "20px" }}>
+        <div className="glass-panel" style={{ padding: "40px", borderRadius: "16px", maxWidth: "480px", width: "100%", textAlign: "center", boxShadow: "0 20px 60px rgba(0,0,0,0.8)" }}>
 
           <img src={TuneBoxLogo} alt="TuneBox Logo" style={{ height: "45px", marginBottom: "25px" }} />
 

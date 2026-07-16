@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Card, CardContent, Typography } from "@mui/material"; // MUI components
+import { Card, Typography } from "@mui/material"; // MUI components
 import Pagination from "./Pagination";
 import "../App.css";
 import "./ArtistList.css";
@@ -41,43 +41,44 @@ function ArtistList({
   const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
 
   return (
-    <div className="app-container" style={{ minHeight: "auto", padding: 0 }}>
-      <div className="content-container" style={{ padding: 0, width: "100%" }}>
-        {loading ? (
-          <Typography variant="h6">Loading...</Typography>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: "20px", width: "100%" }}>
-            {/* Artist grid */}
-            <div className="artist-grid">
-              {currentArtists.map((artist) => (
-                <Card
-                  className="artist-card"
-                  key={artist.artist_id}
-                  id={`artist-${artist.artist_id}`}
-                  onClick={() => handleArtistClick(artist.artist_id)}
-                >
-                  <CardContent>
-                    <img
-                      src={`${apiBase}/api/music/artist-image/${artist.artist_id}`}
-                      alt={artist.name}
-                      className="artist-photo"
-                    />
-                    <Typography variant="h6">{artist.name}</Typography>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-
-            {/* Pagination */}
-            <Pagination
-              className="pagination"
-              currentPage={currentPage}
-              totalPages={Math.ceil(filteredArtists.length / artistsPerPage)}
-              paginate={paginate}
-            />
+    <div className="artist-list-wrapper">
+      <header className="page-header">
+        <Typography variant="h1" className="gradient-text">Artists</Typography>
+      </header>
+      {loading ? (
+        <Typography variant="h6">Loading...</Typography>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: "20px", width: "100%" }}>
+          {/* Artist grid */}
+          <div className="artist-grid">
+            {currentArtists.map((artist) => (
+              <Card
+                className="artist-card"
+                key={artist.artist_id}
+                id={`artist-${artist.artist_id}`}
+                onClick={() => handleArtistClick(artist.artist_id)}
+              >
+                <img
+                  src={`${apiBase}/api/music/artist-image/${artist.artist_id}`}
+                  alt={artist.name}
+                  className="artist-photo"
+                />
+                <div className="artist-card-overlay">
+                  <Typography className="artist-card-name">{artist.name}</Typography>
+                </div>
+              </Card>
+            ))}
           </div>
-        )}
-      </div>
+
+          {/* Pagination */}
+          <Pagination
+            className="pagination"
+            currentPage={currentPage}
+            totalPages={Math.ceil(filteredArtists.length / artistsPerPage)}
+            paginate={paginate}
+          />
+        </div>
+      )}
     </div>
   );
 }

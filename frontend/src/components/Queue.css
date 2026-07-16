@@ -1,80 +1,182 @@
-/* Remove bullets from the list */
-.queue-list {
-  padding: 0;
-  list-style-type: none;
+/* Queue Wrapper Styles */
+.queue-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
   width: 100%;
+}
+
+.queue-header {
+  margin-bottom: 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding-bottom: 12px;
+}
+
+.queue-title {
+  font-family: var(--font-title);
+  font-size: 1.5rem !important;
+  font-weight: 700 !important;
+  color: white !important;
+  margin: 0 !important;
+  line-height: 1.2 !important;
+}
+
+.queue-subtitle {
+  font-family: var(--font-title);
+  font-size: 0.65rem !important;
+  font-weight: 700 !important;
+  color: var(--color-primary) !important;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  margin-top: 4px !important;
+  opacity: 0.8;
+}
+
+.queue-list {
+  list-style-type: none;
+  padding: 0 0 240px 0;
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
+  overflow-y: auto;
+  flex-grow: 1;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
 }
 
-/* Queue Item Styling */
+.queue-list::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
+/* Queue Item (Clean list row) */
 .queue-item {
-  background-color: rgba(255, 255, 255, 0.03);
-  padding: 6px 10px;
-  border: 1px solid var(--color-glass-border);
-  border-radius: 8px;
-  color: white;
-  transition: all 0.2s ease-in-out;
   display: flex;
   align-items: center;
-}
-
-/* Hover effect for queue items */
-.queue-item:hover {
-  background-color: rgba(255, 255, 255, 0.08);
-  border-color: var(--color-primary);
-  transform: translateX(-2px);
-  box-shadow: 0 4px 12px rgba(0, 240, 255, 0.15);
-}
-
-/* Album Art Thumbnail */
-.queue-item-art {
-  width: 36px;
-  height: 36px;
-  object-fit: cover;
-  border-radius: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-radius: 12px;
+  transition: background-color 0.25s, transform 0.25s;
+  cursor: pointer;
+  box-sizing: border-box;
   flex-shrink: 0;
 }
 
-/* Fallback Thumbnail Placeholder */
+.queue-item:hover:not(.active) {
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+/* Active item highlight (Gold/Orange card) */
+.queue-item.active {
+  background-color: var(--color-primary) !important;
+  color: #0e0e0f !important;
+  box-shadow: 0 4px 16px rgba(229, 149, 0, 0.2) !important;
+  position: relative;
+  overflow: hidden;
+  padding-left: 18px; /* Room for the left dark strip */
+}
+
+.queue-item.active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  background-color: rgba(0, 0, 0, 0.35);
+}
+
+.queue-item-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex-grow: 1;
+}
+
+.queue-item-art {
+  width: 40px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+}
+
+.queue-item.active .queue-item-art {
+  border-color: rgba(0, 0, 0, 0.15);
+}
+
 .queue-item-art-placeholder {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   background-color: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.95rem;
+  font-size: 1rem;
   color: rgba(255, 255, 255, 0.3);
   flex-shrink: 0;
 }
 
-/* Styling for track title */
-.queue-item-title {
-  font-size: 0.95rem !important;
-  color: white !important;
-  font-family: var(--font-title);
-  font-weight: 600 !important;
-  margin: 0 !important;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  width: 100%;
+.queue-item.active .queue-item-art-placeholder {
+  background-color: rgba(0, 0, 0, 0.1);
+  color: rgba(0, 0, 0, 0.4);
+  border-color: rgba(0, 0, 0, 0.15);
 }
 
-/* Styling for artist name */
-.queue-item-artist {
-  font-size: 0.8rem !important;
-  color: rgba(255, 255, 255, 0.5) !important;
-  font-family: var(--font-body);
-  margin: 0 !important;
+.queue-item-meta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex-grow: 1;
+}
+
+.queue-item-title {
+  font-family: var(--font-title);
+  font-size: 0.85rem !important;
+  font-weight: 700 !important;
+  color: white !important;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  width: 100%;
+  margin: 0 !important;
+  line-height: 1.3 !important;
+}
+
+.queue-item.active .queue-item-title {
+  color: #0e0e0f !important;
+}
+
+.queue-item-artist {
+  font-family: var(--font-body);
+  font-size: 0.75rem !important;
+  color: rgba(255, 255, 255, 0.4) !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin: 0 !important;
+}
+
+.queue-item.active .queue-item-artist {
+  color: rgba(0, 0, 0, 0.6) !important;
+  font-weight: 600 !important;
+}
+
+.queue-item-time {
+  font-family: var(--font-body);
+  font-size: 0.75rem !important;
+  color: rgba(255, 255, 255, 0.3) !important;
+  font-weight: 600;
+  flex-shrink: 0;
+  margin-left: 12px;
+}
+
+.queue-equalizer {
+  font-size: 20px !important;
+  color: #0e0e0f !important;
+  flex-shrink: 0;
+  margin-left: 12px;
 }

@@ -335,3 +335,24 @@ def get_album_art(album_id: int):
         return StreamingResponse(
             response.iter_content(chunk_size=1024), media_type="image/jpeg"
         )
+
+
+@router.get("/track-art/{track_id}")
+def get_track_art(track_id: int):
+    """Fetch and proxy the track art from Plex.
+
+    Returns:
+        Track art from Plex in streaming response format.
+    """
+    try:
+        response = fetch_art(track_id, "track")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error fetching track art: {e}"
+        ) from e
+    else:
+        return StreamingResponse(
+            response.iter_content(chunk_size=1024), media_type="image/jpeg"
+        )

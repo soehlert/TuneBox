@@ -7,10 +7,11 @@ const theme = createTheme({
       main: "#E59500", // Orange accent for primary buttons
     },
     secondary: {
-      main: "#2C4E80", // Blue for secondary buttons and highlights
+      main: "#0077B6", // Blue for secondary buttons and highlights
     },
     background: {
-      default: "#373A40", // Dark gray background for the app
+      default: "#1d083b", // Deep dark purple background
+      paper: "rgba(42, 13, 82, 0.4)", // Translucent dark purple paper
     },
     text: {
       primary: "#EEEEEE", // Light gray text color
@@ -18,43 +19,59 @@ const theme = createTheme({
     },
   },
   typography: {
+    fontFamily: "Inter, sans-serif",
     h1: {
-      color: "#EEEEEE", // Light gray for h1 (primary heading)
+      fontFamily: "Montserrat, sans-serif",
+      fontWeight: 700,
+      color: "#EEEEEE",
     },
     h2: {
-      color: "#E59500", // Orange for h2 (secondary heading)
+      fontFamily: "Montserrat, sans-serif",
+      fontWeight: 700,
+      color: "#E59500",
     },
     h3: {
+      fontFamily: "Montserrat, sans-serif",
+      fontWeight: 700,
       color: "#E59500",
     },
     h4: {
+      fontFamily: "Montserrat, sans-serif",
+      fontWeight: 700,
       color: "#E59500",
-      fontSize: "2rem", // Set font size for h3
-      fontWeight: "bold", // Bold text
-      textAlign: "center", // Center-align text
-      textTransform: "uppercase", // Uppercase letters
-      letterSpacing: "2px", // Add spacing between letters
-      textShadow: "2px 2px 5px rgba(0, 0, 0, 0.4)", // Add text shadow for a glowing effect
+    },
+    h5: {
+      fontFamily: "Montserrat, sans-serif",
+      fontWeight: 700,
+      color: "#EEEEEE",
+    },
+    h6: {
+      fontFamily: "Montserrat, sans-serif",
+      fontWeight: 700,
+      color: "#EEEEEE",
     },
     body1: {
-      color: "#EEEEEE", // Light gray for body text
+      fontFamily: "Inter, sans-serif",
+      color: "#EEEEEE",
+    },
+    body2: {
+      fontFamily: "Inter, sans-serif",
+      color: "#EEEEEE",
     },
   },
   components: {
     MuiCard: {
       styleOverrides: {
         root: {
-          backgroundColor: "#0077B6",
           color: "#FFFFFF", // White text color for all cards
-          boxShadow: "0 2px 5px rgba(0, 0, 0, 0.3)", // Box shadow for depth
+          boxShadow: "0 4px 16px rgba(0, 0, 0, 0.4)",
         },
       },
     },
     MuiPaper: {
       styleOverrides: {
         root: {
-          backgroundColor: "#0077B6", // Set background color to purple from logo
-          color: "#FFFFFF", // Set text color to white to ensure visibility
+          color: "#FFFFFF",
         },
       },
     },

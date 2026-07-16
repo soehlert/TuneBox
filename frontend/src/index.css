@@ -1,12 +1,12 @@
 :root {
   --font-title: 'Montserrat', sans-serif;
   --font-body: 'Inter', sans-serif;
-  --color-bg: #0a0a0b;
-  --color-glass-bg: rgba(26, 26, 28, 0.65);
-  --color-glass-border: rgba(255, 255, 255, 0.08);
-  --color-primary: #00f0ff; /* Neon electric blue */
-  --color-secondary: #a020f0; /* Neon purple */
-  --border-radius-card: 24px;
+  --color-bg: #1d083b;
+  --color-glass-bg: rgba(42, 13, 82, 0.4);
+  --color-glass-border: rgba(255, 255, 255, 0.05);
+  --color-primary: #E59500; /* Orange/Yellow from current code */
+  --color-secondary: #0077B6; /* Blue from current code */
+  --border-radius-card: 16px;
   --border-radius-element: 8px;
 
   font-family: var(--font-body);
@@ -26,9 +26,10 @@ body {
   place-items: stretch;
   min-width: 100vw;
   min-height: 100vh;
-  background: var(--color-bg);
+  background: radial-gradient(circle at 85% 15%, rgba(229, 149, 0, 0.18) 0%, #1d083b 65%, #160424 100%);
   font-family: var(--font-body);
   color: #e5e2e3;
+  overflow: hidden;
 }
 
 #root {
@@ -44,7 +45,7 @@ a {
   transition: color 0.25s;
 }
 a:hover {
-  color: #535bf2;
+  color: var(--color-secondary);
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -86,4 +87,20 @@ button:focus-visible {
   border: 1px solid var(--color-glass-border);
   border-radius: var(--border-radius-element);
   box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+/* Custom scrollbars for clean desktop appearance */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
 }

@@ -1,13 +1,23 @@
 import { useEffect, useState, useRef } from 'react';
 import { Box, Typography } from '@mui/material';
+import "./Queue.css";
 
 const QueueComponent = () => {
   const [queue, setQueue] = useState<any[]>([]);
+
+  const formatDuration = (ms: number | string) => {
+    const totalSeconds = Math.floor(Number(ms) / 1000);
+    if (isNaN(totalSeconds) || totalSeconds <= 0) return "0:00";
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${seconds < 10 ? "0" : ""}${seconds}`;
+  };
   const socketRef = useRef<WebSocket | null>(null);
   const pingIntervalRef = useRef<number | null>(null);
   const pongTimeoutRef = useRef<number | null>(null);
 
   const isDev = window.location.port === "5173";
+  const apiBase = isDev ? "http://localhost:8000" : window.location.origin;
   const wsHost = isDev ? "localhost:8000" : window.location.host;
   const wsProto = window.location.protocol === "https:" ? "wss:" : "ws:";
 
@@ -23,7 +33,6 @@ const QueueComponent = () => {
             type: "queue_update",
             message: "get_current_queue"
           }));
-          console.log("Asked for queue");
         };
 
         socketRef.current.onmessage = (event) => {
@@ -45,10 +54,9 @@ const QueueComponent = () => {
 
         socketRef.current.onclose = () => {
           console.log("WebSocket closed in QueueComponent");
-          setTimeout(connectWebSocket, 5000); // Attempt reconnection after 5 seconds
+          setTimeout(connectWebSocket, 5000);
         };
 
-        // Heartbeat
         pingIntervalRef.current = window.setInterval(() => {
           if (socketRef.current?.readyState === WebSocket.OPEN) {
             socketRef.current?.send(JSON.stringify({
@@ -58,62 +66,64 @@ const QueueComponent = () => {
             pongTimeoutRef.current = window.setTimeout(() => {
               console.error("No pong received, attempting reconnect...");
               socketRef.current?.close();
-            }, 5000); // Wait for 5 seconds for the pong
+            }, 5000);
           }
         }, 10000);
       }
     };
 
-    // Initial connection
     connectWebSocket();
 
-    // Cleanup on unmount
     return () => {
       if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
         socketRef.current.close();
         clearInterval(pingIntervalRef.current as number);
         clearTimeout(pongTimeoutRef.current as number);
-        console.log("WebSocket connection closed on component unmount.");
       }
     };
   }, [wsHost]);
 
   return (
-    <Box className="queue-container">
-      <Typography variant="h4" color="primary" sx={{ marginBottom: 2.5, fontWeight: 700, fontFamily: 'var(--font-title)' }}>
-        Queue
-      </Typography>
+    <Box className="queue-wrapper">
+      <Box className="queue-header">
+        <Typography className="queue-title">Up Next</Typography>
+      </Box>
       <ul className="queue-list">
-        {queue.map((track, index) => (
-          <li key={index} className="queue-item">
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: '12px', width: '100%' }}>
-              {track.album_art ? (
-                <img
-                  src={track.album_art}
-                  alt={track.album}
-                  className="queue-item-art"
-                />
-              ) : (
-                <Box className="queue-item-art-placeholder">
-                  🎵
+        {queue.map((track, index) => {
+          const isActive = index === 0;
+          return (
+            <li key={index} className={`queue-item ${isActive ? 'active' : ''}`}>
+              <Box className="queue-item-left">
+                {track.item_id ? (
+                  <img
+                    src={`${apiBase}/api/music/track-art/${track.item_id}`}
+                    alt={track.title}
+                    className="queue-item-art"
+                    onError={(e) => {
+                      e.currentTarget.style.display = "none";
+                      const sibling = e.currentTarget.nextElementSibling as HTMLElement;
+                      if (sibling) sibling.style.display = "flex";
+                    }}
+                  />
+                ) : null}
+                <Box className="queue-item-art-placeholder" style={{ display: track.item_id ? "none" : "flex" }}>🎵</Box>
+                <Box className="queue-item-meta">
+                  <Typography className="queue-item-title">
+                    {track.title}
+                  </Typography>
+                  <Typography className="queue-item-artist">
+                    {track.artist}
+                  </Typography>
                 </Box>
-              )}
-              <Box sx={{ display: 'flex', flexDirection: 'column', flexGrow: 1, minWidth: 0 }}>
-                <Typography
-                  variant="h6"
-                  component="strong"
-                  color="primary"
-                  className="queue-item-title"
-                >
-                  {track.title}
-                </Typography>
-                <Typography variant="body2" className="queue-item-artist">
-                  {track.artist}
-                </Typography>
               </Box>
-            </Box>
-          </li>
-        ))}
+              {isActive ? (
+                <span className="material-symbols-outlined queue-equalizer animate-pulse">equalizer</span>
+              ) : (
+                <Typography className="queue-item-time">{formatDuration(track.duration)}</Typography>
+              )}
+            </li>
+          );
+        })}
       </ul>
     </Box>
   );

@@ -1,17 +1,26 @@
 import { useEffect, useState, useRef } from 'react';
-import { Box, Typography, LinearProgress, IconButton, Button } from '@mui/material';
+import { Box, Typography, LinearProgress, IconButton } from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import StopIcon from '@mui/icons-material/Stop';
+import DevicesIcon from '@mui/icons-material/Devices';
 import "./MusicControls.css";
 
-const MusicControlsComponent = () => {
+const MusicControlsComponent = ({
+  instanceName,
+  isAdmin,
+  onOpenSettings,
+}: {
+  instanceName?: string;
+  isAdmin?: boolean;
+  onOpenSettings?: () => void;
+}) => {
   const [currentTrack, setCurrentTrack] = useState<any>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
-  const [progress, setProgress] = useState<number>(0); // Track progress for the smooth bar
-  const [elapsedTime, setElapsedTime] = useState<string>('00:00'); // To store the current elapsed time in mm:ss format
-  const [duration, setDuration] = useState<string>('00:00'); // To store the song's total duration in mm:ss format
+  const [progress, setProgress] = useState<number>(0);
+  const [elapsedTime, setElapsedTime] = useState<string>('00:00');
+  const [duration, setDuration] = useState<string>('00:00');
   const socketRef = useRef<WebSocket | null>(null);
-  const timerRef = useRef<any>(null); // Timer reference for interval updates
+  const timerRef = useRef<any>(null);
   const isDev = window.location.port === "5173";
   const apiBase = isDev ? "http://localhost:8000" : window.location.origin;
   const wsHost = isDev ? "localhost:8000" : window.location.host;
@@ -29,29 +38,24 @@ const MusicControlsComponent = () => {
             type: "music_control",
             message: "get_current_track"
           }));
-          console.log("Asked for now playing");
         };
 
         socketRef.current.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data);
             if (data.message === "Current track update") {
-              console.log("Current track update:", data); // This will log the current track update data
               const currentTrackData = data.current_track;
               setCurrentTrack(currentTrackData);
-              setIsPlaying(currentTrackData.track_state === 'playing'); // Using track_state from WebSocket message
+              setIsPlaying(currentTrackData.track_state === 'playing');
 
-              // Calculate elapsed time
               const remainingTime = currentTrackData.remaining_time;
               const totalTime = currentTrackData.total_time;
               const elapsed = totalTime - remainingTime;
 
-              // Update elapsed time and song duration in mm:ss format
               const minutesElapsed = Math.floor(elapsed / 60);
               const secondsElapsed = Math.floor(elapsed % 60);
               setElapsedTime(`${minutesElapsed}:${secondsElapsed < 10 ? '0' : ''}${secondsElapsed}`);
 
-              // Update the song duration in mm:ss format
               const totalTimeInSeconds = currentTrackData.total_time;
               const minutes = Math.floor(totalTimeInSeconds / 60);
               const seconds = Math.floor(totalTimeInSeconds % 60);
@@ -70,7 +74,7 @@ const MusicControlsComponent = () => {
 
         socketRef.current.onclose = () => {
           console.log("WebSocket closed in MusicControlsComponent");
-          setTimeout(connectWebSocket, 5000); // Reconnect after 5 seconds
+          setTimeout(connectWebSocket, 5000);
         };
       }
     };
@@ -83,14 +87,13 @@ const MusicControlsComponent = () => {
         if (timerRef.current) {
           clearInterval(timerRef.current);
         }
-        console.log("WebSocket connection closed on component unmount.");
       }
     };
   }, []);
 
   const handlePlayStop = async () => {
     try {
-      const endpoint = isPlaying ? "/api/music/stop-queue" : "/api/music/play-queue";  // Switch endpoint to stop when playing
+      const endpoint = isPlaying ? "/api/music/stop-queue" : "/api/music/play-queue";
       const response = await fetch(`${apiBase}${endpoint}`, {
         method: 'POST',
         headers: {
@@ -99,13 +102,11 @@ const MusicControlsComponent = () => {
       });
 
       if (response.ok) {
-        const data = await response.json();
-        console.log(data.message);
         setIsPlaying(!isPlaying);
-        setProgress(0);
-        setElapsedTime('0:00');
-      } else {
-        console.error('Failed to toggle playback');
+        if (isPlaying) {
+          setProgress(0);
+          setElapsedTime('0:00');
+        }
       }
     } catch (error) {
       console.error('Error toggling playback:', error);
@@ -123,11 +124,7 @@ const MusicControlsComponent = () => {
       });
 
       if (response.ok) {
-        const data = await response.json();
-        console.log('Queue started:', data.message);
-        setIsPlaying(true); // Once the queue starts, set playing to true
-      } else {
-        console.error('Failed to start playback');
+        setIsPlaying(true);
       }
     } catch (error) {
       console.error('Error starting queue playback:', error);
@@ -135,39 +132,101 @@ const MusicControlsComponent = () => {
   };
 
   return (
-    <Box className="music-controls">
-      <Box className="track-info">
+    <Box className="player-inner-container">
+      {/* Left Section: Cover & Metadata */}
+      <Box className="player-left-section">
         {currentTrack ? (
           <>
-            <Typography variant="h4" className="track-title">
-              {currentTrack.title}
-            </Typography>
-            <Typography variant="body1" className="track-artist">
-              {currentTrack.artist}
-            </Typography>
-            <Box className="playback-controls">
-              <IconButton onClick={handlePlayStop}>
-                {isPlaying ? <StopIcon /> : <PlayArrowIcon />}
-              </IconButton>
-              <LinearProgress
-                variant="determinate"
-                value={progress}
-                sx={{ marginBottom: 2 }}
+            {currentTrack.item_id ? (
+              <img
+                src={`${apiBase}/api/music/track-art/${currentTrack.item_id}`}
+                alt={currentTrack.title}
+                className="player-album-art"
+                onError={(e) => {
+                  e.currentTarget.style.display = "none";
+                  const sibling = e.currentTarget.nextElementSibling as HTMLElement;
+                  if (sibling) sibling.style.display = "flex";
+                }}
               />
+            ) : null}
+            <Box className="player-album-art-placeholder" style={{ display: currentTrack.item_id ? "none" : "flex" }}>🎵</Box>
+            <Box className="player-song-details">
+              <Typography className="player-song-title">
+                {currentTrack.title}
+              </Typography>
+              <Typography className="player-song-artist">
+                {currentTrack.artist}
+              </Typography>
             </Box>
-            <Typography variant="body2" className="track-time">
-              {elapsedTime} / {duration}
-            </Typography>
           </>
         ) : (
-          <>
-            <Typography variant="h4" className="no-track">
+          <Box className="player-song-details">
+            <Typography className="player-song-title" style={{ color: 'rgba(255,255,255,0.4)' }}>
               No track playing
             </Typography>
-            <Button onClick={handleStartQueue} variant="contained" className="start-queue-button">
-              Start Queue
-            </Button>
-          </>
+          </Box>
+        )}
+      </Box>
+
+      {/* Center Section: Playback buttons & Progress bar */}
+      <Box className="player-center-section">
+        <Box className="player-controls-buttons">
+          {currentTrack ? (
+            <IconButton onClick={handlePlayStop} className="player-play-btn">
+              {isPlaying ? <StopIcon style={{ fontSize: "28px" }} /> : <PlayArrowIcon style={{ fontSize: "28px" }} />}
+            </IconButton>
+          ) : (
+            <button onClick={handleStartQueue} className="player-start-queue-btn">
+              Start Jukebox
+            </button>
+          )}
+        </Box>
+        
+        {currentTrack && (
+          <Box className="player-progress-row">
+            <Typography className="player-time-text">{elapsedTime}</Typography>
+            <LinearProgress
+              variant="determinate"
+              value={progress}
+              className="player-progress-bar"
+            />
+            <Typography className="player-time-text">{duration}</Typography>
+          </Box>
+        )}
+      </Box>
+
+      {/* Right Section: Device indicators & Settings */}
+      <Box className="player-right-section" style={{ justifyContent: "flex-end", alignItems: "center" }}>
+        <Box className="player-device-group">
+          <DevicesIcon className="player-utility-icon" />
+          <Typography className="player-device-text">{instanceName || "TuneBox Jukebox"}</Typography>
+        </Box>
+        {isAdmin && onOpenSettings && (
+          <button
+            onClick={onOpenSettings}
+            className="player-settings-btn"
+            title="Settings"
+            style={{
+              background: "transparent",
+              border: "none",
+              color: "rgba(255, 255, 255, 0.4)",
+              marginLeft: "12px",
+              padding: "6px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              transition: "color 0.2s",
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.color = "var(--color-primary)";
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.color = "rgba(255, 255, 255, 0.4)";
+            }}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: "20px" }}>settings</span>
+          </button>
         )}
       </Box>
     </Box>
