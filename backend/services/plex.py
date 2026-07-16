@@ -178,17 +178,26 @@ def get_active_player(client_name: str | None = None):
     """Get the first active Plex player."""
     global _cached_active_player, _cached_active_player_name
 
+    client_name = client_name or settings.client_name
+
+    if not client_name or client_name.lower() in ("disabled", "none", "released", ""):
+        raise PlexApiException("Playback control is disabled (no player configured or released).")
+
     if settings.testing:
 
         class MockPlayer:
-            title = client_name or settings.client_name or "Mock Jukebox Player"
+            title = client_name or "Mock Jukebox Player"
 
             def playMedia(self, media):
                 pass
 
-        return MockPlayer()
+            def play(self):
+                pass
 
-    client_name = client_name or settings.client_name
+            def pause(self):
+                pass
+
+        return MockPlayer()
 
     if _cached_active_player and _cached_active_player_name == client_name:
         return _cached_active_player
@@ -312,6 +321,19 @@ async def play_queue_on_device():
     """Start playing the entire queue on the active Plex device."""
     global playback_active
     playback_active = True
+
+    if track_time_tracker.state == "paused":
+        try:
+            player = await asyncio.to_thread(get_active_player)
+            if player:
+                logger.info("Resuming playback on player: %s", player.title)
+                await asyncio.to_thread(player.play)
+                track_time_tracker.resume()
+                from backend.websockets import send_current_playing  # noqa: PLC0415
+                await send_current_playing()
+                return
+        except Exception:
+            logger.exception("Failed to resume player")
 
     # If nothing is playing, trigger immediately instead of waiting for the orchestrator tick
     if not track_time_tracker.is_playing and track_time_tracker.state != "paused":
@@ -576,7 +598,6 @@ async def check_plexamp_resync(force_align: bool = False):
                     time.time() if session_state == "playing" else None
                 )
 
-                playback_active = True
                 await send_current_playing()
 
             # 2. Check if play/pause state changed on Plexamp
@@ -609,16 +630,20 @@ async def check_plexamp_resync(force_align: bool = False):
                 if state_changed:
                     await send_current_playing()
 
-        else:
-            # No session found on the active player.
-            # If we thought we were playing/paused, but there's no session, it means playback stopped on Plexamp.
-            cached_track = get_cached_data("now_playing")
-            if cached_track or track_time_tracker.state != "stopped":
-                logger.info("No active Plexamp session found. Resynced to stopped.")
-                track_time_tracker.stop()
-                clear_cache("now_playing")
-                playback_active = False
-                await send_current_playing()
+            # If we recently started or resumed a track locally, give Plex a chance to start up (e.g. 10s grace period)
+            is_recent = False
+            if track_time_tracker.state == "playing" and track_time_tracker.last_resume_time:
+                if time.time() - track_time_tracker.last_resume_time < 10.0:
+                    is_recent = True
+
+            if not is_recent:
+                cached_track = get_cached_data("now_playing")
+                if cached_track or track_time_tracker.state != "stopped":
+                    logger.info("No active Plexamp session found. Resynced to stopped.")
+                    track_time_tracker.stop()
+                    clear_cache("now_playing")
+                    playback_active = False
+                    await send_current_playing()
 
     except Exception:
         logger.exception("Failed to execute Plexamp resync")
@@ -641,10 +666,10 @@ def stop_playback():
             # We attempt stop first, and fall back to other commands if needed.
             stop_success = False
             for cmd in [
-                lambda: player.stop(mtype="music"),
                 lambda: player.pause(mtype="music"),
-                lambda: player.stop(),
-                lambda: player.pause()
+                lambda: player.stop(mtype="music"),
+                lambda: player.pause(),
+                lambda: player.stop()
             ]:
                 try:
                     cmd()
@@ -658,9 +683,17 @@ def stop_playback():
 
             playback_active = False
 
-            # Reset playback state
-            track_time_tracker.reset()
-            clear_cache("now_playing")
+            # Instead of resetting the tracker and clearing cache completely:
+            # We keep the current track but mark it as stopped/paused with 0 elapsed.
+            cached_track = get_cached_data("now_playing")
+            if cached_track:
+                cached_track["track_state"] = "paused"
+                cache_data("now_playing", cached_track)
+            
+            # Reset tracker to paused state at 0 elapsed
+            track_time_tracker.state = "paused"
+            track_time_tracker.accumulated_elapsed = 0.0
+            track_time_tracker.last_resume_time = None
             return {"message": "Playback stopped successfully."}
         raise HTTPException(status_code=400, detail="No active player found.")
     except Exception as e:

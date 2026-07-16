@@ -26,7 +26,7 @@ from backend.services.redis import (
     get_redis_queue,
     remove_from_redis_queue,
 )
-from backend.websockets import send_queue
+from backend.websockets import send_current_playing, send_queue
 
 router = APIRouter(prefix="/api/music", tags=["Music"])
 logger = logging.getLogger(__name__)
@@ -152,6 +152,7 @@ async def stop_queue(background_tasks: BackgroundTasks):
     """
     result = stop_playback()
     background_tasks.add_task(send_queue)
+    background_tasks.add_task(send_current_playing)
     return result
 
 

@@ -154,7 +154,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
   }, [adminToken]);
 
   useEffect(() => {
-    if (players.length > 0 && (!selectedPlayer || !players.includes(selectedPlayer))) {
+    if (players.length > 0 && (!selectedPlayer || (selectedPlayer !== "disabled" && !players.includes(selectedPlayer)))) {
       setSelectedPlayer(players[0]);
     }
   }, [players, selectedPlayer]);
@@ -311,6 +311,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                 onChange={(e) => setSelectedPlayer(e.target.value)}
                 style={{ ...inputStyle, cursor: "pointer" }}
               >
+                <option value="disabled">None (Released / Disconnected)</option>
                 {players.map((p) => (
                   <option key={p} value={p}>
                     {p}
@@ -320,7 +321,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
             ) : (
               <input
                 type="text"
-                placeholder="Enter player name manually"
+                placeholder="Enter player name manually (or 'disabled')"
                 value={selectedPlayer}
                 onChange={(e) => setSelectedPlayer(e.target.value)}
                 style={inputStyle}

@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { Box, Typography, LinearProgress, IconButton } from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
-import StopIcon from '@mui/icons-material/Stop';
+import PauseIcon from '@mui/icons-material/Pause';
 import DevicesIcon from '@mui/icons-material/Devices';
 import "./MusicControls.css";
 
@@ -46,22 +46,29 @@ const MusicControlsComponent = ({
             if (data.message === "Current track update") {
               const currentTrackData = data.current_track;
               setCurrentTrack(currentTrackData);
-              setIsPlaying(currentTrackData.track_state === 'playing');
+              if (currentTrackData) {
+                setIsPlaying(currentTrackData.track_state === 'playing');
 
-              const remainingTime = currentTrackData.remaining_time;
-              const totalTime = currentTrackData.total_time;
-              const elapsed = totalTime - remainingTime;
+                const remainingTime = currentTrackData.remaining_time;
+                const totalTime = currentTrackData.total_time;
+                const elapsed = totalTime - remainingTime;
 
-              const minutesElapsed = Math.floor(elapsed / 60);
-              const secondsElapsed = Math.floor(elapsed % 60);
-              setElapsedTime(`${minutesElapsed}:${secondsElapsed < 10 ? '0' : ''}${secondsElapsed}`);
+                const minutesElapsed = Math.floor(elapsed / 60);
+                const secondsElapsed = Math.floor(elapsed % 60);
+                setElapsedTime(`${minutesElapsed}:${secondsElapsed < 10 ? '0' : ''}${secondsElapsed}`);
 
-              const totalTimeInSeconds = currentTrackData.total_time;
-              const minutes = Math.floor(totalTimeInSeconds / 60);
-              const seconds = Math.floor(totalTimeInSeconds % 60);
-              setDuration(`${minutes}:${seconds < 10 ? '0' : ''}${seconds}`);
+                const totalTimeInSeconds = currentTrackData.total_time;
+                const minutes = Math.floor(totalTimeInSeconds / 60);
+                const seconds = Math.floor(totalTimeInSeconds % 60);
+                setDuration(`${minutes}:${seconds < 10 ? '0' : ''}${seconds}`);
 
-              setProgress(100 - currentTrackData.remaining_percentage);
+                setProgress(100 - currentTrackData.remaining_percentage);
+              } else {
+                setIsPlaying(false);
+                setProgress(0);
+                setElapsedTime('00:00');
+                setDuration('00:00');
+              }
             }
           } catch (error) {
             console.error("Error parsing WebSocket message:", error);
@@ -173,7 +180,7 @@ const MusicControlsComponent = ({
         <Box className="player-controls-buttons">
           {currentTrack ? (
             <IconButton onClick={handlePlayStop} className="player-play-btn">
-              {isPlaying ? <StopIcon style={{ fontSize: "28px" }} /> : <PlayArrowIcon style={{ fontSize: "28px" }} />}
+              {isPlaying ? <PauseIcon style={{ fontSize: "28px" }} /> : <PlayArrowIcon style={{ fontSize: "28px" }} />}
             </IconButton>
           ) : (
             <button onClick={handleStartQueue} className="player-start-queue-btn">
