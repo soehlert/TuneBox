@@ -246,7 +246,16 @@ def get_track(item_id):
 def play_song(player, song):
     """Play a specific song on the Plex player."""
     logger.info("Attempting to play song: %s on player: %s", song.title, player.title)
-    player.playMedia(song)
+    if hasattr(player, "createPlayQueue"):
+        try:
+            plex = get_plex_connection()
+            player.createPlayQueue(plex, song)
+            logger.info("Successfully started playback via createPlayQueue on %s", player.title)
+        except Exception as e:
+            logger.warning("Failed to play via createPlayQueue: %s. Falling back to playMedia.", e)
+            player.playMedia(song)
+    else:
+        player.playMedia(song)
 
     # Store track details in Redis under "now_playing"
     song_data = {
@@ -542,7 +551,24 @@ def stop_playback():
         player = get_active_player()
         if player:
             logger.info("Stopping playback on %s", player.title)
-            player.stop(mtype="music")
+            # Modern Plexamp clients often require pause instead of stop, or standard stop/pause without type constraints.
+            # We attempt stop first, and fall back to other commands if needed.
+            stop_success = False
+            for cmd in [
+                lambda: player.stop(mtype="music"),
+                lambda: player.pause(mtype="music"),
+                lambda: player.stop(),
+                lambda: player.pause()
+            ]:
+                try:
+                    cmd()
+                    stop_success = True
+                    break
+                except Exception as ex:
+                    logger.debug("Playback control command fallback failed: %s", ex)
+            
+            if not stop_success:
+                logger.warning("All playback control stop/pause commands failed on player '%s'", player.title)
 
             playback_active = False
 
