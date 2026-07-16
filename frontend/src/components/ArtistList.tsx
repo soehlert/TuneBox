@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Card, Typography } from "@mui/material"; // MUI components
+import { Card, Typography, Button, Snackbar, Alert } from "@mui/material"; // MUI components
+import axios from "axios";
 import "../App.css";
 import "./ArtistList.css";
 
@@ -13,11 +14,15 @@ interface Artist {
 interface ArtistListProps {
   filteredArtists: Artist[];
   loading: boolean;
+  searchResults: any[];
+  isSearching: boolean;
 }
 
 function ArtistList({
   filteredArtists,
   loading,
+  searchResults,
+  isSearching,
 }: ArtistListProps) {
   const navigate = useNavigate();
   const isDev = window.location.port === "5173";
@@ -26,6 +31,39 @@ function ArtistList({
   const [visibleCount, setVisibleCount] = useState(48);
   const loaderRef = useRef<HTMLDivElement | null>(null);
 
+  // Snackbar alerts
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [severity, setSeverity] = useState<"success" | "warning" | "error">("success");
+
+  const showSnackbar = (message: string, type: "success" | "warning" | "error") => {
+    setSnackbarMessage(message);
+    setSeverity(type);
+    setSnackbarOpen(true);
+  };
+
+  const formatDuration = (secondsStr: string | number) => {
+    const secs = typeof secondsStr === "string" ? parseFloat(secondsStr) : secondsStr;
+    if (isNaN(secs)) return "0:00";
+    const mins = Math.floor(secs / 60);
+    const remainingSecs = Math.floor(secs % 60);
+    return `${mins}:${remainingSecs < 10 ? "0" : ""}${remainingSecs}`;
+  };
+
+  const addToQueue = async (trackId: number) => {
+    try {
+      const queueUrl = `${apiBase}/api/music/queue/${trackId}`;
+      await axios.post(queueUrl);
+      showSnackbar("Track added to queue!", "success");
+    } catch (error: any) {
+      if (error.response && error.response.status === 400) {
+        showSnackbar("This song is already in the queue!", "warning");
+      } else {
+        showSnackbar("An unexpected error occurred.", "error");
+      }
+    }
+  };
+
   // Reset display count and scroll to top when list of filtered artists changes
   useEffect(() => {
     setVisibleCount(48);
@@ -33,10 +71,12 @@ function ArtistList({
     if (mainContent) {
       mainContent.scrollTop = 0;
     }
-  }, [filteredArtists]);
+  }, [filteredArtists, searchResults]);
 
   // Set up intersection observer to detect when user scrolls to bottom
   useEffect(() => {
+    if (isSearching) return; // Disable pagination for search results
+
     const observer = new IntersectionObserver(
       (entries) => {
         const first = entries[0];
@@ -62,7 +102,7 @@ function ArtistList({
         observer.unobserve(currentLoader);
       }
     };
-  }, [filteredArtists.length]);
+  }, [filteredArtists.length, isSearching]);
 
   // Function to handle card click and navigate to artist's album page
   const handleArtistClick = (artistId: number) => {
@@ -71,13 +111,180 @@ function ArtistList({
 
   const currentArtists = filteredArtists.slice(0, visibleCount);
 
+  // Group search results
+  const searchArtists = searchResults.filter((item) => item.type === "artist");
+  const searchAlbums = searchResults.filter((item) => item.type === "album");
+  const searchTracks = searchResults.filter((item) => item.type === "track");
+
   return (
     <div className="artist-list-wrapper">
       <header className="page-header">
-        <Typography variant="h1" className="gradient-text">Artists</Typography>
+        <Typography variant="h1" className="gradient-text">
+          {isSearching ? "Search Results" : "Artists"}
+        </Typography>
       </header>
+
       {loading ? (
         <Typography variant="h6">Loading...</Typography>
+      ) : isSearching ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: "32px", width: "100%" }}>
+          {/* 1. Artists Section */}
+          {searchArtists.length > 0 && (
+            <div>
+              <Typography variant="h5" style={{ color: "#f5a623", marginBottom: "16px", fontFamily: "var(--font-title)", fontWeight: 700 }}>
+                Artists
+              </Typography>
+              <div className="artist-grid">
+                {searchArtists.map((artist) => (
+                  <Card
+                    className="artist-card"
+                    key={artist.artist_id}
+                    id={`artist-${artist.artist_id}`}
+                    onClick={() => handleArtistClick(artist.artist_id)}
+                  >
+                    <img
+                      src={`${apiBase}/api/music/artist-image/${artist.artist_id}`}
+                      alt={artist.name}
+                      className="artist-photo"
+                    />
+                    <div className="artist-card-overlay">
+                      <Typography className="artist-card-name">{artist.name}</Typography>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 2. Albums Section */}
+          {searchAlbums.length > 0 && (
+            <div>
+              <Typography variant="h5" style={{ color: "#f5a623", marginBottom: "16px", fontFamily: "var(--font-title)", fontWeight: 700 }}>
+                Albums
+              </Typography>
+              <div style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))",
+                gap: "16px",
+                width: "100%"
+              }}>
+                {searchAlbums.map((album) => (
+                  <Card
+                    className="artist-card"
+                    key={album.album_id}
+                    onClick={() => navigate(`/albums/${album.album_id}/tracks`)}
+                    style={{
+                      position: "relative",
+                      aspectRatio: "1/1",
+                      cursor: "pointer",
+                      overflow: "hidden"
+                    }}
+                  >
+                    <img
+                      src={`${apiBase}/api/music/album-art/${album.album_id}`}
+                      alt={album.title}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover"
+                      }}
+                    />
+                    <div className="artist-card-overlay" style={{
+                      position: "absolute",
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      height: "50%",
+                      background: "linear-gradient(to top, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.3) 65%, transparent 100%)",
+                      display: "flex",
+                      alignItems: "flex-end",
+                      justifyContent: "center",
+                      padding: "12px",
+                      boxSizing: "border-box"
+                    }}>
+                      <Typography style={{
+                        fontFamily: "var(--font-title)",
+                        fontSize: "0.9rem",
+                        color: "white",
+                        fontWeight: 700,
+                        textAlign: "center",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textShadow: "0 0 10px rgba(0,0,0,0.5)",
+                        textOverflow: "ellipsis",
+                        width: "100%"
+                      }}>
+                        {album.title}
+                      </Typography>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 3. Tracks Section */}
+          {searchTracks.length > 0 && (
+            <div>
+              <Typography variant="h5" style={{ color: "#f5a623", marginBottom: "16px", fontFamily: "var(--font-title)", fontWeight: 700 }}>
+                Tracks
+              </Typography>
+              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                {searchTracks.map((track) => (
+                  <Card
+                    key={track.track_id}
+                    style={{
+                      background: "var(--color-glass-bg)",
+                      border: "1px solid var(--color-glass-border)",
+                      borderRadius: "12px",
+                      padding: "12px 20px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)",
+                      boxSizing: "border-box",
+                      width: "100%"
+                    }}
+                  >
+                    <div style={{ display: "flex", flexDirection: "column", gap: "2px", minWidth: 0, textAlign: "left" }}>
+                      <Typography style={{ color: "white", fontFamily: "var(--font-title)", fontWeight: 700, fontSize: "0.95rem", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {track.title}
+                      </Typography>
+                      <Typography style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "0.75rem", fontFamily: "var(--font-body)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {track.artist} • {track.album}
+                      </Typography>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "16px", flexShrink: 0 }}>
+                      <Typography style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.85rem", fontFamily: "var(--font-body)" }}>
+                        {formatDuration(track.duration)}
+                      </Typography>
+                      <Button
+                        variant="contained"
+                        onClick={() => addToQueue(track.track_id)}
+                        style={{
+                          background: "var(--color-primary)",
+                          color: "#0e0e0f",
+                          fontWeight: 700,
+                          textTransform: "none",
+                          borderRadius: "20px",
+                          padding: "6px 16px",
+                          fontFamily: "var(--font-body)",
+                          fontSize: "12px"
+                        }}
+                      >
+                        Add to Queue
+                      </Button>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {searchArtists.length === 0 && searchAlbums.length === 0 && searchTracks.length === 0 && (
+            <Typography variant="h6">No results found.</Typography>
+          )}
+        </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "20px", width: "100%" }}>
           {/* Artist grid */}
@@ -112,9 +319,31 @@ function ArtistList({
           )}
         </div>
       )}
+
+      {/* Snackbar Alert for Track Queueing */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={3000}
+        onClose={() => setSnackbarOpen(false)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      >
+        <Alert
+          onClose={() => setSnackbarOpen(false)}
+          severity={severity}
+          sx={{
+            width: "100%",
+            background: severity === "success" ? "#1e4620" : severity === "warning" ? "#663c00" : "#5f2120",
+            color: "white",
+            fontWeight: "bold",
+            borderRadius: "8px",
+            border: "1px solid rgba(255,255,255,0.1)"
+          }}
+        >
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </div>
   );
 }
 
 export default ArtistList;
-

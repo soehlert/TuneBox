@@ -877,6 +877,7 @@ function App() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedLetter, setSelectedLetter] = useState("");
   const [filteredArtists, setFilteredArtists] = useState<any[]>([]);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
 
   // Debouncing hook logic
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
@@ -900,16 +901,21 @@ function App() {
         const response = await axios.get(endpoint);
         let data = response.data;
 
-        // Only keep artists (exclude albums, tracks, etc.)
-        data = data.filter((item: any) => item.name);
+        if (debouncedSearchTerm) {
+          setSearchResults(data);
+        } else {
+          // Only keep artists (exclude albums, tracks, etc.)
+          data = data.filter((item: any) => item.name);
 
-        // Sort the fetched data alphabetically by artist name
-        const sortedArtists = data.sort((a: any, b: any) =>
-          a.name && b.name ? a.name.localeCompare(b.name) : -1
-        );
+          // Sort the fetched data alphabetically by artist name
+          const sortedArtists = data.sort((a: any, b: any) =>
+            a.name && b.name ? a.name.localeCompare(b.name) : -1
+          );
 
-        setArtists(sortedArtists);
-        setFilteredArtists(sortedArtists);
+          setArtists(sortedArtists);
+          setFilteredArtists(sortedArtists);
+          setSearchResults([]);
+        }
       } catch (error) {
         console.error("Error fetching data:", error);
       } finally {
@@ -1317,6 +1323,8 @@ function App() {
                     <ArtistList
                       filteredArtists={filteredArtists}
                       loading={loadingArtists}
+                      searchResults={searchResults}
+                      isSearching={Boolean(debouncedSearchTerm)}
                     />
                   }
                 />
