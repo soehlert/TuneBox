@@ -18,6 +18,7 @@ from backend.services.plex import (
     play_queue_on_device,
     search_music,
     stop_playback,
+    skip_current_track,
 )
 from backend.services.redis import (
     add_to_queue_redis,
@@ -151,6 +152,19 @@ async def stop_queue(background_tasks: BackgroundTasks):
         The stopping of the playback.
     """
     result = stop_playback()
+    background_tasks.add_task(send_queue)
+    background_tasks.add_task(send_current_playing)
+    return result
+
+
+@router.post("/skip")
+async def skip_track(background_tasks: BackgroundTasks):
+    """Skip the currently playing track.
+    
+    Returns:
+        A JSON message about skipping track.
+    """
+    result = skip_current_track()
     background_tasks.add_task(send_queue)
     background_tasks.add_task(send_current_playing)
     return result

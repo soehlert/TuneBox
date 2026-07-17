@@ -412,8 +412,8 @@ async def playback_orchestrator():
                         # Queue finished
                         playback_active = False
                         clear_cache("now_playing")
-                        from backend.websockets import send_current_playing  # noqa: PLC0415
-
+                        from backend.websockets import send_current_playing, reset_skip_votes  # noqa: PLC0415
+                        await reset_skip_votes()
                         await send_current_playing()
 
                 # 2. Check for natural track completion
@@ -435,8 +435,10 @@ async def playback_orchestrator():
                             from backend.websockets import (
                                 send_current_playing,
                                 send_queue,
+                                reset_skip_votes,
                             )  # noqa: PLC0415
 
+                            await reset_skip_votes()
                             await send_queue()
                             await send_current_playing()
 
@@ -568,6 +570,8 @@ async def check_plexamp_resync(force_align: bool = False):
                 logger.info(
                     "Detected track change on Plexamp: '%s'. Resynced.", session_title
                 )
+                from backend.websockets import reset_skip_votes  # noqa: PLC0415
+                await reset_skip_votes()
 
                 # Fetch details and cache them
                 song_data = {
@@ -700,6 +704,37 @@ def stop_playback():
         raise HTTPException(
             status_code=500, detail=f"Error stopping playback: {e}"
         ) from e
+
+
+def skip_current_track():
+    """Skip the currently playing track by stopping player and advancing queue."""
+    global playback_active
+    try:
+        player = get_active_player()
+        if player:
+            logger.info("Skipping track by stopping player %s", player.title)
+            for cmd in [
+                lambda: player.pause(mtype="music"),
+                lambda: player.stop(mtype="music"),
+                lambda: player.pause(),
+                lambda: player.stop()
+            ]:
+                try:
+                    cmd()
+                    break
+                except Exception:
+                    pass
+    except Exception:
+        logger.exception("Failed to stop player during skip")
+
+    cached_track = get_cached_data("now_playing")
+    if cached_track:
+        remove_from_redis_queue(cached_track["item_id"])
+
+    track_time_tracker.stop()
+    clear_cache("now_playing")
+    playback_active = True
+    return {"message": "Track skipped successfully."}
 
 
 def fetch_all_artists():

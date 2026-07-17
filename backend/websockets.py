@@ -161,6 +161,7 @@ async def websocket_handler(websocket: WebSocket):
         _register_client(client_id, name, role, is_display)
         active_connections["client_control"][client_id] = websocket
         session_id = client_id
+        await broadcast_skip_status()
     else:
         session_id = str(id(websocket))
         active_connections[message_type][session_id] = websocket
@@ -217,6 +218,27 @@ async def websocket_handler(websocket: WebSocket):
                 is_display = data.get("is_display", False)
                 _register_client(client_id, name, role, is_display)
                 active_connections["client_control"][client_id] = websocket
+                await broadcast_skip_status()
+
+            elif message_type == "cast_skip_vote":
+                client_id = data.get("client_id")
+                vote = data.get("vote", False)
+                if client_id:
+                    if vote:
+                        skip_votes.add(client_id)
+                    else:
+                        skip_votes.discard(client_id)
+                    
+                    status = get_skip_vote_status()
+                    if status["total"] > 0 and status["votes"] > status["total"] / 2:
+                        from backend.services.plex import skip_current_track  # noqa: PLC0415
+                        try:
+                            skip_current_track()
+                        except Exception:
+                            logger.exception("Failed to skip track via skip vote")
+                        await reset_skip_votes()
+                    else:
+                        await broadcast_skip_status()
 
     except WebSocketDisconnect:
         for key in list(active_connections.keys()):
@@ -225,6 +247,8 @@ async def websocket_handler(websocket: WebSocket):
         # Remove from client_registry only for client_control (keyed by client_id)
         if message_type == "client_control":
             client_registry.pop(session_id, None)
+            skip_votes.discard(session_id)
+            await broadcast_skip_status()
         logger.info(
             "WebSocket connection from %s closed. Active connections: %d",
             websocket.client,
@@ -236,3 +260,75 @@ async def websocket_handler(websocket: WebSocket):
 async def websocket_endpoint(websocket: WebSocket):
     """Create our websocket endpoint."""
     await websocket_handler(websocket)
+
+
+# Skip voting system state
+skip_votes: set[str] = set()
+
+
+def get_skip_vote_status():
+    """Calculate current weighted votes and connected potential total."""
+    connected_clients = list(active_connections["client_control"].keys())
+    
+    total_weight = 0
+    voted_weight = 0
+    
+    for client_id in connected_clients:
+        client = client_registry.get(client_id, {})
+        role = client.get("role", "guest")
+        
+        # Calculate vote weight
+        if role == "admin":
+            weight = 3
+        elif role == "member":
+            weight = 2
+        else: # guest / display / unknown
+            weight = 1
+            
+        total_weight += weight
+        if client_id in skip_votes:
+            voted_weight += weight
+            
+    return {
+        "votes": voted_weight,
+        "total": total_weight,
+        "voted_ids": list(skip_votes & set(connected_clients))
+    }
+
+
+async def broadcast_skip_status():
+    """Broadcast skip vote updates to all client control and music control sockets."""
+    status = get_skip_vote_status()
+    message = {"type": "skip_vote_update", "status": status}
+    
+    for client_id, ws in list(active_connections["client_control"].items()):
+        try:
+            await ws.send_text(json.dumps(message))
+        except Exception:
+            pass
+
+    for session_id, ws in list(active_connections["music_control"].items()):
+        try:
+            await ws.send_text(json.dumps(message))
+        except Exception:
+            pass
+
+
+async def reset_skip_votes():
+    """Clear all cast skip votes and broadcast a reset event."""
+    skip_votes.clear()
+    status = get_skip_vote_status()
+    message = {"type": "skip_vote_reset", "status": status}
+    
+    for client_id, ws in list(active_connections["client_control"].items()):
+        try:
+            await ws.send_text(json.dumps(message))
+        except Exception:
+            pass
+
+    for session_id, ws in list(active_connections["music_control"].items()):
+        try:
+            await ws.send_text(json.dumps(message))
+        except Exception:
+            pass
+

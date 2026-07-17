@@ -19,6 +19,9 @@ const MusicControlsComponent = ({
   const [progress, setProgress] = useState<number>(0);
   const [elapsedTime, setElapsedTime] = useState<string>('00:00');
   const [duration, setDuration] = useState<string>('00:00');
+  const [skipVotes, setSkipVotes] = useState<number>(0);
+  const [skipTotal, setSkipTotal] = useState<number>(0);
+  const [hasVoted, setHasVoted] = useState<boolean>(false);
   const socketRef = useRef<WebSocket | null>(null);
   const timerRef = useRef<any>(null);
   const isDev = window.location.port === "5173";
@@ -69,6 +72,16 @@ const MusicControlsComponent = ({
                 setElapsedTime('00:00');
                 setDuration('00:00');
               }
+            } else if (data.type === "skip_vote_update") {
+              const status = data.status;
+              setSkipVotes(status.votes);
+              setSkipTotal(status.total);
+              const cid = localStorage.getItem("tunebox_client_id") || "";
+              setHasVoted(status.voted_ids.includes(cid));
+            } else if (data.type === "skip_vote_reset") {
+              setSkipVotes(0);
+              setSkipTotal(data.status ? data.status.total : 0);
+              setHasVoted(false);
             }
           } catch (error) {
             console.error("Error parsing WebSocket message:", error);
@@ -138,6 +151,17 @@ const MusicControlsComponent = ({
     }
   };
 
+  const handleCastSkipVote = () => {
+    if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
+      const cid = localStorage.getItem("tunebox_client_id") || "";
+      socketRef.current.send(JSON.stringify({
+        type: "cast_skip_vote",
+        client_id: cid,
+        vote: !hasVoted
+      }));
+    }
+  };
+
   return (
     <Box className="player-inner-container">
       {/* Left Section: Cover & Metadata */}
@@ -177,11 +201,50 @@ const MusicControlsComponent = ({
 
       {/* Center Section: Playback buttons & Progress bar */}
       <Box className="player-center-section">
-        <Box className="player-controls-buttons">
+        <Box className="player-controls-buttons" style={{ display: "flex", alignItems: "center", gap: "16px" }}>
           {currentTrack ? (
-            <IconButton onClick={handlePlayStop} className="player-play-btn">
-              {isPlaying ? <PauseIcon style={{ fontSize: "28px" }} /> : <PlayArrowIcon style={{ fontSize: "28px" }} />}
-            </IconButton>
+            <>
+              <IconButton onClick={handlePlayStop} className="player-play-btn">
+                {isPlaying ? <PauseIcon style={{ fontSize: "28px" }} /> : <PlayArrowIcon style={{ fontSize: "28px" }} />}
+              </IconButton>
+
+              <button
+                onClick={handleCastSkipVote}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  background: hasVoted ? "rgba(245, 166, 35, 0.18)" : "rgba(255,255,255,0.05)",
+                  border: hasVoted ? "1px solid #f5a623" : "1px solid rgba(255,255,255,0.15)",
+                  color: hasVoted ? "#f5a623" : "#fff",
+                  borderRadius: "20px",
+                  padding: "6px 14px",
+                  fontSize: "12px",
+                  fontWeight: "bold",
+                  cursor: "pointer",
+                  transition: "all 0.2s",
+                  fontFamily: "var(--font-body)",
+                  boxSizing: "border-box"
+                }}
+                onMouseOver={(e) => {
+                  if (!hasVoted) {
+                    e.currentTarget.style.borderColor = "#f5a623";
+                    e.currentTarget.style.color = "#f5a623";
+                    e.currentTarget.style.backgroundColor = "rgba(245, 166, 35, 0.08)";
+                  }
+                }}
+                onMouseOut={(e) => {
+                  if (!hasVoted) {
+                    e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)";
+                    e.currentTarget.style.color = "#fff";
+                    e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.05)";
+                  }
+                }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>skip_next</span>
+                <span>Skip ({skipVotes}/{skipTotal})</span>
+              </button>
+            </>
           ) : (
             <button onClick={handleStartQueue} className="player-start-queue-btn">
               Start Jukebox
