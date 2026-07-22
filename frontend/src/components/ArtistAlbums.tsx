@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import axios from "axios";
 import { Card, Typography } from "@mui/material";
 import { FallbackImage } from "./FallbackImage";
@@ -14,6 +14,8 @@ interface Album {
 
 function ArtistAlbums() {
   const { artistId } = useParams<{ artistId: string }>();
+  const [searchParams] = useSearchParams();
+  const serverId = searchParams.get("server_id");
   const [albums, setAlbums] = useState<Album[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -23,7 +25,8 @@ function ArtistAlbums() {
   useEffect(() => {
     const fetchAlbums = async () => {
       try {
-        const artistAlbumsUrl = `${apiBase}/api/music/artists/${artistId}/albums`;
+        const sParam = serverId ? `?server_id=${serverId}` : "";
+        const artistAlbumsUrl = `${apiBase}/api/music/artists/${artistId}/albums${sParam}`;
         const response = await axios.get(artistAlbumsUrl);
         setAlbums(response.data);
       } catch (error) {
@@ -32,8 +35,10 @@ function ArtistAlbums() {
         setLoading(false);
       }
     };
-     fetchAlbums();
-  }, [artistId]);
+    fetchAlbums();
+  }, [artistId, serverId]);
+
+  const sParam = serverId ? `?server_id=${serverId}` : "";
 
   return (
     <div className="album-list-wrapper">
@@ -52,7 +57,7 @@ function ArtistAlbums() {
           {albums.map((album) => (
             <Card
               key={album.album_id}
-              onClick={() => navigate(`/albums/${album.album_id}/tracks`)}
+              onClick={() => navigate(`/albums/${album.album_id}/tracks${sParam}`)}
               className="album-card"
             >
               <FallbackImage

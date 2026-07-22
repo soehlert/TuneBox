@@ -38,6 +38,13 @@ function ArtistList({
   const isRestoringScroll = useRef(Boolean(sessionStorage.getItem("tunebox_artist_scroll_top")));
   const loaderRef = useRef<HTMLDivElement | null>(null);
 
+  const handleArtistClick = (artistId: number, serverId?: string) => {
+    sessionStorage.setItem("tunebox_artist_scroll_top", String(window.scrollY || document.querySelector('.main-content')?.scrollTop || 0));
+    sessionStorage.setItem("tunebox_artist_visible_count", String(visibleCount));
+    const sParam = serverId ? `?server_id=${serverId}` : "";
+    navigate(`/artists/${artistId}/albums${sParam}`);
+  };
+
   // Restore scroll position when returning from album/track views
   useEffect(() => {
     const savedScroll = sessionStorage.getItem("tunebox_artist_scroll_top");
@@ -182,11 +189,6 @@ function ArtistList({
     };
   }, [filteredArtists.length, isSearching]);
 
-  // Function to handle card click and navigate to artist's album page
-  const handleArtistClick = (artistId: number) => {
-    navigate(`/artists/${artistId}/albums`);
-  };
-
   const currentArtists = filteredArtists.slice(0, visibleCount);
 
   // Group search results
@@ -218,7 +220,7 @@ function ArtistList({
                     className="artist-card"
                     key={artist.artist_id}
                     id={`artist-${artist.artist_id}`}
-                    onClick={() => handleArtistClick(artist.artist_id)}
+                    onClick={() => handleArtistClick(artist.artist_id, artist.server_id)}
                   >
                     <FallbackImage
                       src={`${apiBase}/api/music/artist-image/${artist.artist_id}`}
@@ -267,7 +269,10 @@ function ArtistList({
                   <Card
                     className="artist-card"
                     key={album.album_id}
-                    onClick={() => navigate(`/albums/${album.album_id}/tracks`)}
+                    onClick={() => {
+                      const sParam = album.server_id ? `?server_id=${album.server_id}` : "";
+                      navigate(`/albums/${album.album_id}/tracks${sParam}`);
+                    }}
                     style={{
                       position: "relative",
                       aspectRatio: "1/1",

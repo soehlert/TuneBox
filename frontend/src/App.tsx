@@ -1522,6 +1522,10 @@ function App() {
             {isConfigured && (
               <div
                 className="server-indicator-badge"
+                onClick={() => {
+                  const sName = accessibleServers.find((s) => s.is_primary)?.name || "Plex Server";
+                  alert(`Connected Plex Server: ${sName}`);
+                }}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -1534,8 +1538,9 @@ function App() {
                   fontWeight: 600,
                   color: "rgba(255, 255, 255, 0.75)",
                   whiteSpace: "nowrap",
+                  cursor: "pointer",
                 }}
-                title="Currently connected Plex server"
+                title="Click to view connected Plex server name"
               >
                 <span className="material-symbols-outlined" style={{ fontSize: "14px", color: "#5cdd5c" }}>dns</span>
                 <span className="server-name-text">

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import axios, { AxiosError } from "axios";
 import { Button, Card, Typography, Snackbar, Alert } from "@mui/material";
 import { FallbackImage } from "./FallbackImage";
@@ -19,6 +19,8 @@ interface AlbumData {
 
 function TrackList() {
   const { albumId } = useParams();
+  const [searchParams] = useSearchParams();
+  const serverId = searchParams.get("server_id");
   const navigate = useNavigate();
   const [albumData, setAlbumData] = useState<AlbumData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -31,7 +33,8 @@ function TrackList() {
   useEffect(() => {
     const fetchTracks = async () => {
       try {
-        const albumUrl = `${apiBase}/api/music/albums/${albumId}/tracks`;
+        const sParam = serverId ? `?server_id=${serverId}` : "";
+        const albumUrl = `${apiBase}/api/music/albums/${albumId}/tracks${sParam}`;
         const response = await axios.get(albumUrl);
         setAlbumData(response.data);
       } catch (error) {
@@ -42,26 +45,26 @@ function TrackList() {
     };
 
     fetchTracks();
-    }, [albumId]);
+  }, [albumId, serverId]);
 
-    // Utility function to convert seconds to mm:ss format
-    const formatDuration = (secondsStr: string) => {
-      const seconds = parseInt(secondsStr, 10);
-      const mins = Math.floor(seconds / 60);
-      const secs = seconds % 60;
-      return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
-    };
+  // Utility function to convert seconds to mm:ss format
+  const formatDuration = (secondsStr: string) => {
+    const seconds = parseInt(secondsStr, 10);
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
+  };
 
-    const showSnackbar = (message: string, severity: "success" | "warning" | "error") => {
-      setSnackbarMessage(message);
-      setSeverity(severity);
-      setSnackbarOpen(true);
-    };
+  const showSnackbar = (message: string, severity: "success" | "warning" | "error") => {
+    setSnackbarMessage(message);
+    setSeverity(severity);
+    setSnackbarOpen(true);
+  };
 
-   const addToQueue = async (trackId: number) => {
+  const addToQueue = async (trackId: number) => {
     try {
       const queueUrl = `${apiBase}/api/music/queue/${trackId}`;
-      await axios.post(queueUrl);
+      await axios.post(queueUrl, { server_id: serverId });
       showSnackbar("Track added to queue!", "success");
     } catch (error) {
       // Type assertion to tell TypeScript that this error is an AxiosError

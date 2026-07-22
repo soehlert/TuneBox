@@ -808,7 +808,37 @@ def fetch_all_artists():
     return artist_list
 
 
-def fetch_albums_for_artist(artist_id):
+def get_target_plex_connection(server_id: str | None = None):
+    """Connect to a specific target Plex server by server_id, or fallback to primary connection."""
+    if not server_id or settings.testing:
+        return get_plex_connection()
+
+    all_servers = fetch_accessible_plex_servers()
+    target_res = next((s for s in all_servers if s["server_id"] == server_id), None)
+    if not target_res:
+        return get_plex_connection()
+
+    server_name = target_res.get("name")
+    if server_name:
+        try:
+            account = get_myplex_account()
+            res = account.resource(server_name)
+            return res.connect(timeout=6)
+        except Exception as ex:
+            logger.debug("Failed MyPlex connect for %s: %s", server_name, ex)
+
+    if target_res.get("server_url"):
+        try:
+            from plexapi.server import PlexServer
+            t_token = target_res.get("access_token") or settings.plex_token
+            return PlexServer(target_res["server_url"], t_token, timeout=6)
+        except Exception as ex:
+            logger.debug("Failed direct URL connect for %s: %s", server_name, ex)
+
+    return get_plex_connection()
+
+
+def fetch_albums_for_artist(artist_id: int, server_id: str | None = None):
     """Fetch albums for a specific artist by their ID with Redis caching.
 
     Returns:
@@ -817,15 +847,15 @@ def fetch_albums_for_artist(artist_id):
     if settings.testing:
         return MOCK_ALBUMS.get(int(artist_id), [])
 
-    cache_key = f"albums_for_artist_{artist_id}"
+    cache_key = f"albums_for_artist_{artist_id}_{server_id or 'default'}"
     cached_albums = get_cached_data(cache_key)
 
     if cached_albums:
         logger.info("Fetching albums for artist %s from cache.", artist_id)
         return cached_albums
 
-    plex = get_plex_connection()
-    artist = plex.fetchItem(artist_id)
+    plex = get_target_plex_connection(server_id)
+    artist = plex.fetchItem(int(artist_id))
     albums = artist.albums()
     album_list = []
     for album in albums:
@@ -833,17 +863,18 @@ def fetch_albums_for_artist(artist_id):
             "album_id": album.ratingKey,
             "artist": artist.title,
             "title": album.title,
+            "server_id": server_id,
         })
         if getattr(album, "thumb", None):
             cache_data(f"thumb_path:album:{album.ratingKey}", album.thumb)
 
     cache_data(cache_key, album_list)
-    logger.info("Caching %d albums for artist %d.", len(album_list), artist_id)
+    logger.info("Caching %d albums for artist %s.", len(album_list), artist_id)
 
     return album_list
 
 
-def fetch_tracks_for_album(album_id):
+def fetch_tracks_for_album(album_id: int, server_id: str | None = None):
     """Fetch tracks for a specific album by its ID with Redis caching.
 
     Returns:
@@ -851,7 +882,7 @@ def fetch_tracks_for_album(album_id):
     """
     if settings.testing:
         album_title = "Unknown Album"
-        for artist_id, albums in MOCK_ALBUMS.items():
+        for _a_id, albums in MOCK_ALBUMS.items():
             for alb in albums:
                 if alb["album_id"] == int(album_id):
                     album_title = alb["title"]
@@ -869,34 +900,38 @@ def fetch_tracks_for_album(album_id):
             ],
         }
 
-    cache_key = f"tracks_for_album_{album_id}"
+    cache_key = f"tracks_for_album_{album_id}_{server_id or 'default'}"
     cached_tracks = get_cached_data(cache_key)
 
     if cached_tracks:
-        logger.info("Fetching tracks for album %d from cache.", album_id)
+        logger.info("Fetching tracks for album %s from cache.", album_id)
         return cached_tracks
 
-    plex = get_plex_connection()
-    album = plex.fetchItem(album_id)
+    plex = get_target_plex_connection(server_id)
+    album = plex.fetchItem(int(album_id))
     tracks = album.tracks()
-    track_list = {
+
+    track_list = [
+        {
+            "track_id": track.ratingKey,
+            "title": track.title,
+            "duration": milliseconds_to_seconds(track.duration)
+            if track.duration
+            else 0,
+            "server_id": server_id,
+        }
+        for track in tracks
+    ]
+
+    result = {
         "album_title": album.title,
-        "tracks": [
-            {
-                "track_id": track.ratingKey,
-                "title": track.title,
-                "duration": milliseconds_to_seconds(track.duration)
-                if track.duration
-                else 0,
-            }
-            for track in tracks
-        ],
+        "tracks": track_list,
+        "server_id": server_id,
     }
+    cache_data(cache_key, result)
+    logger.info("Caching %d tracks for album %s.", len(track_list), album_id)
 
-    cache_data(cache_key, track_list)
-    logger.info("Caching tracks for album %d", album_id)
-
-    return track_list
+    return result
 
 
 def search_music(query):

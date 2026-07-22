@@ -225,14 +225,14 @@ def get_all_artists():
 
 # Fetch albums for a specific artist
 @router.get("/artists/{artist_id}/albums")
-def get_albums_for_artist(artist_id: int):
+def get_albums_for_artist(artist_id: int, server_id: str | None = None):
     """Fetch albums for a specific artist by ID.
 
     Returns:
         All the albums for a given artist.
     """
     try:
-        return fetch_albums_for_artist(artist_id)
+        return fetch_albums_for_artist(artist_id, server_id=server_id)
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Error fetching albums for artist {artist_id}: {e}"
@@ -241,14 +241,14 @@ def get_albums_for_artist(artist_id: int):
 
 # Fetch tracks for a specific album
 @router.get("/albums/{album_id}/tracks")
-def get_tracks_for_album(album_id: int):
+def get_tracks_for_album(album_id: int, server_id: str | None = None):
     """Fetch tracks for a specific album by ID.
 
     Returns:
         Tracks for a given album.
     """
     try:
-        return fetch_tracks_for_album(album_id)
+        return fetch_tracks_for_album(album_id, server_id=server_id)
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Error fetching tracks for album {album_id}: {e}"
