@@ -1109,17 +1109,48 @@ def search_music_on_server(server_res: dict, query: str):
         return results
 
     try:
-        from plexapi.server import PlexServer
-        target_url = server_res.get("server_url")
-        token = server_res.get("access_token") or settings.plex_token
+        server_name = server_res.get("name")
+        target_plex = None
 
-        if not target_url:
-            plex = get_plex_connection()
-            target_url = plex._baseurl
-            token = plex._token
+        # 1. Try connecting via MyPlex resource resolution (handles Relay & Remote Access)
+        if server_name:
+            try:
+                account = get_myplex_account()
+                res = account.resource(server_name)
+                target_plex = res.connect(timeout=6)
+            except Exception as ex:
+                logger.debug("Failed to connect to %s via MyPlex resource: %s", server_name, ex)
 
-        target_plex = PlexServer(target_url, token, timeout=4)
-        music_lib = target_plex.library.section("Music")
+        # 2. Fallback to direct URL connection
+        if not target_plex and server_res.get("server_url"):
+            try:
+                from plexapi.server import PlexServer
+                token = server_res.get("access_token") or settings.plex_token
+                target_plex = PlexServer(server_res["server_url"], token, timeout=6)
+            except Exception as ex:
+                logger.debug("Failed to connect to %s via direct URL: %s", server_name, ex)
+
+        if not target_plex:
+            # Fallback to local primary connection if server is primary
+            if server_res.get("is_primary"):
+                target_plex = get_plex_connection()
+            else:
+                logger.warning("Could not connect to server %s", server_name)
+                return []
+
+        # 3. Locate music section dynamically (by name or by section type 'artist')
+        music_lib = None
+        try:
+            music_lib = target_plex.library.section("Music")
+        except Exception:
+            for sec in target_plex.library.sections():
+                if sec.type == "artist":
+                    music_lib = sec
+                    break
+
+        if not music_lib:
+            logger.warning("No music section found on server %s", server_name)
+            return []
 
         artist_results = music_lib.search(query, libtype="artist")
         album_results = music_lib.search(query, libtype="album")

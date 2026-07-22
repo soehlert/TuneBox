@@ -1517,6 +1517,31 @@ function App() {
               <img src={TuneBoxLogo} alt="TuneBox Logo" className="logo" />
             </Link>
 
+            {/* Server Connection Indicator */}
+            {isConfigured && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  padding: "4px 10px",
+                  background: "rgba(255, 255, 255, 0.07)",
+                  border: "1px solid rgba(255, 255, 255, 0.15)",
+                  borderRadius: "16px",
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  color: "rgba(255, 255, 255, 0.75)",
+                  whiteSpace: "nowrap",
+                }}
+                title="Currently connected Plex server"
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: "14px", color: "#5cdd5c" }}>dns</span>
+                <span>
+                  {accessibleServers.find((s) => s.is_primary)?.name || "Plex Server"}
+                </span>
+              </div>
+            )}
+
             <div className="navbar-right">
               {/* Search Box in Navbar */}
               <div className="navbar-search-container">
