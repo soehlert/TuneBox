@@ -31,7 +31,7 @@ def milliseconds_to_seconds(milliseconds):
 
 
 def is_song_in_queue(item, server_id=None):
-    """Check if a song with the same ratingKey (and server_id if multi-server) exists in Redis queue.
+    """Check if a song with the same ratingKey and server_id exists in Redis queue.
 
     Returns:
         Boolean if it's in the queue.
@@ -41,13 +41,16 @@ def is_song_in_queue(item, server_id=None):
 
     queue_items = [json.loads(i) for i in queue]
 
-    item_server_id = server_id or getattr(item, "server_id", None)
-    if item_server_id:
-        return any(
-            track["item_id"] == item.ratingKey and track.get("server_id") == item_server_id
-            for track in queue_items
-        )
-    return any(track["item_id"] == item.ratingKey for track in queue_items)
+    item_id = str(getattr(item, "ratingKey", item))
+    target_server_id = server_id or getattr(item, "server_id", None)
+
+    for track in queue_items:
+        if str(track["item_id"]) == item_id:
+            track_server = track.get("server_id") or None
+            target_server = target_server_id or None
+            if track_server == target_server:
+                return True
+    return False
 
 
 class TrackTimeTracker:

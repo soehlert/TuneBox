@@ -66,9 +66,12 @@ function TrackList() {
       const queueUrl = `${apiBase}/api/music/queue/${trackId}`;
       await axios.post(queueUrl, { server_id: serverId });
       showSnackbar("Track added to queue!", "success");
-    } catch (error) {
-      console.error("Error adding track to queue:", error);
-      showSnackbar("Track added to queue!", "success");
+    } catch (error: any) {
+      if (error.response && error.response.status === 400) {
+        showSnackbar("This song is already in the queue!", "warning");
+      } else {
+        showSnackbar("An unexpected error occurred.", "error");
+      }
     }
   };
 
@@ -123,10 +126,23 @@ function TrackList() {
       </div>
       <Snackbar
         open={snackbarOpen}
-        autoHideDuration={3000} // Automatically hide after 3 seconds
+        autoHideDuration={3000}
         onClose={() => setSnackbarOpen(false)}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+        style={{ top: "80px", zIndex: 99999 }}
       >
-        <Alert onClose={() => setSnackbarOpen(false)} severity={severity}>
+        <Alert
+          onClose={() => setSnackbarOpen(false)}
+          severity={severity}
+          sx={{
+            width: "100%",
+            background: severity === "success" ? "#1e4620" : severity === "warning" ? "#663c00" : "#5f2120",
+            color: "white",
+            fontWeight: "bold",
+            borderRadius: "8px",
+            border: "1px solid rgba(255,255,255,0.1)"
+          }}
+        >
           {snackbarMessage}
         </Alert>
       </Snackbar>
