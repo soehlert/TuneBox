@@ -18,6 +18,34 @@
 
 ---
 
+## 📷 Screenshots
+
+### 🔐 Setup Wizard - Initial Configuration
+![Setup Wizard](./docs/images/setup_wizard.png)
+*Welcome screen to configure your Plex username and TuneBox instance name.*
+
+### 🔑 Setup Wizard - Plex PIN Authorization
+![Plex PIN Authorization](./docs/images/plex_pin_auth.png)
+*Secure authorization via Plex account PIN link.*
+
+### 🎛️ Setup Wizard - Server & Player Selection
+![Select Plex Server](./docs/images/select_plex_server.png)
+*Select your target Plex Media Server and active playback device.*
+
+### 📱 Artist List & Guest QR Access
+![Artist List & Guest QR Code](./docs/images/guest_qr_access.png)
+*Browse music artists and scan the QR code on the central display screen to join the session instantly.*
+
+### 💿 Artist Albums (Led Zeppelin)
+![Led Zeppelin Albums](./docs/images/led_zeppelin_albums.png)
+*Explore complete artist discographies with high-resolution album artwork.*
+
+### 🎶 Album Track List & Player Queue (Led Zeppelin IV)
+![Led Zeppelin Tracks & Player](./docs/images/led_zeppelin_tracks.png)
+*View album track listings, queue songs to TuneBox, and monitor active playback.*
+
+---
+
 ## 🚀 Quickstart
 
 Get TuneBox up and running on your local network using Docker Compose:
