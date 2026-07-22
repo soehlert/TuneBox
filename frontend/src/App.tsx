@@ -683,9 +683,9 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                   <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
                     <span style={{ color: "#fff", fontSize: "14px", fontWeight: "bold", display: "inline-flex", alignItems: "center", gap: "6px" }}>
                       {c.name} {c.client_id === getClientId() ? " (This Device)" : ""}
-                      <span 
-                        className="material-symbols-outlined" 
-                        onClick={() => handleOpenRename(c.client_id, c.name)} 
+                      <span
+                        className="material-symbols-outlined"
+                        onClick={() => handleOpenRename(c.client_id, c.name)}
                         style={{ fontSize: "16px", cursor: "pointer", color: "var(--color-primary)", opacity: 0.7, transition: "opacity 0.2s" }}
                         onMouseOver={(e) => e.currentTarget.style.opacity = "1"}
                         onMouseOut={(e) => e.currentTarget.style.opacity = "0.7"}
@@ -750,9 +750,9 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                   <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
                     <span style={{ color: "#fff", fontSize: "14px", fontWeight: "bold", display: "inline-flex", alignItems: "center", gap: "6px" }}>
                       {c.name} {c.client_id === getClientId() ? " (This Device)" : ""}
-                      <span 
-                        className="material-symbols-outlined" 
-                        onClick={() => handleOpenRename(c.client_id, c.name)} 
+                      <span
+                        className="material-symbols-outlined"
+                        onClick={() => handleOpenRename(c.client_id, c.name)}
                         style={{ fontSize: "16px", cursor: "pointer", color: "var(--color-primary)", opacity: 0.7, transition: "opacity 0.2s" }}
                         onMouseOver={(e) => e.currentTarget.style.opacity = "1"}
                         onMouseOut={(e) => e.currentTarget.style.opacity = "0.7"}
@@ -943,9 +943,9 @@ function UserBadge({ profile, onLeave, onEditName }: { profile: GuestProfile; on
         whiteSpace: "nowrap",
       }}
     >
-      <div 
-        onClick={onEditName} 
-        style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }} 
+      <div
+        onClick={onEditName}
+        style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}
         title="Click to edit name"
       >
         <span style={{ color: profile.role === "member" ? "#5cdd5c" : "#f5a623" }}>
@@ -959,15 +959,15 @@ function UserBadge({ profile, onLeave, onEditName }: { profile: GuestProfile; on
         )}
       </div>
       <span style={{ width: "1px", height: "12px", background: "rgba(255,255,255,0.15)" }}></span>
-      <span 
-        className="material-symbols-outlined" 
-        onClick={onLeave} 
-        style={{ 
-          fontSize: "15px", 
-          cursor: "pointer", 
-          color: "rgba(255, 255, 255, 0.4)", 
-          transition: "color 0.2s" 
-        }} 
+      <span
+        className="material-symbols-outlined"
+        onClick={onLeave}
+        style={{
+          fontSize: "15px",
+          cursor: "pointer",
+          color: "rgba(255, 255, 255, 0.4)",
+          transition: "color 0.2s"
+        }}
         onMouseOver={(e) => e.currentTarget.style.color = "#ff6b6b"}
         onMouseOut={(e) => e.currentTarget.style.color = "rgba(255, 255, 255, 0.4)"}
         title="Leave Jukebox"
@@ -1151,6 +1151,14 @@ function App() {
   const [showServerMenu, setShowServerMenu] = useState(false);
   const [showServerModal, setShowServerModal] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Clear search query when clear_search parameter is present
+  useEffect(() => {
+    if (location.search.includes("clear_search=true")) {
+      setSearchTerm("");
+      setSelectedLetter("");
+    }
+  }, [location.search]);
 
   // Close dropdown on Escape key
   useEffect(() => {
@@ -1700,10 +1708,10 @@ function App() {
 
               {/* Guest user badge (top-right, for guests who have joined) */}
               {!isAdmin && guestProfile && (
-                <UserBadge 
-                  profile={guestProfile} 
-                  onLeave={handleGuestLeave} 
-                  onEditName={() => setShowNameModal(true)} 
+                <UserBadge
+                  profile={guestProfile}
+                  onLeave={handleGuestLeave}
+                  onEditName={() => setShowNameModal(true)}
                 />
               )}
 
@@ -1859,9 +1867,9 @@ function App() {
 
           {/* Guest Registration Modal — only for non-admin, non-display devices without a profile */}
           {!isAdmin && !isDisplay && !guestProfile && !dismissedGuestModal && (
-            <GuestModal 
-              onJoin={(profile) => setGuestProfile(profile)} 
-              onClose={() => setDismissedGuestModal(true)} 
+            <GuestModal
+              onJoin={(profile) => setGuestProfile(profile)}
+              onClose={() => setDismissedGuestModal(true)}
             />
           )}
 
@@ -1913,11 +1921,11 @@ function App() {
                 <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                   <span className="material-symbols-outlined" style={{ fontSize: "28px", color: "#5cdd5c" }}>dns</span>
                   <div style={{ fontSize: "1.2rem", fontWeight: 700, fontFamily: "var(--font-title)", color: "#fff" }}>
-                    Server Connection
+                    Home Server
                   </div>
                 </div>
                 <div style={{ fontSize: "0.95rem", color: "rgba(255,255,255,0.8)", lineHeight: 1.5 }}>
-                  Currently connected to: <strong style={{ color: "#f5a623" }}>{accessibleServers.find((s) => s.is_primary)?.name || instanceName || "Plex Server"}</strong>
+                  Server from settings: <strong style={{ color: "#f5a623" }}>{accessibleServers.find((s) => s.is_primary)?.name || instanceName || "Plex Server"}</strong>
                 </div>
                 <button
                   type="button"

@@ -42,10 +42,16 @@ function ArtistAlbums() {
 
   return (
     <div className="album-list-wrapper">
-      <button className="back-button" onClick={() => navigate("/")}>
-        <span className="material-symbols-outlined">arrow_back</span>
-        Back to Artists
-      </button>
+      <div style={{ display: "flex", gap: "12px", marginBottom: "16px", flexWrap: "wrap" }}>
+        <button className="back-button" style={{ marginBottom: 0 }} onClick={() => navigate("/?clear_search=true")}>
+          <span className="material-symbols-outlined">groups</span>
+          Back to Artists
+        </button>
+        <button className="back-button" style={{ marginBottom: 0 }} onClick={() => navigate(-1)}>
+          <span className="material-symbols-outlined">search</span>
+          Back to Search
+        </button>
+      </div>
       <header className="page-header">
         <Typography variant="h1" className="gradient-text">Albums</Typography>
         <Typography className="page-subtitle">Select an album to view tracks</Typography>
@@ -61,7 +67,7 @@ function ArtistAlbums() {
               className="album-card"
             >
               <FallbackImage
-                src={`${apiBase}/api/music/album-art/${album.album_id}`}
+                src={`${apiBase}/api/music/album-art/${album.album_id}${sParam}`}
                 alt={album.title}
                 type="album"
                 className="album-cover"
