@@ -78,20 +78,23 @@ def get_plex_connection():
 
 def reinitialize_plex():
     """Clear cached connection and force connection reload."""
-    global _cached_active_player, _cached_active_player_name
+    global _cached_active_player, _cached_active_player_name, playback_active
     get_myplex_account.cache_clear()
     get_plex_connection.cache_clear()
     _cached_active_player = None
     _cached_active_player_name = None
+    playback_active = False
     try:
-        from backend.services.redis import clear_cache
+        from backend.services.redis import clear_cache, clear_redis_queue
+        track_time_tracker.stop()
+        clear_redis_queue()
         clear_cache("artists")
         clear_cache("all_artists")
         clear_cache("now_playing")
         clear_cache("queue")
     except Exception as e:
         logger.debug("Failed to purge Redis cache on reinitialize: %s", e)
-    logger.info("Plex connection cache and Redis keys cleared for reinitialization.")
+    logger.info("Plex connection cache, playback state, and Redis keys cleared for reinitialization.")
 
 
 def pre_warm_all_caches():
@@ -765,13 +768,14 @@ def fetch_all_artists():
     plex = get_plex_connection()
     music_library = plex.library.section("Music")
     artists = music_library.all(libtype="artist")
-    artist_list = [
-        {
+    artist_list = []
+    for artist in artists:
+        artist_list.append({
             "artist_id": artist.ratingKey,
             "name": artist.title,
-        }
-        for artist in artists
-    ]
+        })
+        if getattr(artist, "thumb", None):
+            cache_data(f"thumb_path:artist:{artist.ratingKey}", artist.thumb)
 
     cache_data(cache_key, artist_list)
 
@@ -797,14 +801,15 @@ def fetch_albums_for_artist(artist_id):
     plex = get_plex_connection()
     artist = plex.fetchItem(artist_id)
     albums = artist.albums()
-    album_list = [
-        {
+    album_list = []
+    for album in albums:
+        album_list.append({
             "album_id": album.ratingKey,
             "artist": artist.title,
             "title": album.title,
-        }
-        for album in albums
-    ]
+        })
+        if getattr(album, "thumb", None):
+            cache_data(f"thumb_path:album:{album.ratingKey}", album.thumb)
 
     cache_data(cache_key, album_list)
     logger.info("Caching %d albums for artist %d.", len(album_list), artist_id)
@@ -1005,14 +1010,16 @@ def fetch_art(item_id: int, item_type: str):
         image_url = f"{server_url}{thumb_path}?X-Plex-Token={token}"
 
         # ruff: noqa: S501
-        response = requests.get(image_url, stream=True, verify=False, timeout=5)
+        response = requests.get(image_url, stream=True, verify=False, timeout=12)
         if not response.ok:
             raise HTTPException(
-                status_code=500, detail=f"Error fetching {item_type} image from Plex."
+                status_code=404, detail=f"Image not found on Plex for {item_type}."
             )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Error fetching {item_type} image: {e}"
+            status_code=404, detail=f"Image not accessible for {item_type}: {e}"
         ) from e
     else:
         return response
