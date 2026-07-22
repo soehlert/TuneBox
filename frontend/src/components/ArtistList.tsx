@@ -265,23 +265,24 @@ function ArtistList({
                 gap: "16px",
                 width: "100%"
               }}>
-                {searchAlbums.map((album) => (
-                  <Card
-                    className="artist-card"
-                    key={album.album_id}
-                    onClick={() => {
-                      const sParam = album.server_id ? `?server_id=${album.server_id}` : "";
-                      navigate(`/albums/${album.album_id}/tracks${sParam}`);
-                    }}
-                    style={{
-                      position: "relative",
-                      aspectRatio: "1/1",
-                      cursor: "pointer",
-                      overflow: "hidden"
-                    }}
-                  >
-                    <FallbackImage
-                      src={`${apiBase}/api/music/album-art/${album.album_id}`}
+                {searchAlbums.map((album) => {
+                  const sParam = album.server_id ? `?server_id=${album.server_id}` : "";
+                  return (
+                    <Card
+                      className="artist-card"
+                      key={album.album_id}
+                      onClick={() => {
+                        navigate(`/albums/${album.album_id}/tracks${sParam}`);
+                      }}
+                      style={{
+                        position: "relative",
+                        aspectRatio: "1/1",
+                        cursor: "pointer",
+                        overflow: "hidden"
+                      }}
+                    >
+                      <FallbackImage
+                        src={`${apiBase}/api/music/album-art/${album.album_id}${sParam}`}
                       alt={album.title}
                       type="album"
                       style={{
@@ -337,7 +338,8 @@ function ArtistList({
                       </div>
                     </div>
                   </Card>
-                ))}
+                );
+              })}
               </div>
             </div>
           )}
