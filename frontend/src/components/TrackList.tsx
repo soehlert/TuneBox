@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import axios from "axios";
 import { Button, Card, Typography, Snackbar, Alert } from "@mui/material";
@@ -95,15 +96,6 @@ function TrackList() {
             <span className="material-symbols-outlined">library_music</span>
             Back to Albums
           </button>
-
-          <button
-            className="back-button"
-            style={{ marginBottom: 0 }}
-            onClick={() => navigate(-1)}
-          >
-            <span className="material-symbols-outlined">search</span>
-            Back to Search
-          </button>
         </div>
         {loading ? (
           <Typography variant="h6">Loading...</Typography>
@@ -147,27 +139,31 @@ function TrackList() {
             <Typography variant="h6">No tracks found.</Typography>
           )}
       </div>
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={1500}
-        onClose={() => setSnackbarOpen(false)}
-        className="queue-toast-snackbar"
-      >
-        <Alert
+      {createPortal(
+        <Snackbar
+          open={snackbarOpen}
+          autoHideDuration={1500}
           onClose={() => setSnackbarOpen(false)}
-          severity={severity}
-          sx={{
-            width: "100%",
-            background: severity === "success" ? "#1e4620" : severity === "warning" ? "#663c00" : "#5f2120",
-            color: "white",
-            fontWeight: "bold",
-            borderRadius: "8px",
-            border: "1px solid rgba(255,255,255,0.1)"
-          }}
+          className="queue-toast-snackbar"
         >
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
+          <Alert
+            onClose={() => setSnackbarOpen(false)}
+            severity={severity}
+            sx={{
+              width: "100%",
+              background: severity === "success" ? "#1e4620" : severity === "warning" ? "#663c00" : "#5f2120",
+              color: "white",
+              fontWeight: "bold",
+              borderRadius: "8px",
+              border: "1px solid rgba(255,255,255,0.2)",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.8)"
+            }}
+          >
+            {snackbarMessage}
+          </Alert>
+        </Snackbar>,
+        document.body
+      )}
     </div>
   );
 }

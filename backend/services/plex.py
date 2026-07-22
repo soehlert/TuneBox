@@ -337,6 +337,15 @@ def play_song(player, song, server_token=None, server_url=None):
 
 
 # ruff: noqa: C901
+def ensure_playback_active():
+    """Ensure the playback orchestrator loop is active when tracks are in the queue."""
+    global playback_active
+    queue = get_redis_queue()
+    if queue and not playback_active:
+        logger.info("Enabling playback_active for newly queued track.")
+        playback_active = True
+
+
 async def play_queue_on_device():
     """Start playing the entire queue on the active Plex device."""
     global playback_active

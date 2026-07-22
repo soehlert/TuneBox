@@ -10,6 +10,7 @@ from plexapi.exceptions import PlexApiException
 
 from backend.config import settings
 from backend.services.plex import (
+    ensure_playback_active,
     fetch_accessible_plex_servers,
     fetch_albums_for_artist,
     fetch_all_artists,
@@ -73,6 +74,7 @@ async def add_to_queue(
             server_address=getattr(t_plex, "_baseurl", target_res.get("server_url") if target_res else None),
         )
 
+        ensure_playback_active()
         background_tasks.add_task(send_queue)
 
     except PlexApiException as e:

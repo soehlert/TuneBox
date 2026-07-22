@@ -42,6 +42,31 @@ Authenticates against Plex or validates an existing session token.
 
 ### Music Endpoints (`/api/music`)
 
+#### `GET /api/music/servers`
+Retrieves all accessible Plex servers for the configured account (including primary home server and shared servers).
+- **Response `200 OK`**:
+  ```json
+  [
+    {
+      "server_id": "primary-server-uuid",
+      "name": "plex-so",
+      "is_primary": true
+    },
+    {
+      "server_id": "shared-server-uuid",
+      "name": "NAS",
+      "is_primary": false
+    }
+  ]
+  ```
+
+#### `GET /api/music/search`
+Searches artists, albums, and tracks across selected Plex servers.
+- **Query Parameters**:
+  - `query` *(required, string)*: Search string.
+  - `selected_servers` *(optional, string)*: Comma-separated server IDs to limit search scope.
+- **Response `200 OK`**: Search result array with `server_id` and `server_name` attributes.
+
 #### `GET /api/music/artists`
 Retrieves a list of indexed music artists.
 - **Query Parameters**:

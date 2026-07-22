@@ -74,3 +74,15 @@ def test_get_mock_album_art(client):
     assert response.headers["content-type"] == "image/jpeg"
     # Check PNG signature in body
     assert response.content.startswith(b"\x89PNG")
+
+
+def test_get_accessible_servers(client):
+    """Test retrieving accessible Plex servers in test mode."""
+    response = client.get("/api/music/servers")
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+    assert len(data) >= 1
+    assert "server_id" in data[0]
+    assert "name" in data[0]
+

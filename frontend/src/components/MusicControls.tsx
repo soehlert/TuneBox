@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Box, Typography, LinearProgress, IconButton } from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import PauseIcon from '@mui/icons-material/Pause';
@@ -17,6 +18,7 @@ const MusicControlsComponent = ({
   primaryServerName?: string;
   onOpenServerModal?: () => void;
 }) => {
+  const navigate = useNavigate();
   const [currentTrack, setCurrentTrack] = useState<any>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [progress, setProgress] = useState<number>(0);
@@ -170,7 +172,20 @@ const MusicControlsComponent = ({
       {/* Top Row: Track info (Left), Play/Skip (Center), Queue/Settings (Right) */}
       <Box className="player-controls-row">
         {/* Left Section: Track Info */}
-        <Box className="player-left-section">
+        <Box
+          className="player-left-section"
+          onClick={() => {
+            if (currentTrack && (currentTrack.album_id || currentTrack.item_id)) {
+              const targetAlbumId = currentTrack.album_id || currentTrack.item_id;
+              const sParam = currentTrack.server_id ? `?server_id=${currentTrack.server_id}` : "";
+              navigate(`/albums/${targetAlbumId}/tracks${sParam}`);
+            }
+          }}
+          style={{
+            cursor: currentTrack ? "pointer" : "default",
+          }}
+          title={currentTrack ? "View Album" : ""}
+        >
           {currentTrack ? (
             <>
               <FallbackImage

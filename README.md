@@ -9,6 +9,7 @@
 ## ✨ Features
 
 - 🎧 **Direct Plex Library Access**: Streams and indexes music directly from your existing Plex Media Server library.
+- 🌐 **Multi-Server Unified Search**: Search across multiple connected Plex servers simultaneously (home and shared libraries) with custom server selection checkboxes.
 - 📱 **Guest Access via QR Code**: Guests scan a QR code at your party to browse music and queue tracks instantly—no app installation or accounts required!
 - ⚡ **Real-Time Queue Synchronization**: Everyone's device stays in sync. Changes to the queue, current track progress, and playback state update instantly across all guest phones and host displays.
 - 🗳️ **Collaborative Skip Voting**: Party guests can vote in real-time to skip songs. When the vote threshold is reached, TuneBox automatically skips to the next track.

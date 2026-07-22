@@ -47,10 +47,6 @@ function ArtistAlbums() {
           <span className="material-symbols-outlined">groups</span>
           Back to Artists
         </button>
-        <button className="back-button" style={{ marginBottom: 0 }} onClick={() => navigate(-1)}>
-          <span className="material-symbols-outlined">search</span>
-          Back to Search
-        </button>
       </div>
       <header className="page-header">
         <Typography variant="h1" className="gradient-text">Albums</Typography>
