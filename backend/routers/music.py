@@ -123,7 +123,8 @@ async def clear_the_queue(background_tasks: BackgroundTasks):
     try:
         result = clear_redis_queue()
 
-        background_tasks.add_task(send_queue)
+        await send_queue()
+        await send_current_playing()
 
     except Exception as e:
         raise HTTPException(

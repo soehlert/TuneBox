@@ -84,6 +84,206 @@ const labelStyle: React.CSSProperties = {
   marginBottom: "8px",
 };
 
+// ─── Custom Confirm & Prompt Modals ──────────────────────────────────────────
+
+interface ConfirmModalProps {
+  isOpen: boolean;
+  title: string;
+  message: string;
+  confirmText?: string;
+  cancelText?: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+function ConfirmModal({
+  isOpen,
+  title,
+  message,
+  confirmText = "Confirm",
+  cancelText = "Cancel",
+  onConfirm,
+  onCancel,
+}: ConfirmModalProps) {
+  if (!isOpen) return null;
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(29, 8, 59, 0.85)",
+        backdropFilter: "blur(12px)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 1200,
+      }}
+      onClick={(e) => e.target === e.currentTarget && onCancel()}
+    >
+      <div
+        style={{
+          background: "#2a0d52",
+          border: "1px solid rgba(255, 255, 255, 0.15)",
+          borderRadius: "12px",
+          padding: "28px 32px",
+          width: "420px",
+          maxWidth: "90vw",
+          boxShadow: "0 20px 60px rgba(0, 0, 0, 0.6)",
+        }}
+      >
+        <h3 style={{ margin: "0 0 12px 0", color: "#f5a623", fontSize: "18px" }}>{title}</h3>
+        <p style={{ color: "#ccc", fontSize: "14px", margin: "0 0 24px 0", lineHeight: "1.4" }}>{message}</p>
+        <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
+          <button
+            onClick={onCancel}
+            style={{
+              padding: "10px 18px",
+              background: "rgba(255, 255, 255, 0.08)",
+              border: "1px solid rgba(255, 255, 255, 0.2)",
+              color: "#fff",
+              borderRadius: "6px",
+              cursor: "pointer",
+              fontWeight: "bold",
+              fontSize: "14px",
+            }}
+          >
+            {cancelText}
+          </button>
+          <button
+            onClick={onConfirm}
+            style={{
+              padding: "10px 18px",
+              background: "#f5a623",
+              border: "none",
+              color: "#1d083b",
+              borderRadius: "6px",
+              cursor: "pointer",
+              fontWeight: "bold",
+              fontSize: "14px",
+            }}
+          >
+            {confirmText}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface PromptModalProps {
+  isOpen: boolean;
+  title: string;
+  message?: string;
+  initialValue?: string;
+  placeholder?: string;
+  saveText?: string;
+  cancelText?: string;
+  onSave: (value: string) => void;
+  onCancel: () => void;
+}
+
+function PromptModal({
+  isOpen,
+  title,
+  message,
+  initialValue = "",
+  placeholder = "",
+  saveText = "Save",
+  cancelText = "Cancel",
+  onSave,
+  onCancel,
+}: PromptModalProps) {
+  const [val, setVal] = useState(initialValue);
+
+  useEffect(() => {
+    setVal(initialValue);
+  }, [initialValue, isOpen]);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (val.trim()) {
+      onSave(val.trim());
+    }
+  };
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(29, 8, 59, 0.85)",
+        backdropFilter: "blur(12px)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 1200,
+      }}
+      onClick={(e) => e.target === e.currentTarget && onCancel()}
+    >
+      <div
+        style={{
+          background: "#2a0d52",
+          border: "1px solid rgba(255, 255, 255, 0.15)",
+          borderRadius: "12px",
+          padding: "28px 32px",
+          width: "420px",
+          maxWidth: "90vw",
+          boxShadow: "0 20px 60px rgba(0, 0, 0, 0.6)",
+        }}
+      >
+        <h3 style={{ margin: "0 0 12px 0", color: "#f5a623", fontSize: "18px" }}>{title}</h3>
+        {message && <p style={{ color: "#ccc", fontSize: "14px", margin: "0 0 16px 0" }}>{message}</p>}
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+          <input
+            type="text"
+            value={val}
+            placeholder={placeholder}
+            onChange={(e) => setVal(e.target.value)}
+            style={inputStyle}
+            autoFocus
+          />
+          <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
+            <button
+              type="button"
+              onClick={onCancel}
+              style={{
+                padding: "10px 18px",
+                background: "rgba(255, 255, 255, 0.08)",
+                border: "1px solid rgba(255, 255, 255, 0.2)",
+                color: "#fff",
+                borderRadius: "6px",
+                cursor: "pointer",
+                fontWeight: "bold",
+                fontSize: "14px",
+              }}
+            >
+              {cancelText}
+            </button>
+            <button
+              type="submit"
+              style={{
+                padding: "10px 18px",
+                background: "#f5a623",
+                border: "none",
+                color: "#1d083b",
+                borderRadius: "6px",
+                cursor: "pointer",
+                fontWeight: "bold",
+                fontSize: "14px",
+              }}
+            >
+              {saveText}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ─── Settings Modal ───────────────────────────────────────────────────────────
 
 interface SettingsModalProps {
@@ -191,28 +391,34 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
     }
   };
 
-  const handleRenameClient = async (clientId: string, currentName: string) => {
-    const newName = window.prompt(`Enter new name for device "${currentName}":`, currentName);
-    if (newName === null) return;
-    const trimmed = newName.trim();
-    if (!trimmed) return;
+  const [confirmClearOpen, setConfirmClearOpen] = useState(false);
+  const [renameState, setRenameState] = useState<{ isOpen: boolean; clientId: string; currentName: string }>({
+    isOpen: false,
+    clientId: "",
+    currentName: "",
+  });
+
+  const handleOpenRename = (clientId: string, currentName: string) => {
+    setRenameState({ isOpen: true, clientId, currentName });
+  };
+
+  const handleExecuteRename = async (newName: string) => {
+    const clientId = renameState.clientId;
+    setRenameState({ isOpen: false, clientId: "", currentName: "" });
     try {
       await axios.post(
         getApiUrl(`/api/auth/clients/${clientId}/rename`),
-        { name: trimmed },
+        { name: newName },
         { headers: { "x-admin-token": adminToken } }
       );
       fetchClients();
     } catch (err) {
       console.error("Failed to rename device:", err);
-      alert("Failed to rename device.");
     }
   };
 
-  const handleClearQueue = async () => {
-    if (!window.confirm("Are you sure you want to clear the playback queue?")) {
-      return;
-    }
+  const handleExecuteClearQueue = async () => {
+    setConfirmClearOpen(false);
     try {
       await axios.post(
         getApiUrl("/api/music/clear-queue"),
@@ -398,7 +604,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
             </button>
             <button
               type="button"
-              onClick={handleClearQueue}
+              onClick={() => setConfirmClearOpen(true)}
               style={{
                 background: "rgba(255, 107, 107, 0.15)",
                 border: "1px solid #ff6b6b",
@@ -449,7 +655,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                       {c.name} {c.client_id === getClientId() ? " (This Device)" : ""}
                       <span 
                         className="material-symbols-outlined" 
-                        onClick={() => handleRenameClient(c.client_id, c.name)} 
+                        onClick={() => handleOpenRename(c.client_id, c.name)} 
                         style={{ fontSize: "16px", cursor: "pointer", color: "var(--color-primary)", opacity: 0.7, transition: "opacity 0.2s" }}
                         onMouseOver={(e) => e.currentTarget.style.opacity = "1"}
                         onMouseOut={(e) => e.currentTarget.style.opacity = "0.7"}
@@ -516,7 +722,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                       {c.name} {c.client_id === getClientId() ? " (This Device)" : ""}
                       <span 
                         className="material-symbols-outlined" 
-                        onClick={() => handleRenameClient(c.client_id, c.name)} 
+                        onClick={() => handleOpenRename(c.client_id, c.name)} 
                         style={{ fontSize: "16px", cursor: "pointer", color: "var(--color-primary)", opacity: 0.7, transition: "opacity 0.2s" }}
                         onMouseOver={(e) => e.currentTarget.style.opacity = "1"}
                         onMouseOut={(e) => e.currentTarget.style.opacity = "0.7"}
@@ -551,6 +757,27 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
             </div>
           )}
         </div>
+
+        <ConfirmModal
+          isOpen={confirmClearOpen}
+          title="Clear Playback Queue?"
+          message="Are you sure you want to clear all tracks from the playback queue? This action will immediately empty the queue for all connected party guests."
+          confirmText="Clear Queue"
+          cancelText="Cancel"
+          onConfirm={handleExecuteClearQueue}
+          onCancel={() => setConfirmClearOpen(false)}
+        />
+
+        <PromptModal
+          isOpen={renameState.isOpen}
+          title="Rename Device"
+          message={`Enter a new display name for device "${renameState.currentName}":`}
+          initialValue={renameState.currentName}
+          saveText="Save Name"
+          cancelText="Cancel"
+          onSave={handleExecuteRename}
+          onCancel={() => setRenameState({ isOpen: false, clientId: "", currentName: "" })}
+        />
       </div>
     </div>
   );
@@ -845,6 +1072,7 @@ function App() {
   );
   const isAdmin = Boolean(adminToken) && !isDisplay;
   const [showSettings, setShowSettings] = useState(false);
+  const [isMobileQueueOpen, setIsMobileQueueOpen] = useState(false);
   const [showNameModal, setShowNameModal] = useState(false);
   const [dismissedGuestModal, setDismissedGuestModal] = useState(false);
   const [guestProfile, setGuestProfile] = useState<GuestProfile | null>(() => {
@@ -1379,8 +1607,27 @@ function App() {
               instanceName={instanceName}
               isAdmin={isAdmin}
               onOpenSettings={() => setShowSettings(true)}
+              onOpenMobileQueue={() => setIsMobileQueueOpen(!isMobileQueueOpen)}
             />
           </footer>
+
+          {/* Mobile Queue Drawer Overlay */}
+          {isMobileQueueOpen && (
+            <div className="mobile-queue-overlay">
+              <div className="mobile-queue-header">
+                <h3 style={{ margin: 0, color: "#f5a623", fontSize: "18px" }}>Up Next (Queue)</h3>
+                <button
+                  onClick={() => setIsMobileQueueOpen(false)}
+                  className="mobile-queue-close-btn"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="mobile-queue-body">
+                <Queue />
+              </div>
+            </div>
+          )}
 
           {/* Settings Modal */}
           {showSettings && (
