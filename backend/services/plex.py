@@ -934,13 +934,22 @@ def fetch_tracks_for_album(album_id: int, server_id: str | None = None):
     cache_key = f"tracks_for_album_{album_id}_{server_id or 'default'}"
     cached_tracks = get_cached_data(cache_key)
 
-    if cached_tracks:
+    if cached_tracks and isinstance(cached_tracks, dict) and "artist_id" in cached_tracks and cached_tracks["artist_id"] is not None:
         logger.info("Fetching tracks for album %s from cache.", album_id)
         return cached_tracks
 
     plex = get_target_plex_connection(server_id)
     album = plex.fetchItem(int(album_id))
     tracks = album.tracks()
+
+    artist_id = getattr(album, "parentRatingKey", None) or getattr(album, "grandparentRatingKey", None)
+    if not artist_id and hasattr(album, "artist"):
+        try:
+            artist_obj = album.artist()
+            if artist_obj:
+                artist_id = artist_obj.ratingKey
+        except Exception:
+            pass
 
     track_list = [
         {
@@ -956,13 +965,13 @@ def fetch_tracks_for_album(album_id: int, server_id: str | None = None):
 
     result = {
         "album_title": album.title,
-        "artist_id": getattr(album, "parentRatingKey", None),
-        "artist_name": getattr(album, "parentTitle", None),
+        "artist_id": artist_id,
+        "artist_name": getattr(album, "parentTitle", getattr(album, "grandparentTitle", None)),
         "tracks": track_list,
         "server_id": server_id,
     }
     cache_data(cache_key, result)
-    logger.info("Caching %d tracks for album %s.", len(track_list), album_id)
+    logger.info("Caching %d tracks for album %s (artist_id=%s).", len(track_list), album_id, artist_id)
 
     return result
 

@@ -81,20 +81,25 @@ function TrackList() {
     <div className="track-list-page">
       <div className="track-list-container">
         <div style={{ display: "flex", gap: "12px", marginBottom: "16px", flexWrap: "wrap" }}>
-          {albumData?.artist_id && (
-            <button
-              className="back-button"
-              style={{ marginBottom: 0 }}
-              onClick={() => navigate(`/artists/${albumData.artist_id}/albums${serverId ? `?server_id=${serverId}` : ""}`)}
-            >
-              <span className="material-symbols-outlined">library_music</span>
-              Back to Albums
-            </button>
-          )}
           <button
             className="back-button"
             style={{ marginBottom: 0 }}
-            onClick={() => navigate("/")}
+            onClick={() => {
+              if (albumData?.artist_id) {
+                navigate(`/artists/${albumData.artist_id}/albums${serverId ? `?server_id=${serverId}` : ""}`);
+              } else {
+                navigate("/artists");
+              }
+            }}
+          >
+            <span className="material-symbols-outlined">library_music</span>
+            Back to Albums
+          </button>
+
+          <button
+            className="back-button"
+            style={{ marginBottom: 0 }}
+            onClick={() => navigate(-1)}
           >
             <span className="material-symbols-outlined">search</span>
             Back to Search
