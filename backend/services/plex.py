@@ -1045,6 +1045,7 @@ def search_music(query):
                     "title": item.title,
                     "type": item.type,
                     "track_id": item.ratingKey,
+                    "album_id": item.parentRatingKey,
                     "duration": milliseconds_to_seconds(item.duration)
                     if item.duration
                     else 0,
@@ -1230,6 +1231,7 @@ def search_music_on_server(server_res: dict, query: str):
                     "title": item.title,
                     "type": item.type,
                     "track_id": item.ratingKey,
+                    "album_id": item.parentRatingKey,
                     "duration": milliseconds_to_seconds(item.duration) if item.duration else 0,
                     "artist": getattr(item, "grandparentTitle", ""),
                     "album": getattr(item, "parentTitle", ""),

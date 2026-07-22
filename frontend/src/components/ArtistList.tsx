@@ -352,6 +352,12 @@ function ArtistList({
                 {searchTracks.map((track) => (
                   <Card
                     key={track.track_id}
+                    onClick={() => {
+                      if (track.album_id) {
+                        const sParam = track.server_id ? `?server_id=${track.server_id}` : "";
+                        navigate(`/albums/${track.album_id}/tracks${sParam}`);
+                      }
+                    }}
                     style={{
                       background: "var(--color-glass-bg)",
                       border: "1px solid var(--color-glass-border)",
@@ -362,7 +368,9 @@ function ArtistList({
                       justifyContent: "space-between",
                       boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)",
                       boxSizing: "border-box",
-                      width: "100%"
+                      width: "100%",
+                      cursor: track.album_id ? "pointer" : "default",
+                      transition: "transform 0.15s ease, border-color 0.15s ease",
                     }}
                   >
                     <div style={{ display: "flex", flexDirection: "column", gap: "2px", minWidth: 0, textAlign: "left" }}>
@@ -392,7 +400,10 @@ function ArtistList({
                       </Typography>
                       <Button
                         variant="contained"
-                        onClick={() => addToQueue(track.track_id, track.server_id, track.server_name)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          addToQueue(track.track_id, track.server_id, track.server_name);
+                        }}
                         style={{
                           background: "var(--color-primary)",
                           color: "#0e0e0f",

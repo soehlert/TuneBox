@@ -94,8 +94,11 @@ def clear_redis_queue():
 
 def cache_data(key, data, ttl: int = CACHE_TTL):
     """Cache data in Redis with custom TTL."""
-    get_redis_cache_client().setex(key, ttl, json.dumps(data))
-    logger.info("Cached data under key: %s (TTL: %d)", key, ttl)
+    try:
+        get_redis_cache_client().setex(key, ttl, json.dumps(data))
+        logger.info("Cached data under key: %s (TTL: %d)", key, ttl)
+    except Exception as e:
+        logger.warning("Redis cache write error for key %s: %s", key, e)
 
 
 def get_cached_data(key):
@@ -104,14 +107,15 @@ def get_cached_data(key):
     Returns:
         Cached data from Redis.
     """
-    cached_data = get_redis_cache_client().get(key)
-    if cached_data:
-        try:
-            return json.loads(cached_data)
-        except json.JSONDecodeError:
-            return None
-    logger.info("No cached data found for key: %s", key)
-
+    try:
+        cached_data = get_redis_cache_client().get(key)
+        if cached_data:
+            try:
+                return json.loads(cached_data)
+            except json.JSONDecodeError:
+                return None
+    except Exception as e:
+        logger.warning("Redis cache read error for key %s: %s", key, e)
     return None
 
 
@@ -121,6 +125,9 @@ def clear_cache(key: str):
     Returns:
         A message about a cleared cache.
     """
-    get_redis_cache_client().delete(key)
-    logger.info("Cache cleared for key: %s", key)
+    try:
+        get_redis_cache_client().delete(key)
+        logger.info("Cache cleared for key: %s", key)
+    except Exception as e:
+        logger.warning("Redis cache clear error for key %s: %s", key, e)
     return {"message": f"Cache cleared for key: {key}"}
