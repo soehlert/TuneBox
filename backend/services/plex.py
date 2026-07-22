@@ -1057,7 +1057,7 @@ def search_music(query):
     return formatted_results
 
 
-def fetch_art(item_id: int, item_type: str):
+def fetch_art(item_id: int, item_type: str, server_id: str | None = None):
     """Fetch image (either artist or album) from Plex.
 
     Returns:
@@ -1078,7 +1078,7 @@ def fetch_art(item_id: int, item_type: str):
         return MockResponse()
 
     try:
-        plex = get_plex_connection()
+        plex = get_target_plex_connection(server_id)
 
         if item_type not in {"artist", "album", "track"}:
             raise HTTPException(
@@ -1086,7 +1086,7 @@ def fetch_art(item_id: int, item_type: str):
                 detail="Invalid item type. Must be 'artist', 'album', or 'track'.",
             )
 
-        cache_key = f"thumb_path:{item_type}:{item_id}"
+        cache_key = f"thumb_path:{server_id or 'primary'}:{item_type}:{item_id}"
         thumb_path = get_cached_data(cache_key)
         if not thumb_path:
             item = plex.fetchItem(item_id)
@@ -1099,9 +1099,9 @@ def fetch_art(item_id: int, item_type: str):
 
         # Get the server URL and token from the established connection
         # ruff: noqa: SLF001
-        server_url = plex._baseurl
+        server_url = getattr(plex, "_baseurl", "")
         # ruff: noqa: SLF001
-        token = plex._token
+        token = getattr(plex, "_token", "")
         image_url = f"{server_url}{thumb_path}?X-Plex-Token={token}"
 
         # ruff: noqa: S501

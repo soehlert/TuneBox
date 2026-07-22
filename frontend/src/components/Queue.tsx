@@ -96,7 +96,7 @@ const QueueComponent = () => {
               <Box className="queue-item-left">
                 {track.item_id ? (
                   <img
-                    src={`${apiBase}/api/music/track-art/${track.item_id}`}
+                    src={`${apiBase}/api/music/track-art/${track.item_id}${track.server_id ? '?server_id=' + track.server_id : ''}`}
                     alt={track.title}
                     className="queue-item-art"
                     onError={(e) => {

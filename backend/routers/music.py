@@ -383,13 +383,13 @@ async def clear_redis_cache(key: str):
 
 
 @router.get("/artist-image/{artist_id}")
-def get_artist_image(artist_id: int, request: Request):
+def get_artist_image(artist_id: int, request: Request, server_id: str | None = None):
     """Fetch and proxy the artist image from Plex.
 
     Returns:
-        The artist image from Plex in streaming response format.
+        Artist image from Plex in streaming response format.
     """
-    etag = f'"artist-{artist_id}"'
+    etag = f'"artist-{artist_id}-{server_id or "primary"}"'
     headers = {
         "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
         "ETag": etag,
@@ -398,7 +398,7 @@ def get_artist_image(artist_id: int, request: Request):
         return Response(status_code=304, headers=headers)
 
     try:
-        response = fetch_art(artist_id, "artist")
+        response = fetch_art(artist_id, "artist", server_id=server_id)
     except HTTPException:
         raise
     except Exception as e:
@@ -412,13 +412,13 @@ def get_artist_image(artist_id: int, request: Request):
 
 
 @router.get("/album-art/{album_id}")
-def get_album_art(album_id: int, request: Request):
+def get_album_art(album_id: int, request: Request, server_id: str | None = None):
     """Fetch and proxy the album art from Plex.
 
     Returns:
         Album art from Plex in streaming response format.
     """
-    etag = f'"album-{album_id}"'
+    etag = f'"album-{album_id}-{server_id or "primary"}"'
     headers = {
         "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
         "ETag": etag,
@@ -427,7 +427,7 @@ def get_album_art(album_id: int, request: Request):
         return Response(status_code=304, headers=headers)
 
     try:
-        response = fetch_art(album_id, "album")
+        response = fetch_art(album_id, "album", server_id=server_id)
     except HTTPException:
         raise
     except Exception as e:
@@ -441,13 +441,13 @@ def get_album_art(album_id: int, request: Request):
 
 
 @router.get("/track-art/{track_id}")
-def get_track_art(track_id: int, request: Request):
+def get_track_art(track_id: int, request: Request, server_id: str | None = None):
     """Fetch and proxy the track art from Plex.
 
     Returns:
         Track art from Plex in streaming response format.
     """
-    etag = f'"track-{track_id}"'
+    etag = f'"track-{track_id}-{server_id or "primary"}"'
     headers = {
         "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
         "ETag": etag,
@@ -456,7 +456,7 @@ def get_track_art(track_id: int, request: Request):
         return Response(status_code=304, headers=headers)
 
     try:
-        response = fetch_art(track_id, "track")
+        response = fetch_art(track_id, "track", server_id=server_id)
     except HTTPException:
         raise
     except Exception as e:
