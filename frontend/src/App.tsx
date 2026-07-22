@@ -105,6 +105,15 @@ function ConfirmModal({
   onConfirm,
   onCancel,
 }: ConfirmModalProps) {
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onCancel();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onCancel]);
+
   if (!isOpen) return null;
 
   return (
@@ -199,6 +208,15 @@ function PromptModal({
   useEffect(() => {
     setVal(initialValue);
   }, [initialValue, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onCancel();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onCancel]);
 
   if (!isOpen) return null;
 
@@ -296,6 +314,14 @@ interface SettingsModalProps {
 function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: SettingsModalProps) {
   const [plexUsername, setPlexUsername] = useState("");
   const [localInstanceName, setLocalInstanceName] = useState(instanceName);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
   const [servers, setServers] = useState<string[]>([]);
   const [selectedServer, setSelectedServer] = useState("");
   const [players, setPlayers] = useState<string[]>([]);
@@ -735,23 +761,25 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                       Role: {c.role}
                     </span>
                   </div>
-                  <button
-                    onClick={() => handleSetDisplay(c.client_id)}
-                    style={{
-                      background: "#f5a623",
-                      color: "#1d083b",
-                      border: "none",
-                      borderRadius: "4px",
-                      padding: "6px 10px",
-                      fontSize: "11px",
-                      fontWeight: "bold",
-                      cursor: "pointer",
-                    }}
-                    onMouseOver={(e) => (e.currentTarget.style.background = "#d48b17")}
-                    onMouseOut={(e) => (e.currentTarget.style.background = "#f5a623")}
-                  >
-                    Make Display
-                  </button>
+                  {c.client_id !== getClientId() && (
+                    <button
+                      onClick={() => handleSetDisplay(c.client_id)}
+                      style={{
+                        background: "#f5a623",
+                        color: "#1d083b",
+                        border: "none",
+                        borderRadius: "4px",
+                        padding: "6px 10px",
+                        fontSize: "11px",
+                        fontWeight: "bold",
+                        cursor: "pointer",
+                      }}
+                      onMouseOver={(e) => (e.currentTarget.style.background = "#d48b17")}
+                      onMouseOut={(e) => (e.currentTarget.style.background = "#f5a623")}
+                    >
+                      Make Display
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
@@ -907,6 +935,8 @@ function UserBadge({ profile, onLeave, onEditName }: { profile: GuestProfile; on
         border: "1px solid #333",
         fontSize: "13px",
         color: "#ccc",
+        flexShrink: 0,
+        whiteSpace: "nowrap",
       }}
     >
       <div 
@@ -1095,6 +1125,12 @@ function App() {
       setAdminToken("");
       setGuestProfile(null);
       // Strip ?wizard from URL without a reload so the app behaves normally after
+      const cleanUrl = window.location.pathname;
+      window.history.replaceState({}, "", cleanUrl);
+    }
+    if (params.has("reset_display")) {
+      localStorage.removeItem("tunebox_display");
+      setIsDisplay(false);
       const cleanUrl = window.location.pathname;
       window.history.replaceState({}, "", cleanUrl);
     }
@@ -1476,7 +1512,33 @@ function App() {
                 />
               </div>
 
-              {/* User badge (top-right, for guests who have joined) */}
+              {/* Admin identity badge */}
+              {isAdmin && (
+                <div
+                  onClick={() => setShowSettings(true)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    padding: "6px 12px",
+                    background: "rgba(245, 166, 35, 0.15)",
+                    border: "1px solid rgba(245, 166, 35, 0.35)",
+                    borderRadius: "20px",
+                    fontSize: "12px",
+                    fontWeight: "bold",
+                    color: "#f5a623",
+                    cursor: "pointer",
+                    flexShrink: 0,
+                    whiteSpace: "nowrap"
+                  }}
+                  title="Admin Session — Click to open Settings"
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: "15px" }}>admin_panel_settings</span>
+                  <span>{instanceName ? `Admin (${instanceName})` : "Admin"}</span>
+                </div>
+              )}
+
+              {/* Guest user badge (top-right, for guests who have joined) */}
               {!isAdmin && guestProfile && (
                 <UserBadge 
                   profile={guestProfile} 
@@ -1499,7 +1561,9 @@ function App() {
                     fontSize: "12px",
                     fontWeight: "bold",
                     cursor: "pointer",
-                    transition: "all 0.2s"
+                    transition: "all 0.2s",
+                    flexShrink: 0,
+                    whiteSpace: "nowrap"
                   }}
                   onMouseOver={(e) => {
                     e.currentTarget.style.borderColor = "var(--color-primary)";
