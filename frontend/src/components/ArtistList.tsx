@@ -477,7 +477,7 @@ function ArtistList({
         autoHideDuration={1500}
         onClose={() => setSnackbarOpen(false)}
         anchorOrigin={{ vertical: "top", horizontal: "left" }}
-        style={{ top: "80px", left: "24px", zIndex: 99999 }}
+        style={{ top: "80px", left: "88px", zIndex: 99999 }}
       >
         <Alert
           onClose={() => setSnackbarOpen(false)}

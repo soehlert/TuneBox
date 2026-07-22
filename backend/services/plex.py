@@ -142,6 +142,7 @@ def get_current_playing_track():
 
     return {
         "item_id": cached_track.get("item_id"),
+        "server_id": cached_track.get("server_id"),
         "title": cached_track["title"],
         "artist": cached_track.get("artist", "Unknown Artist"),
         "album": cached_track.get("album", "Unknown Album"),
@@ -1101,11 +1102,23 @@ def fetch_art(item_id: int, item_type: str, server_id: str | None = None):
         thumb_path = get_cached_data(cache_key)
         if not thumb_path:
             item = plex.fetchItem(item_id)
-            if not item.thumb:
+            thumb_path = (
+                getattr(item, "thumb", None)
+                or getattr(item, "parentThumb", None)
+                or getattr(item, "grandparentThumb", None)
+            )
+            if not thumb_path and hasattr(item, "album"):
+                try:
+                    alb = item.album()
+                    if alb:
+                        thumb_path = getattr(alb, "thumb", None)
+                except Exception:
+                    pass
+
+            if not thumb_path:
                 raise HTTPException(
                     status_code=404, detail=f"No image available for this {item_type}."
                 )
-            thumb_path = item.thumb
             cache_data(cache_key, thumb_path)
 
         # Get the server URL and token from the established connection
