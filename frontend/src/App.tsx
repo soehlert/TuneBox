@@ -471,10 +471,11 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
         { plex_username: plexUsername, client_name: selectedPlayer, plex_server_name: selectedServer },
         { headers: { "x-admin-token": adminToken } }
       );
-      setMsg("✓ Settings saved!");
+      sessionStorage.clear();
+      setMsg("✓ Settings saved! Switching server...");
       setTimeout(() => {
-        window.location.reload();
-      }, 500);
+        window.location.href = window.location.origin + "/";
+      }, 300);
     } catch {
       setMsg("✗ Failed to save settings.");
     } finally {
