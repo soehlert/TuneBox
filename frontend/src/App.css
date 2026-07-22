@@ -88,6 +88,7 @@
   flex-shrink: 1;
   box-sizing: border-box;
   transition: border-color 0.25s, background-color 0.25s;
+  position: relative;
 }
 
 .navbar-search-container:hover {
@@ -426,6 +427,66 @@
   justify-content: center;
 }
 
+
+/* Server Search Dropdown Menu (Desktop default: aligned with search bar) */
+.server-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  width: 100%;
+  min-width: 250px;
+  background: #2a0d52;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 14px;
+  padding: 14px;
+  max-height: 65vh;
+  overflow-y: auto;
+  z-index: 1100;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.7);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-sizing: border-box;
+}
+
+.server-dropdown-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  font-weight: bold;
+  color: #f5a623;
+  letter-spacing: 0.5px;
+  margin-bottom: 2px;
+}
+
+.server-dropdown-close-btn {
+  display: none;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+
+.server-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: white;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+
+.server-dropdown-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
 /* Mobile & Small Screen Navbar Responsive Styles */
 @media (max-width: 768px) {
   .navbar {
@@ -460,6 +521,39 @@
     font-size: 0.8rem;
     margin-left: 4px;
     min-width: 30px;
+  }
+
+  /* Centered Modal Overlay on Mobile */
+  .server-dropdown-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+
+  .server-dropdown-menu {
+    position: relative;
+    top: auto;
+    left: auto;
+    right: auto;
+    width: 100%;
+    max-width: 320px;
+    margin: 0 auto;
+    border-radius: 16px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.85);
+  }
+
+  .server-dropdown-close-btn {
+    display: block;
   }
 }
 

@@ -1618,63 +1618,42 @@ function App() {
                       <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>dns</span>
                     </button>
                     {showServerMenu && (
-                      <div
-                        style={{
-                          position: "absolute",
-                          top: "42px",
-                          right: 0,
-                          left: "auto",
-                          background: "#2a0d52",
-                          border: "1px solid rgba(255, 255, 255, 0.25)",
-                          borderRadius: "12px",
-                          padding: "14px",
-                          width: "210px",
-                          maxWidth: "calc(100vw - 32px)",
-                          maxHeight: "65vh",
-                          overflowY: "auto",
-                          zIndex: 1100,
-                          boxShadow: "0 12px 36px rgba(0,0,0,0.7)",
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: "8px",
-                        }}
-                      >
-                        <div style={{ fontSize: "11px", fontWeight: "bold", color: "#f5a623", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                          Search Libraries
-                        </div>
-                        {accessibleServers.map((s) => {
-                          const isChecked = selectedServerIds.includes(s.server_id);
-                          return (
-                            <label
-                              key={s.server_id}
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: "8px",
-                                fontSize: "13px",
-                                color: "#fff",
-                                cursor: "pointer",
-                              }}
+                      <div className="server-dropdown-overlay" onClick={() => setShowServerMenu(false)}>
+                        <div className="server-dropdown-menu" onClick={(e) => e.stopPropagation()}>
+                          <div className="server-dropdown-header">
+                            <span>SEARCH LIBRARIES</span>
+                            <button
+                              type="button"
+                              className="server-dropdown-close-btn"
+                              onClick={() => setShowServerMenu(false)}
                             >
-                              <input
-                                type="checkbox"
-                                checked={isChecked}
-                                onChange={() => {
-                                  if (isChecked) {
-                                    if (selectedServerIds.length > 1) {
-                                      setSelectedServerIds(selectedServerIds.filter((id) => id !== s.server_id));
+                              ✕
+                            </button>
+                          </div>
+                          {accessibleServers.map((s) => {
+                            const isChecked = selectedServerIds.includes(s.server_id);
+                            return (
+                              <label key={s.server_id} className="server-dropdown-item">
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={() => {
+                                    if (isChecked) {
+                                      if (selectedServerIds.length > 1) {
+                                        setSelectedServerIds(selectedServerIds.filter((id) => id !== s.server_id));
+                                      }
+                                    } else {
+                                      setSelectedServerIds([...selectedServerIds, s.server_id]);
                                     }
-                                  } else {
-                                    setSelectedServerIds([...selectedServerIds, s.server_id]);
-                                  }
-                                }}
-                              />
-                              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                {s.name} {s.is_primary ? "(Home)" : ""}
-                              </span>
-                            </label>
-                          );
-                        })}
+                                  }}
+                                />
+                                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                  {s.name} {s.is_primary ? "(Home)" : ""}
+                                </span>
+                              </label>
+                            );
+                          })}
+                        </div>
                       </div>
                     )}
                   </div>

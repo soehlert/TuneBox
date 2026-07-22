@@ -236,3 +236,10 @@
     padding-top: 8px;
   }
 }
+
+/* Hide queue popup button on desktop (>= 1024px) since queue sidebar is visible */
+@media (min-width: 1024px) {
+  .player-queue-btn {
+    display: none !important;
+  }
+}
