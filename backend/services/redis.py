@@ -20,11 +20,6 @@ def add_to_queue_redis(song, server_id=None, server_name=None, server_token=None
         raise ValueError(msg)
 
     target_server_id = server_id or getattr(song, "server_id", None)
-    if is_song_in_queue(song, server_id=target_server_id):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Song {song.title} is already in the queue.",
-        )
 
     song_data = {
         "item_id": song.ratingKey,

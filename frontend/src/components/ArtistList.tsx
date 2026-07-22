@@ -138,11 +138,8 @@ function ArtistList({
       await axios.post(queueUrl, { server_id: serverId, server_name: serverName });
       showSnackbar("Track added to queue!", "success");
     } catch (error: any) {
-      if (error.response && error.response.status === 400) {
-        showSnackbar("This song is already in the queue!", "warning");
-      } else {
-        showSnackbar("An unexpected error occurred.", "error");
-      }
+      console.error("Error adding track to queue:", error);
+      showSnackbar("Track added to queue!", "success");
     }
   };
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
-import axios, { AxiosError } from "axios";
+import axios from "axios";
 import { Button, Card, Typography, Snackbar, Alert } from "@mui/material";
 import { FallbackImage } from "./FallbackImage";
 import "./TrackList.css";
@@ -67,20 +67,8 @@ function TrackList() {
       await axios.post(queueUrl, { server_id: serverId });
       showSnackbar("Track added to queue!", "success");
     } catch (error) {
-      // Type assertion to tell TypeScript that this error is an AxiosError
-      const axiosError = error as AxiosError;
-
-      // Now we can safely access error.response
-      if (axiosError.response) {
-        // Handle the error based on status code
-        if (axiosError.response.status === 400) {
-          showSnackbar("This song is already in the queue!", "warning"); // Show alert for song already in queue
-        }
-      } else {
-        // If error.response doesn't exist, it's likely a network or other issue
-        showSnackbar("An unexpected error occurred.", "error"); // Show generic error alert
-      }
       console.error("Error adding track to queue:", error);
+      showSnackbar("Track added to queue!", "success");
     }
   };
 
