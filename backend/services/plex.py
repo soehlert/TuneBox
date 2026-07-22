@@ -83,7 +83,15 @@ def reinitialize_plex():
     get_plex_connection.cache_clear()
     _cached_active_player = None
     _cached_active_player_name = None
-    logger.info("Plex connection cache cleared for reinitialization.")
+    try:
+        from backend.services.redis import clear_cache
+        clear_cache("artists")
+        clear_cache("all_artists")
+        clear_cache("now_playing")
+        clear_cache("queue")
+    except Exception as e:
+        logger.debug("Failed to purge Redis cache on reinitialize: %s", e)
+    logger.info("Plex connection cache and Redis keys cleared for reinitialization.")
 
 
 def pre_warm_all_caches():

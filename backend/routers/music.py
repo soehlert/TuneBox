@@ -2,7 +2,7 @@
 
 import logging
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, Response
 from fastapi.responses import StreamingResponse
 from plexapi.exceptions import PlexApiException
 
@@ -312,12 +312,20 @@ async def clear_redis_cache(key: str):
 
 
 @router.get("/artist-image/{artist_id}")
-def get_artist_image(artist_id: int):
+def get_artist_image(artist_id: int, request: Request):
     """Fetch and proxy the artist image from Plex.
 
     Returns:
         The artist image from Plex in streaming response format.
     """
+    etag = f'"artist-{artist_id}"'
+    headers = {
+        "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
+        "ETag": etag,
+    }
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=304, headers=headers)
+
     try:
         response = fetch_art(artist_id, "artist")
     except HTTPException:
@@ -328,17 +336,25 @@ def get_artist_image(artist_id: int):
         ) from e
     else:
         return StreamingResponse(
-            response.iter_content(chunk_size=1024), media_type="image/jpeg"
+            response.iter_content(chunk_size=1024), media_type="image/jpeg", headers=headers
         )
 
 
 @router.get("/album-art/{album_id}")
-def get_album_art(album_id: int):
+def get_album_art(album_id: int, request: Request):
     """Fetch and proxy the album art from Plex.
 
     Returns:
         Album art from Plex in streaming response format.
     """
+    etag = f'"album-{album_id}"'
+    headers = {
+        "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
+        "ETag": etag,
+    }
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=304, headers=headers)
+
     try:
         response = fetch_art(album_id, "album")
     except HTTPException:
@@ -349,17 +365,25 @@ def get_album_art(album_id: int):
         ) from e
     else:
         return StreamingResponse(
-            response.iter_content(chunk_size=1024), media_type="image/jpeg"
+            response.iter_content(chunk_size=1024), media_type="image/jpeg", headers=headers
         )
 
 
 @router.get("/track-art/{track_id}")
-def get_track_art(track_id: int):
+def get_track_art(track_id: int, request: Request):
     """Fetch and proxy the track art from Plex.
 
     Returns:
         Track art from Plex in streaming response format.
     """
+    etag = f'"track-{track_id}"'
+    headers = {
+        "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
+        "ETag": etag,
+    }
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=304, headers=headers)
+
     try:
         response = fetch_art(track_id, "track")
     except HTTPException:
@@ -370,5 +394,5 @@ def get_track_art(track_id: int):
         ) from e
     else:
         return StreamingResponse(
-            response.iter_content(chunk_size=1024), media_type="image/jpeg"
+            response.iter_content(chunk_size=1024), media_type="image/jpeg", headers=headers
         )

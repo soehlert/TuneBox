@@ -17,6 +17,7 @@ interface ArtistListProps {
   loading: boolean;
   searchResults: any[];
   isSearching: boolean;
+  selectedLetter?: string;
 }
 
 function ArtistList({
@@ -24,13 +25,81 @@ function ArtistList({
   loading,
   searchResults,
   isSearching,
+  selectedLetter,
 }: ArtistListProps) {
   const navigate = useNavigate();
   const isDev = window.location.port === "5173";
   const apiBase = isDev ? `http://${window.location.hostname}:8000` : window.location.origin;
 
-  const [visibleCount, setVisibleCount] = useState(48);
+  const [visibleCount, setVisibleCount] = useState(() => {
+    const saved = sessionStorage.getItem("tunebox_artist_visible_count");
+    return saved ? parseInt(saved, 10) : 48;
+  });
   const loaderRef = useRef<HTMLDivElement | null>(null);
+
+  // Restore scroll position when returning from album/track views
+  useEffect(() => {
+    const savedScroll = sessionStorage.getItem("tunebox_artist_scroll_top");
+    if (savedScroll) {
+      sessionStorage.removeItem("tunebox_artist_scroll_top");
+      sessionStorage.removeItem("tunebox_artist_visible_count");
+      const targetScroll = parseInt(savedScroll, 10);
+      setTimeout(() => {
+        const mainContent = document.querySelector(".main-content");
+        if (mainContent) {
+          mainContent.scrollTop = targetScroll;
+        }
+      }, 50);
+    }
+  }, []);
+
+  // Fast-scroll to selected alphabet letter while maintaining full artist grid
+  // and pre-loading images for target + surrounding letters
+  useEffect(() => {
+    if (!selectedLetter || isSearching || filteredArtists.length === 0) return;
+
+    // Determine target letter and adjacent letters (e.g. L, M, N for M)
+    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const letterIdx = alphabet.indexOf(selectedLetter.toUpperCase());
+    const adjacentBucketLetters = new Set<string>([selectedLetter.toUpperCase()]);
+    if (letterIdx > 0) adjacentBucketLetters.add(alphabet[letterIdx - 1]);
+    if (letterIdx >= 0 && letterIdx < alphabet.length - 1) adjacentBucketLetters.add(alphabet[letterIdx + 1]);
+
+    // Prefetch images for target and adjacent letters immediately
+    const prefetchArtists = filteredArtists.filter((artist) => {
+      if (!artist.name) return false;
+      const char = artist.name[0].toUpperCase();
+      if (selectedLetter === "0-9") return /^\d/.test(char);
+      return adjacentBucketLetters.has(char);
+    });
+
+    prefetchArtists.slice(0, 60).forEach((artist) => {
+      const img = new Image();
+      img.src = `${apiBase}/api/music/artist-image/${artist.artist_id}`;
+    });
+
+    const targetIndex = filteredArtists.findIndex((artist) => {
+      if (!artist.name) return false;
+      const firstChar = artist.name[0];
+      if (selectedLetter === "0-9") {
+        return /^\d/.test(firstChar);
+      }
+      return firstChar.toUpperCase() === selectedLetter.toUpperCase();
+    });
+
+    if (targetIndex !== -1) {
+      if (targetIndex >= visibleCount) {
+        setVisibleCount(targetIndex + 36);
+      }
+      const targetArtist = filteredArtists[targetIndex];
+      setTimeout(() => {
+        const el = document.getElementById(`artist-${targetArtist.artist_id}`);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 100);
+    }
+  }, [selectedLetter, filteredArtists, isSearching, apiBase]);
 
   // Snackbar alerts
   const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -67,12 +136,15 @@ function ArtistList({
 
   // Reset display count and scroll to top when list of filtered artists changes
   useEffect(() => {
-    setVisibleCount(48);
-    const mainContent = document.querySelector(".main-content");
-    if (mainContent) {
-      mainContent.scrollTop = 0;
+    const hasSavedScroll = sessionStorage.getItem("tunebox_artist_scroll_top");
+    if (!hasSavedScroll && !selectedLetter) {
+      setVisibleCount(48);
+      const mainContent = document.querySelector(".main-content");
+      if (mainContent) {
+        mainContent.scrollTop = 0;
+      }
     }
-  }, [filteredArtists, searchResults]);
+  }, [filteredArtists, searchResults, selectedLetter]);
 
   // Set up intersection observer to detect when user scrolls to bottom
   useEffect(() => {
