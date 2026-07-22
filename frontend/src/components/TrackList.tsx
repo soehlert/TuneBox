@@ -80,7 +80,7 @@ function TrackList() {
       <div className="track-list-container">
         <button className="back-button" onClick={() => navigate(-1)}>
           <span className="material-symbols-outlined">arrow_back</span>
-          Back to Albums
+          Back
         </button>
         {loading ? (
           <Typography variant="h6">Loading...</Typography>
@@ -92,7 +92,7 @@ function TrackList() {
             </header>
               {(
                 <FallbackImage
-                  src={`${apiBase}/api/music/album-art/${albumId}`}
+                  src={`${apiBase}/api/music/album-art/${albumId}${serverId ? `?server_id=${serverId}` : ""}`}
                   alt={albumData.album_title}
                   type="album"
                   className="album-banner"

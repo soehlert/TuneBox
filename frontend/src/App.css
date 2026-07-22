@@ -297,15 +297,24 @@
   }
 
   .navbar-right {
-    gap: 8px;
-    flex-shrink: 1;
+    gap: 6px;
+    flex: 1;
+    justify-content: flex-end;
     min-width: 0;
   }
 
   .navbar-search-container {
-    width: 170px;
-    max-width: 42vw;
-    padding: 4px 10px;
+    width: auto;
+    flex: 1;
+    min-width: 110px;
+    max-width: 180px;
+    padding: 4px 8px;
+  }
+
+  .navbar-search-input {
+    margin-left: 4px;
+    min-width: 0;
+    font-size: 13px;
   }
 
   .main-wrapper {

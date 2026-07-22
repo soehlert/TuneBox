@@ -374,8 +374,8 @@ function ArtistList({
                     }}
                   >
                     <div style={{ display: "flex", flexDirection: "column", gap: "2px", minWidth: 0, textAlign: "left" }}>
-                      <Typography style={{ color: "white", fontFamily: "var(--font-title)", fontWeight: 700, fontSize: "0.95rem", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", display: "flex", alignItems: "center", gap: "8px" }}>
-                        {track.title}
+                      <Typography style={{ color: "white", fontFamily: "var(--font-title)", fontWeight: 700, fontSize: "0.95rem", display: "flex", alignItems: "center", gap: "8px", minWidth: 0 }}>
+                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{track.title}</span>
                         {track.server_name && (
                           <span style={{
                             fontSize: "10px",
@@ -385,6 +385,11 @@ function ArtistList({
                             padding: "2px 6px",
                             borderRadius: "10px",
                             fontWeight: 600,
+                            maxWidth: "80px",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                            flexShrink: 0
                           }}>
                             {track.server_name}
                           </span>
