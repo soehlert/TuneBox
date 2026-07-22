@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { Card, Typography, Button, Snackbar, Alert } from "@mui/material"; // MUI components
 import { FallbackImage } from "./FallbackImage";
@@ -35,7 +36,6 @@ function ArtistList({
     const saved = sessionStorage.getItem("tunebox_artist_visible_count");
     return saved ? parseInt(saved, 10) : 48;
   });
-  const isRestoringScroll = useRef(Boolean(sessionStorage.getItem("tunebox_artist_scroll_top")));
   const loaderRef = useRef<HTMLDivElement | null>(null);
 
   const handleArtistClick = (artistId: number, serverId?: string) => {
@@ -65,10 +65,6 @@ function ArtistList({
   // and pre-loading images for target + surrounding letters
   useEffect(() => {
     if (!selectedLetter || isSearching || filteredArtists.length === 0) return;
-    if (isRestoringScroll.current) {
-      isRestoringScroll.current = false;
-      return;
-    }
 
     // Determine target letter and adjacent letters (e.g. L, M, N for M)
     const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -472,27 +468,31 @@ function ArtistList({
       )}
 
       {/* Snackbar Alert for Track Queueing */}
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={1500}
-        onClose={() => setSnackbarOpen(false)}
-        className="queue-toast-snackbar"
-      >
-        <Alert
+      {createPortal(
+        <Snackbar
+          open={snackbarOpen}
+          autoHideDuration={1500}
           onClose={() => setSnackbarOpen(false)}
-          severity={severity}
-          sx={{
-            width: "100%",
-            background: severity === "success" ? "#1e4620" : severity === "warning" ? "#663c00" : "#5f2120",
-            color: "white",
-            fontWeight: "bold",
-            borderRadius: "8px",
-            border: "1px solid rgba(255,255,255,0.1)"
-          }}
+          className="queue-toast-snackbar"
         >
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
+          <Alert
+            onClose={() => setSnackbarOpen(false)}
+            severity={severity}
+            sx={{
+              width: "100%",
+              background: severity === "success" ? "#1e4620" : severity === "warning" ? "#663c00" : "#5f2120",
+              color: "white",
+              fontWeight: "bold",
+              borderRadius: "8px",
+              border: "1px solid rgba(255,255,255,0.2)",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.8)"
+            }}
+          >
+            {snackbarMessage}
+          </Alert>
+        </Snackbar>,
+        document.body
+      )}
     </div>
   );
 }
