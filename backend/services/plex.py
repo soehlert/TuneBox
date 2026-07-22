@@ -956,6 +956,8 @@ def fetch_tracks_for_album(album_id: int, server_id: str | None = None):
 
     result = {
         "album_title": album.title,
+        "artist_id": getattr(album, "parentRatingKey", None),
+        "artist_name": getattr(album, "parentTitle", None),
         "tracks": track_list,
         "server_id": server_id,
     }

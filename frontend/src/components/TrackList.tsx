@@ -13,6 +13,8 @@ interface Track {
 
 interface AlbumData {
   album_title: string;
+  artist_id?: number;
+  artist_name?: string;
   thumb: string | null;
   tracks: Track[];
 }
@@ -78,10 +80,26 @@ function TrackList() {
   return (
     <div className="track-list-page">
       <div className="track-list-container">
-        <button className="back-button" onClick={() => navigate(-1)}>
-          <span className="material-symbols-outlined">arrow_back</span>
-          Back
-        </button>
+        <div style={{ display: "flex", gap: "12px", marginBottom: "16px", flexWrap: "wrap" }}>
+          {albumData?.artist_id && (
+            <button
+              className="back-button"
+              style={{ marginBottom: 0 }}
+              onClick={() => navigate(`/artists/${albumData.artist_id}/albums${serverId ? `?server_id=${serverId}` : ""}`)}
+            >
+              <span className="material-symbols-outlined">library_music</span>
+              Back to Albums
+            </button>
+          )}
+          <button
+            className="back-button"
+            style={{ marginBottom: 0 }}
+            onClick={() => navigate("/")}
+          >
+            <span className="material-symbols-outlined">search</span>
+            Back to Search
+          </button>
+        </div>
         {loading ? (
           <Typography variant="h6">Loading...</Typography>
         ) : albumData ? (
