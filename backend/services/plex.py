@@ -980,25 +980,29 @@ def fetch_art(item_id: int, item_type: str):
     try:
         plex = get_plex_connection()
 
-        if item_type in {"artist", "album", "track"}:
-            item = plex.fetchItem(item_id)
-        else:
+        if item_type not in {"artist", "album", "track"}:
             raise HTTPException(
                 status_code=400,
                 detail="Invalid item type. Must be 'artist', 'album', or 'track'.",
             )
 
-        if not item.thumb:
-            raise HTTPException(
-                status_code=404, detail=f"No image available for this {item_type}."
-            )
+        cache_key = f"thumb_path:{item_type}:{item_id}"
+        thumb_path = get_cached_data(cache_key)
+        if not thumb_path:
+            item = plex.fetchItem(item_id)
+            if not item.thumb:
+                raise HTTPException(
+                    status_code=404, detail=f"No image available for this {item_type}."
+                )
+            thumb_path = item.thumb
+            cache_data(cache_key, thumb_path)
 
         # Get the server URL and token from the established connection
         # ruff: noqa: SLF001
         server_url = plex._baseurl
         # ruff: noqa: SLF001
         token = plex._token
-        image_url = f"{server_url}{item.thumb}?X-Plex-Token={token}"
+        image_url = f"{server_url}{thumb_path}?X-Plex-Token={token}"
 
         # ruff: noqa: S501
         response = requests.get(image_url, stream=True, verify=False, timeout=5)

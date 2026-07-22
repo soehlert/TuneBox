@@ -35,6 +35,7 @@ function ArtistList({
     const saved = sessionStorage.getItem("tunebox_artist_visible_count");
     return saved ? parseInt(saved, 10) : 48;
   });
+  const isRestoringScroll = useRef(Boolean(sessionStorage.getItem("tunebox_artist_scroll_top")));
   const loaderRef = useRef<HTMLDivElement | null>(null);
 
   // Restore scroll position when returning from album/track views
@@ -57,6 +58,10 @@ function ArtistList({
   // and pre-loading images for target + surrounding letters
   useEffect(() => {
     if (!selectedLetter || isSearching || filteredArtists.length === 0) return;
+    if (isRestoringScroll.current) {
+      isRestoringScroll.current = false;
+      return;
+    }
 
     // Determine target letter and adjacent letters (e.g. L, M, N for M)
     const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";

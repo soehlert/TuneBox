@@ -472,6 +472,9 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
         { headers: { "x-admin-token": adminToken } }
       );
       setMsg("✓ Settings saved!");
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
     } catch {
       setMsg("✗ Failed to save settings.");
     } finally {
@@ -1199,28 +1202,15 @@ function App() {
 
   const handleAlphabetClick = (character: string) => {
     setSelectedLetter(character);
-    setSearchTerm(""); // Clear search term so the alphabet filter is visible
+    setSearchTerm(""); // Clear search term so the full artist list is visible
 
     // Redirect to root if not on root
     if (location.pathname !== "/") {
       navigate("/");
     }
 
-    const filtered = character === "0-9"
-      ? artists.filter((artist) => artist.name[0].match(/^\d/))
-      : artists.filter((artist) => artist.name[0].toUpperCase() === character.toUpperCase());
-
-    setFilteredArtists(filtered);
-
-    // Scroll to the first matching artist
-    if (filtered.length > 0) {
-      setTimeout(() => {
-        const firstArtistElement = document.getElementById(`artist-${filtered[0].artist_id}`);
-        if (firstArtistElement) {
-          firstArtistElement.scrollIntoView({ behavior: "smooth", block: "start" });
-        }
-      }, 100);
-    }
+    // Preserve full artist list so user can scroll up and down continuously
+    setFilteredArtists(artists);
   };
 
   // Manage client_control WebSocket connection
@@ -1489,7 +1479,17 @@ function App() {
 
           {/* Top Navbar */}
           <div className="navbar">
-            <Link to="/" className="app-title-link">
+            <Link
+              to="/"
+              className="app-title-link"
+              onClick={() => {
+                setSearchTerm("");
+                setSelectedLetter("");
+                window.scrollTo(0, 0);
+                const mainEl = document.querySelector(".main-content");
+                if (mainEl) mainEl.scrollTop = 0;
+              }}
+            >
               <img src={TuneBoxLogo} alt="TuneBox Logo" className="logo" />
             </Link>
 
@@ -1617,6 +1617,7 @@ function App() {
                       loading={loadingArtists}
                       searchResults={searchResults}
                       isSearching={Boolean(debouncedSearchTerm)}
+                      selectedLetter={selectedLetter}
                     />
                   }
                 />
