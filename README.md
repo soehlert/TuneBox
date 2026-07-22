@@ -20,18 +20,6 @@
 
 ## 📷 Screenshots
 
-### 💿 Artist Albums (Led Zeppelin)
-![Led Zeppelin Albums](./docs/images/led_zeppelin_albums.png)
-*Explore complete artist discographies with high-resolution album artwork.*
-
-### 🎶 Album Track List & Player Queue (Led Zeppelin IV)
-![Led Zeppelin Tracks & Player](./docs/images/led_zeppelin_tracks.png)
-*View album track listings, queue songs to the party Jukebox, and monitor current playback.*
-
-### 📱 Guest Access & QR Code Sharing
-![Guest QR Code Access](./docs/images/guest_qr_access.png)
-*Scan the QR code on party display screens to instantly join the jukebox session without installing apps or signing in.*
-
 ### 🔐 Setup Wizard - Initial Configuration
 ![Setup Wizard](./docs/images/setup_wizard.png)
 *Welcome screen to configure your Plex username and TuneBox instance name.*
@@ -43,6 +31,18 @@
 ### 🎛️ Setup Wizard - Server & Player Selection
 ![Select Plex Server](./docs/images/select_plex_server.png)
 *Select your target Plex Media Server and active playback device.*
+
+### 📱 Artist List & Guest QR Access
+![Artist List & Guest QR Code](./docs/images/guest_qr_access.png)
+*Browse music artists and scan the QR code on display screens to join the session instantly.*
+
+### 💿 Artist Albums (Led Zeppelin)
+![Led Zeppelin Albums](./docs/images/led_zeppelin_albums.png)
+*Explore complete artist discographies with high-resolution album artwork.*
+
+### 🎶 Album Track List & Player Queue (Led Zeppelin IV)
+![Led Zeppelin Tracks & Player](./docs/images/led_zeppelin_tracks.png)
+*View album track listings, queue songs to the party Jukebox, and monitor active playback.*
 
 ---
 
