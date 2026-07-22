@@ -509,7 +509,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
         }}
       >
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
-          <h2 style={{ margin: 0, color: "#f5a623", fontSize: "20px" }}>⚙ Jukebox Settings</h2>
+          <h2 style={{ margin: 0, color: "#f5a623", fontSize: "20px" }}>⚙ TuneBox Settings</h2>
           <button
             onClick={onClose}
             style={{ background: "none", border: "none", color: "rgba(255, 255, 255, 0.4)", fontSize: "22px", cursor: "pointer" }}
@@ -917,7 +917,7 @@ function GuestModal({ onJoin, onClose }: GuestModalProps) {
             onMouseOver={(e) => name.trim() && (e.currentTarget.style.background = "#d48b17")}
             onMouseOut={(e) => (e.currentTarget.style.background = "#f5a623")}
           >
-            {loading ? "Joining..." : "Join Jukebox"}
+            {loading ? "Joining..." : "Join TuneBox"}
           </button>
         </form>
       </div>
@@ -971,7 +971,7 @@ function UserBadge({ profile, onLeave, onEditName }: { profile: GuestProfile; on
         }}
         onMouseOver={(e) => e.currentTarget.style.color = "#ff6b6b"}
         onMouseOut={(e) => e.currentTarget.style.color = "rgba(255, 255, 255, 0.4)"}
-        title="Leave Jukebox"
+        title="Leave TuneBox"
       >
         logout
       </span>
@@ -1093,7 +1093,7 @@ function App() {
 
   // Instance name for this browser session (stored in localStorage)
   const [instanceName, setInstanceName] = useState<string>(
-    () => localStorage.getItem("tunebox_instance_name") ?? "Jukebox Screen"
+    () => localStorage.getItem("tunebox_instance_name") ?? "TuneBox Screen"
   );
 
   // Display / kiosk mode — designated by the admin; persists in localStorage
@@ -1520,7 +1520,7 @@ function App() {
     );
   }
 
-  // ── Jukebox Dashboard (configured) ──────────────────────────────────────────
+  // ── TuneBox Dashboard (configured) ──────────────────────────────────────────
   if (isAuthenticated && isConfigured && step === 4) {
     return (
       <ThemeProvider theme={theme}>
@@ -1567,7 +1567,7 @@ function App() {
                   ref={searchInputRef}
                   type="text"
                   className="navbar-search-input"
-                  placeholder="Search Jukebox..."
+                  placeholder="Search TuneBox..."
                   value={searchTerm}
                   onChange={(e) => {
                     setSearchTerm(e.target.value);
@@ -1710,7 +1710,7 @@ function App() {
                 />
               )}
 
-              {/* Join Jukebox button if guest dismissed registration modal */}
+              {/* Join TuneBox button if guest dismissed registration modal */}
               {!isAdmin && !isDisplay && !guestProfile && dismissedGuestModal && (
                 <button
                   onClick={() => setDismissedGuestModal(false)}
@@ -1739,7 +1739,7 @@ function App() {
                     e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.05)";
                   }}
                 >
-                  Join Jukebox
+                  Join TuneBox
                 </button>
               )}
             </div>
@@ -1962,7 +1962,7 @@ function App() {
             <form onSubmit={handleStartLinking} style={{ textAlign: "left" }}>
               <h2 style={{ margin: "0 0 10px 0", color: "#f5a623", textAlign: "center" }}>First Setup Wizard</h2>
               <p style={{ color: "#aaa", fontSize: "14px", marginBottom: "30px", lineHeight: "1.5", textAlign: "center" }}>
-                Welcome! Let's get your details set up to link your Jukebox.
+                Welcome! Let's get your details set up your Tukebox.
               </p>
               <div style={{ marginBottom: "20px" }}>
                 <label style={labelStyle}>Plex Username</label>
@@ -1970,7 +1970,7 @@ function App() {
               </div>
               <div style={{ marginBottom: "25px" }}>
                 <label style={labelStyle}>TuneBox Instance Name</label>
-                <input type="text" placeholder="e.g. Steve's Jukebox" value={localUsername} onChange={(e) => setLocalUsername(e.target.value)} style={inputStyle} required />
+                <input type="text" placeholder="e.g. Dop's TuneBox" value={localUsername} onChange={(e) => setLocalUsername(e.target.value)} style={inputStyle} required />
               </div>
               <button type="submit" style={btnStyle}
                 onMouseOver={(e) => (e.currentTarget.style.background = "#d48b17")}
@@ -2073,7 +2073,7 @@ function App() {
           {step === 4 && (
             <div>
               <h2 style={{ margin: "0 0 10px 0", color: "#f5a623" }}>Setup Completed!</h2>
-              <p style={{ color: "#aaa", fontSize: "14px", marginBottom: "30px" }}>Connecting to your Jukebox...</p>
+              <p style={{ color: "#aaa", fontSize: "14px", marginBottom: "30px" }}>Connecting to your TuneBox</p>
               <div style={{ display: "flex", justifyContent: "center", padding: "20px 0" }}>
                 <span className="spinner" style={{ display: "inline-block", width: "40px", height: "40px", border: "4px solid #333", borderTopColor: "#f5a623", borderRadius: "50%", animation: "spin 1s linear infinite" }}></span>
               </div>
