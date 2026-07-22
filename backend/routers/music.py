@@ -17,6 +17,7 @@ from backend.services.plex import (
     get_active_player,
     get_all_players,
     get_current_playing_track,
+    get_target_plex_connection,
     get_track,
     play_queue_on_device,
     search_music,
@@ -57,27 +58,19 @@ async def add_to_queue(
         server_id = payload.server_id if payload else None
         server_name = payload.server_name if payload else None
 
-        if server_id and not settings.testing:
-            all_servers = fetch_accessible_plex_servers()
-            target_res = next((s for s in all_servers if s["server_id"] == server_id), None)
-            if target_res and target_res.get("server_url"):
-                from plexapi.server import PlexServer
-                t_token = target_res.get("access_token") or settings.plex_token
-                t_plex = PlexServer(target_res["server_url"], t_token, timeout=5)
-                song = t_plex.fetchItem(item_id)
-                add_to_queue_redis(
-                    song,
-                    server_id=server_id,
-                    server_name=server_name or target_res.get("name"),
-                    server_token=t_token,
-                    server_address=target_res.get("server_url"),
-                )
-            else:
-                song = get_track(item_id)
-                add_to_queue_redis(song, server_id=server_id, server_name=server_name)
-        else:
-            song = get_track(item_id)
-            add_to_queue_redis(song, server_id=server_id, server_name=server_name)
+        t_plex = get_target_plex_connection(server_id)
+        song = t_plex.fetchItem(item_id)
+
+        all_servers = fetch_accessible_plex_servers() if (server_id and not settings.testing) else []
+        target_res = next((s for s in all_servers if s["server_id"] == server_id), None)
+
+        add_to_queue_redis(
+            song,
+            server_id=server_id,
+            server_name=server_name or (target_res.get("name") if target_res else None),
+            server_token=target_res.get("access_token") if target_res else None,
+            server_address=getattr(t_plex, "_baseurl", target_res.get("server_url") if target_res else None),
+        )
 
         background_tasks.add_task(send_queue)
 

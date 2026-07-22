@@ -406,8 +406,10 @@ async def playback_orchestrator():
     while True:
         try:
             # Skip loop if server is unauthenticated (unconfigured)
-            if not settings.plex_token and not (
-                settings.plex_username and settings.plex_password
+            if (
+                not settings.testing
+                and not settings.plex_token
+                and not (settings.plex_username and settings.plex_password)
             ):
                 await asyncio.sleep(5)
                 continue
@@ -425,10 +427,21 @@ async def playback_orchestrator():
                         next_song = queue[0]
                         try:
                             player = await asyncio.to_thread(get_active_player)
-                            track = get_track(next_song["item_id"])
+                            s_id = next_song.get("server_id")
+                            s_url = next_song.get("server_address")
+                            s_token = next_song.get("server_token")
 
-                            # Run play in thread pool to avoid blocking async loop
-                            await asyncio.to_thread(play_song, player, track)
+                            if s_id and not settings.testing:
+                                t_plex = await asyncio.to_thread(get_target_plex_connection, s_id)
+                                track = await asyncio.to_thread(t_plex.fetchItem, int(next_song["item_id"]))
+                                track.server_name = next_song.get("server_name")
+                            else:
+                                track = await asyncio.to_thread(get_track, next_song["item_id"])
+
+                            if s_url and s_token and not settings.testing:
+                                await asyncio.to_thread(play_song, player, track, s_token, s_url)
+                            else:
+                                await asyncio.to_thread(play_song, player, track)
 
                             # Lazy import websockets to avoid circular imports
                             from backend.websockets import (
@@ -808,34 +821,52 @@ def fetch_all_artists():
     return artist_list
 
 
+_plex_connection_cache = {}  # { server_id: (plex_instance, timestamp) }
+
+
 def get_target_plex_connection(server_id: str | None = None):
     """Connect to a specific target Plex server by server_id, or fallback to primary connection."""
     if not server_id or settings.testing:
         return get_plex_connection()
 
+    primary_plex = get_plex_connection()
+    if hasattr(primary_plex, "machineIdentifier") and primary_plex.machineIdentifier == server_id:
+        return primary_plex
+
+    now = time.time()
+    if server_id in _plex_connection_cache:
+        cached_instance, cached_time = _plex_connection_cache[server_id]
+        if now - cached_time < 300:
+            return cached_instance
+
     all_servers = fetch_accessible_plex_servers()
     target_res = next((s for s in all_servers if s["server_id"] == server_id), None)
-    if not target_res:
-        return get_plex_connection()
+    if not target_res or target_res.get("is_primary"):
+        return primary_plex
 
     server_name = target_res.get("name")
+    conn = None
     if server_name:
         try:
             account = get_myplex_account()
             res = account.resource(server_name)
-            return res.connect(timeout=6)
+            conn = res.connect(timeout=5)
         except Exception as ex:
             logger.debug("Failed MyPlex connect for %s: %s", server_name, ex)
 
-    if target_res.get("server_url"):
+    if not conn and target_res.get("server_url"):
         try:
             from plexapi.server import PlexServer
             t_token = target_res.get("access_token") or settings.plex_token
-            return PlexServer(target_res["server_url"], t_token, timeout=6)
+            conn = PlexServer(target_res["server_url"], t_token, timeout=5)
         except Exception as ex:
             logger.debug("Failed direct URL connect for %s: %s", server_name, ex)
 
-    return get_plex_connection()
+    if conn:
+        _plex_connection_cache[server_id] = (conn, now)
+        return conn
+
+    return primary_plex
 
 
 def fetch_albums_for_artist(artist_id: int, server_id: str | None = None):
@@ -992,6 +1023,7 @@ def search_music(query):
     album_results = music_library.search(query, libtype="album")
     track_results = music_library.search(query, libtype="track")
 
+    query_lower = query.strip().lower()
     formatted_results = []
     for item in artist_results:
         formatted_results.append(
@@ -1007,18 +1039,19 @@ def search_music(query):
             }
         )
     for item in track_results:
-        formatted_results.append(
-            {
-                "title": item.title,
-                "type": item.type,
-                "track_id": item.ratingKey,
-                "duration": milliseconds_to_seconds(item.duration)
-                if item.duration
-                else 0,
-                "artist": item.grandparentTitle,
-                "album": item.parentTitle,
-            }
-        )
+        if query_lower in item.title.lower():
+            formatted_results.append(
+                {
+                    "title": item.title,
+                    "type": item.type,
+                    "track_id": item.ratingKey,
+                    "duration": milliseconds_to_seconds(item.duration)
+                    if item.duration
+                    else 0,
+                    "artist": item.grandparentTitle,
+                    "album": item.parentTitle,
+                }
+            )
 
     return formatted_results
 
@@ -1105,6 +1138,11 @@ def fetch_accessible_plex_servers():
     if not settings.plex_token:
         return []
 
+    cache_key = "accessible_plex_servers"
+    cached_servers = get_cached_data(cache_key)
+    if cached_servers:
+        return cached_servers
+
     try:
         account = get_myplex_account()
         servers = []
@@ -1128,6 +1166,8 @@ def fetch_accessible_plex_servers():
                     "access_token": resource.accessToken or settings.plex_token,
                     "server_url": conn_url,
                 })
+
+        cache_data(cache_key, servers)
         return servers
     except Exception as e:
         logger.warning("Failed to fetch accessible Plex servers: %s", e)
@@ -1144,36 +1184,10 @@ def search_music_on_server(server_res: dict, query: str):
         return results
 
     try:
-        server_name = server_res.get("name")
-        target_plex = None
+        server_id = server_res.get("server_id")
+        target_plex = get_target_plex_connection(server_id)
 
-        # 1. Try connecting via MyPlex resource resolution (handles Relay & Remote Access)
-        if server_name:
-            try:
-                account = get_myplex_account()
-                res = account.resource(server_name)
-                target_plex = res.connect(timeout=6)
-            except Exception as ex:
-                logger.debug("Failed to connect to %s via MyPlex resource: %s", server_name, ex)
-
-        # 2. Fallback to direct URL connection
-        if not target_plex and server_res.get("server_url"):
-            try:
-                from plexapi.server import PlexServer
-                token = server_res.get("access_token") or settings.plex_token
-                target_plex = PlexServer(server_res["server_url"], token, timeout=6)
-            except Exception as ex:
-                logger.debug("Failed to connect to %s via direct URL: %s", server_name, ex)
-
-        if not target_plex:
-            # Fallback to local primary connection if server is primary
-            if server_res.get("is_primary"):
-                target_plex = get_plex_connection()
-            else:
-                logger.warning("Could not connect to server %s", server_name)
-                return []
-
-        # 3. Locate music section dynamically (by name or by section type 'artist')
+        # Locate music section dynamically (by name or by section type 'artist')
         music_lib = None
         try:
             music_lib = target_plex.library.section("Music")
@@ -1184,13 +1198,14 @@ def search_music_on_server(server_res: dict, query: str):
                     break
 
         if not music_lib:
-            logger.warning("No music section found on server %s", server_name)
+            logger.warning("No music section found on server %s", server_res.get("name"))
             return []
 
         artist_results = music_lib.search(query, libtype="artist")
         album_results = music_lib.search(query, libtype="album")
         track_results = music_lib.search(query, libtype="track")
 
+        query_lower = query.strip().lower()
         formatted = []
         for item in artist_results:
             formatted.append({
@@ -1210,16 +1225,17 @@ def search_music_on_server(server_res: dict, query: str):
                 "server_name": server_res.get("name"),
             })
         for item in track_results:
-            formatted.append({
-                "title": item.title,
-                "type": item.type,
-                "track_id": item.ratingKey,
-                "duration": milliseconds_to_seconds(item.duration) if item.duration else 0,
-                "artist": getattr(item, "grandparentTitle", ""),
-                "album": getattr(item, "parentTitle", ""),
-                "server_id": server_res.get("server_id"),
-                "server_name": server_res.get("name"),
-            })
+            if query_lower in item.title.lower():
+                formatted.append({
+                    "title": item.title,
+                    "type": item.type,
+                    "track_id": item.ratingKey,
+                    "duration": milliseconds_to_seconds(item.duration) if item.duration else 0,
+                    "artist": getattr(item, "grandparentTitle", ""),
+                    "album": getattr(item, "parentTitle", ""),
+                    "server_id": server_res.get("server_id"),
+                    "server_name": server_res.get("name"),
+                })
         return formatted
     except Exception as e:
         logger.warning("Error searching server %s: %s", server_res.get("name"), e)

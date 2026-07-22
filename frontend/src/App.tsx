@@ -1149,7 +1149,20 @@ function App() {
   const [accessibleServers, setAccessibleServers] = useState<any[]>([]);
   const [selectedServerIds, setSelectedServerIds] = useState<string[]>([]);
   const [showServerMenu, setShowServerMenu] = useState(false);
+  const [showServerModal, setShowServerModal] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Close dropdown on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setShowServerMenu(false);
+        setShowServerModal(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   // Fetch accessible Plex servers
   useEffect(() => {
@@ -1522,10 +1535,7 @@ function App() {
             {isConfigured && (
               <div
                 className="server-indicator-badge"
-                onClick={() => {
-                  const sName = accessibleServers.find((s) => s.is_primary)?.name || "Plex Server";
-                  alert(`Connected Plex Server: ${sName}`);
-                }}
+                onClick={() => setShowServerModal(true)}
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -1859,6 +1869,72 @@ function App() {
               onSave={handleSaveNewName}
               onClose={() => setShowNameModal(false)}
             />
+          )}
+
+          {/* Server Info Modal */}
+          {showServerModal && (
+            <div
+              style={{
+                position: "fixed",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: "rgba(10, 3, 24, 0.75)",
+                backdropFilter: "blur(12px)",
+                WebkitBackdropFilter: "blur(12px)",
+                zIndex: 2000,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "20px",
+              }}
+              onClick={() => setShowServerModal(false)}
+            >
+              <div
+                style={{
+                  background: "linear-gradient(135deg, #2a0d52 0%, #16062d 100%)",
+                  border: "1px solid rgba(245, 166, 35, 0.4)",
+                  borderRadius: "20px",
+                  padding: "28px",
+                  maxWidth: "360px",
+                  width: "100%",
+                  boxShadow: "0 20px 50px rgba(0,0,0,0.8)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "16px",
+                  animation: "slideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: "28px", color: "#5cdd5c" }}>dns</span>
+                  <div style={{ fontSize: "1.2rem", fontWeight: 700, fontFamily: "var(--font-title)", color: "#fff" }}>
+                    Server Connection
+                  </div>
+                </div>
+                <div style={{ fontSize: "0.95rem", color: "rgba(255,255,255,0.8)", lineHeight: 1.5 }}>
+                  Currently connected to: <strong style={{ color: "#f5a623" }}>{accessibleServers.find((s) => s.is_primary)?.name || instanceName || "Plex Server"}</strong>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowServerModal(false)}
+                  style={{
+                    background: "var(--color-primary)",
+                    color: "#0e0e0f",
+                    fontWeight: 700,
+                    border: "none",
+                    borderRadius: "20px",
+                    padding: "10px 20px",
+                    cursor: "pointer",
+                    alignSelf: "flex-end",
+                    fontSize: "14px",
+                  }}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
           )}
         </div>
       </ThemeProvider>
