@@ -15,26 +15,55 @@ Checks whether TuneBox has been configured with valid Plex credentials.
 - **Response `200 OK`**:
   ```json
   {
-    "status": "authenticated",
-    "server_name": "MyPlexServer",
-    "username": "host_user"
+    "authenticated": true,
+    "username": "host_user",
+    "plex_server_name": "MyPlexServer",
+    "client_name": "MyClient",
+    "is_configured": true,
+    "testing": false
   }
   ```
 
-#### `POST /api/auth/login`
-Authenticates against Plex or validates an existing session token.
+#### `POST /api/auth/pin`
+Requests a new OAuth login PIN from Plex.
+- **Query Parameters**:
+  - `simulate` *(optional, boolean)*: Set to `true` to generate a mock PIN (only available when testing mode is enabled).
+- **Response `200 OK`**:
+  ```json
+  {
+    "pin_id": 12345678,
+    "code": "ABCD",
+    "url": "https://plex.tv/link"
+  }
+  ```
+
+#### `GET /api/auth/check`
+Checks whether the user has authorized the requested PIN.
+- **Query Parameters**:
+  - `pin_id` *(required, integer)*: The PIN ID returned from `POST /api/auth/pin`.
+- **Response `200 OK`**:
+  ```json
+  {
+    "authenticated": true,
+    "token": "plex_auth_token_string"
+  }
+  ```
+
+#### `POST /api/auth/configure`
+Saves selected Plex Server and Client Player configuration.
 - **Request Body**:
   ```json
   {
-    "username": "user@example.com",
-    "password": "plex_password"
+    "plex_username": "host_user",
+    "client_name": "MyClient",
+    "plex_server_name": "MyPlexServer"
   }
   ```
 - **Response `200 OK`**:
   ```json
   {
-    "token": "plex_auth_token_string",
-    "server_name": "MyPlexServer"
+    "message": "Configuration successfully saved and reinitialized!",
+    "admin_token": "admin_token_hex_string"
   }
   ```
 
