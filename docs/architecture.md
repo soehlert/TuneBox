@@ -2,9 +2,6 @@
 
 This document provides a detailed technical look at the architecture, component topology, tech stack roles, and real-time data flows powering **TuneBox**.
 
-> [!TIP]
-> **Diagram Preview Note**: The diagrams in this document are formatted in standard **Mermaid** syntax. They render natively on GitHub.com or inside IDE markdown viewers with Mermaid support (such as VS Code Markdown Preview Mermaid Support).
-
 ---
 
 ## 🛠️ Tech Stack & Role Breakdown
