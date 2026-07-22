@@ -166,168 +166,171 @@ const MusicControlsComponent = ({
 
   return (
     <Box className="player-inner-container">
-      {/* Left Section: Cover & Metadata */}
-      <Box className="player-left-section">
-        {currentTrack ? (
-          <>
-            {currentTrack.item_id ? (
-              <img
-                src={`${apiBase}/api/music/track-art/${currentTrack.item_id}`}
-                alt={currentTrack.title}
-                className="player-album-art"
-                onError={(e) => {
-                  e.currentTarget.style.display = "none";
-                  const sibling = e.currentTarget.nextElementSibling as HTMLElement;
-                  if (sibling) sibling.style.display = "flex";
-                }}
-              />
-            ) : null}
-            <Box className="player-album-art-placeholder" style={{ display: currentTrack.item_id ? "none" : "flex" }}>🎵</Box>
-            <Box className="player-song-details">
-              <Typography className="player-song-title">
-                {currentTrack.title}
-              </Typography>
-              <Typography className="player-song-artist">
-                {currentTrack.artist}
-              </Typography>
-            </Box>
-          </>
-        ) : (
-          <Box className="player-song-details">
-            <Typography className="player-song-title" style={{ color: 'rgba(255,255,255,0.4)' }}>
-              No track playing
-            </Typography>
-          </Box>
-        )}
-      </Box>
-
-      {/* Center Section: Playback buttons & Progress bar */}
-      <Box className="player-center-section">
-        <Box className="player-controls-buttons" style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+      {/* Top Row: Track info (Left), Play/Skip (Center), Queue/Settings (Right) */}
+      <Box className="player-controls-row">
+        {/* Left Section: Track Info */}
+        <Box className="player-left-section">
           {currentTrack ? (
             <>
-              <IconButton onClick={handlePlayStop} className="player-play-btn">
-                {isPlaying ? <PauseIcon style={{ fontSize: "28px" }} /> : <PlayArrowIcon style={{ fontSize: "28px" }} />}
-              </IconButton>
-
-              <button
-                onClick={handleCastSkipVote}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  background: hasVoted ? "rgba(245, 166, 35, 0.18)" : "rgba(255,255,255,0.05)",
-                  border: hasVoted ? "1px solid #f5a623" : "1px solid rgba(255,255,255,0.15)",
-                  color: hasVoted ? "#f5a623" : "#fff",
-                  borderRadius: "20px",
-                  padding: "6px 14px",
-                  fontSize: "12px",
-                  fontWeight: "bold",
-                  cursor: "pointer",
-                  transition: "all 0.2s",
-                  fontFamily: "var(--font-body)",
-                  boxSizing: "border-box"
-                }}
-                onMouseOver={(e) => {
-                  if (!hasVoted) {
-                    e.currentTarget.style.borderColor = "#f5a623";
-                    e.currentTarget.style.color = "#f5a623";
-                    e.currentTarget.style.backgroundColor = "rgba(245, 166, 35, 0.08)";
-                  }
-                }}
-                onMouseOut={(e) => {
-                  if (!hasVoted) {
-                    e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)";
-                    e.currentTarget.style.color = "#fff";
-                    e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.05)";
-                  }
-                }}
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>skip_next</span>
-                <span>Skip ({skipVotes}/{skipTotal})</span>
-              </button>
+              {currentTrack.item_id ? (
+                <img
+                  src={`${apiBase}/api/music/track-art/${currentTrack.item_id}`}
+                  alt={currentTrack.title}
+                  className="player-album-art"
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                    const sibling = e.currentTarget.nextElementSibling as HTMLElement;
+                    if (sibling) sibling.style.display = "flex";
+                  }}
+                />
+              ) : null}
+              <Box className="player-album-art-placeholder" style={{ display: currentTrack.item_id ? "none" : "flex" }}>🎵</Box>
+              <Box className="player-song-details">
+                <Typography className="player-song-title">
+                  {currentTrack.title}
+                </Typography>
+                <Typography className="player-song-artist">
+                  {currentTrack.artist}
+                </Typography>
+              </Box>
             </>
           ) : (
-            <button onClick={handleStartQueue} className="player-start-queue-btn">
-              Start Jukebox
+            <Box className="player-song-details">
+              <Typography className="player-song-title" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                No track playing
+              </Typography>
+            </Box>
+          )}
+        </Box>
+
+        {/* Center Section: Playback buttons */}
+        <Box className="player-center-section">
+          <Box className="player-controls-buttons" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            {currentTrack ? (
+              <>
+                <IconButton onClick={handlePlayStop} className="player-play-btn">
+                  {isPlaying ? <PauseIcon style={{ fontSize: "28px" }} /> : <PlayArrowIcon style={{ fontSize: "28px" }} />}
+                </IconButton>
+
+                <button
+                  onClick={handleCastSkipVote}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "4px",
+                    background: hasVoted ? "rgba(245, 166, 35, 0.18)" : "rgba(255,255,255,0.05)",
+                    border: hasVoted ? "1px solid #f5a623" : "1px solid rgba(255,255,255,0.15)",
+                    color: hasVoted ? "#f5a623" : "#fff",
+                    borderRadius: "20px",
+                    padding: "6px 12px",
+                    fontSize: "12px",
+                    fontWeight: "bold",
+                    cursor: "pointer",
+                    transition: "all 0.2s",
+                    fontFamily: "var(--font-body)",
+                    boxSizing: "border-box",
+                    whiteSpace: "nowrap"
+                  }}
+                  onMouseOver={(e) => {
+                    if (!hasVoted) {
+                      e.currentTarget.style.borderColor = "#f5a623";
+                      e.currentTarget.style.color = "#f5a623";
+                      e.currentTarget.style.backgroundColor = "rgba(245, 166, 35, 0.08)";
+                    }
+                  }}
+                  onMouseOut={(e) => {
+                    if (!hasVoted) {
+                      e.currentTarget.style.borderColor = "rgba(255,255,255,0.15)";
+                      e.currentTarget.style.color = "#fff";
+                      e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.05)";
+                    }
+                  }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>skip_next</span>
+                  <span>Skip ({skipVotes}/{skipTotal})</span>
+                </button>
+              </>
+            ) : (
+              <button onClick={handleStartQueue} className="player-start-queue-btn">
+                Start Jukebox
+              </button>
+            )}
+          </Box>
+        </Box>
+
+        {/* Right Section: Device indicators & Settings / Queue */}
+        <Box className="player-right-section" style={{ justifyContent: "flex-end", alignItems: "center" }}>
+          <Box className="player-device-group">
+            <DevicesIcon className="player-utility-icon" />
+            <Typography className="player-device-text">{instanceName || "TuneBox Jukebox"}</Typography>
+          </Box>
+          {onOpenMobileQueue && (
+            <button
+              onClick={onOpenMobileQueue}
+              className="player-queue-btn"
+              title="Queue"
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "rgba(255, 255, 255, 0.6)",
+                padding: "6px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                transition: "color 0.2s",
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.color = "var(--color-primary)";
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.color = "rgba(255, 255, 255, 0.6)";
+              }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: "22px" }}>queue_music</span>
+            </button>
+          )}
+          {isAdmin && onOpenSettings && (
+            <button
+              onClick={onOpenSettings}
+              className="player-settings-btn"
+              title="Settings"
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "rgba(255, 255, 255, 0.6)",
+                padding: "6px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                transition: "color 0.2s",
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.color = "var(--color-primary)";
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.color = "rgba(255, 255, 255, 0.6)";
+              }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: "20px" }}>settings</span>
             </button>
           )}
         </Box>
-        
-        {currentTrack && (
-          <Box className="player-progress-row">
-            <Typography className="player-time-text">{elapsedTime}</Typography>
-            <LinearProgress
-              variant="determinate"
-              value={progress}
-              className="player-progress-bar"
-            />
-            <Typography className="player-time-text">{duration}</Typography>
-          </Box>
-        )}
       </Box>
 
-      {/* Right Section: Device indicators & Settings */}
-      <Box className="player-right-section" style={{ justifyContent: "flex-end", alignItems: "center" }}>
-        <Box className="player-device-group">
-          <DevicesIcon className="player-utility-icon" />
-          <Typography className="player-device-text">{instanceName || "TuneBox Jukebox"}</Typography>
+      {/* Bottom Row: Full-width Progress Bar */}
+      {currentTrack && (
+        <Box className="player-progress-row">
+          <Typography className="player-time-text">{elapsedTime}</Typography>
+          <LinearProgress
+            variant="determinate"
+            value={progress}
+            className="player-progress-bar"
+          />
+          <Typography className="player-time-text">{duration}</Typography>
         </Box>
-        {onOpenMobileQueue && (
-          <button
-            onClick={onOpenMobileQueue}
-            className="player-queue-btn"
-            title="Queue"
-            style={{
-              background: "transparent",
-              border: "none",
-              color: "rgba(255, 255, 255, 0.4)",
-              marginLeft: "8px",
-              padding: "6px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-              transition: "color 0.2s",
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.color = "var(--color-primary)";
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.color = "rgba(255, 255, 255, 0.4)";
-            }}
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: "22px" }}>queue_music</span>
-          </button>
-        )}
-        {isAdmin && onOpenSettings && (
-          <button
-            onClick={onOpenSettings}
-            className="player-settings-btn"
-            title="Settings"
-            style={{
-              background: "transparent",
-              border: "none",
-              color: "rgba(255, 255, 255, 0.4)",
-              marginLeft: "12px",
-              padding: "6px",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-              transition: "color 0.2s",
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.color = "var(--color-primary)";
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.color = "rgba(255, 255, 255, 0.4)";
-            }}
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: "20px" }}>settings</span>
-          </button>
-        )}
-      </Box>
+      )}
     </Box>
   );
 };

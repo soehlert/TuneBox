@@ -634,6 +634,7 @@ async def check_plexamp_resync(force_align: bool = False):
                 if state_changed:
                     await send_current_playing()
 
+        else:
             # If we recently started or resumed a track locally, give Plex a chance to start up (e.g. 10s grace period)
             is_recent = False
             if track_time_tracker.state == "playing" and track_time_tracker.last_resume_time:
