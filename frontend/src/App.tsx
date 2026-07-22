@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { Routes, Route, Link, useNavigate, useLocation } from "react-router-dom";
 import { ThemeProvider } from "@mui/material/styles";
 import axios from "axios";
@@ -471,7 +472,11 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
         { plex_username: plexUsername, client_name: selectedPlayer, plex_server_name: selectedServer },
         { headers: { "x-admin-token": adminToken } }
       );
-      setMsg("✓ Settings saved!");
+      sessionStorage.clear();
+      setMsg("✓ Settings saved! Switching server...");
+      setTimeout(() => {
+        window.location.href = window.location.origin + "/";
+      }, 300);
     } catch {
       setMsg("✗ Failed to save settings.");
     } finally {
@@ -679,9 +684,9 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                   <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
                     <span style={{ color: "#fff", fontSize: "14px", fontWeight: "bold", display: "inline-flex", alignItems: "center", gap: "6px" }}>
                       {c.name} {c.client_id === getClientId() ? " (This Device)" : ""}
-                      <span 
-                        className="material-symbols-outlined" 
-                        onClick={() => handleOpenRename(c.client_id, c.name)} 
+                      <span
+                        className="material-symbols-outlined"
+                        onClick={() => handleOpenRename(c.client_id, c.name)}
                         style={{ fontSize: "16px", cursor: "pointer", color: "var(--color-primary)", opacity: 0.7, transition: "opacity 0.2s" }}
                         onMouseOver={(e) => e.currentTarget.style.opacity = "1"}
                         onMouseOut={(e) => e.currentTarget.style.opacity = "0.7"}
@@ -746,9 +751,9 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                   <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
                     <span style={{ color: "#fff", fontSize: "14px", fontWeight: "bold", display: "inline-flex", alignItems: "center", gap: "6px" }}>
                       {c.name} {c.client_id === getClientId() ? " (This Device)" : ""}
-                      <span 
-                        className="material-symbols-outlined" 
-                        onClick={() => handleOpenRename(c.client_id, c.name)} 
+                      <span
+                        className="material-symbols-outlined"
+                        onClick={() => handleOpenRename(c.client_id, c.name)}
                         style={{ fontSize: "16px", cursor: "pointer", color: "var(--color-primary)", opacity: 0.7, transition: "opacity 0.2s" }}
                         onMouseOver={(e) => e.currentTarget.style.opacity = "1"}
                         onMouseOut={(e) => e.currentTarget.style.opacity = "0.7"}
@@ -939,9 +944,9 @@ function UserBadge({ profile, onLeave, onEditName }: { profile: GuestProfile; on
         whiteSpace: "nowrap",
       }}
     >
-      <div 
-        onClick={onEditName} 
-        style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }} 
+      <div
+        onClick={onEditName}
+        style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}
         title="Click to edit name"
       >
         <span style={{ color: profile.role === "member" ? "#5cdd5c" : "#f5a623" }}>
@@ -955,15 +960,15 @@ function UserBadge({ profile, onLeave, onEditName }: { profile: GuestProfile; on
         )}
       </div>
       <span style={{ width: "1px", height: "12px", background: "rgba(255,255,255,0.15)" }}></span>
-      <span 
-        className="material-symbols-outlined" 
-        onClick={onLeave} 
-        style={{ 
-          fontSize: "15px", 
-          cursor: "pointer", 
-          color: "rgba(255, 255, 255, 0.4)", 
-          transition: "color 0.2s" 
-        }} 
+      <span
+        className="material-symbols-outlined"
+        onClick={onLeave}
+        style={{
+          fontSize: "15px",
+          cursor: "pointer",
+          color: "rgba(255, 255, 255, 0.4)",
+          transition: "color 0.2s"
+        }}
         onMouseOver={(e) => e.currentTarget.style.color = "#ff6b6b"}
         onMouseOut={(e) => e.currentTarget.style.color = "rgba(255, 255, 255, 0.4)"}
         title="Leave Jukebox"
@@ -1142,6 +1147,57 @@ function App() {
   const [selectedLetter, setSelectedLetter] = useState("");
   const [filteredArtists, setFilteredArtists] = useState<any[]>([]);
   const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [accessibleServers, setAccessibleServers] = useState<any[]>([]);
+  const [selectedServerIds, setSelectedServerIds] = useState<string[]>([]);
+  const [showServerMenu, setShowServerMenu] = useState(false);
+  const [showServerModal, setShowServerModal] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  // Clear search query when clear_search parameter is present
+  useEffect(() => {
+    if (location.search.includes("clear_search=true")) {
+      setSearchTerm("");
+      setSelectedLetter("");
+    }
+  }, [location.search]);
+
+  // Close dropdown on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setShowServerMenu(false);
+        setShowServerModal(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  // Fetch accessible Plex servers
+  useEffect(() => {
+    if (!isConfigured) return;
+    axios
+      .get(getApiUrl("/api/music/servers"))
+      .then((res) => {
+        if (Array.isArray(res.data)) {
+          setAccessibleServers(res.data);
+          const primaryIds = res.data.filter((s: any) => s.is_primary).map((s: any) => s.server_id);
+          if (primaryIds.length > 0) {
+            setSelectedServerIds(primaryIds);
+          } else if (res.data.length > 0) {
+            setSelectedServerIds([res.data[0].server_id]);
+          }
+        }
+      })
+      .catch((err) => console.error("Error fetching servers:", err));
+  }, [isConfigured]);
 
   // Debouncing hook logic
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
@@ -1158,7 +1214,8 @@ function App() {
 
     const fetchArtists = async () => {
       try {
-        const searchURL = getApiUrl(`/api/music/search?query=${encodeURIComponent(searchTerm)}`);
+        const serverParam = selectedServerIds.length > 0 ? `&server_ids=${selectedServerIds.join(",")}` : "";
+        const searchURL = getApiUrl(`/api/music/unified-search?query=${encodeURIComponent(searchTerm)}${serverParam}`);
         const artistListURL = getApiUrl("/api/music/artists");
         const endpoint = debouncedSearchTerm ? searchURL : artistListURL;
 
@@ -1193,34 +1250,21 @@ function App() {
       setLoadingArtists(false);
       setArtists([]);
     }
-  }, [debouncedSearchTerm, isConfigured]);
+  }, [debouncedSearchTerm, isConfigured, selectedServerIds]);
 
 
 
   const handleAlphabetClick = (character: string) => {
     setSelectedLetter(character);
-    setSearchTerm(""); // Clear search term so the alphabet filter is visible
+    setSearchTerm(""); // Clear search term so the full artist list is visible
 
     // Redirect to root if not on root
     if (location.pathname !== "/") {
       navigate("/");
     }
 
-    const filtered = character === "0-9"
-      ? artists.filter((artist) => artist.name[0].match(/^\d/))
-      : artists.filter((artist) => artist.name[0].toUpperCase() === character.toUpperCase());
-
-    setFilteredArtists(filtered);
-
-    // Scroll to the first matching artist
-    if (filtered.length > 0) {
-      setTimeout(() => {
-        const firstArtistElement = document.getElementById(`artist-${filtered[0].artist_id}`);
-        if (firstArtistElement) {
-          firstArtistElement.scrollIntoView({ behavior: "smooth", block: "start" });
-        }
-      }, 100);
-    }
+    // Preserve full artist list so user can scroll up and down continuously
+    setFilteredArtists(artists);
   };
 
   // Manage client_control WebSocket connection
@@ -1489,15 +1533,38 @@ function App() {
 
           {/* Top Navbar */}
           <div className="navbar">
-            <Link to="/" className="app-title-link">
+            <Link
+              to="/"
+              className="app-title-link"
+              onClick={() => {
+                setSearchTerm("");
+                setSelectedLetter("");
+                window.scrollTo(0, 0);
+                const mainEl = document.querySelector(".main-content");
+                if (mainEl) mainEl.scrollTop = 0;
+              }}
+            >
               <img src={TuneBoxLogo} alt="TuneBox Logo" className="logo" />
             </Link>
 
             <div className="navbar-right">
               {/* Search Box in Navbar */}
-              <div className="navbar-search-container">
-                <span className="material-symbols-outlined" style={{ fontSize: "20px", color: "rgba(255,255,255,0.4)" }}>search</span>
+              <div
+                className="navbar-search-container"
+                onClick={() => searchInputRef.current?.focus()}
+              >
+                <span
+                  className="material-symbols-outlined"
+                  style={{ fontSize: "20px", color: "rgba(255,255,255,0.4)", cursor: "pointer", flexShrink: 0 }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    searchInputRef.current?.focus();
+                  }}
+                >
+                  search
+                </span>
                 <input
+                  ref={searchInputRef}
                   type="text"
                   className="navbar-search-input"
                   placeholder="Search Jukebox..."
@@ -1510,6 +1577,102 @@ function App() {
                     }
                   }}
                 />
+                {accessibleServers.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowServerMenu(!showServerMenu);
+                    }}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      color: selectedServerIds.length > 1 ? "#f5a623" : "rgba(255,255,255,0.4)",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      padding: "4px",
+                      marginRight: "4px",
+                      transition: "color 0.2s",
+                      flexShrink: 0,
+                    }}
+                    title="Select servers to search"
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>dns</span>
+                  </button>
+                )}
+                {showServerMenu && isMobile &&
+                  createPortal(
+                    <div className="server-dropdown-overlay" onClick={() => setShowServerMenu(false)}>
+                      <div className="server-dropdown-menu" onClick={(e) => e.stopPropagation()}>
+                        <div className="server-dropdown-header">
+                          <span>SEARCH LIBRARIES</span>
+                          <button
+                            type="button"
+                            className="server-dropdown-close-btn"
+                            onClick={() => setShowServerMenu(false)}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                        {accessibleServers.map((s) => {
+                          const isChecked = selectedServerIds.includes(s.server_id);
+                          return (
+                            <label key={s.server_id} className="server-dropdown-item">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => {
+                                  if (isChecked) {
+                                    if (selectedServerIds.length > 1) {
+                                      setSelectedServerIds(selectedServerIds.filter((id) => id !== s.server_id));
+                                    }
+                                  } else {
+                                    setSelectedServerIds([...selectedServerIds, s.server_id]);
+                                  }
+                                }}
+                              />
+                              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                {s.name} {s.is_primary ? "(Home)" : ""}
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>,
+                    document.body
+                  )
+                }
+                {showServerMenu && !isMobile && (
+                  <div className="server-dropdown-menu" onClick={(e) => e.stopPropagation()}>
+                    <div className="server-dropdown-header">
+                      <span>SEARCH LIBRARIES</span>
+                    </div>
+                    {accessibleServers.map((s) => {
+                      const isChecked = selectedServerIds.includes(s.server_id);
+                      return (
+                        <label key={s.server_id} className="server-dropdown-item">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {
+                              if (isChecked) {
+                                if (selectedServerIds.length > 1) {
+                                  setSelectedServerIds(selectedServerIds.filter((id) => id !== s.server_id));
+                                }
+                              } else {
+                                setSelectedServerIds([...selectedServerIds, s.server_id]);
+                              }
+                            }}
+                          />
+                          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {s.name} {s.is_primary ? "(Home)" : ""}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               {/* Admin identity badge */}
@@ -1540,10 +1703,10 @@ function App() {
 
               {/* Guest user badge (top-right, for guests who have joined) */}
               {!isAdmin && guestProfile && (
-                <UserBadge 
-                  profile={guestProfile} 
-                  onLeave={handleGuestLeave} 
-                  onEditName={() => setShowNameModal(true)} 
+                <UserBadge
+                  profile={guestProfile}
+                  onLeave={handleGuestLeave}
+                  onEditName={() => setShowNameModal(true)}
                 />
               )}
 
@@ -1617,6 +1780,7 @@ function App() {
                       loading={loadingArtists}
                       searchResults={searchResults}
                       isSearching={Boolean(debouncedSearchTerm)}
+                      selectedLetter={selectedLetter}
                     />
                   }
                 />
@@ -1670,6 +1834,8 @@ function App() {
             <MusicControls
               instanceName={instanceName}
               onOpenMobileQueue={() => setIsMobileQueueOpen(!isMobileQueueOpen)}
+              onOpenServerModal={() => setShowServerModal(true)}
+              primaryServerName={accessibleServers.find((s) => s.is_primary)?.name || (accessibleServers.length > 0 ? accessibleServers[0].name : "Plex Server")}
             />
           </footer>
 
@@ -1698,9 +1864,9 @@ function App() {
 
           {/* Guest Registration Modal — only for non-admin, non-display devices without a profile */}
           {!isAdmin && !isDisplay && !guestProfile && !dismissedGuestModal && (
-            <GuestModal 
-              onJoin={(profile) => setGuestProfile(profile)} 
-              onClose={() => setDismissedGuestModal(true)} 
+            <GuestModal
+              onJoin={(profile) => setGuestProfile(profile)}
+              onClose={() => setDismissedGuestModal(true)}
             />
           )}
 
@@ -1711,6 +1877,72 @@ function App() {
               onSave={handleSaveNewName}
               onClose={() => setShowNameModal(false)}
             />
+          )}
+
+          {/* Server Info Modal */}
+          {showServerModal && (
+            <div
+              style={{
+                position: "fixed",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: "rgba(10, 3, 24, 0.75)",
+                backdropFilter: "blur(12px)",
+                WebkitBackdropFilter: "blur(12px)",
+                zIndex: 2000,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "20px",
+              }}
+              onClick={() => setShowServerModal(false)}
+            >
+              <div
+                style={{
+                  background: "linear-gradient(135deg, #2a0d52 0%, #16062d 100%)",
+                  border: "1px solid rgba(245, 166, 35, 0.4)",
+                  borderRadius: "20px",
+                  padding: "28px",
+                  maxWidth: "360px",
+                  width: "100%",
+                  boxShadow: "0 20px 50px rgba(0,0,0,0.8)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "16px",
+                  animation: "slideUp 0.2s cubic-bezier(0.16, 1, 0.3, 1)",
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: "28px", color: "#5cdd5c" }}>dns</span>
+                  <div style={{ fontSize: "1.2rem", fontWeight: 700, fontFamily: "var(--font-title)", color: "#fff" }}>
+                    Home Server
+                  </div>
+                </div>
+                <div style={{ fontSize: "0.95rem", color: "rgba(255,255,255,0.8)", lineHeight: 1.5 }}>
+                  Server from settings: <strong style={{ color: "#f5a623" }}>{accessibleServers.find((s) => s.is_primary)?.name || instanceName || "Plex Server"}</strong>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowServerModal(false)}
+                  style={{
+                    background: "var(--color-primary)",
+                    color: "#0e0e0f",
+                    fontWeight: 700,
+                    border: "none",
+                    borderRadius: "20px",
+                    padding: "10px 20px",
+                    cursor: "pointer",
+                    alignSelf: "flex-end",
+                    fontSize: "14px",
+                  }}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
           )}
         </div>
       </ThemeProvider>

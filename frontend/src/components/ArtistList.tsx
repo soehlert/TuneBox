@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { Card, Typography, Button, Snackbar, Alert } from "@mui/material"; // MUI components
 import { FallbackImage } from "./FallbackImage";
@@ -17,6 +18,7 @@ interface ArtistListProps {
   loading: boolean;
   searchResults: any[];
   isSearching: boolean;
+  selectedLetter?: string;
 }
 
 function ArtistList({
@@ -24,13 +26,88 @@ function ArtistList({
   loading,
   searchResults,
   isSearching,
+  selectedLetter,
 }: ArtistListProps) {
   const navigate = useNavigate();
   const isDev = window.location.port === "5173";
   const apiBase = isDev ? `http://${window.location.hostname}:8000` : window.location.origin;
 
-  const [visibleCount, setVisibleCount] = useState(48);
+  const [visibleCount, setVisibleCount] = useState(() => {
+    const saved = sessionStorage.getItem("tunebox_artist_visible_count");
+    return saved ? parseInt(saved, 10) : 48;
+  });
   const loaderRef = useRef<HTMLDivElement | null>(null);
+
+  const handleArtistClick = (artistId: number, serverId?: string) => {
+    sessionStorage.setItem("tunebox_artist_scroll_top", String(window.scrollY || document.querySelector('.main-content')?.scrollTop || 0));
+    sessionStorage.setItem("tunebox_artist_visible_count", String(visibleCount));
+    const sParam = serverId ? `?server_id=${serverId}` : "";
+    navigate(`/artists/${artistId}/albums${sParam}`);
+  };
+
+  // Restore scroll position when returning from album/track views
+  useEffect(() => {
+    const savedScroll = sessionStorage.getItem("tunebox_artist_scroll_top");
+    if (savedScroll) {
+      sessionStorage.removeItem("tunebox_artist_scroll_top");
+      sessionStorage.removeItem("tunebox_artist_visible_count");
+      const targetScroll = parseInt(savedScroll, 10);
+      setTimeout(() => {
+        const mainContent = document.querySelector(".main-content");
+        if (mainContent) {
+          mainContent.scrollTop = targetScroll;
+        }
+      }, 50);
+    }
+  }, []);
+
+  // Fast-scroll to selected alphabet letter while maintaining full artist grid
+  // and pre-loading images for target + surrounding letters
+  useEffect(() => {
+    if (!selectedLetter || isSearching || filteredArtists.length === 0) return;
+
+    // Determine target letter and adjacent letters (e.g. L, M, N for M)
+    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const letterIdx = alphabet.indexOf(selectedLetter.toUpperCase());
+    const adjacentBucketLetters = new Set<string>([selectedLetter.toUpperCase()]);
+    if (letterIdx > 0) adjacentBucketLetters.add(alphabet[letterIdx - 1]);
+    if (letterIdx >= 0 && letterIdx < alphabet.length - 1) adjacentBucketLetters.add(alphabet[letterIdx + 1]);
+
+    // Prefetch images for target and adjacent letters immediately
+    const prefetchArtists = filteredArtists.filter((artist) => {
+      if (!artist.name) return false;
+      const char = artist.name[0].toUpperCase();
+      if (selectedLetter === "0-9") return /^\d/.test(char);
+      return adjacentBucketLetters.has(char);
+    });
+
+    prefetchArtists.slice(0, 60).forEach((artist) => {
+      const img = new Image();
+      img.src = `${apiBase}/api/music/artist-image/${artist.artist_id}`;
+    });
+
+    const targetIndex = filteredArtists.findIndex((artist) => {
+      if (!artist.name) return false;
+      const firstChar = artist.name[0];
+      if (selectedLetter === "0-9") {
+        return /^\d/.test(firstChar);
+      }
+      return firstChar.toUpperCase() === selectedLetter.toUpperCase();
+    });
+
+    if (targetIndex !== -1) {
+      if (targetIndex >= visibleCount) {
+        setVisibleCount(targetIndex + 36);
+      }
+      const targetArtist = filteredArtists[targetIndex];
+      setTimeout(() => {
+        const el = document.getElementById(`artist-${targetArtist.artist_id}`);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 100);
+    }
+  }, [selectedLetter, filteredArtists, isSearching, apiBase]);
 
   // Snackbar alerts
   const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -51,10 +128,10 @@ function ArtistList({
     return `${mins}:${remainingSecs < 10 ? "0" : ""}${remainingSecs}`;
   };
 
-  const addToQueue = async (trackId: number) => {
+  const addToQueue = async (trackId: number, serverId?: string, serverName?: string) => {
     try {
       const queueUrl = `${apiBase}/api/music/queue/${trackId}`;
-      await axios.post(queueUrl);
+      await axios.post(queueUrl, { server_id: serverId, server_name: serverName });
       showSnackbar("Track added to queue!", "success");
     } catch (error: any) {
       if (error.response && error.response.status === 400) {
@@ -67,12 +144,15 @@ function ArtistList({
 
   // Reset display count and scroll to top when list of filtered artists changes
   useEffect(() => {
-    setVisibleCount(48);
-    const mainContent = document.querySelector(".main-content");
-    if (mainContent) {
-      mainContent.scrollTop = 0;
+    const hasSavedScroll = sessionStorage.getItem("tunebox_artist_scroll_top");
+    if (!hasSavedScroll && !selectedLetter) {
+      setVisibleCount(48);
+      const mainContent = document.querySelector(".main-content");
+      if (mainContent) {
+        mainContent.scrollTop = 0;
+      }
     }
-  }, [filteredArtists, searchResults]);
+  }, [filteredArtists, searchResults, selectedLetter]);
 
   // Set up intersection observer to detect when user scrolls to bottom
   useEffect(() => {
@@ -105,11 +185,6 @@ function ArtistList({
     };
   }, [filteredArtists.length, isSearching]);
 
-  // Function to handle card click and navigate to artist's album page
-  const handleArtistClick = (artistId: number) => {
-    navigate(`/artists/${artistId}/albums`);
-  };
-
   const currentArtists = filteredArtists.slice(0, visibleCount);
 
   // Group search results
@@ -141,7 +216,7 @@ function ArtistList({
                     className="artist-card"
                     key={artist.artist_id}
                     id={`artist-${artist.artist_id}`}
-                    onClick={() => handleArtistClick(artist.artist_id)}
+                    onClick={() => handleArtistClick(artist.artist_id, artist.server_id)}
                   >
                     <FallbackImage
                       src={`${apiBase}/api/music/artist-image/${artist.artist_id}`}
@@ -149,8 +224,24 @@ function ArtistList({
                       type="artist"
                       className="artist-photo"
                     />
-                    <div className="artist-card-overlay">
+                    <div className="artist-card-overlay" style={{ flexDirection: "column", gap: "4px", padding: "12px 8px" }}>
                       <Typography className="artist-card-name">{artist.name}</Typography>
+                      {artist.server_name && (
+                        <span
+                          style={{
+                            fontSize: "10px",
+                            background: "rgba(245, 166, 35, 0.2)",
+                            border: "1px solid rgba(245, 166, 35, 0.4)",
+                            color: "#f5a623",
+                            padding: "1px 6px",
+                            borderRadius: "10px",
+                            fontWeight: 600,
+                            lineHeight: 1.2,
+                          }}
+                        >
+                          {artist.server_name}
+                        </span>
+                      )}
                     </div>
                   </Card>
                 ))}
@@ -170,20 +261,24 @@ function ArtistList({
                 gap: "16px",
                 width: "100%"
               }}>
-                {searchAlbums.map((album) => (
-                  <Card
-                    className="artist-card"
-                    key={album.album_id}
-                    onClick={() => navigate(`/albums/${album.album_id}/tracks`)}
-                    style={{
-                      position: "relative",
-                      aspectRatio: "1/1",
-                      cursor: "pointer",
-                      overflow: "hidden"
-                    }}
-                  >
-                    <FallbackImage
-                      src={`${apiBase}/api/music/album-art/${album.album_id}`}
+                {searchAlbums.map((album) => {
+                  const sParam = album.server_id ? `?server_id=${album.server_id}` : "";
+                  return (
+                    <Card
+                      className="artist-card"
+                      key={album.album_id}
+                      onClick={() => {
+                        navigate(`/albums/${album.album_id}/tracks${sParam}`);
+                      }}
+                      style={{
+                        position: "relative",
+                        aspectRatio: "1/1",
+                        cursor: "pointer",
+                        overflow: "hidden"
+                      }}
+                    >
+                      <FallbackImage
+                        src={`${apiBase}/api/music/album-art/${album.album_id}${sParam}`}
                       alt={album.title}
                       type="album"
                       style={{
@@ -197,31 +292,50 @@ function ArtistList({
                       bottom: 0,
                       left: 0,
                       right: 0,
-                      height: "50%",
-                      background: "linear-gradient(to top, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.3) 65%, transparent 100%)",
+                      height: "55%",
+                      background: "linear-gradient(to top, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.35) 70%, transparent 100%)",
                       display: "flex",
                       alignItems: "flex-end",
                       justifyContent: "center",
-                      padding: "12px",
+                      padding: "10px 8px",
                       boxSizing: "border-box"
                     }}>
-                      <Typography style={{
-                        fontFamily: "var(--font-title)",
-                        fontSize: "0.9rem",
-                        color: "white",
-                        fontWeight: 700,
-                        textAlign: "center",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textShadow: "0 0 10px rgba(0,0,0,0.5)",
-                        textOverflow: "ellipsis",
-                        width: "100%"
-                      }}>
-                        {album.title}
-                      </Typography>
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%", gap: "2px" }}>
+                        <Typography style={{
+                          fontFamily: "var(--font-title)",
+                          fontSize: "0.85rem",
+                          color: "white",
+                          fontWeight: 700,
+                          textAlign: "center",
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textShadow: "0 0 10px rgba(0,0,0,0.5)",
+                          textOverflow: "ellipsis",
+                          width: "100%"
+                        }}>
+                          {album.title}
+                        </Typography>
+                        {album.server_name && (
+                          <span
+                            style={{
+                              fontSize: "9px",
+                              background: "rgba(245, 166, 35, 0.2)",
+                              border: "1px solid rgba(245, 166, 35, 0.4)",
+                              color: "#f5a623",
+                              padding: "1px 5px",
+                              borderRadius: "8px",
+                              fontWeight: 600,
+                              lineHeight: 1.2,
+                            }}
+                          >
+                            {album.server_name}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </Card>
-                ))}
+                );
+              })}
               </div>
             </div>
           )}
@@ -236,6 +350,12 @@ function ArtistList({
                 {searchTracks.map((track) => (
                   <Card
                     key={track.track_id}
+                    onClick={() => {
+                      if (track.album_id) {
+                        const sParam = track.server_id ? `?server_id=${track.server_id}` : "";
+                        navigate(`/albums/${track.album_id}/tracks${sParam}`);
+                      }
+                    }}
                     style={{
                       background: "var(--color-glass-bg)",
                       border: "1px solid var(--color-glass-border)",
@@ -246,12 +366,32 @@ function ArtistList({
                       justifyContent: "space-between",
                       boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)",
                       boxSizing: "border-box",
-                      width: "100%"
+                      width: "100%",
+                      cursor: track.album_id ? "pointer" : "default",
+                      transition: "transform 0.15s ease, border-color 0.15s ease",
                     }}
                   >
                     <div style={{ display: "flex", flexDirection: "column", gap: "2px", minWidth: 0, textAlign: "left" }}>
-                      <Typography style={{ color: "white", fontFamily: "var(--font-title)", fontWeight: 700, fontSize: "0.95rem", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                        {track.title}
+                      <Typography style={{ color: "white", fontFamily: "var(--font-title)", fontWeight: 700, fontSize: "0.95rem", display: "flex", alignItems: "center", gap: "8px", minWidth: 0 }}>
+                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{track.title}</span>
+                        {track.server_name && (
+                          <span style={{
+                            fontSize: "10px",
+                            background: "rgba(245, 166, 35, 0.15)",
+                            border: "1px solid rgba(245, 166, 35, 0.4)",
+                            color: "#f5a623",
+                            padding: "2px 6px",
+                            borderRadius: "10px",
+                            fontWeight: 600,
+                            maxWidth: "80px",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                            flexShrink: 0
+                          }}>
+                            {track.server_name}
+                          </span>
+                        )}
                       </Typography>
                       <Typography style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "0.75rem", fontFamily: "var(--font-body)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                         {track.artist} • {track.album}
@@ -263,7 +403,10 @@ function ArtistList({
                       </Typography>
                       <Button
                         variant="contained"
-                        onClick={() => addToQueue(track.track_id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          addToQueue(track.track_id, track.server_id, track.server_name);
+                        }}
                         style={{
                           background: "var(--color-primary)",
                           color: "#0e0e0f",
@@ -325,27 +468,31 @@ function ArtistList({
       )}
 
       {/* Snackbar Alert for Track Queueing */}
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={3000}
-        onClose={() => setSnackbarOpen(false)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-      >
-        <Alert
+      {createPortal(
+        <Snackbar
+          open={snackbarOpen}
+          autoHideDuration={1500}
           onClose={() => setSnackbarOpen(false)}
-          severity={severity}
-          sx={{
-            width: "100%",
-            background: severity === "success" ? "#1e4620" : severity === "warning" ? "#663c00" : "#5f2120",
-            color: "white",
-            fontWeight: "bold",
-            borderRadius: "8px",
-            border: "1px solid rgba(255,255,255,0.1)"
-          }}
+          className="queue-toast-snackbar"
         >
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
+          <Alert
+            onClose={() => setSnackbarOpen(false)}
+            severity={severity}
+            sx={{
+              width: "100%",
+              background: severity === "success" ? "#1e4620" : severity === "warning" ? "#663c00" : "#5f2120",
+              color: "white",
+              fontWeight: "bold",
+              borderRadius: "8px",
+              border: "1px solid rgba(255,255,255,0.2)",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.8)"
+            }}
+          >
+            {snackbarMessage}
+          </Alert>
+        </Snackbar>,
+        document.body
+      )}
     </div>
   );
 }

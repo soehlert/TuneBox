@@ -144,3 +144,28 @@ def test_get_active_player_fails_all_paths(mock_get_conn, mock_get_account):
 
     with pytest.raises(PlexApiException):
         get_active_player("Target Player")
+
+
+@patch("backend.services.plex.get_target_plex_connection")
+def test_fetch_art_track_fallback(mock_get_target_conn):
+    """Verify fetch_art falls back to parentThumb or album.thumb for tracks without a direct thumb."""
+    from backend.services.plex import fetch_art
+
+    mock_plex = MagicMock()
+    mock_track = MagicMock()
+    mock_track.thumb = None
+    mock_track.parentThumb = "/library/metadata/10/thumb"
+    mock_plex.fetchItem.return_value = mock_track
+    mock_plex._baseurl = "http://localhost:32400"
+    mock_plex._token = "mock-token"
+    mock_get_target_conn.return_value = mock_plex
+
+    with patch("requests.get") as mock_req_get:
+        mock_resp = MagicMock()
+        mock_resp.ok = True
+        mock_req_get.return_value = mock_resp
+
+        res = fetch_art(123, "track", server_id="server-abc")
+        assert res is not None
+        mock_req_get.assert_called_once()
+        assert "http://localhost:32400/library/metadata/10/thumb" in mock_req_get.call_args[0][0]

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import axios, { AxiosError } from "axios";
+import { createPortal } from "react-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import axios from "axios";
 import { Button, Card, Typography, Snackbar, Alert } from "@mui/material";
 import { FallbackImage } from "./FallbackImage";
 import "./TrackList.css";
@@ -13,12 +14,16 @@ interface Track {
 
 interface AlbumData {
   album_title: string;
+  artist_id?: number;
+  artist_name?: string;
   thumb: string | null;
   tracks: Track[];
 }
 
 function TrackList() {
   const { albumId } = useParams();
+  const [searchParams] = useSearchParams();
+  const serverId = searchParams.get("server_id");
   const navigate = useNavigate();
   const [albumData, setAlbumData] = useState<AlbumData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -31,7 +36,8 @@ function TrackList() {
   useEffect(() => {
     const fetchTracks = async () => {
       try {
-        const albumUrl = `${apiBase}/api/music/albums/${albumId}/tracks`;
+        const sParam = serverId ? `?server_id=${serverId}` : "";
+        const albumUrl = `${apiBase}/api/music/albums/${albumId}/tracks${sParam}`;
         const response = await axios.get(albumUrl);
         setAlbumData(response.data);
       } catch (error) {
@@ -42,52 +48,55 @@ function TrackList() {
     };
 
     fetchTracks();
-    }, [albumId]);
+  }, [albumId, serverId]);
 
-    // Utility function to convert seconds to mm:ss format
-    const formatDuration = (secondsStr: string) => {
-      const seconds = parseInt(secondsStr, 10);
-      const mins = Math.floor(seconds / 60);
-      const secs = seconds % 60;
-      return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
-    };
+  // Utility function to convert seconds to mm:ss format
+  const formatDuration = (secondsStr: string) => {
+    const seconds = parseInt(secondsStr, 10);
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
+  };
 
-    const showSnackbar = (message: string, severity: "success" | "warning" | "error") => {
-      setSnackbarMessage(message);
-      setSeverity(severity);
-      setSnackbarOpen(true);
-    };
+  const showSnackbar = (message: string, severity: "success" | "warning" | "error") => {
+    setSnackbarMessage(message);
+    setSeverity(severity);
+    setSnackbarOpen(true);
+  };
 
-   const addToQueue = async (trackId: number) => {
+  const addToQueue = async (trackId: number) => {
     try {
       const queueUrl = `${apiBase}/api/music/queue/${trackId}`;
-      await axios.post(queueUrl);
+      await axios.post(queueUrl, { server_id: serverId });
       showSnackbar("Track added to queue!", "success");
-    } catch (error) {
-      // Type assertion to tell TypeScript that this error is an AxiosError
-      const axiosError = error as AxiosError;
-
-      // Now we can safely access error.response
-      if (axiosError.response) {
-        // Handle the error based on status code
-        if (axiosError.response.status === 400) {
-          showSnackbar("This song is already in the queue!", "warning"); // Show alert for song already in queue
-        }
+    } catch (error: any) {
+      if (error.response && error.response.status === 400) {
+        showSnackbar("This song is already in the queue!", "warning");
       } else {
-        // If error.response doesn't exist, it's likely a network or other issue
-        showSnackbar("An unexpected error occurred.", "error"); // Show generic error alert
+        showSnackbar("An unexpected error occurred.", "error");
       }
-      console.error("Error adding track to queue:", error);
     }
   };
 
   return (
     <div className="track-list-page">
       <div className="track-list-container">
-        <button className="back-button" onClick={() => navigate(-1)}>
-          <span className="material-symbols-outlined">arrow_back</span>
-          Back to Albums
-        </button>
+        <div style={{ display: "flex", gap: "12px", marginBottom: "16px", flexWrap: "wrap" }}>
+          <button
+            className="back-button"
+            style={{ marginBottom: 0 }}
+            onClick={() => {
+              if (albumData?.artist_id) {
+                navigate(`/artists/${albumData.artist_id}/albums${serverId ? `?server_id=${serverId}` : ""}`);
+              } else {
+                navigate("/artists");
+              }
+            }}
+          >
+            <span className="material-symbols-outlined">library_music</span>
+            Back to Albums
+          </button>
+        </div>
         {loading ? (
           <Typography variant="h6">Loading...</Typography>
         ) : albumData ? (
@@ -98,7 +107,7 @@ function TrackList() {
             </header>
               {(
                 <FallbackImage
-                  src={`${apiBase}/api/music/album-art/${albumId}`}
+                  src={`${apiBase}/api/music/album-art/${albumId}${serverId ? `?server_id=${serverId}` : ""}`}
                   alt={albumData.album_title}
                   type="album"
                   className="album-banner"
@@ -130,15 +139,31 @@ function TrackList() {
             <Typography variant="h6">No tracks found.</Typography>
           )}
       </div>
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={3000} // Automatically hide after 3 seconds
-        onClose={() => setSnackbarOpen(false)}
-      >
-        <Alert onClose={() => setSnackbarOpen(false)} severity={severity}>
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
+      {createPortal(
+        <Snackbar
+          open={snackbarOpen}
+          autoHideDuration={1500}
+          onClose={() => setSnackbarOpen(false)}
+          className="queue-toast-snackbar"
+        >
+          <Alert
+            onClose={() => setSnackbarOpen(false)}
+            severity={severity}
+            sx={{
+              width: "100%",
+              background: severity === "success" ? "#1e4620" : severity === "warning" ? "#663c00" : "#5f2120",
+              color: "white",
+              fontWeight: "bold",
+              borderRadius: "8px",
+              border: "1px solid rgba(255,255,255,0.2)",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.8)"
+            }}
+          >
+            {snackbarMessage}
+          </Alert>
+        </Snackbar>,
+        document.body
+      )}
     </div>
   );
 }

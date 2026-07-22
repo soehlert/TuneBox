@@ -30,18 +30,27 @@ def milliseconds_to_seconds(milliseconds):
     return milliseconds // 1000
 
 
-def is_song_in_queue(item):
-    """Check if a song with the same ratingKey already exists in the Redis queue.
+def is_song_in_queue(item, server_id=None):
+    """Check if a song with the same ratingKey and server_id exists in Redis queue.
 
     Returns:
-        A track if it's in the queue.
+        Boolean if it's in the queue.
     """
     redis_queue_client = get_redis_queue_client()
     queue = redis_queue_client.lrange("playback_queue", 0, -1)
 
-    queue_items = [json.loads(item) for item in queue]
+    queue_items = [json.loads(i) for i in queue]
 
-    return any(track["item_id"] == item.ratingKey for track in queue_items)
+    item_id = str(getattr(item, "ratingKey", item))
+    target_server_id = server_id or getattr(item, "server_id", None)
+
+    for track in queue_items:
+        if str(track["item_id"]) == item_id:
+            track_server = track.get("server_id") or None
+            target_server = target_server_id or None
+            if track_server == target_server:
+                return True
+    return False
 
 
 class TrackTimeTracker:

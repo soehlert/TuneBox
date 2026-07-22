@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Box, Typography, LinearProgress, IconButton } from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import PauseIcon from '@mui/icons-material/Pause';
@@ -9,10 +10,15 @@ import "./MusicControls.css";
 const MusicControlsComponent = ({
   instanceName,
   onOpenMobileQueue,
+  primaryServerName,
+  onOpenServerModal,
 }: {
   instanceName?: string;
   onOpenMobileQueue?: () => void;
+  primaryServerName?: string;
+  onOpenServerModal?: () => void;
 }) => {
+  const navigate = useNavigate();
   const [currentTrack, setCurrentTrack] = useState<any>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [progress, setProgress] = useState<number>(0);
@@ -166,11 +172,24 @@ const MusicControlsComponent = ({
       {/* Top Row: Track info (Left), Play/Skip (Center), Queue/Settings (Right) */}
       <Box className="player-controls-row">
         {/* Left Section: Track Info */}
-        <Box className="player-left-section">
+        <Box
+          className="player-left-section"
+          onClick={() => {
+            if (currentTrack && (currentTrack.album_id || currentTrack.item_id)) {
+              const targetAlbumId = currentTrack.album_id || currentTrack.item_id;
+              const sParam = currentTrack.server_id ? `?server_id=${currentTrack.server_id}` : "";
+              navigate(`/albums/${targetAlbumId}/tracks${sParam}`);
+            }
+          }}
+          style={{
+            cursor: currentTrack ? "pointer" : "default",
+          }}
+          title={currentTrack ? "View Album" : ""}
+        >
           {currentTrack ? (
             <>
               <FallbackImage
-                src={currentTrack.item_id ? `${apiBase}/api/music/track-art/${currentTrack.item_id}` : ""}
+                src={currentTrack.item_id ? `${apiBase}/api/music/track-art/${currentTrack.item_id}${currentTrack.server_id ? `?server_id=${currentTrack.server_id}` : ""}` : ""}
                 alt={currentTrack.title}
                 type="album"
                 className="player-album-art"
@@ -250,6 +269,33 @@ const MusicControlsComponent = ({
 
         {/* Right Section: Device indicators & Settings / Queue */}
         <Box className="player-right-section" style={{ justifyContent: "flex-end", alignItems: "center" }}>
+          {primaryServerName && onOpenServerModal && (
+            <div
+              className="server-indicator-badge"
+              onClick={onOpenServerModal}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "4px 10px",
+                background: "rgba(255, 255, 255, 0.07)",
+                border: "1px solid rgba(255, 255, 255, 0.15)",
+                borderRadius: "16px",
+                fontSize: "11px",
+                fontWeight: 600,
+                color: "rgba(255, 255, 255, 0.75)",
+                whiteSpace: "nowrap",
+                cursor: "pointer",
+                marginRight: "8px",
+              }}
+              title="Click to view connected Plex server details"
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: "14px", color: "#5cdd5c" }}>dns</span>
+              <span className="server-name-text">
+                {primaryServerName}
+              </span>
+            </div>
+          )}
           <Box className="player-device-group">
             <DevicesIcon className="player-utility-icon" />
             <Typography className="player-device-text">{instanceName || "TuneBox Jukebox"}</Typography>

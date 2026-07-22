@@ -1,12 +1,17 @@
 """Define our routes for music based API endpoints."""
 
+import asyncio
 import logging
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, Response
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 from plexapi.exceptions import PlexApiException
 
+from backend.config import settings
 from backend.services.plex import (
+    ensure_playback_active,
+    fetch_accessible_plex_servers,
     fetch_albums_for_artist,
     fetch_all_artists,
     fetch_art,
@@ -14,9 +19,11 @@ from backend.services.plex import (
     get_active_player,
     get_all_players,
     get_current_playing_track,
+    get_target_plex_connection,
     get_track,
     play_queue_on_device,
     search_music,
+    search_music_on_server,
     stop_playback,
     skip_current_track,
 )
@@ -33,18 +40,41 @@ router = APIRouter(prefix="/api/music", tags=["Music"])
 logger = logging.getLogger(__name__)
 
 
+class QueueAddRequest(BaseModel):
+    server_id: str | None = None
+    server_name: str | None = None
+
+
 @router.post("/queue/{item_id}")
-async def add_to_queue(item_id: int, background_tasks: BackgroundTasks):
-    """Add an item to the playback queue in Redis.
+async def add_to_queue(
+    item_id: int,
+    background_tasks: BackgroundTasks,
+    payload: QueueAddRequest | None = None,
+):
+    """Add an item to the playback queue in Redis with optional server connection info.
 
     Returns:
         A message that says we added to the queue.
     """
     try:
-        song = get_track(item_id)
+        server_id = payload.server_id if payload else None
+        server_name = payload.server_name if payload else None
 
-        add_to_queue_redis(song)
+        t_plex = get_target_plex_connection(server_id)
+        song = t_plex.fetchItem(item_id)
 
+        all_servers = fetch_accessible_plex_servers() if (server_id and not settings.testing) else []
+        target_res = next((s for s in all_servers if s["server_id"] == server_id), None)
+
+        add_to_queue_redis(
+            song,
+            server_id=server_id,
+            server_name=server_name or (target_res.get("name") if target_res else None),
+            server_token=target_res.get("access_token") if target_res else None,
+            server_address=getattr(t_plex, "_baseurl", target_res.get("server_url") if target_res else None),
+        )
+
+        ensure_playback_active()
         background_tasks.add_task(send_queue)
 
     except PlexApiException as e:
@@ -108,6 +138,8 @@ def get_playback_queue():
                 "artist": item.get("artist", "Unknown Artist"),
                 "duration": item.get("duration", "0:00"),
                 "album_art": item.get("album_art", None),
+                "server_id": item.get("server_id"),
+                "server_name": item.get("server_name"),
             }
             for item in queue
         ]
@@ -189,14 +221,14 @@ def get_all_artists():
 
 # Fetch albums for a specific artist
 @router.get("/artists/{artist_id}/albums")
-def get_albums_for_artist(artist_id: int):
+def get_albums_for_artist(artist_id: int, server_id: str | None = None):
     """Fetch albums for a specific artist by ID.
 
     Returns:
         All the albums for a given artist.
     """
     try:
-        return fetch_albums_for_artist(artist_id)
+        return fetch_albums_for_artist(artist_id, server_id=server_id)
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Error fetching albums for artist {artist_id}: {e}"
@@ -205,14 +237,14 @@ def get_albums_for_artist(artist_id: int):
 
 # Fetch tracks for a specific album
 @router.get("/albums/{album_id}/tracks")
-def get_tracks_for_album(album_id: int):
+def get_tracks_for_album(album_id: int, server_id: str | None = None):
     """Fetch tracks for a specific album by ID.
 
     Returns:
         Tracks for a given album.
     """
     try:
-        return fetch_tracks_for_album(album_id)
+        return fetch_tracks_for_album(album_id, server_id=server_id)
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Error fetching tracks for album {album_id}: {e}"
@@ -232,6 +264,47 @@ def search_music_endpoint(query: str):
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Error searching music library: {e}"
+        ) from e
+
+
+@router.get("/servers")
+def get_accessible_servers():
+    """Fetch all Plex Media Servers accessible to the user account."""
+    try:
+        return fetch_accessible_plex_servers()
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error fetching accessible servers: {e}"
+        ) from e
+
+
+@router.get("/unified-search")
+async def unified_search_endpoint(query: str, server_ids: str | None = None):
+    """Search for music across multiple selected Plex servers concurrently."""
+    try:
+        all_servers = fetch_accessible_plex_servers()
+        if not all_servers:
+            return search_music(query)
+
+        target_servers = all_servers
+        if server_ids:
+            requested_ids = set(server_ids.split(","))
+            target_servers = [s for s in all_servers if s["server_id"] in requested_ids]
+            if not target_servers:
+                target_servers = all_servers
+
+        tasks = [asyncio.to_thread(search_music_on_server, s, query) for s in target_servers]
+        results_nested = await asyncio.gather(*tasks, return_exceptions=True)
+
+        combined_results = []
+        for res in results_nested:
+            if isinstance(res, list):
+                combined_results.extend(res)
+
+        return combined_results
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error executing unified search: {e}"
         ) from e
 
 
@@ -312,14 +385,22 @@ async def clear_redis_cache(key: str):
 
 
 @router.get("/artist-image/{artist_id}")
-def get_artist_image(artist_id: int):
+def get_artist_image(artist_id: int, request: Request, server_id: str | None = None):
     """Fetch and proxy the artist image from Plex.
 
     Returns:
-        The artist image from Plex in streaming response format.
+        Artist image from Plex in streaming response format.
     """
+    etag = f'"artist-{artist_id}-{server_id or "primary"}"'
+    headers = {
+        "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
+        "ETag": etag,
+    }
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=304, headers=headers)
+
     try:
-        response = fetch_art(artist_id, "artist")
+        response = fetch_art(artist_id, "artist", server_id=server_id)
     except HTTPException:
         raise
     except Exception as e:
@@ -328,19 +409,27 @@ def get_artist_image(artist_id: int):
         ) from e
     else:
         return StreamingResponse(
-            response.iter_content(chunk_size=1024), media_type="image/jpeg"
+            response.iter_content(chunk_size=1024), media_type="image/jpeg", headers=headers
         )
 
 
 @router.get("/album-art/{album_id}")
-def get_album_art(album_id: int):
+def get_album_art(album_id: int, request: Request, server_id: str | None = None):
     """Fetch and proxy the album art from Plex.
 
     Returns:
         Album art from Plex in streaming response format.
     """
+    etag = f'"album-{album_id}-{server_id or "primary"}"'
+    headers = {
+        "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
+        "ETag": etag,
+    }
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=304, headers=headers)
+
     try:
-        response = fetch_art(album_id, "album")
+        response = fetch_art(album_id, "album", server_id=server_id)
     except HTTPException:
         raise
     except Exception as e:
@@ -349,19 +438,27 @@ def get_album_art(album_id: int):
         ) from e
     else:
         return StreamingResponse(
-            response.iter_content(chunk_size=1024), media_type="image/jpeg"
+            response.iter_content(chunk_size=1024), media_type="image/jpeg", headers=headers
         )
 
 
 @router.get("/track-art/{track_id}")
-def get_track_art(track_id: int):
+def get_track_art(track_id: int, request: Request, server_id: str | None = None):
     """Fetch and proxy the track art from Plex.
 
     Returns:
         Track art from Plex in streaming response format.
     """
+    etag = f'"track-{track_id}-{server_id or "primary"}"'
+    headers = {
+        "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
+        "ETag": etag,
+    }
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=304, headers=headers)
+
     try:
-        response = fetch_art(track_id, "track")
+        response = fetch_art(track_id, "track", server_id=server_id)
     except HTTPException:
         raise
     except Exception as e:
@@ -370,5 +467,5 @@ def get_track_art(track_id: int):
         ) from e
     else:
         return StreamingResponse(
-            response.iter_content(chunk_size=1024), media_type="image/jpeg"
+            response.iter_content(chunk_size=1024), media_type="image/jpeg", headers=headers
         )

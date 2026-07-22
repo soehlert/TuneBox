@@ -88,6 +88,7 @@
   flex-shrink: 1;
   box-sizing: border-box;
   transition: border-color 0.25s, background-color 0.25s;
+  position: relative;
 }
 
 .navbar-search-container:hover {
@@ -297,15 +298,24 @@
   }
 
   .navbar-right {
-    gap: 8px;
-    flex-shrink: 1;
+    gap: 6px;
+    flex: 1;
+    justify-content: flex-end;
     min-width: 0;
   }
 
   .navbar-search-container {
-    width: 170px;
-    max-width: 42vw;
-    padding: 4px 10px;
+    width: auto;
+    flex: 1;
+    min-width: 110px;
+    max-width: 180px;
+    padding: 4px 8px;
+  }
+
+  .navbar-search-input {
+    margin-left: 4px;
+    min-width: 0;
+    font-size: 13px;
   }
 
   .main-wrapper {
@@ -415,6 +425,161 @@
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+
+/* Server Search Dropdown Menu (Desktop default: aligned with search bar) */
+.server-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  width: 100%;
+  min-width: 0;
+  background: #2a0d52;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 14px;
+  padding: 14px;
+  max-height: 65vh;
+  overflow-y: auto;
+  z-index: 1100;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.7);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-sizing: border-box;
+}
+
+.server-dropdown-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  font-weight: bold;
+  color: #f5a623;
+  letter-spacing: 0.5px;
+  margin-bottom: 2px;
+}
+
+.server-dropdown-close-btn {
+  display: none;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+
+.server-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: white;
+  cursor: pointer;
+  padding: 4px 6px;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+
+.server-dropdown-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Mobile & Small Screen Navbar Responsive Styles */
+@media (max-width: 768px) {
+  .navbar {
+    padding: 0 10px;
+    gap: 6px;
+  }
+
+  .logo {
+    height: 24px;
+    margin-right: 2px;
+  }
+
+  .server-indicator-badge span.server-name-text {
+    max-width: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .navbar-right {
+    gap: 6px;
+    flex-grow: 1;
+    justify-content: flex-end;
+    min-width: 0;
+  }
+
+  .navbar-search-container {
+    padding: 4px 8px;
+    width: auto;
+    flex: 1;
+    min-width: 100px;
+  }
+
+  .navbar-search-input {
+    font-size: 0.8rem;
+    margin-left: 4px;
+    min-width: 30px;
+  }
+
+  /* Centered Modal Overlay on Mobile */
+  .server-dropdown-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    box-sizing: border-box;
+  }
+
+  .server-dropdown-overlay .server-dropdown-menu {
+    position: relative !important;
+    top: auto !important;
+    left: auto !important;
+    right: auto !important;
+    width: 90% !important;
+    max-width: 320px !important;
+    max-height: 80vh !important;
+    margin: 0 auto !important;
+    border-radius: 16px !important;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.85) !important;
+  }
+
+  .server-dropdown-close-btn {
+    display: block;
+  }
+}
+
+/* Toast Notifications: Centered at bottom of Queue panel on laptop, centered at bottom on mobile */
+.queue-toast-snackbar {
+  position: fixed !important;
+  bottom: 106px !important;
+  right: 36px !important;
+  left: auto !important;
+  top: auto !important;
+  transform: none !important;
+  z-index: 99999 !important;
+  width: 300px !important;
+  max-width: calc(100vw - 32px) !important;
+}
+
+@media (max-width: 1023px) {
+  .queue-toast-snackbar {
+    bottom: 100px !important;
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%) !important;
+    width: auto !important;
+  }
 }
 
 

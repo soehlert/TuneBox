@@ -1,7 +1,7 @@
 [project]
-name = "plex-super"
-version = "0.1.0"
-description = "A custom centralized party jukebox powered by Plex"
+name = "TuneBox"
+version = "0.5.0"
+description = "Party jukebox using your local music"
 requires-python = ">=3.13"
 dependencies = [
     "fastapi>=0.115.0",
