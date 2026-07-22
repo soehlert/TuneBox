@@ -10,10 +10,10 @@ TuneBox is structured as a decoupled, multi-container architecture orchestrated 
 
 | Component | Technology | Role & Responsibilities |
 | :--- | :--- | :--- |
-| **Frontend Framework** | **React 18/19 (TypeScript)** | Renders the single-page application (SPA). Manages UI state, artist/album browsing views, track queue components, and client-side audio player synchronization. |
-| **Frontend Production Server** | **Nginx Alpine (Docker Container)** | In Docker production containers, Node.js compiles the React app into static files (`dist/`), which are served on port `80` by Nginx Alpine. Nginx also proxies `/api` and `/ws` requests to the backend container. |
+| **Frontend Framework** | **React & TypeScript** | Renders the single-page application (SPA). Manages UI state, artist/album browsing views, track queue components, and client-side audio player synchronization. |
+| **Frontend Production Server** | **Nginx** | In Docker production containers, Node.js compiles the React app into static files (`dist/`), which are served on port `80` by Nginx Alpine. Nginx also proxies `/api` and `/ws` requests to the backend container. |
 | **Frontend Local Dev Server** | **Vite** | Used during local development (`npm run dev`) for instant Hot Module Replacement (HMR) and dev proxying. |
-| **Backend Server** | **FastAPI (Python 3.13)** | High-performance asynchronous web server. Handles REST API endpoints (`/api/auth`, `/api/music`), authenticates admin and guest sessions, communicates with the Plex API, processes skip votes, and manages WebSocket connections. |
+| **Backend Server** | **FastAPI** | High-performance asynchronous web server. Handles REST API endpoints (`/api/auth`, `/api/music`), authenticates admin and guest sessions, communicates with the Plex API, processes skip votes, and manages WebSocket connections. |
 | **State & Queue Store** | **Redis** | In-memory key-value database serving as the source of truth for the active track queue, current playback timestamp/position, active skip votes, and cached session metadata. |
 | **Media Source** | **Plex Media Server API** | External media server hosting the user's music files, album artwork, track metadata, and search indexing via the `plexapi` Python SDK. |
 | **Containerization** | **Docker & Docker Compose** | Encapsulates the Frontend, Backend, and Redis services into isolated containers for reproducible deployment. |
@@ -70,7 +70,7 @@ sequenceDiagram
     Guest->>FE: Tap "Add to Queue"
     FE->>BE: POST /api/music/queue (Track ID)
     BE->>RD: Append track to Redis Queue list
-    BE->>RD: Fetch updated Queue state
+    RD->>BE: Fetch updated Queue state
     BE-->>FE: HTTP 200 OK (Track Added)
     BE->>All: Broadcast WebSocket Event: `queue_updated`
     Note over All: All connected guest UIs instantly re-render the queue!
