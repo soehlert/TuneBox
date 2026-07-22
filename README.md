@@ -2,18 +2,18 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**TuneBox** is a modern, collaborative party jukebox that turns your personal Plex music library into a shared, interactive listening experience. Designed for parties, gatherings, and shared spaces, TuneBox allows hosts and guests to queue up songs, vote to skip, and control music playback seamlessly from any web browser.
+**TuneBox** is a modern, collaborative party jukebox that turns your personal and shared Plex music libraries into a shared, interactive listening experience. Designed for parties, gatherings, and shared spaces, TuneBox allows hosts and guests to queue up songs from multiple Plex servers, vote to skip, and control music playback seamlessly from any web browser.
 
 ---
 
 ## ✨ Features
 
-- 🎧 **Direct Plex Library Access**: Streams and indexes music directly from your existing Plex Media Server library.
-- 🌐 **Multi-Server Unified Search**: Search across multiple connected Plex servers simultaneously (home and shared libraries) with custom server selection checkboxes.
+- 🎧 **Direct Plex Library Access**: Streams and indexes music directly from your existing Plex Media Server libraries.
+- 🌐 **Multi-Server Unified Search**: Search across multiple home and shared Plex Media Servers simultaneously with custom server library selection checkboxes.
 - 📱 **Guest Access via QR Code**: Guests scan a QR code at your party to browse music and queue tracks instantly—no app installation or accounts required!
 - ⚡ **Real-Time Queue Synchronization**: Everyone's device stays in sync. Changes to the queue, current track progress, and playback state update instantly across all guest phones and host displays.
 - 🗳️ **Collaborative Skip Voting**: Party guests can vote in real-time to skip songs. When the vote threshold is reached, TuneBox automatically skips to the next track.
-- 🎨 **Responsive, Mobile-First UI**: Clean, intuitive interface for browsing artists, albums, and tracks, adding to the queue, and managing playback.
+- 🎨 **Responsive, Mobile-First UI**: Clean, intuitive interface with unclipped mobile modals, smooth letter jump navigation, clickable bottom player controls, and instant queue alerts.
 - 🔐 **Setup Wizard**: Simple initial configuration wizard to link your Plex account and choose your preferred audio playback client.
 
 ---
