@@ -1146,6 +1146,28 @@ function App() {
   const [selectedLetter, setSelectedLetter] = useState("");
   const [filteredArtists, setFilteredArtists] = useState<any[]>([]);
   const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [accessibleServers, setAccessibleServers] = useState<any[]>([]);
+  const [selectedServerIds, setSelectedServerIds] = useState<string[]>([]);
+  const [showServerMenu, setShowServerMenu] = useState(false);
+
+  // Fetch accessible Plex servers
+  useEffect(() => {
+    if (!isConfigured) return;
+    axios
+      .get(getApiUrl("/api/music/servers"))
+      .then((res) => {
+        if (Array.isArray(res.data)) {
+          setAccessibleServers(res.data);
+          const primaryIds = res.data.filter((s: any) => s.is_primary).map((s: any) => s.server_id);
+          if (primaryIds.length > 0) {
+            setSelectedServerIds(primaryIds);
+          } else if (res.data.length > 0) {
+            setSelectedServerIds([res.data[0].server_id]);
+          }
+        }
+      })
+      .catch((err) => console.error("Error fetching servers:", err));
+  }, [isConfigured]);
 
   // Debouncing hook logic
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
@@ -1162,7 +1184,8 @@ function App() {
 
     const fetchArtists = async () => {
       try {
-        const searchURL = getApiUrl(`/api/music/search?query=${encodeURIComponent(searchTerm)}`);
+        const serverParam = selectedServerIds.length > 0 ? `&server_ids=${selectedServerIds.join(",")}` : "";
+        const searchURL = getApiUrl(`/api/music/unified-search?query=${encodeURIComponent(searchTerm)}${serverParam}`);
         const artistListURL = getApiUrl("/api/music/artists");
         const endpoint = debouncedSearchTerm ? searchURL : artistListURL;
 
@@ -1197,7 +1220,7 @@ function App() {
       setLoadingArtists(false);
       setArtists([]);
     }
-  }, [debouncedSearchTerm, isConfigured]);
+  }, [debouncedSearchTerm, isConfigured, selectedServerIds]);
 
 
 
@@ -1511,6 +1534,84 @@ function App() {
                     }
                   }}
                 />
+                {accessibleServers.length > 1 && (
+                  <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                    <button
+                      type="button"
+                      onClick={() => setShowServerMenu(!showServerMenu)}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        color: selectedServerIds.length > 1 ? "#f5a623" : "rgba(255,255,255,0.4)",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        padding: "4px",
+                        marginRight: "4px",
+                        transition: "color 0.2s",
+                      }}
+                      title="Select servers to search"
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>dns</span>
+                    </button>
+                    {showServerMenu && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: "36px",
+                          right: 0,
+                          background: "#2a0d52",
+                          border: "1px solid rgba(255, 255, 255, 0.2)",
+                          borderRadius: "8px",
+                          padding: "12px",
+                          width: "220px",
+                          zIndex: 1100,
+                          boxShadow: "0 10px 30px rgba(0,0,0,0.6)",
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "8px",
+                        }}
+                      >
+                        <div style={{ fontSize: "11px", fontWeight: "bold", color: "#f5a623", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                          Search Libraries
+                        </div>
+                        {accessibleServers.map((s) => {
+                          const isChecked = selectedServerIds.includes(s.server_id);
+                          return (
+                            <label
+                              key={s.server_id}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "8px",
+                                fontSize: "13px",
+                                color: "#fff",
+                                cursor: "pointer",
+                              }}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => {
+                                  if (isChecked) {
+                                    if (selectedServerIds.length > 1) {
+                                      setSelectedServerIds(selectedServerIds.filter((id) => id !== s.server_id));
+                                    }
+                                  } else {
+                                    setSelectedServerIds([...selectedServerIds, s.server_id]);
+                                  }
+                                }}
+                              />
+                              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                {s.name} {s.is_primary ? "(Home)" : ""}
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Admin identity badge */}

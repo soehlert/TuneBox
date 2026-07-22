@@ -298,13 +298,20 @@ def get_track(item_id):
     return track
 
 
-def play_song(player, song):
+def play_song(player, song, server_token=None, server_url=None):
     """Play a specific song on the Plex player."""
-    logger.info("Attempting to play song: %s on player: %s", song.title, player.title)
+    logger.info("Attempting to play song: %s on player: %s", getattr(song, "title", "Track"), player.title)
+    target_plex = get_plex_connection()
+    if server_url and server_token and not settings.testing:
+        try:
+            from plexapi.server import PlexServer
+            target_plex = PlexServer(server_url, server_token, timeout=5)
+        except Exception as ex:
+            logger.warning("Failed to connect to target server %s: %s", server_url, ex)
+
     if hasattr(player, "createPlayQueue"):
         try:
-            plex = get_plex_connection()
-            player.createPlayQueue(plex, song)
+            player.createPlayQueue(target_plex, song)
             logger.info("Successfully started playback via createPlayQueue on %s", player.title)
         except Exception as e:
             logger.warning("Failed to play via createPlayQueue: %s. Falling back to playMedia.", e)
@@ -320,6 +327,7 @@ def play_song(player, song):
         "album": getattr(song, "parentTitle", "Unknown Album"),
         "duration": milliseconds_to_seconds(song.duration) if song.duration else 0,
         "album_art": song.thumb if hasattr(song, "thumb") else None,
+        "server_name": getattr(song, "server_name", None),
     }
     cache_data("now_playing", song_data)
 
@@ -343,26 +351,44 @@ async def play_queue_on_device():
                 from backend.websockets import send_current_playing  # noqa: PLC0415
                 await send_current_playing()
                 return
-        except Exception:
-            logger.exception("Failed to resume player")
+        except Exception as e:
+            logger.warning("Failed to resume player: %s", e)
 
-    # If nothing is playing, trigger immediately instead of waiting for the orchestrator tick
-    if not track_time_tracker.is_playing and track_time_tracker.state != "paused":
-        queue = get_redis_queue()
-        if queue:
-            next_song = queue[0]
+    try:
+        from backend.services.redis import get_redis_queue
+        queue_items = get_redis_queue()
+        if not queue_items:
+            logger.info("Playback queue is empty.")
+            return
+
+        top_item = queue_items[0]
+        player = await asyncio.to_thread(get_active_player)
+        if not player:
+            logger.warning("No active player found for playback.")
+            return
+
+        s_url = top_item.get("server_address")
+        s_token = top_item.get("server_token")
+        if s_url and s_token and not settings.testing:
             try:
-                player = await asyncio.to_thread(get_active_player)
-                track = get_track(next_song["item_id"])
-                await asyncio.to_thread(play_song, player, track)
+                from plexapi.server import PlexServer
+                t_plex = PlexServer(s_url, s_token, timeout=5)
+                song_obj = await asyncio.to_thread(t_plex.fetchItem, top_item["item_id"])
+                song_obj.server_name = top_item.get("server_name")
+                await asyncio.to_thread(play_song, player, song_obj, s_token, s_url)
+            except Exception as ex:
+                logger.warning("Failed to load multi-server track %s from %s: %s", top_item["item_id"], s_url, ex)
+                song_obj = await asyncio.to_thread(get_track, top_item["item_id"])
+                await asyncio.to_thread(play_song, player, song_obj)
+        else:
+            song_obj = await asyncio.to_thread(get_track, top_item["item_id"])
+            await asyncio.to_thread(play_song, player, song_obj)
 
-                # Lazy import websockets to avoid circular imports
-                from backend.websockets import send_current_playing, send_queue  # noqa: PLC0415
-
-                await send_queue()
-                await send_current_playing()
-            except Exception:
-                logger.exception("Immediate play failed")
+        from backend.websockets import send_current_playing, send_queue  # noqa: PLC0415
+        await send_queue()
+        await send_current_playing()
+    except Exception as e:
+        logger.exception("Error starting queue playback: %s", e)
 
 
 async def playback_orchestrator():
@@ -1023,3 +1049,112 @@ def fetch_art(item_id: int, item_type: str):
         ) from e
     else:
         return response
+
+
+def fetch_accessible_plex_servers():
+    """Discover all Plex Media Servers accessible to the account token."""
+    if settings.testing:
+        return [
+            {
+                "server_id": "mock-server-1",
+                "name": "Local Jukebox Server",
+                "is_primary": True,
+            },
+            {
+                "server_id": "mock-server-2",
+                "name": "Friend's Music Server",
+                "is_primary": False,
+            },
+        ]
+
+    if not settings.plex_token:
+        return []
+
+    try:
+        account = get_myplex_account()
+        servers = []
+        primary_name = settings.plex_server_name.lower() if settings.plex_server_name else ""
+
+        for resource in account.resources():
+            if resource.provides and "server" in resource.provides.lower():
+                is_primary = bool(primary_name and resource.name.lower() == primary_name)
+                conn_url = None
+                if resource.connections:
+                    conn_url = resource.connections[0].uri
+                    for conn in resource.connections:
+                        if not conn.local:
+                            conn_url = conn.uri
+                            break
+
+                servers.append({
+                    "server_id": resource.clientIdentifier,
+                    "name": resource.name,
+                    "is_primary": is_primary,
+                    "access_token": resource.accessToken or settings.plex_token,
+                    "server_url": conn_url,
+                })
+        return servers
+    except Exception as e:
+        logger.warning("Failed to fetch accessible Plex servers: %s", e)
+        return []
+
+
+def search_music_on_server(server_res: dict, query: str):
+    """Search music on a specific Plex server resource."""
+    if settings.testing:
+        results = search_music(query)
+        for r in results:
+            r["server_id"] = server_res.get("server_id", "mock-server")
+            r["server_name"] = server_res.get("name", "Mock Server")
+        return results
+
+    try:
+        from plexapi.server import PlexServer
+        target_url = server_res.get("server_url")
+        token = server_res.get("access_token") or settings.plex_token
+
+        if not target_url:
+            plex = get_plex_connection()
+            target_url = plex._baseurl
+            token = plex._token
+
+        target_plex = PlexServer(target_url, token, timeout=4)
+        music_lib = target_plex.library.section("Music")
+
+        artist_results = music_lib.search(query, libtype="artist")
+        album_results = music_lib.search(query, libtype="album")
+        track_results = music_lib.search(query, libtype="track")
+
+        formatted = []
+        for item in artist_results:
+            formatted.append({
+                "name": item.title,
+                "type": item.type,
+                "artist_id": item.ratingKey,
+                "server_id": server_res.get("server_id"),
+                "server_name": server_res.get("name"),
+            })
+        for item in album_results:
+            formatted.append({
+                "title": item.title,
+                "type": item.type,
+                "album_id": item.ratingKey,
+                "artist": getattr(item, "parentTitle", ""),
+                "server_id": server_res.get("server_id"),
+                "server_name": server_res.get("name"),
+            })
+        for item in track_results:
+            formatted.append({
+                "title": item.title,
+                "type": item.type,
+                "track_id": item.ratingKey,
+                "duration": milliseconds_to_seconds(item.duration) if item.duration else 0,
+                "artist": getattr(item, "grandparentTitle", ""),
+                "album": getattr(item, "parentTitle", ""),
+                "server_id": server_res.get("server_id"),
+                "server_name": server_res.get("name"),
+            })
+        return formatted
+    except Exception as e:
+        logger.warning("Error searching server %s: %s", server_res.get("name"), e)
+        return []

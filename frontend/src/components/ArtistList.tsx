@@ -125,10 +125,10 @@ function ArtistList({
     return `${mins}:${remainingSecs < 10 ? "0" : ""}${remainingSecs}`;
   };
 
-  const addToQueue = async (trackId: number) => {
+  const addToQueue = async (trackId: number, serverId?: string, serverName?: string) => {
     try {
       const queueUrl = `${apiBase}/api/music/queue/${trackId}`;
-      await axios.post(queueUrl);
+      await axios.post(queueUrl, { server_id: serverId, server_name: serverName });
       showSnackbar("Track added to queue!", "success");
     } catch (error: any) {
       if (error.response && error.response.status === 400) {
@@ -327,8 +327,21 @@ function ArtistList({
                     }}
                   >
                     <div style={{ display: "flex", flexDirection: "column", gap: "2px", minWidth: 0, textAlign: "left" }}>
-                      <Typography style={{ color: "white", fontFamily: "var(--font-title)", fontWeight: 700, fontSize: "0.95rem", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      <Typography style={{ color: "white", fontFamily: "var(--font-title)", fontWeight: 700, fontSize: "0.95rem", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", display: "flex", alignItems: "center", gap: "8px" }}>
                         {track.title}
+                        {track.server_name && (
+                          <span style={{
+                            fontSize: "10px",
+                            background: "rgba(245, 166, 35, 0.15)",
+                            border: "1px solid rgba(245, 166, 35, 0.4)",
+                            color: "#f5a623",
+                            padding: "2px 6px",
+                            borderRadius: "10px",
+                            fontWeight: 600,
+                          }}>
+                            {track.server_name}
+                          </span>
+                        )}
                       </Typography>
                       <Typography style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "0.75rem", fontFamily: "var(--font-body)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                         {track.artist} • {track.album}
@@ -340,7 +353,7 @@ function ArtistList({
                       </Typography>
                       <Button
                         variant="contained"
-                        onClick={() => addToQueue(track.track_id)}
+                        onClick={() => addToQueue(track.track_id, track.server_id, track.server_name)}
                         style={{
                           background: "var(--color-primary)",
                           color: "#0e0e0f",

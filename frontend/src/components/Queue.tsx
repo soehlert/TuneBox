@@ -108,8 +108,24 @@ const QueueComponent = () => {
                 ) : null}
                 <Box className="queue-item-art-placeholder" style={{ display: track.item_id ? "none" : "flex" }}>🎵</Box>
                 <Box className="queue-item-meta">
-                  <Typography className="queue-item-title">
+                  <Typography className="queue-item-title" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                     {track.title}
+                    {track.server_name && (
+                      <span
+                        style={{
+                          fontSize: "9px",
+                          background: "rgba(245, 166, 35, 0.2)",
+                          border: "1px solid rgba(245, 166, 35, 0.4)",
+                          color: "#f5a623",
+                          padding: "1px 5px",
+                          borderRadius: "8px",
+                          fontWeight: 600,
+                          lineHeight: 1.2,
+                        }}
+                      >
+                        {track.server_name}
+                      </span>
+                    )}
                   </Typography>
                   <Typography className="queue-item-artist">
                     {track.artist}

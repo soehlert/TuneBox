@@ -1,12 +1,15 @@
 """Define our routes for music based API endpoints."""
 
+import asyncio
 import logging
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, Response
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 from plexapi.exceptions import PlexApiException
 
 from backend.services.plex import (
+    fetch_accessible_plex_servers,
     fetch_albums_for_artist,
     fetch_all_artists,
     fetch_art,
@@ -17,6 +20,7 @@ from backend.services.plex import (
     get_track,
     play_queue_on_device,
     search_music,
+    search_music_on_server,
     stop_playback,
     skip_current_track,
 )
@@ -33,17 +37,47 @@ router = APIRouter(prefix="/api/music", tags=["Music"])
 logger = logging.getLogger(__name__)
 
 
+class QueueAddRequest(BaseModel):
+    server_id: str | None = None
+    server_name: str | None = None
+
+
 @router.post("/queue/{item_id}")
-async def add_to_queue(item_id: int, background_tasks: BackgroundTasks):
-    """Add an item to the playback queue in Redis.
+async def add_to_queue(
+    item_id: int,
+    background_tasks: BackgroundTasks,
+    payload: QueueAddRequest | None = None,
+):
+    """Add an item to the playback queue in Redis with optional server connection info.
 
     Returns:
         A message that says we added to the queue.
     """
     try:
-        song = get_track(item_id)
+        server_id = payload.server_id if payload else None
+        server_name = payload.server_name if payload else None
 
-        add_to_queue_redis(song)
+        if server_id and not settings.testing:
+            all_servers = fetch_accessible_plex_servers()
+            target_res = next((s for s in all_servers if s["server_id"] == server_id), None)
+            if target_res and target_res.get("server_url"):
+                from plexapi.server import PlexServer
+                t_token = target_res.get("access_token") or settings.plex_token
+                t_plex = PlexServer(target_res["server_url"], t_token, timeout=5)
+                song = t_plex.fetchItem(item_id)
+                add_to_queue_redis(
+                    song,
+                    server_id=server_id,
+                    server_name=server_name or target_res.get("name"),
+                    server_token=t_token,
+                    server_address=target_res.get("server_url"),
+                )
+            else:
+                song = get_track(item_id)
+                add_to_queue_redis(song, server_id=server_id, server_name=server_name)
+        else:
+            song = get_track(item_id)
+            add_to_queue_redis(song, server_id=server_id, server_name=server_name)
 
         background_tasks.add_task(send_queue)
 
@@ -108,6 +142,8 @@ def get_playback_queue():
                 "artist": item.get("artist", "Unknown Artist"),
                 "duration": item.get("duration", "0:00"),
                 "album_art": item.get("album_art", None),
+                "server_id": item.get("server_id"),
+                "server_name": item.get("server_name"),
             }
             for item in queue
         ]
@@ -232,6 +268,47 @@ def search_music_endpoint(query: str):
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Error searching music library: {e}"
+        ) from e
+
+
+@router.get("/servers")
+def get_accessible_servers():
+    """Fetch all Plex Media Servers accessible to the user account."""
+    try:
+        return fetch_accessible_plex_servers()
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error fetching accessible servers: {e}"
+        ) from e
+
+
+@router.get("/unified-search")
+async def unified_search_endpoint(query: str, server_ids: str | None = None):
+    """Search for music across multiple selected Plex servers concurrently."""
+    try:
+        all_servers = fetch_accessible_plex_servers()
+        if not all_servers:
+            return search_music(query)
+
+        target_servers = all_servers
+        if server_ids:
+            requested_ids = set(server_ids.split(","))
+            target_servers = [s for s in all_servers if s["server_id"] in requested_ids]
+            if not target_servers:
+                target_servers = all_servers
+
+        tasks = [asyncio.to_thread(search_music_on_server, s, query) for s in target_servers]
+        results_nested = await asyncio.gather(*tasks, return_exceptions=True)
+
+        combined_results = []
+        for res in results_nested:
+            if isinstance(res, list):
+                combined_results.extend(res)
+
+        return combined_results
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error executing unified search: {e}"
         ) from e
 
 

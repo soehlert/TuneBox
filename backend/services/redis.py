@@ -13,13 +13,14 @@ logger = logging.getLogger(__name__)
 CACHE_TTL = 21600
 
 
-def add_to_queue_redis(song):
-    """Add a song to the Redis queue."""
+def add_to_queue_redis(song, server_id=None, server_name=None, server_token=None, server_address=None):
+    """Add a song to the Redis queue with optional multi-server connection metadata."""
     if not is_track_object(song):
         msg = "Only songs can be added to the queue."
         raise ValueError(msg)
 
-    if is_song_in_queue(song):
+    target_server_id = server_id or getattr(song, "server_id", None)
+    if is_song_in_queue(song, server_id=target_server_id):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Song {song.title} is already in the queue.",
@@ -31,11 +32,15 @@ def add_to_queue_redis(song):
         "artist": getattr(song, "grandparentTitle", "Unknown Artist"),
         "duration": song.duration,
         "album_art": song.thumb if hasattr(song, "thumb") else None,
+        "server_id": target_server_id,
+        "server_name": server_name or getattr(song, "server_name", None),
+        "server_token": server_token or getattr(song, "server_token", None),
+        "server_address": server_address or getattr(song, "server_address", None),
     }
 
     # Store the song as a JSON object in Redis
     get_redis_queue_client().rpush("playback_queue", json.dumps(song_data))
-    logger.info("Added %s to the Redis playback queue.", song.title)
+    logger.info("Added %s (server: %s) to Redis playback queue.", song.title, song_data.get("server_name") or "primary")
 
 
 def remove_from_redis_queue(item_id):
