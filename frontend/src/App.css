@@ -433,9 +433,9 @@
   position: absolute;
   top: calc(100% + 8px);
   left: 0;
-  right: auto;
+  right: 0;
   width: 100%;
-  min-width: 250px;
+  min-width: 0;
   background: #2a0d52;
   border: 1px solid rgba(255, 255, 255, 0.25);
   border-radius: 14px;
@@ -499,8 +499,11 @@
     margin-right: 2px;
   }
 
-  .server-indicator-badge {
-    display: none !important;
+  .server-indicator-badge span.server-name-text {
+    max-width: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .navbar-right {
