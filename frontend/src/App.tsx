@@ -1547,34 +1547,6 @@ function App() {
               <img src={TuneBoxLogo} alt="TuneBox Logo" className="logo" />
             </Link>
 
-            {/* Server Connection Indicator */}
-            {isConfigured && (
-              <div
-                className="server-indicator-badge"
-                onClick={() => setShowServerModal(true)}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  padding: "4px 10px",
-                  background: "rgba(255, 255, 255, 0.07)",
-                  border: "1px solid rgba(255, 255, 255, 0.15)",
-                  borderRadius: "16px",
-                  fontSize: "11px",
-                  fontWeight: 600,
-                  color: "rgba(255, 255, 255, 0.75)",
-                  whiteSpace: "nowrap",
-                  cursor: "pointer",
-                }}
-                title="Click to view connected Plex server name"
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: "14px", color: "#5cdd5c" }}>dns</span>
-                <span className="server-name-text">
-                  {accessibleServers.find((s) => s.is_primary)?.name || "Plex Server"}
-                </span>
-              </div>
-            )}
-
             <div className="navbar-right">
               {/* Search Box in Navbar */}
               <div
@@ -1606,71 +1578,42 @@ function App() {
                   }}
                 />
                 {accessibleServers.length > 1 && (
-                  <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-                    <button
-                      type="button"
-                      onClick={() => setShowServerMenu(!showServerMenu)}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        color: selectedServerIds.length > 1 ? "#f5a623" : "rgba(255,255,255,0.4)",
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        padding: "4px",
-                        marginRight: "4px",
-                        transition: "color 0.2s",
-                      }}
-                      title="Select servers to search"
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>dns</span>
-                    </button>
-                    {showServerMenu && isMobile &&
-                      createPortal(
-                        <div className="server-dropdown-overlay" onClick={() => setShowServerMenu(false)}>
-                          <div className="server-dropdown-menu" onClick={(e) => e.stopPropagation()}>
-                            <div className="server-dropdown-header">
-                              <span>SEARCH LIBRARIES</span>
-                              <button
-                                type="button"
-                                className="server-dropdown-close-btn"
-                                onClick={() => setShowServerMenu(false)}
-                              >
-                                ✕
-                              </button>
-                            </div>
-                            {accessibleServers.map((s) => {
-                              const isChecked = selectedServerIds.includes(s.server_id);
-                              return (
-                                <label key={s.server_id} className="server-dropdown-item">
-                                  <input
-                                    type="checkbox"
-                                    checked={isChecked}
-                                    onChange={() => {
-                                      if (isChecked) {
-                                        if (selectedServerIds.length > 1) {
-                                          setSelectedServerIds(selectedServerIds.filter((id) => id !== s.server_id));
-                                        }
-                                      } else {
-                                        setSelectedServerIds([...selectedServerIds, s.server_id]);
-                                      }
-                                    }}
-                                  />
-                                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                    {s.name} {s.is_primary ? "(Home)" : ""}
-                                  </span>
-                                </label>
-                              );
-                            })}
-                          </div>
-                        </div>,
-                        document.body
-                      )
-                    }
-                    {showServerMenu && !isMobile && (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowServerMenu(!showServerMenu);
+                    }}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      color: selectedServerIds.length > 1 ? "#f5a623" : "rgba(255,255,255,0.4)",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      padding: "4px",
+                      marginRight: "4px",
+                      transition: "color 0.2s",
+                      flexShrink: 0,
+                    }}
+                    title="Select servers to search"
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>dns</span>
+                  </button>
+                )}
+                {showServerMenu && isMobile &&
+                  createPortal(
+                    <div className="server-dropdown-overlay" onClick={() => setShowServerMenu(false)}>
                       <div className="server-dropdown-menu" onClick={(e) => e.stopPropagation()}>
                         <div className="server-dropdown-header">
                           <span>SEARCH LIBRARIES</span>
+                          <button
+                            type="button"
+                            className="server-dropdown-close-btn"
+                            onClick={() => setShowServerMenu(false)}
+                          >
+                            ✕
+                          </button>
                         </div>
                         {accessibleServers.map((s) => {
                           const isChecked = selectedServerIds.includes(s.server_id);
@@ -1696,7 +1639,38 @@ function App() {
                           );
                         })}
                       </div>
-                    )}
+                    </div>,
+                    document.body
+                  )
+                }
+                {showServerMenu && !isMobile && (
+                  <div className="server-dropdown-menu" onClick={(e) => e.stopPropagation()}>
+                    <div className="server-dropdown-header">
+                      <span>SEARCH LIBRARIES</span>
+                    </div>
+                    {accessibleServers.map((s) => {
+                      const isChecked = selectedServerIds.includes(s.server_id);
+                      return (
+                        <label key={s.server_id} className="server-dropdown-item">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {
+                              if (isChecked) {
+                                if (selectedServerIds.length > 1) {
+                                  setSelectedServerIds(selectedServerIds.filter((id) => id !== s.server_id));
+                                }
+                              } else {
+                                setSelectedServerIds([...selectedServerIds, s.server_id]);
+                              }
+                            }}
+                          />
+                          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {s.name} {s.is_primary ? "(Home)" : ""}
+                          </span>
+                        </label>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -1860,6 +1834,8 @@ function App() {
             <MusicControls
               instanceName={instanceName}
               onOpenMobileQueue={() => setIsMobileQueueOpen(!isMobileQueueOpen)}
+              onOpenServerModal={() => setShowServerModal(true)}
+              primaryServerName={accessibleServers.find((s) => s.is_primary)?.name || (accessibleServers.length > 0 ? accessibleServers[0].name : "Plex Server")}
             />
           </footer>
 

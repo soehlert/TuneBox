@@ -9,9 +9,13 @@ import "./MusicControls.css";
 const MusicControlsComponent = ({
   instanceName,
   onOpenMobileQueue,
+  primaryServerName,
+  onOpenServerModal,
 }: {
   instanceName?: string;
   onOpenMobileQueue?: () => void;
+  primaryServerName?: string;
+  onOpenServerModal?: () => void;
 }) => {
   const [currentTrack, setCurrentTrack] = useState<any>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
@@ -250,6 +254,33 @@ const MusicControlsComponent = ({
 
         {/* Right Section: Device indicators & Settings / Queue */}
         <Box className="player-right-section" style={{ justifyContent: "flex-end", alignItems: "center" }}>
+          {primaryServerName && onOpenServerModal && (
+            <div
+              className="server-indicator-badge"
+              onClick={onOpenServerModal}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "4px 10px",
+                background: "rgba(255, 255, 255, 0.07)",
+                border: "1px solid rgba(255, 255, 255, 0.15)",
+                borderRadius: "16px",
+                fontSize: "11px",
+                fontWeight: 600,
+                color: "rgba(255, 255, 255, 0.75)",
+                whiteSpace: "nowrap",
+                cursor: "pointer",
+                marginRight: "8px",
+              }}
+              title="Click to view connected Plex server details"
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: "14px", color: "#5cdd5c" }}>dns</span>
+              <span className="server-name-text">
+                {primaryServerName}
+              </span>
+            </div>
+          )}
           <Box className="player-device-group">
             <DevicesIcon className="player-utility-icon" />
             <Typography className="player-device-text">{instanceName || "TuneBox Jukebox"}</Typography>
