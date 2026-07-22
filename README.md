@@ -39,7 +39,7 @@ Get TuneBox up and running on your local network using Docker Compose:
    ```
 
 3. **Open TuneBox:**
-   Navigate to `http://localhost` (or your server's local IP address) in any web browser. You will be greeted by the **Setup Wizard** to link your Plex Media Server and select your active playback player.
+   Navigate to `http://localhost` (or your server's IP address) in any web browser. You will be greeted by the **Setup Wizard** to link your Plex Media Server and select your active playback player.
 
 ---
 
@@ -57,7 +57,7 @@ For in-depth details on system architecture, custom deployment setups, developme
 
 ## 🤖 Attribution & Credits
 
-> **Note**: The architecture, user experience, and design of this project were directed and architected by the project maintainer, with extensive implementation assistance from an AI/LLM coding assistant.
+> **Note**: The architecture, user experience, and design of this project were directed and architected by the project maintainer, with implementation assistance from an AI/LLM coding assistant.
 
 ---
 
