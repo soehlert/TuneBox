@@ -8,7 +8,8 @@
 
 ## ✨ Features
 
-- 🎧 **Direct Plex Library Access**: Streams and indexes music directly from your existing Plex Media Server library
+- 🎧 **Plex Music Library Backend**: Streams and indexes music directly from your existing Plex Media Server library or others you have access to
+- 🔀 **Cross-Server Unified Queue**: Seamlessly build a single party queue with tracks pulled from multiple different Plex servers at the same time
 - 🌐 **Multi-Server Unified Search**: Search across multiple home and shared Plex Media Servers simultaneously with server selection search settings
 - 📱 **Guest Access via QR Code**: Guests scan a QR code at your party to browse music and queue tracks instantly—no app installation or accounts required
 - ⚡ **Real-Time Queue Synchronization**: Everyone's device stays in sync. Changes to the queue, current track progress, and playback state update instantly across all connected instances
