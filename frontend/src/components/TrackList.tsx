@@ -151,8 +151,7 @@ function TrackList() {
         open={snackbarOpen}
         autoHideDuration={1500}
         onClose={() => setSnackbarOpen(false)}
-        anchorOrigin={{ vertical: "top", horizontal: "left" }}
-        style={{ top: "80px", left: "88px", zIndex: 99999 }}
+        className="queue-toast-snackbar"
       >
         <Alert
           onClose={() => setSnackbarOpen(false)}
