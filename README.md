@@ -18,6 +18,30 @@
 
 ---
 
+## 📷 Screenshots
+
+### 🎵 Main Jukebox & Queue
+![Main Jukebox & Queue](docs/images/jukebox_queue.png)
+*Browse artists, search across Plex libraries, view active party queue, and control playback.*
+
+### 💿 Artist Albums (Led Zeppelin)
+![Led Zeppelin Albums](docs/images/led_zeppelin_albums.png)
+*Explore complete discographies with high-resolution album artwork.*
+
+### 🎶 Album Track List (Led Zeppelin II)
+![Led Zeppelin II Track List](docs/images/led_zeppelin_ii_tracks.png)
+*View album tracks, song durations, and quickly add tracks to the shared party queue.*
+
+### 📱 Guest Access & QR Code Sharing
+![Guest QR Code Access](docs/images/guest_qr_modal.png)
+*Scan the QR code to instantly join the party jukebox session without account sign-in.*
+
+### 🔐 Setup Wizard
+![Setup Wizard](docs/images/setup_wizard.png)
+*Streamlined first-run wizard to connect Plex Media Server and select playback devices.*
+
+---
+
 ## 🚀 Quickstart
 
 Get TuneBox up and running on your local network using Docker Compose:
