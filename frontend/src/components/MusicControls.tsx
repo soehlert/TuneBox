@@ -3,6 +3,7 @@ import { Box, Typography, LinearProgress, IconButton } from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import PauseIcon from '@mui/icons-material/Pause';
 import DevicesIcon from '@mui/icons-material/Devices';
+import { FallbackImage } from './FallbackImage';
 import "./MusicControls.css";
 
 const MusicControlsComponent = ({
@@ -168,19 +169,12 @@ const MusicControlsComponent = ({
         <Box className="player-left-section">
           {currentTrack ? (
             <>
-              {currentTrack.item_id ? (
-                <img
-                  src={`${apiBase}/api/music/track-art/${currentTrack.item_id}`}
-                  alt={currentTrack.title}
-                  className="player-album-art"
-                  onError={(e) => {
-                    e.currentTarget.style.display = "none";
-                    const sibling = e.currentTarget.nextElementSibling as HTMLElement;
-                    if (sibling) sibling.style.display = "flex";
-                  }}
-                />
-              ) : null}
-              <Box className="player-album-art-placeholder" style={{ display: currentTrack.item_id ? "none" : "flex" }}>🎵</Box>
+              <FallbackImage
+                src={currentTrack.item_id ? `${apiBase}/api/music/track-art/${currentTrack.item_id}` : ""}
+                alt={currentTrack.title}
+                type="album"
+                className="player-album-art"
+              />
               <Box className="player-song-details">
                 <Typography className="player-song-title">
                   {currentTrack.title}

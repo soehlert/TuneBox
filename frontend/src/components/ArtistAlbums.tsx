@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { Card, Typography } from "@mui/material";
+import { FallbackImage } from "./FallbackImage";
 import "../App.css";
 import "./ArtistAlbums.css";
 
@@ -54,9 +55,10 @@ function ArtistAlbums() {
               onClick={() => navigate(`/albums/${album.album_id}/tracks`)}
               className="album-card"
             >
-              <img
+              <FallbackImage
                 src={`${apiBase}/api/music/album-art/${album.album_id}`}
                 alt={album.title}
+                type="album"
                 className="album-cover"
               />
               <div className="album-card-overlay">

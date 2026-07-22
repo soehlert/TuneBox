@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios, { AxiosError } from "axios";
 import { Button, Card, Typography, Snackbar, Alert } from "@mui/material";
+import { FallbackImage } from "./FallbackImage";
 import "./TrackList.css";
 
 interface Track {
@@ -96,9 +97,10 @@ function TrackList() {
               <Typography className="page-subtitle">Queue songs to the Jukebox</Typography>
             </header>
               {(
-                <img
+                <FallbackImage
                   src={`${apiBase}/api/music/album-art/${albumId}`}
                   alt={albumData.album_title}
+                  type="album"
                   className="album-banner"
                 />
               )}

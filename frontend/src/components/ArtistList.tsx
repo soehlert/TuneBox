@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, Typography, Button, Snackbar, Alert } from "@mui/material"; // MUI components
+import { FallbackImage } from "./FallbackImage";
 import axios from "axios";
 import "../App.css";
 import "./ArtistList.css";
@@ -142,9 +143,10 @@ function ArtistList({
                     id={`artist-${artist.artist_id}`}
                     onClick={() => handleArtistClick(artist.artist_id)}
                   >
-                    <img
+                    <FallbackImage
                       src={`${apiBase}/api/music/artist-image/${artist.artist_id}`}
                       alt={artist.name}
+                      type="artist"
                       className="artist-photo"
                     />
                     <div className="artist-card-overlay">
@@ -180,9 +182,10 @@ function ArtistList({
                       overflow: "hidden"
                     }}
                   >
-                    <img
+                    <FallbackImage
                       src={`${apiBase}/api/music/album-art/${album.album_id}`}
                       alt={album.title}
+                      type="album"
                       style={{
                         width: "100%",
                         height: "100%",
@@ -296,9 +299,10 @@ function ArtistList({
                 id={`artist-${artist.artist_id}`}
                 onClick={() => handleArtistClick(artist.artist_id)}
               >
-                <img
+                <FallbackImage
                   src={`${apiBase}/api/music/artist-image/${artist.artist_id}`}
                   alt={artist.name}
+                  type="artist"
                   className="artist-photo"
                 />
                 <div className="artist-card-overlay">
