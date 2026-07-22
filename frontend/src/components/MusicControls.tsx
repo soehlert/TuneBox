@@ -7,13 +7,9 @@ import "./MusicControls.css";
 
 const MusicControlsComponent = ({
   instanceName,
-  isAdmin,
-  onOpenSettings,
   onOpenMobileQueue,
 }: {
   instanceName?: string;
-  isAdmin?: boolean;
-  onOpenSettings?: () => void;
   onOpenMobileQueue?: () => void;
 }) => {
   const [currentTrack, setCurrentTrack] = useState<any>(null);
@@ -288,32 +284,6 @@ const MusicControlsComponent = ({
               }}
             >
               <span className="material-symbols-outlined" style={{ fontSize: "22px" }}>queue_music</span>
-            </button>
-          )}
-          {isAdmin && onOpenSettings && (
-            <button
-              onClick={onOpenSettings}
-              className="player-settings-btn"
-              title="Settings"
-              style={{
-                background: "transparent",
-                border: "none",
-                color: "rgba(255, 255, 255, 0.6)",
-                padding: "6px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                cursor: "pointer",
-                transition: "color 0.2s",
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.color = "var(--color-primary)";
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.color = "rgba(255, 255, 255, 0.6)";
-              }}
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: "20px" }}>settings</span>
             </button>
           )}
         </Box>

@@ -64,6 +64,7 @@
   height: 32px;
   width: auto;
   flex-shrink: 0;
+  margin-right: 16px;
 }
 
 .navbar-right {

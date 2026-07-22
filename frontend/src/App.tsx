@@ -1669,8 +1669,6 @@ function App() {
           <footer className="player-footer">
             <MusicControls
               instanceName={instanceName}
-              isAdmin={isAdmin}
-              onOpenSettings={() => setShowSettings(true)}
               onOpenMobileQueue={() => setIsMobileQueueOpen(!isMobileQueueOpen)}
             />
           </footer>
