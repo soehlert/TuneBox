@@ -8,6 +8,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from plexapi.exceptions import PlexApiException
 
+from backend.config import settings
 from backend.services.plex import (
     fetch_accessible_plex_servers,
     fetch_albums_for_artist,

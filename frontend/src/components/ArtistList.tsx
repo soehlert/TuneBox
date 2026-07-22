@@ -467,7 +467,7 @@ function ArtistList({
       {/* Snackbar Alert for Track Queueing */}
       <Snackbar
         open={snackbarOpen}
-        autoHideDuration={3000}
+        autoHideDuration={1500}
         onClose={() => setSnackbarOpen(false)}
         anchorOrigin={{ vertical: "top", horizontal: "center" }}
         style={{ top: "80px", zIndex: 99999 }}
