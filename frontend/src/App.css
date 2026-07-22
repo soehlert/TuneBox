@@ -417,4 +417,41 @@
   justify-content: center;
 }
 
+/* Mobile & Small Screen Navbar Responsive Styles */
+@media (max-width: 768px) {
+  .navbar {
+    padding: 0 10px;
+    gap: 6px;
+  }
+
+  .logo {
+    height: 24px;
+    margin-right: 2px;
+  }
+
+  .server-indicator-badge span.server-name-text {
+    display: none;
+  }
+
+  .navbar-right {
+    gap: 6px;
+    flex-grow: 1;
+    justify-content: flex-end;
+    min-width: 0;
+  }
+
+  .navbar-search-container {
+    padding: 4px 8px;
+    width: auto;
+    flex: 1;
+    min-width: 100px;
+  }
+
+  .navbar-search-input {
+    font-size: 0.8rem;
+    margin-left: 4px;
+    min-width: 30px;
+  }
+}
+
 

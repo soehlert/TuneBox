@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Routes, Route, Link, useNavigate, useLocation } from "react-router-dom";
 import { ThemeProvider } from "@mui/material/styles";
 import axios from "axios";
@@ -1149,6 +1149,7 @@ function App() {
   const [accessibleServers, setAccessibleServers] = useState<any[]>([]);
   const [selectedServerIds, setSelectedServerIds] = useState<string[]>([]);
   const [showServerMenu, setShowServerMenu] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch accessible Plex servers
   useEffect(() => {
@@ -1520,6 +1521,7 @@ function App() {
             {/* Server Connection Indicator */}
             {isConfigured && (
               <div
+                className="server-indicator-badge"
                 style={{
                   display: "flex",
                   alignItems: "center",
@@ -1536,7 +1538,7 @@ function App() {
                 title="Currently connected Plex server"
               >
                 <span className="material-symbols-outlined" style={{ fontSize: "14px", color: "#5cdd5c" }}>dns</span>
-                <span>
+                <span className="server-name-text">
                   {accessibleServers.find((s) => s.is_primary)?.name || "Plex Server"}
                 </span>
               </div>
@@ -1544,9 +1546,22 @@ function App() {
 
             <div className="navbar-right">
               {/* Search Box in Navbar */}
-              <div className="navbar-search-container">
-                <span className="material-symbols-outlined" style={{ fontSize: "20px", color: "rgba(255,255,255,0.4)" }}>search</span>
+              <div
+                className="navbar-search-container"
+                onClick={() => searchInputRef.current?.focus()}
+              >
+                <span
+                  className="material-symbols-outlined"
+                  style={{ fontSize: "20px", color: "rgba(255,255,255,0.4)", cursor: "pointer", flexShrink: 0 }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    searchInputRef.current?.focus();
+                  }}
+                >
+                  search
+                </span>
                 <input
+                  ref={searchInputRef}
                   type="text"
                   className="navbar-search-input"
                   placeholder="Search Jukebox..."

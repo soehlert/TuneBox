@@ -226,8 +226,24 @@ function ArtistList({
                       type="artist"
                       className="artist-photo"
                     />
-                    <div className="artist-card-overlay">
+                    <div className="artist-card-overlay" style={{ flexDirection: "column", gap: "4px", padding: "12px 8px" }}>
                       <Typography className="artist-card-name">{artist.name}</Typography>
+                      {artist.server_name && (
+                        <span
+                          style={{
+                            fontSize: "10px",
+                            background: "rgba(245, 166, 35, 0.2)",
+                            border: "1px solid rgba(245, 166, 35, 0.4)",
+                            color: "#f5a623",
+                            padding: "1px 6px",
+                            borderRadius: "10px",
+                            fontWeight: 600,
+                            lineHeight: 1.2,
+                          }}
+                        >
+                          {artist.server_name}
+                        </span>
+                      )}
                     </div>
                   </Card>
                 ))}
@@ -274,28 +290,46 @@ function ArtistList({
                       bottom: 0,
                       left: 0,
                       right: 0,
-                      height: "50%",
-                      background: "linear-gradient(to top, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.3) 65%, transparent 100%)",
+                      height: "55%",
+                      background: "linear-gradient(to top, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.35) 70%, transparent 100%)",
                       display: "flex",
                       alignItems: "flex-end",
                       justifyContent: "center",
-                      padding: "12px",
+                      padding: "10px 8px",
                       boxSizing: "border-box"
                     }}>
-                      <Typography style={{
-                        fontFamily: "var(--font-title)",
-                        fontSize: "0.9rem",
-                        color: "white",
-                        fontWeight: 700,
-                        textAlign: "center",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textShadow: "0 0 10px rgba(0,0,0,0.5)",
-                        textOverflow: "ellipsis",
-                        width: "100%"
-                      }}>
-                        {album.title}
-                      </Typography>
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%", gap: "2px" }}>
+                        <Typography style={{
+                          fontFamily: "var(--font-title)",
+                          fontSize: "0.85rem",
+                          color: "white",
+                          fontWeight: 700,
+                          textAlign: "center",
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textShadow: "0 0 10px rgba(0,0,0,0.5)",
+                          textOverflow: "ellipsis",
+                          width: "100%"
+                        }}>
+                          {album.title}
+                        </Typography>
+                        {album.server_name && (
+                          <span
+                            style={{
+                              fontSize: "9px",
+                              background: "rgba(245, 166, 35, 0.2)",
+                              border: "1px solid rgba(245, 166, 35, 0.4)",
+                              color: "#f5a623",
+                              padding: "1px 5px",
+                              borderRadius: "8px",
+                              fontWeight: 600,
+                              lineHeight: 1.2,
+                            }}
+                          >
+                            {album.server_name}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </Card>
                 ))}
