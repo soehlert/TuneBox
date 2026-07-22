@@ -433,7 +433,7 @@
   position: absolute;
   top: calc(100% + 8px);
   left: 0;
-  right: 0;
+  right: auto;
   width: 100%;
   min-width: 250px;
   background: #2a0d52;
@@ -499,8 +499,8 @@
     margin-right: 2px;
   }
 
-  .server-indicator-badge span.server-name-text {
-    display: none;
+  .server-indicator-badge {
+    display: none !important;
   }
 
   .navbar-right {
@@ -533,11 +533,12 @@
     background: rgba(0, 0, 0, 0.65);
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
-    z-index: 10000;
+    z-index: 99999;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 20px;
+    padding: 24px;
+    box-sizing: border-box;
   }
 
   .server-dropdown-menu {
@@ -547,7 +548,8 @@
     right: auto;
     width: 100%;
     max-width: 320px;
-    margin: 0 auto;
+    max-height: 80vh;
+    margin: auto;
     border-radius: 16px;
     box-shadow: 0 20px 50px rgba(0, 0, 0, 0.85);
   }
