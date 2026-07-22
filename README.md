@@ -37,11 +37,11 @@
 ![Artist List & Guest QR Code](./docs/images/guest_qr_access.png)
 *Browse music artists and scan the QR code on the central display screen to join the session instantly.*
 
-### 💿 Artist Albums (Led Zeppelin)
+### 💿 Artist Albums
 ![Led Zeppelin Albums](./docs/images/led_zeppelin_albums.png)
 *Explore complete artist discographies with high-resolution album artwork.*
 
-### 🎶 Album Track List & Player Queue (Led Zeppelin IV)
+### 🎶 Album Track List & Player Queue
 ![Led Zeppelin Tracks & Player](./docs/images/led_zeppelin_tracks.png)
 *View album track listings, queue songs to TuneBox, and monitor active playback.*
 
