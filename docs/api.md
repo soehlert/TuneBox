@@ -19,6 +19,7 @@ Checks whether TuneBox has been configured with valid Plex credentials.
     "username": "host_user",
     "plex_server_name": "MyPlexServer",
     "client_name": "MyClient",
+    "instance_name": "TuneBox",
     "is_configured": true,
     "testing": false
   }
@@ -247,6 +248,49 @@ Submits a vote to skip the currently playing track.
     "votes_current": 3,
     "votes_required": 5,
     "skipped": false
+  }
+  ```
+
+### Stats Endpoints (`/api/stats`)
+
+#### `GET /api/stats`
+Retrieves sorted lists of session and all-time leaderboard rankings.
+- **Response `200 OK`**:
+  ```json
+  {
+    "session": {
+      "adds": [
+        { "username": "guest1", "count": 4, "role": "guest" }
+      ],
+      "skips_cast": [
+        { "username": "guest2", "count": 2, "role": "guest" }
+      ],
+      "skips_received": [
+        { "username": "guest3", "count": 1, "role": "guest" }
+      ]
+    },
+    "all_time": {
+      "adds": [
+        { "username": "guest1", "count": 12, "role": "guest" }
+      ],
+      "skips_cast": [
+        { "username": "guest2", "count": 8, "role": "guest" }
+      ],
+      "skips_received": [
+        { "username": "guest3", "count": 3, "role": "guest" }
+      ]
+    }
+  }
+  ```
+
+#### `POST /api/stats/reset`
+Wipes the active party session leaderboard metrics in Redis (restricted to admin).
+- **Headers**:
+  - `X-Admin-Token` *(required, string)*: Valid host admin token.
+- **Response `200 OK`**:
+  ```json
+  {
+    "message": "Session stats successfully reset."
   }
   ```
 

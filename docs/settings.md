@@ -44,13 +44,18 @@ Clicking the **Settings Gear Button** (⚙) on the right side of the **bottom pl
 ### 4. Plex Media Server
 - **Description**: Dropdown selecting which linked Plex Media Server TuneBox queries for music tracks, albums, artists, and artwork.
 
-### 5. Connected Guest Devices Manager
-- **Description**: Live list of all devices (phones, tablets, displays) currently connected to the jukebox via WebSockets.
+### 5. Connected Users Manager
+- **Description**: Live list of all guest usernames currently connected to TuneBox.
 - **Features**:
-  - **Rename Device**: Assign friendly names to connected devices (e.g., rename *"Device-82f"* to *"Alex's Phone"*).
-  - **Set / Unset Display Device**: Designates a device as a **Display Device**, displaying the QR code prominently while remaining a fully functional TuneBox interface for browsing and queueing.
-  - **Disconnect Device**: Forcefully disconnects a guest session.
+  * **Change Username**: Allows the host/admin to rename any user's display name nickname (e.g. rename *"device-82f"* to *"Alex"*).
+  * **Make Display**: Designates a user session as a **Shared Display**, showing the Jukebox interface prominently alongside the guest join QR code.
+  * **Disconnect User**: Forcefully terminates a guest session.
 
-### 6. Clear Playback Queue
+### 6. TuneBox Party Stats & Leaderboard Link
+- **Description**: Direct access link to view the party's full-screen live leaderboard dashboard.
+- **Features**: Displays live rankings of Top Requestors, Skip Happy users, and Vibe Killers, switchable between the active session and all-time history.
+
+### 7. Clear Playback Queue
 - **Description**: An administrative action button to wipe all upcoming queued tracks.
-- **Note**: The queue (`Queue.tsx`) is an **"Up Next" read-only list**. There is no drag-and-drop reordering or individual track deletion in the queue UI; admins use **Clear Queue** to flush the queue when needed.
+- **Note**: The queue is an **"Up Next" list** where guests can monitor upcoming songs. Admins use **Clear Queue** to flush the queue when needed.
+
