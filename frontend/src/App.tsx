@@ -1232,45 +1232,39 @@ function UserBadge({ profile, onLeave, onEditName }: { profile: GuestProfile; on
       style={{
         display: "flex",
         alignItems: "center",
-        gap: "10px",
+        gap: "6px",
         padding: "6px 12px",
-        background: "#1e1e1e",
+        background: "rgba(51, 118, 173, 0.15)",
+        border: "1px solid #3375A8",
         borderRadius: "20px",
-        border: "1px solid #333",
-        fontSize: "13px",
-        color: "#ccc",
+        fontSize: "12px",
+        fontWeight: "bold",
+        color: "#3375A8",
         flexShrink: 0,
         whiteSpace: "nowrap",
       }}
     >
       <div
         onClick={onEditName}
-        style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer" }}
-        title="Click to edit name"
+        style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}
+        title="Click to edit username"
       >
-        <span style={{ color: profile.role === "member" ? "#5cdd5c" : "#f5a623" }}>
-          {profile.role === "member" ? "✓" : "◉"}
-        </span>
-        <span style={{ fontWeight: 600 }}>{profile.name}</span>
-        {profile.role === "member" && (
-          <span style={{ fontSize: "10px", background: "#1a3a1a", color: "#5cdd5c", padding: "2px 6px", borderRadius: "10px", fontWeight: "bold" }}>
-            2× votes
-          </span>
-        )}
+        <span className="material-symbols-outlined" style={{ fontSize: "15px", color: "#3375A8" }}>person</span>
+        <span>{profile.name}</span>
       </div>
-      <span style={{ width: "1px", height: "12px", background: "rgba(255,255,255,0.15)" }}></span>
+      <span style={{ width: "1px", height: "12px", background: "rgba(51, 118, 173, 0.3)" }}></span>
       <span
         className="material-symbols-outlined"
         onClick={onLeave}
         style={{
           fontSize: "15px",
           cursor: "pointer",
-          color: "rgba(255, 255, 255, 0.4)",
+          color: "#3375A8",
           transition: "color 0.2s"
         }}
         onMouseOver={(e) => e.currentTarget.style.color = "#ff6b6b"}
-        onMouseOut={(e) => e.currentTarget.style.color = "rgba(255, 255, 255, 0.4)"}
-        title="Leave TuneBox"
+        onMouseOut={(e) => e.currentTarget.style.color = "#3375A8"}
+        title="Leave Session"
       >
         logout
       </span>

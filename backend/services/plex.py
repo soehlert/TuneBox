@@ -475,7 +475,10 @@ def generate_autoplay_tracks():
     candidates = list(unique_candidates.values())
     
     # Filter out tracks already in the history to avoid immediate duplicates
-    filtered_candidates = [c for c in candidates if int(c.ratingKey) not in history]
+    filtered_candidates = []
+    for c in candidates:
+        if str(c.ratingKey) not in [str(h) for h in history]:
+            filtered_candidates.append(c)
     
     # If we have no/few candidates, fall back to cached playlist tracks
     if len(filtered_candidates) < 10:
