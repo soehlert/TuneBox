@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.config import settings
-from backend.routers import auth, music
+from backend.routers import auth, music, stats
 from backend.websockets import router as websockets_router
 from backend.websockets import update_websocket_clients
 
@@ -63,6 +63,7 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(music.router)
+app.include_router(stats.router)
 app.include_router(websockets_router)
 
 

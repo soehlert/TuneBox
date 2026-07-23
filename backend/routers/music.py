@@ -46,6 +46,7 @@ logger = logging.getLogger(__name__)
 class QueueAddRequest(BaseModel):
     server_id: str | None = None
     server_name: str | None = None
+    username: str | None = None
 
 
 class AutoplayToggleRequest(BaseModel):
@@ -66,6 +67,7 @@ async def add_to_queue(
     try:
         server_id = payload.server_id if payload else None
         server_name = payload.server_name if payload else None
+        username = payload.username if payload else None
 
         t_plex = get_target_plex_connection(server_id)
         song = t_plex.fetchItem(item_id)
@@ -79,7 +81,12 @@ async def add_to_queue(
             server_name=server_name or (target_res.get("name") if target_res else None),
             server_token=target_res.get("access_token") if target_res else None,
             server_address=getattr(t_plex, "_baseurl", target_res.get("server_url") if target_res else None),
+            added_by=username,
         )
+
+        if username:
+            from backend.services.stats import increment_adds
+            increment_adds(username)
 
         background_tasks.add_task(send_queue)
 

@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 CACHE_TTL = 21600
 
 
-def add_to_queue_redis(song, server_id=None, server_name=None, server_token=None, server_address=None, is_fallback=False):
+def add_to_queue_redis(song, server_id=None, server_name=None, server_token=None, server_address=None, is_fallback=False, added_by=None):
     """Add a song to the Redis queue with optional multi-server connection metadata."""
     if not is_track_object(song):
         msg = "Only songs can be added to the queue."
@@ -59,6 +59,7 @@ def add_to_queue_redis(song, server_id=None, server_name=None, server_token=None
         "server_address": server_address or getattr(song, "server_address", None),
         "is_fallback": is_fallback,
         "moods": moods,
+        "added_by": added_by or ("System" if is_fallback else "Guest"),
     }
 
     client = get_redis_queue_client()

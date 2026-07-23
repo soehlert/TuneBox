@@ -11,6 +11,7 @@ import MusicControls from "./components/MusicControls";
 import Queue from "./components/Queue";
 import theme from "./theme";
 import TuneBoxLogo from "../public/TuneBox.svg";
+import Stats from "./components/Stats";
 import "./App.css";
 import "./components/Queue.css";
 
@@ -679,6 +680,35 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
 
         {/* Scrollable Accordion Body */}
         <div style={{ overflowY: "auto", flex: 1, paddingRight: "4px", display: "flex", flexDirection: "column", gap: "16px" }}>
+
+          <Link
+            to="/stats"
+            onClick={onClose}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "8px",
+              background: "rgba(51, 118, 173, 0.15)",
+              border: "1px solid #3375A8",
+              color: "#3375A8",
+              padding: "12px",
+              borderRadius: "8px",
+              fontWeight: "bold",
+              textDecoration: "none",
+              fontSize: "14px",
+              transition: "background-color 0.2s",
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.backgroundColor = "rgba(51, 118, 173, 0.25)";
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.backgroundColor = "rgba(51, 118, 173, 0.15)";
+            }}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>leaderboard</span>
+            View Jukebox Stats & Leaderboard 🏆
+          </Link>
 
           {/* Section 1: General Connection Settings */}
           <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
@@ -1822,6 +1852,17 @@ function App() {
 
   // ── TuneBox Dashboard (configured) ──────────────────────────────────────────
   if (isAuthenticated && isConfigured && step === 4) {
+    const isDev = window.location.port === "5173";
+    const apiBase = isDev ? `http://${window.location.hostname}:8000` : window.location.origin;
+
+    if (location.pathname === "/stats") {
+      return (
+        <ThemeProvider theme={theme}>
+          <Stats apiBase={apiBase} />
+        </ThemeProvider>
+      );
+    }
+
     return (
       <ThemeProvider theme={theme}>
         <div className="app-container">

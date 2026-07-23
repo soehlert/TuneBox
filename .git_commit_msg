@@ -1,0 +1,9 @@
+feat: implement Stats & Leaderboard dashboard page linked from settings
+
+- Create backend stats service managing SQLite database (all-time metrics stored in workspace) and Redis ZSETs (session metrics).
+- Track adds, skips cast, and skips received on the backend, indexing all records by user nickname/username.
+- Expose GET /api/stats to retrieve sorted lists and POST /api/stats/reset to clear session stats.
+- Add frontend utils.ts to extract local session display name/nickname.
+- Include username payloads in addToQueue POST requests from TrackList and ArtistList.
+- Build dedicated full-screen Stats.tsx component with three ranked leaderboard tables.
+- Render Link in Settings modal to view stats page, routing full-screen.

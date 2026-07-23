@@ -266,12 +266,29 @@ async def websocket_handler(websocket: WebSocket):
                 if client_id:
                     if vote:
                         skip_votes.add(client_id)
+                        voter = client_registry.get(client_id, {})
+                        voter_name = voter.get("name")
+                        if voter_name:
+                            from backend.services.stats import increment_skips_cast
+                            increment_skips_cast(voter_name)
                     else:
                         skip_votes.discard(client_id)
                     
                     status = get_skip_vote_status()
                     if status["total"] > 0 and status["votes"] > status["total"] / 2:
                         from backend.services.plex import skip_current_track  # noqa: PLC0415
+                        from backend.services.redis import get_redis_queue  # noqa: PLC0415
+                        from backend.services.stats import increment_skips_received  # noqa: PLC0415
+                        try:
+                            queue = get_redis_queue()
+                            if queue:
+                                current_track = queue[0]
+                                adder = current_track.get("added_by")
+                                if adder:
+                                    increment_skips_received(adder)
+                        except Exception:
+                            logger.exception("Failed to track skips_received stat")
+
                         try:
                             skip_current_track()
                         except Exception:

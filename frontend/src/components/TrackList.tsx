@@ -4,6 +4,7 @@ import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import axios from "axios";
 import { Button, Card, Typography, Snackbar, Alert } from "@mui/material";
 import { FallbackImage } from "./FallbackImage";
+import { getLocalUsername } from "../utils";
 import "./TrackList.css";
 
 interface Track {
@@ -67,7 +68,10 @@ function TrackList() {
   const addToQueue = async (trackId: number) => {
     try {
       const queueUrl = `${apiBase}/api/music/queue/${trackId}`;
-      await axios.post(queueUrl, { server_id: serverId });
+      await axios.post(queueUrl, {
+        server_id: serverId,
+        username: getLocalUsername(),
+      });
       showSnackbar("Track added to queue!", "success");
     } catch (error: any) {
       if (error.response && error.response.status === 400) {

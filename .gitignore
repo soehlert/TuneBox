@@ -164,3 +164,7 @@ pyrightconfig.json
 
 # Local agent artifacts
 artifacts/
+
+# SQLite databases
+*.db
+*.db-journal
