@@ -172,6 +172,42 @@ Adds a track to the active playback queue.
   }
   ```
 
+#### `DELETE /api/music/queue/{item_id}`
+Removes a specific track from the active playback queue.
+- **Headers**:
+  - `X-Admin-Token` *(required, string)*: Valid host admin token.
+- **Response `200 OK`**:
+  ```json
+  {
+    "message": "Removed Track Title from the queue."
+  }
+  ```
+
+#### `GET /api/music/playlists`
+Retrieves a list of available Plex playlists (restricted to admin).
+- **Headers**:
+  - `X-Admin-Token` *(required, string)*: Valid host admin token.
+- **Response `200 OK`**:
+  ```json
+  [
+    {
+      "playlist_id": 5001,
+      "title": "Party Hits"
+    }
+  ]
+  ```
+
+#### `POST /api/music/playlists/{playlist_id}/seed`
+Imports, shuffles, and seeds the playback queue with tracks from the selected playlist.
+- **Headers**:
+  - `X-Admin-Token` *(required, string)*: Valid host admin token.
+- **Response `200 OK`**:
+  ```json
+  {
+    "message": "Successfully seeded 10 tracks from playlist 'Party Hits'."
+  }
+  ```
+
 #### `POST /api/music/skip-vote`
 Submits a vote to skip the currently playing track.
 - **Request Body**:

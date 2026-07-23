@@ -16,6 +16,7 @@
 - 🗳️ **Collaborative Skip Voting**: Party guests can vote in real-time to skip songs. When the vote threshold is reached, TuneBox skips to the next track
 - 📋 **Jukebox Playlist Pre-Seeding**: Hosts can import and shuffle tracks directly from existing Plex playlists to seed the jukebox before guests arrive
 - 🛡️ **Admin Queue Controls**: Hosts can selectively remove individual tracks from the playback queue to maintain complete command of the party vibe
+- 📻 **Smart Autoplay Mode**: Keeps music playing when the guest queue runs empty by dynamically seeding the queue with related tracks matching the party's vibe
 - 🎨 **Responsive, Mobile-First UI**: Clean, intuitive interface for browsing artists, albums, and tracks, adding to the queue, and managing playback
 - 🔐 **Setup Wizard**: Simple initial configuration wizard to link your Plex account and choose your preferred audio playback client
 
