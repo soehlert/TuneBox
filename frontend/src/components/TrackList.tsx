@@ -107,7 +107,7 @@ function TrackList() {
           <>
             <header className="page-header">
               <Typography variant="h1" className="gradient-text">{albumData.album_title}</Typography>
-              <Typography className="page-subtitle">Queue songs to the Jukebox</Typography>
+              <Typography className="page-subtitle">Queue songs to TuneBox</Typography>
             </header>
               {(
                 <FallbackImage

@@ -1,9 +1,7 @@
-feat: implement Stats & Leaderboard dashboard page linked from settings
+feat: enhance stats role filtering, add admin logout, and rename jukebox references to TuneBox
 
-- Create backend stats service managing SQLite database (all-time metrics stored in workspace) and Redis ZSETs (session metrics).
-- Track adds, skips cast, and skips received on the backend, indexing all records by user nickname/username.
-- Expose GET /api/stats to retrieve sorted lists and POST /api/stats/reset to clear session stats.
-- Add frontend utils.ts to extract local session display name/nickname.
-- Include username payloads in addToQueue POST requests from TrackList and ArtistList.
-- Build dedicated full-screen Stats.tsx component with three ranked leaderboard tables.
-- Render Link in Settings modal to view stats page, routing full-screen.
+- Track client connection role and display mapping inside stats:user_roles Redis hash table.
+- Retrieve roles on statistics queries, enabling dynamic filtering by role ('admin' and 'display') rather than hardcoded names.
+- Style and implement a logout action on the Host/Admin top-right badge pill.
+- Replace Jukebox references with TuneBox on user-facing UI labels, buttons, fields, and descriptions.
+- Document Jukebox Party Stats & Leaderboard feature in README.md.

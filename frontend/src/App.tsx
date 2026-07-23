@@ -376,17 +376,17 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
   const handleSeedJukebox = async () => {
     if (!selectedPlaylistId) return;
     setSeeding(true);
-    setMsg("Seeding Jukebox...");
+    setMsg("Seeding TuneBox...");
     try {
       const res = await axios.post(
         getApiUrl(`/api/music/playlists/${selectedPlaylistId}/seed`),
         {},
         { headers: { "x-admin-token": adminToken } }
       );
-      setMsg(`✓ ${res.data.message || "Jukebox seeded successfully!"}`);
+      setMsg(`✓ ${res.data.message || "TuneBox seeded successfully!"}`);
     } catch (err) {
-      console.error("Failed to seed Jukebox:", err);
-      setMsg("✗ Failed to seed Jukebox.");
+      console.error("Failed to seed TuneBox:", err);
+      setMsg("✗ Failed to seed TuneBox.");
     } finally {
       setSeeding(false);
     }
@@ -707,7 +707,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
             }}
           >
             <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>leaderboard</span>
-            View Jukebox Stats & Leaderboard 🏆
+            View TuneBox Stats & Leaderboard 🏆
           </Link>
 
           {/* Section 1: General Connection Settings */}
@@ -854,9 +854,9 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
 
             {sectionsOpen.queue && (
               <div style={{ display: "flex", flexDirection: "column", gap: "16px", padding: "4px 8px 12px 8px" }}>
-                {/* Preseed Jukebox */}
+                {/* Preseed TuneBox */}
                 <div>
-                  <label style={{ ...labelStyle, fontSize: "13px", color: "rgba(255, 255, 255, 0.6)" }}>Pre-seed Jukebox</label>
+                  <label style={{ ...labelStyle, fontSize: "13px", color: "rgba(255, 255, 255, 0.6)" }}>Pre-seed TuneBox</label>
                   {playlists.length === 0 ? (
                     <p style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "13px", margin: 0 }}>No playlists found on server.</p>
                   ) : (
@@ -2019,7 +2019,6 @@ function App() {
               {/* Admin identity badge */}
               {isAdmin && (
                 <div
-                  onClick={() => setShowSettings(true)}
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -2031,17 +2030,41 @@ function App() {
                     fontSize: "12px",
                     fontWeight: "bold",
                     color: "#3375A8",
-                    cursor: "pointer",
                     flexShrink: 0,
                     whiteSpace: "nowrap"
                   }}
-                  title="Admin Session — Click to open Settings"
                 >
-                  <span className="material-symbols-outlined" style={{ fontSize: "15px" }}>admin_panel_settings</span>
-                  <span>{
-                    localStorage.getItem("tunebox_admin_name") ||
-                    (instanceName ? `Admin (${instanceName})` : "Admin")
-                  }</span>
+                  <div
+                    onClick={() => setShowSettings(true)}
+                    style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}
+                    title="Admin Session — Click to open Settings"
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: "15px" }}>admin_panel_settings</span>
+                    <span>{
+                      localStorage.getItem("tunebox_admin_name") ||
+                      (instanceName ? `Admin (${instanceName})` : "Admin")
+                    }</span>
+                  </div>
+                  <span style={{ width: "1px", height: "12px", background: "rgba(51, 118, 173, 0.3)" }}></span>
+                  <span
+                    className="material-symbols-outlined"
+                    onClick={() => {
+                      localStorage.removeItem("tunebox_admin_token");
+                      localStorage.removeItem("tunebox_admin_name");
+                      window.location.reload();
+                    }}
+                    style={{
+                      fontSize: "15px",
+                      cursor: "pointer",
+                      color: "#3375A8",
+                      transition: "color 0.2s"
+                    }}
+                    onMouseOver={(e) => (e.currentTarget.style.color = "#ff6b6b")}
+                    onMouseOut={(e) => (e.currentTarget.style.color = "#3375A8")}
+                    title="Log out Admin Session"
+                  >
+                    logout
+                  </span>
                 </div>
               )}
 

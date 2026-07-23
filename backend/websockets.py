@@ -163,6 +163,12 @@ def _register_client(client_id: str, name: str, role: str, is_display: bool = Fa
         "is_display": is_display or existing.get("is_display", False),
         "connected_at": existing.get("connected_at", datetime.now(UTC).isoformat()),
     }
+    try:
+        from backend.services.redis import get_redis_queue_client
+        client = get_redis_queue_client()
+        client.hset("stats:user_roles", name, "display" if is_display else role)
+    except Exception:
+        pass
 
 
 # ruff: noqa: C901

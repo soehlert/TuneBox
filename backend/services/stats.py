@@ -131,6 +131,34 @@ def clear_session_stats():
         logger.warning("Failed to clear session stats in Redis: %s", e)
 
 
+def _inject_roles(stats_dict: dict) -> dict:
+    """Helper to inject role names for usernames in leaderboards."""
+    try:
+        client = get_redis_queue_client()
+        roles_bytes = client.hgetall("stats:user_roles")
+        roles = {
+            (k.decode("utf-8") if isinstance(k, bytes) else k): (v.decode("utf-8") if isinstance(v, bytes) else v)
+            for k, v in roles_bytes.items()
+        }
+    except Exception:
+        roles = {}
+
+    for cat in ["adds", "skips_cast", "skips_received"]:
+        for item in stats_dict[cat]:
+            username = item["username"]
+            user_lower = username.lower()
+            role = roles.get(username)
+            if not role:
+                if "admin" in user_lower:
+                    role = "admin"
+                elif "screen" in user_lower or "display" in user_lower:
+                    role = "display"
+                else:
+                    role = "guest"
+            item["role"] = role
+    return stats_dict
+
+
 def get_session_stats() -> dict:
     """Fetch sorted session leaderboard rankings from Redis."""
     stats = {"adds": [], "skips_cast": [], "skips_received": []}
@@ -149,7 +177,7 @@ def get_session_stats() -> dict:
     except Exception as e:
         logger.warning("Failed to fetch Redis session stats: %s", e)
     
-    return stats
+    return _inject_roles(stats)
 
 
 def get_alltime_stats() -> dict:
@@ -172,7 +200,7 @@ def get_alltime_stats() -> dict:
     except Exception as e:
         logger.warning("Failed to fetch SQLite all-time stats: %s", e)
         
-    return stats
+    return _inject_roles(stats)
 
 # Initialize database on module import
 init_db()

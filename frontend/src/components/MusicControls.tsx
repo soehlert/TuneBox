@@ -261,7 +261,7 @@ const MusicControlsComponent = ({
               </>
             ) : (
               <button onClick={handleStartQueue} className="player-start-queue-btn">
-                Start Jukebox
+                Start TuneBox
               </button>
             )}
           </Box>
@@ -298,7 +298,7 @@ const MusicControlsComponent = ({
           )}
           <Box className="player-device-group">
             <DevicesIcon className="player-utility-icon" />
-            <Typography className="player-device-text">{instanceName || "TuneBox Jukebox"}</Typography>
+            <Typography className="player-device-text">{instanceName || "TuneBox"}</Typography>
           </Box>
           {onOpenMobileQueue && (
             <button

@@ -401,7 +401,7 @@ async def update_settings(
 async def verify_username(username: str):
     """Check if a display name matches a Plex friend or home user of the owner."""
     if not settings.plex_token:
-        raise HTTPException(status_code=503, detail="Jukebox not configured yet")
+        raise HTTPException(status_code=503, detail="TuneBox not configured yet")
 
     if settings.testing:
         # In testing mode, treat usernames starting with "friend_" as verified

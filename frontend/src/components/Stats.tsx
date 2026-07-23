@@ -7,6 +7,7 @@ import "./Stats.css";
 interface StatItem {
   username: string;
   count: number;
+  role?: string;
 }
 
 interface StatsData {
@@ -50,19 +51,7 @@ export default function Stats({ apiBase }: { apiBase: string }) {
     const list = mode === "session" ? data.session[type] : data.all_time[type];
     if (!hideStaff) return list;
 
-    const adminName = localStorage.getItem("tunebox_admin_name") || "Admin";
-    const instanceName = localStorage.getItem("tunebox_instance_name") || "TuneBox";
-
-    return list.filter(item => {
-      const nameLower = item.username.toLowerCase();
-      return (
-        nameLower !== "tunebox screen" &&
-        nameLower !== "display" &&
-        nameLower !== "admin" &&
-        nameLower !== adminName.toLowerCase() &&
-        nameLower !== instanceName.toLowerCase()
-      );
-    });
+    return list.filter(item => item.role !== "admin" && item.role !== "display");
   };
 
   const renderTable = (title: string, list: StatItem[], metricName: string, icon: string) => {
@@ -118,7 +107,7 @@ export default function Stats({ apiBase }: { apiBase: string }) {
         <div className="stats-header">
           <button className="back-button" onClick={() => navigate("/")}>
             <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>arrow_back</span>
-            Back to Jukebox
+            Back to TuneBox
           </button>
           
           <Typography variant="h4" className="stats-title">
