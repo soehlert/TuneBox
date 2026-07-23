@@ -31,6 +31,7 @@ def write_settings_to_env(
     client_name: str,
     plex_username: str = "",
     admin_token: str = "",
+    instance_name: str = "",
 ):
     """Write settings back to the .env file."""
     env_path = "/app/.env"
@@ -48,6 +49,7 @@ def write_settings_to_env(
             "CLIENT_NAME": client_name,
             "PLEX_USERNAME": plex_username,
             "ADMIN_TOKEN": admin_token or settings.admin_token,
+            "INSTANCE_NAME": instance_name or settings.instance_name,
         }
 
         new_lines = []
@@ -75,6 +77,7 @@ def write_token_to_env(token: str):
         settings.client_name,
         settings.plex_username,
         settings.admin_token,
+        settings.instance_name,
     )
 
 
@@ -91,6 +94,7 @@ async def status():
             "username": settings.plex_username or "MockUser",
             "plex_server_name": settings.plex_server_name or "[Mock] Local Jukebox Server",
             "client_name": settings.client_name or "Mock Jukebox",
+            "instance_name": settings.instance_name,
             "is_configured": True,
             "testing": True,
             "admin_token": settings.admin_token,
@@ -113,6 +117,7 @@ async def status():
             "username": "",
             "plex_server_name": settings.plex_server_name,
             "client_name": settings.client_name,
+            "instance_name": settings.instance_name,
             "is_configured": is_configured,
             "testing": settings.testing,
         }
@@ -124,6 +129,7 @@ async def status():
             "username": username,
             "plex_server_name": settings.plex_server_name,
             "client_name": settings.client_name,
+            "instance_name": settings.instance_name,
             "is_configured": is_configured,
             "testing": settings.testing,
         }
@@ -134,6 +140,7 @@ async def status():
             "username": fallback_user,
             "plex_server_name": settings.plex_server_name,
             "client_name": settings.client_name,
+            "instance_name": settings.instance_name,
             "is_configured": is_configured,
             "testing": settings.testing,
         }
@@ -307,6 +314,7 @@ class ConfigurationRequest(BaseModel):
     plex_username: str
     client_name: str
     plex_server_name: str
+    instance_name: str = "TuneBox"
 
 
 @router.post("/configure")
@@ -317,6 +325,7 @@ async def configure_resources(req: ConfigurationRequest):
     settings.plex_username = req.plex_username
     settings.client_name = req.client_name
     settings.plex_server_name = req.plex_server_name
+    settings.instance_name = req.instance_name
 
     write_settings_to_env(
         settings.plex_token,
@@ -324,6 +333,7 @@ async def configure_resources(req: ConfigurationRequest):
         req.client_name,
         req.plex_username,
         admin_token=token,
+        instance_name=req.instance_name,
     )
 
     reinitialize_plex()
@@ -340,6 +350,7 @@ class SettingsUpdateRequest(BaseModel):
     plex_username: str
     client_name: str
     plex_server_name: str
+    instance_name: str = "TuneBox"
 
 
 @router.get("/settings")
@@ -351,6 +362,7 @@ async def get_settings(x_admin_token: str | None = Header(None)):
         "plex_username": settings.plex_username,
         "client_name": settings.client_name,
         "plex_server_name": settings.plex_server_name,
+        "instance_name": settings.instance_name,
     }
 
 
@@ -367,6 +379,7 @@ async def update_settings(
     settings.plex_username = req.plex_username
     settings.client_name = req.client_name
     settings.plex_server_name = req.plex_server_name
+    settings.instance_name = req.instance_name
 
     write_settings_to_env(
         settings.plex_token,
@@ -374,6 +387,7 @@ async def update_settings(
         req.client_name,
         req.plex_username,
         settings.admin_token,
+        req.instance_name,
     )
     reinitialize_plex()
 
