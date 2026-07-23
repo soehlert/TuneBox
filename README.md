@@ -70,7 +70,7 @@ Get TuneBox up and running on your local network using Docker Compose:
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/your-repo/TuneBox.git
+   git clone https://github.com/soehlert/TuneBox.git
    cd TuneBox
    ```
 
