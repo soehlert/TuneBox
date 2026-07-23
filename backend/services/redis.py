@@ -138,22 +138,27 @@ def get_redis_queue():
 
 
 def clear_redis_queue():
-    """Clear the Redis playback queue, preserving the currently playing track (index 0).
+    """Clear the Redis playback queue. If a track is active (playing or paused), preserve it at index 0.
 
     Returns:
         A cleared redis queue message.
     """
     client = get_redis_queue_client()
-    queue = client.lrange("playback_queue", 0, -1)
-    if queue:
-        # Keep the first item and discard the rest
-        first_item = queue[0]
+    from backend.services.plex import track_time_tracker  # noqa: PLC0415
+
+    if not track_time_tracker.is_playing and track_time_tracker.state != "paused":
         client.delete("playback_queue")
-        client.rpush("playback_queue", first_item)
-        logger.info("The Redis playback queue has been cleared, keeping the active playing track.")
+        logger.info("The Redis playback queue has been completely cleared since no track is active.")
     else:
-        client.delete("playback_queue")
-        logger.info("The Redis playback queue was empty and has been cleared.")
+        queue = client.lrange("playback_queue", 0, -1)
+        if queue:
+            first_item = queue[0]
+            client.delete("playback_queue")
+            client.rpush("playback_queue", first_item)
+            logger.info("The Redis playback queue has been cleared, keeping the active playing track.")
+        else:
+            client.delete("playback_queue")
+            logger.info("The Redis playback queue was empty and has been cleared.")
 
     return {"message": "The queue has been cleared."}
 
