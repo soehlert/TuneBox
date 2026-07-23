@@ -49,6 +49,39 @@ async def send_to_client_id(client_id: str, message: dict):
             client_registry.pop(client_id, None)
 
 
+from collections import Counter
+
+
+def calculate_top_vibes(play_queue: list) -> list[str]:
+    """Aggregate track moods (falling back to genres) and retrieve the top 3."""
+    if not play_queue:
+        return []
+    
+    # Try to collect moods first
+    moods = []
+    for item in play_queue:
+        item_moods = item.get("moods")
+        if item_moods and isinstance(item_moods, list):
+            moods.extend(item_moods)
+            
+    if moods:
+        counts = Counter(moods)
+        return [tag for tag, _ in counts.most_common(3)]
+        
+    # Fall back to genres if no moods exist
+    genres = []
+    for item in play_queue:
+        item_genres = item.get("genres")
+        if item_genres and isinstance(item_genres, list):
+            genres.extend(item_genres)
+            
+    if genres:
+        counts = Counter(genres)
+        return [tag for tag, _ in counts.most_common(3)]
+        
+    return []
+
+
 async def send_queue():
     """Send the current queue to all connected WebSocket clients of 'queue_update' message_type."""
     play_queue = get_redis_queue()
@@ -56,6 +89,7 @@ async def send_queue():
         "type": "queue_update",
         "message": "Queue update",
         "queue": play_queue,  # No need for json.dumps here
+        "vibes": calculate_top_vibes(play_queue),
     }
     logger.debug("Sending play queue: %s", play_queue)
 
@@ -181,6 +215,8 @@ async def websocket_handler(websocket: WebSocket):
             from backend.services.plex import check_plexamp_resync  # noqa: PLC0415
             await check_plexamp_resync(force_align=True)
             await send_current_playing()
+            status = get_skip_vote_status()
+            await websocket.send_text(json.dumps({"type": "skip_vote_update", "status": status}))
         elif message_type == "queue_update":
             await send_queue()
     except Exception as e:
@@ -294,22 +330,24 @@ def get_skip_vote_status():
     }
 
 
+async def _send_safe(ws: WebSocket, message: dict):
+    """Safely send a JSON message over websocket, swallowing any connection failures."""
+    try:
+        await ws.send_text(json.dumps(message))
+    except Exception:
+        pass
+
+
 async def broadcast_skip_status():
     """Broadcast skip vote updates to all client control and music control sockets."""
     status = get_skip_vote_status()
     message = {"type": "skip_vote_update", "status": status}
     
     for client_id, ws in list(active_connections["client_control"].items()):
-        try:
-            await ws.send_text(json.dumps(message))
-        except Exception:
-            pass
+        asyncio.create_task(_send_safe(ws, message))
 
     for session_id, ws in list(active_connections["music_control"].items()):
-        try:
-            await ws.send_text(json.dumps(message))
-        except Exception:
-            pass
+        asyncio.create_task(_send_safe(ws, message))
 
 
 async def reset_skip_votes():
@@ -319,14 +357,8 @@ async def reset_skip_votes():
     message = {"type": "skip_vote_reset", "status": status}
     
     for client_id, ws in list(active_connections["client_control"].items()):
-        try:
-            await ws.send_text(json.dumps(message))
-        except Exception:
-            pass
+        asyncio.create_task(_send_safe(ws, message))
 
     for session_id, ws in list(active_connections["music_control"].items()):
-        try:
-            await ws.send_text(json.dumps(message))
-        except Exception:
-            pass
+        asyncio.create_task(_send_safe(ws, message))
 
