@@ -206,6 +206,31 @@ Imports, shuffles, and seeds the playback queue with tracks from the selected pl
   {
     "message": "Successfully seeded 10 tracks from playlist 'Party Hits'."
   }
+
+#### `GET /api/music/autoplay`
+Retrieves the current state of Smart Autoplay Mode.
+- **Response `200 OK`**:
+  ```json
+  {
+    "autoplay_enabled": true
+  }
+  ```
+
+#### `POST /api/music/autoplay`
+Enables or disables Smart Autoplay Mode (restricted to admin).
+- **Headers**:
+  - `X-Admin-Token` *(required, string)*: Valid host admin token.
+- **Request Body**:
+  ```json
+  {
+    "enabled": true
+  }
+  ```
+- **Response `200 OK`**:
+  ```json
+  {
+    "autoplay_enabled": true
+  }
   ```
 
 #### `POST /api/music/skip-vote`
