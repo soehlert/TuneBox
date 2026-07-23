@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     plex_token: str = ""
     plex_server_name: str = ""
     client_name: str = ""
+    instance_name: str = "TuneBox"
     redis_url: str = "redis://redis:6379"
     tunebox_url: str = ""
     testing: bool = False

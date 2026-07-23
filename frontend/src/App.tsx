@@ -442,6 +442,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
         setPlexUsername(res.data.plex_username ?? "");
         setSelectedServer(res.data.plex_server_name ?? "");
         setSelectedPlayer(res.data.client_name ?? "");
+        if (res.data.instance_name) setInstanceName(res.data.instance_name);
       })
       .catch(console.error);
 
@@ -546,7 +547,12 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
 
       await axios.post(
         getApiUrl("/api/auth/settings"),
-        { plex_username: plexUsername, client_name: selectedPlayer, plex_server_name: selectedServer },
+        {
+          plex_username: plexUsername,
+          client_name: selectedPlayer,
+          plex_server_name: selectedServer,
+          instance_name: localInstanceName,
+        },
         { headers: { "x-admin-token": adminToken } }
       );
       sessionStorage.clear();
@@ -976,7 +982,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                       >
                         <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
                           <span style={{ color: "#fff", fontSize: "14px", fontWeight: "bold", display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                            {c.name} {c.client_id === getClientId() ? " (You)" : ""}
+                            {c.name}
                             <span
                               className="material-symbols-outlined"
                               onClick={() => handleOpenRename(c.client_id, c.name)}
@@ -1043,7 +1049,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                       >
                         <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
                           <span style={{ color: "#fff", fontSize: "14px", fontWeight: "bold", display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                            {c.name} {c.client_id === getClientId() ? " (You)" : ""}
+                            {c.name}
                             <span
                               className="material-symbols-outlined"
                               onClick={() => handleOpenRename(c.client_id, c.name)}
@@ -1663,10 +1669,12 @@ function App() {
       setIsConfigured(res.data.is_configured);
 
       if (res.data.plex_username) setPlexUsername(res.data.plex_username);
+      if (res.data.instance_name) {
+        setInstanceName(res.data.instance_name);
+        localStorage.setItem("tunebox_instance_name", res.data.instance_name);
+      }
       if (res.data.client_name) {
         setLocalUsername(res.data.client_name);
-        setInstanceName(res.data.client_name);
-        localStorage.setItem("tunebox_instance_name", res.data.client_name);
       }
 
       // Testing-mode bypass: backend returns admin_token in status when TESTING=true
@@ -1766,6 +1774,7 @@ function App() {
         plex_username: plexUsername,
         client_name: playerClientName || localUsername,
         plex_server_name: serverName,
+        instance_name: localUsername,
       });
       // Store admin token and update state so gear icon appears immediately
       if (res.data.admin_token) {
