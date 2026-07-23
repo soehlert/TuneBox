@@ -54,16 +54,22 @@ def add_to_queue_redis(song, server_id=None, server_name=None, server_token=None
                 fallback_indices.append(i)
         
         if fallback_indices:
-            # 1. Insert guest song before the first fallback track
-            first_fallback_idx = fallback_indices[0]
-            first_fallback_data = queue[first_fallback_idx]
-            client.linsert("playback_queue", "BEFORE", first_fallback_data, json.dumps(song_data))
-            
-            # 2. Remove the last fallback track in the queue
-            last_fallback_idx = fallback_indices[-1]
-            last_fallback_data = queue[last_fallback_idx]
-            client.lrem("playback_queue", -1, last_fallback_data)
-            logger.info("Inserted guest song %s before first fallback and dropped last fallback.", song.title)
+            # Only allow leapfrogging fallback tracks that are not currently playing (index >= 1)
+            candidate_indices = [idx for idx in fallback_indices if idx >= 1]
+            if candidate_indices:
+                first_fallback_idx = candidate_indices[0]
+                first_fallback_data = queue[first_fallback_idx]
+                client.linsert("playback_queue", "BEFORE", first_fallback_data, json.dumps(song_data))
+                
+                # Drop the last fallback track in the queue to maintain queue size
+                last_fallback_idx = fallback_indices[-1]
+                last_fallback_data = queue[last_fallback_idx]
+                client.lrem("playback_queue", -1, last_fallback_data)
+                logger.info("Inserted guest song %s before first non-playing fallback and dropped last fallback.", song.title)
+            else:
+                # If the only fallback track is at index 0 (currently playing), append to the end
+                client.rpush("playback_queue", json.dumps(song_data))
+                logger.info("Added guest song %s to end of Redis queue (playing track is fallback).", song.title)
         else:
             # If no fallback tracks exist, just append to the end as normal
             client.rpush("playback_queue", json.dumps(song_data))

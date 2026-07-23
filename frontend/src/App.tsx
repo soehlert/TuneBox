@@ -329,13 +329,22 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
   const [selectedPlayer, setSelectedPlayer] = useState("");
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
+
+  useEffect(() => {
+    if (msg) {
+      const timer = setTimeout(() => {
+        setMsg("");
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [msg]);
   const [refreshing, setRefreshing] = useState(false);
   const [clients, setClients] = useState<ClientSession[]>([]);
   const [playlists, setPlaylists] = useState<{ playlist_id: number; title: string }[]>([]);
   const [selectedPlaylistId, setSelectedPlaylistId] = useState("");
   const [seeding, setSeeding] = useState(false);
   const [sectionsOpen, setSectionsOpen] = useState({
-    general: true,
+    general: false,
     queue: false,
     devices: false,
   });
@@ -549,6 +558,29 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
     }
   };
 
+  const getToastStyles = () => {
+    if (!msg) return {};
+    if (msg.startsWith("✓")) {
+      return {
+        background: "rgba(46, 204, 113, 0.15)",
+        border: "1px solid rgba(46, 204, 113, 0.4)",
+        color: "#2ecc71",
+      };
+    }
+    if (msg.startsWith("✗") || msg.toLowerCase().includes("fail") || msg.toLowerCase().includes("error")) {
+      return {
+        background: "rgba(231, 76, 60, 0.15)",
+        border: "1px solid rgba(231, 76, 60, 0.4)",
+        color: "#ff4d4d",
+      };
+    }
+    return {
+      background: "rgba(245, 166, 35, 0.15)",
+      border: "1px solid rgba(245, 166, 35, 0.4)",
+      color: "#f5a623",
+    };
+  };
+
   return (
     <div
       style={{
@@ -590,19 +622,18 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
           </button>
         </div>
 
-        {/* Sticky Alert Message Banner - High Contrast Solid Fill */}
+        {/* Sticky Alert Message Banner - High Contrast Translucent Fill */}
         {msg && (
           <div
             style={{
               padding: "12px",
               borderRadius: "8px",
-              background: msg.startsWith("✓") ? "#f5a623" : "#ff4d4d",
-              color: msg.startsWith("✓") ? "#1d083b" : "#ffffff",
               fontSize: "14px",
               fontWeight: "bold",
               textAlign: "center",
               marginBottom: "16px",
               boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)",
+              ...getToastStyles(),
             }}
           >
             {msg}
@@ -657,10 +688,10 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
               }}
             >
               <span style={{ color: "#f5a623", fontSize: "14px", fontWeight: "bold", display: "flex", alignItems: "center", gap: "6px" }}>
-                💻 General Settings
+                ⚙️ General Settings
               </span>
               <span style={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "11px" }}>
-                {sectionsOpen.general ? "▲ Collapse" : "▼ Expand"}
+                {sectionsOpen.general ? "▲" : "▼"}
               </span>
             </div>
 
@@ -778,7 +809,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                 🎵 Queue Management
               </span>
               <span style={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "11px" }}>
-                {sectionsOpen.queue ? "▲ Collapse" : "▼ Expand"}
+                {sectionsOpen.queue ? "▲" : "▼"}
               </span>
             </div>
 
@@ -916,7 +947,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                 💻 Connected Devices
               </span>
               <span style={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "11px" }}>
-                {sectionsOpen.devices ? "▲ Collapse" : "▼ Expand"}
+                {sectionsOpen.devices ? "▲" : "▼"}
               </span>
             </div>
 
