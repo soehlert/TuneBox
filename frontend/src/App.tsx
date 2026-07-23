@@ -575,9 +575,9 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
       };
     }
     return {
-      background: "rgba(245, 166, 35, 0.15)",
-      border: "1px solid rgba(245, 166, 35, 0.4)",
-      color: "#f5a623",
+      background: "rgba(0, 210, 255, 0.12)",
+      border: "1px solid rgba(0, 210, 255, 0.4)",
+      color: "#00e5ff",
     };
   };
 

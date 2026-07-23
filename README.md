@@ -48,6 +48,10 @@
 ![Led Zeppelin Tracks & Player](./docs/images/led_zeppelin_tracks.png)
 *View album track listings, queue songs to TuneBox, and monitor active playback.*
 
+### ⚙️ Host Settings Modal
+![Host Settings Modal](./docs/images/settings_modal.png)
+*Configure server and playback parameters, seed the queue, toggle autoplay, and manage connected devices.*
+
 ---
 
 ## 🚀 Quickstart
