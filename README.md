@@ -50,7 +50,7 @@
 
 ### ⚙️ Host Settings Modal
 ![Host Settings Modal](./docs/images/settings_modal.png)
-*Configure server and playback parameters, seed the queue, toggle autoplay, and manage connected devices.*
+*Configure play source, destination, queue management, and users.*
 
 ### 🏆 TuneBox Party Leaderboards & Stats
 ![TuneBox Leaderboards](./docs/images/leaderboard.png)
