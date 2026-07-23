@@ -1275,3 +1275,74 @@ def search_music_on_server(server_res: dict, query: str):
     except Exception as e:
         logger.warning("Error searching server %s: %s", server_res.get("name"), e)
         return []
+
+
+def fetch_playlists():
+    """Fetch user playlists from Plex."""
+    if settings.testing:
+        return [
+            {"playlist_id": 5001, "title": "Party Hits"},
+            {"playlist_id": 5002, "title": "Chill Vibes"},
+        ]
+    plex = get_plex_connection()
+    playlists = plex.playlists()
+    return [{"playlist_id": p.ratingKey, "title": p.title} for p in playlists]
+
+
+def seed_queue_from_playlist(playlist_id: int):
+    """Import, shuffle, and add tracks from a Plex playlist to the Redis queue."""
+    import random
+    from backend.services.redis import add_to_queue_redis
+
+    if settings.testing:
+        # Generate some mock tracks from the mock data to seed the queue
+        from backend.services.mock_data import MOCK_TRACKS
+        all_tracks = []
+        for album_tracks in MOCK_TRACKS.values():
+            all_tracks.extend(album_tracks)
+        
+        # Select up to 10 random tracks to simulate seeding
+        sampled = random.sample(all_tracks, min(len(all_tracks), 10))
+        for t in sampled:
+            # We mock the track structure so add_to_queue_redis works
+            class MockTrack:
+                ratingKey = t["track_id"]
+                title = t["title"]
+                grandparentTitle = t["artist"]
+                parentTitle = t["album"]
+                duration = t["duration"] * 1000  # in ms
+                thumb = f"/api/music/album-art/{t['track_id']}"
+            
+            try:
+                add_to_queue_redis(MockTrack())
+            except Exception: # ignore already in queue exception
+                pass
+        return {"message": f"Successfully seeded 10 tracks from playlist {playlist_id}."}
+
+    plex = get_plex_connection()
+    # Find the playlist
+    playlist = None
+    for p in plex.playlists():
+        if int(p.ratingKey) == int(playlist_id):
+            playlist = p
+            break
+    
+    if not playlist:
+        raise HTTPException(status_code=404, detail="Playlist not found")
+        
+    tracks = playlist.items()
+    # Limit imported tracks to 100 to avoid high latency or overloading Redis
+    tracks = tracks[:100]
+    random.shuffle(tracks)
+    
+    added_count = 0
+    for track in tracks:
+        try:
+            add_to_queue_redis(track)
+            added_count += 1
+        except Exception:
+            # Skip duplicates or tracks already in queue
+            pass
+            
+    return {"message": f"Successfully seeded {added_count} tracks from playlist '{playlist.title}'."}
+

@@ -331,6 +331,42 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
   const [msg, setMsg] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [clients, setClients] = useState<ClientSession[]>([]);
+  const [playlists, setPlaylists] = useState<{ playlist_id: number; title: string }[]>([]);
+  const [selectedPlaylistId, setSelectedPlaylistId] = useState("");
+  const [seeding, setSeeding] = useState(false);
+
+  useEffect(() => {
+    axios
+      .get(getApiUrl("/api/music/playlists"), {
+        headers: { "x-admin-token": adminToken },
+      })
+      .then((res) => {
+        setPlaylists(res.data ?? []);
+        if (res.data && res.data.length > 0) {
+          setSelectedPlaylistId(String(res.data[0].playlist_id));
+        }
+      })
+      .catch((err) => console.error("Failed to load playlists:", err));
+  }, [adminToken]);
+
+  const handleSeedJukebox = async () => {
+    if (!selectedPlaylistId) return;
+    setSeeding(true);
+    setMsg("Seeding Jukebox...");
+    try {
+      const res = await axios.post(
+        getApiUrl(`/api/music/playlists/${selectedPlaylistId}/seed`),
+        {},
+        { headers: { "x-admin-token": adminToken } }
+      );
+      setMsg(`✓ ${res.data.message || "Jukebox seeded successfully!"}`);
+    } catch (err) {
+      console.error("Failed to seed Jukebox:", err);
+      setMsg("✗ Failed to seed Jukebox.");
+    } finally {
+      setSeeding(false);
+    }
+  };
 
   const handleRefreshResources = async () => {
     setRefreshing(true);
@@ -660,6 +696,48 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
             </button>
           </div>
         </form>
+
+        <div style={{ marginTop: "24px", borderTop: "1px solid rgba(255, 255, 255, 0.15)", paddingTop: "20px" }}>
+          <h3 style={{ margin: "0 0 12px 0", color: "#f5a623", fontSize: "16px" }}>🎵 Pre-seed Jukebox</h3>
+          {playlists.length === 0 ? (
+            <p style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "13px", margin: 0 }}>No playlists found on server.</p>
+          ) : (
+            <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+              <select
+                value={selectedPlaylistId}
+                onChange={(e) => setSelectedPlaylistId(e.target.value)}
+                style={{ ...inputStyle, flex: 1, margin: 0, cursor: "pointer" }}
+              >
+                {playlists.map((p) => (
+                  <option key={p.playlist_id} value={p.playlist_id}>
+                    {p.title}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={handleSeedJukebox}
+                disabled={seeding || !selectedPlaylistId}
+                style={{
+                  background: "var(--color-primary)",
+                  color: "#0e0e0f",
+                  border: "none",
+                  borderRadius: "8px",
+                  padding: "10px 16px",
+                  fontSize: "14px",
+                  fontWeight: "bold",
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                  transition: "background-color 0.2s",
+                }}
+                onMouseOver={(e) => (e.currentTarget.style.background = "#d48b17")}
+                onMouseOut={(e) => (e.currentTarget.style.background = "#f5a623")}
+              >
+                {seeding ? "Seeding..." : "Seed Jukebox"}
+              </button>
+            </div>
+          )}
+        </div>
 
         <div style={{ marginTop: "24px", borderTop: "1px solid rgba(255, 255, 255, 0.15)", paddingTop: "20px" }}>
           <h3 style={{ margin: "0 0 12px 0", color: "#f5a623", fontSize: "16px" }}>💻 Connected Devices</h3>

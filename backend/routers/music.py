@@ -26,6 +26,8 @@ from backend.services.plex import (
     search_music_on_server,
     stop_playback,
     skip_current_track,
+    fetch_playlists,
+    seed_queue_from_playlist,
 )
 from backend.services.redis import (
     add_to_queue_redis,
@@ -475,3 +477,39 @@ def get_track_art(track_id: int, request: Request, server_id: str | None = None)
         return StreamingResponse(
             response.iter_content(chunk_size=1024), media_type="image/jpeg", headers=headers
         )
+
+
+@router.get("/playlists")
+def get_playlists(x_admin_token: str | None = Header(None)):
+    """Fetch user playlists from Plex (restricted to admin)."""
+    if not settings.admin_token or x_admin_token != settings.admin_token:
+        raise HTTPException(status_code=401, detail="Unauthorized: Invalid admin token")
+    try:
+        return fetch_playlists()
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error fetching playlists: {e}"
+        ) from e
+
+
+@router.post("/playlists/{playlist_id}/seed")
+async def seed_playlist(
+    playlist_id: int,
+    background_tasks: BackgroundTasks,
+    x_admin_token: str | None = Header(None),
+):
+    """Import, shuffle, and add tracks from a Plex playlist to the queue (restricted to admin)."""
+    if not settings.admin_token or x_admin_token != settings.admin_token:
+        raise HTTPException(status_code=401, detail="Unauthorized: Invalid admin token")
+    try:
+        result = seed_queue_from_playlist(playlist_id)
+        # Notify WebSocket clients of queue change
+        background_tasks.add_task(send_queue)
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error seeding playlist: {e}"
+        ) from e
+

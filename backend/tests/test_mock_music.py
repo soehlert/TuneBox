@@ -113,3 +113,44 @@ def test_delete_queue_item_auth(client, mock_redis):
         settings.admin_token = orig_token
 
 
+def test_get_playlists_auth(client):
+    """Test that retrieving Plex playlists requires admin token and returns mock playlists."""
+    # Attempt without token -> 401
+    res_no_token = client.get("/api/music/playlists")
+    assert res_no_token.status_code == 401
+
+    # Attempt with bad token -> 401
+    res_bad_token = client.get("/api/music/playlists", headers={"X-Admin-Token": "bad"})
+    assert res_bad_token.status_code == 401
+
+    # Attempt with good token -> 200 and return list
+    orig_token = settings.admin_token
+    settings.admin_token = "valid_test_token"
+    try:
+        res_good_token = client.get("/api/music/playlists", headers={"X-Admin-Token": "valid_test_token"})
+        assert res_good_token.status_code == 200
+        data = res_good_token.json()
+        assert len(data) == 2
+        assert data[0]["title"] == "Party Hits"
+    finally:
+        settings.admin_token = orig_token
+
+
+def test_seed_playlist_auth(client, mock_redis):
+    """Test that seeding playlist requires admin token and calls add_to_queue_redis helper."""
+    # Attempt without token -> 401
+    res_no_token = client.post("/api/music/playlists/5001/seed")
+    assert res_no_token.status_code == 401
+
+    # Attempt with good token -> 200
+    orig_token = settings.admin_token
+    settings.admin_token = "valid_test_token"
+    try:
+        res_good_token = client.post("/api/music/playlists/5001/seed", headers={"X-Admin-Token": "valid_test_token"})
+        assert res_good_token.status_code == 200
+        assert "seeded 10 tracks" in res_good_token.json()["message"]
+    finally:
+        settings.admin_token = orig_token
+
+
+

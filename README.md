@@ -14,6 +14,8 @@
 - 📱 **Guest Access via QR Code**: Guests scan a QR code at your party to browse music and queue tracks instantly—no app installation or accounts required
 - ⚡ **Real-Time Queue Synchronization**: Everyone's device stays in sync. Changes to the queue, current track progress, and playback state update instantly across all connected instances
 - 🗳️ **Collaborative Skip Voting**: Party guests can vote in real-time to skip songs. When the vote threshold is reached, TuneBox skips to the next track
+- 📋 **Jukebox Playlist Pre-Seeding**: Hosts can import and shuffle tracks directly from existing Plex playlists to seed the jukebox before guests arrive
+- 🛡️ **Admin Queue Controls**: Hosts can selectively remove individual tracks from the playback queue to maintain complete command of the party vibe
 - 🎨 **Responsive, Mobile-First UI**: Clean, intuitive interface for browsing artists, albums, and tracks, adding to the queue, and managing playback
 - 🔐 **Setup Wizard**: Simple initial configuration wizard to link your Plex account and choose your preferred audio playback client
 
