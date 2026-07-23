@@ -26,6 +26,27 @@ def add_to_queue_redis(song, server_id=None, server_name=None, server_token=None
             detail=f"Song {song.title} is already in the queue.",
         )
 
+    moods = [m.tag if hasattr(m, "tag") else str(m) for m in getattr(song, "moods", [])] if hasattr(song, "moods") else []
+
+    # Cascade to Album and Artist level for moods if track level is empty
+    if not moods:
+        try:
+            if hasattr(song, "album"):
+                album = song.album()
+                if album and hasattr(album, "moods") and album.moods:
+                    moods = [m.tag if hasattr(m, "tag") else str(m) for m in album.moods]
+        except Exception:
+            pass
+
+    if not moods:
+        try:
+            if hasattr(song, "artist"):
+                artist = song.artist()
+                if artist and hasattr(artist, "moods") and artist.moods:
+                    moods = [m.tag if hasattr(m, "tag") else str(m) for m in artist.moods]
+        except Exception:
+            pass
+
     song_data = {
         "item_id": song.ratingKey,
         "title": song.title,
@@ -37,6 +58,7 @@ def add_to_queue_redis(song, server_id=None, server_name=None, server_token=None
         "server_token": server_token or getattr(song, "server_token", None),
         "server_address": server_address or getattr(song, "server_address", None),
         "is_fallback": is_fallback,
+        "moods": moods,
     }
 
     client = get_redis_queue_client()
@@ -115,13 +137,22 @@ def get_redis_queue():
 
 
 def clear_redis_queue():
-    """Clear the entire Redis playback queue.
+    """Clear the Redis playback queue, preserving the currently playing track (index 0).
 
     Returns:
-        A cleared redis queue.
+        A cleared redis queue message.
     """
-    get_redis_queue_client().delete("playback_queue")
-    logger.info("The Redis playback queue has been cleared.")
+    client = get_redis_queue_client()
+    queue = client.lrange("playback_queue", 0, -1)
+    if queue:
+        # Keep the first item and discard the rest
+        first_item = queue[0]
+        client.delete("playback_queue")
+        client.rpush("playback_queue", first_item)
+        logger.info("The Redis playback queue has been cleared, keeping the active playing track.")
+    else:
+        client.delete("playback_queue")
+        logger.info("The Redis playback queue was empty and has been cleared.")
 
     return {"message": "The queue has been cleared."}
 

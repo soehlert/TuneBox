@@ -112,7 +112,16 @@ async def remove_from_queue(
     try:
         song = get_track(item_id)
         logger.debug("Removing song: %s", song.title)
+        
+        # Check if the song being removed is the currently playing track (index 0)
+        queue_before = get_redis_queue()
+        is_active = len(queue_before) > 0 and queue_before[0]["item_id"] == item_id
+        
         result = remove_from_redis_queue(item_id)
+
+        if is_active:
+            from backend.websockets import reset_skip_votes
+            await reset_skip_votes()
 
         background_tasks.add_task(send_queue)
 
@@ -167,6 +176,8 @@ async def clear_the_queue(background_tasks: BackgroundTasks):
     try:
         result = clear_redis_queue()
 
+        from backend.websockets import reset_skip_votes
+        await reset_skip_votes()
         await send_queue()
         await send_current_playing()
 

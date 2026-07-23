@@ -4,6 +4,7 @@ import "./Queue.css";
 
 const QueueComponent = () => {
   const [queue, setQueue] = useState<any[]>([]);
+  const [vibes, setVibes] = useState<string[]>([]);
   const adminToken = localStorage.getItem("tunebox_admin_token") || "";
 
   const handleDeleteTrack = async (itemId: number | string) => {
@@ -57,6 +58,7 @@ const QueueComponent = () => {
             const data = JSON.parse(event.data);
             if (data.message === "Queue update") {
               setQueue(data.queue);
+              setVibes(data.vibes || []);
             } else if (data.message === "pong") {
               clearTimeout(pongTimeoutRef.current!);
             }
@@ -105,6 +107,38 @@ const QueueComponent = () => {
       <Box className="queue-header">
         <Typography className="queue-title">Up Next</Typography>
       </Box>
+      
+      {vibes && vibes.length > 0 && (
+        <Box 
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: "6px",
+            padding: "0 12px 12px 12px",
+            marginTop: "-4px"
+          }}
+        >
+          {vibes.map((vibe, idx) => (
+            <span
+              key={idx}
+              style={{
+                fontSize: "11px",
+                background: "rgba(51, 117, 173, 0.15)",
+                border: "1px solid #3376ad",
+                color: "#9bd0ff",
+                padding: "2px 8px",
+                borderRadius: "12px",
+                fontWeight: 600,
+                textTransform: "capitalize",
+                letterSpacing: "0.02em"
+              }}
+            >
+              {vibe}
+            </span>
+          ))}
+        </Box>
+      )}
+
       <ul className="queue-list">
         {queue.map((track, index) => {
           const isActive = index === 0;
@@ -155,7 +189,7 @@ const QueueComponent = () => {
                 ) : (
                   <Typography className="queue-item-time">{formatDuration(track.duration)}</Typography>
                 )}
-                {adminToken && (
+                {adminToken && !isActive && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
