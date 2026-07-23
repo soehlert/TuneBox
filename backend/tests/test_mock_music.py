@@ -86,3 +86,30 @@ def test_get_accessible_servers(client):
     assert "server_id" in data[0]
     assert "name" in data[0]
 
+
+def test_delete_queue_item_auth(client, mock_redis):
+    """Test that deleting a queue item requires valid admin authentication."""
+    # Attempt deleting without token header -> 401
+    res_no_token = client.delete("/api/music/queue/3001")
+    assert res_no_token.status_code == 401
+    assert "Unauthorized" in res_no_token.json()["detail"]
+
+    # Attempt deleting with invalid token header -> 401
+    res_bad_token = client.delete(
+        "/api/music/queue/3001", headers={"X-Admin-Token": "wrong-token"}
+    )
+    assert res_bad_token.status_code == 401
+
+    # Attempt deleting with valid token header
+    orig_token = settings.admin_token
+    settings.admin_token = "valid_test_token"
+    try:
+        res_good_token = client.delete(
+            "/api/music/queue/3001", headers={"X-Admin-Token": "valid_test_token"}
+        )
+        assert res_good_token.status_code == 200
+        assert res_good_token.json() == {"message": "Song not found in the queue."}
+    finally:
+        settings.admin_token = orig_token
+
+

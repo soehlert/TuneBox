@@ -4,6 +4,23 @@ import "./Queue.css";
 
 const QueueComponent = () => {
   const [queue, setQueue] = useState<any[]>([]);
+  const adminToken = localStorage.getItem("tunebox_admin_token") || "";
+
+  const handleDeleteTrack = async (itemId: number | string) => {
+    try {
+      const response = await fetch(`${apiBase}/api/music/queue/${itemId}`, {
+        method: "DELETE",
+        headers: {
+          "X-Admin-Token": adminToken,
+        },
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to delete track: ${response.statusText}`);
+      }
+    } catch (error) {
+      console.error("Error deleting track from queue:", error);
+    }
+  };
 
   const formatDuration = (ms: number | string) => {
     const totalSeconds = Math.floor(Number(ms) / 1000);
@@ -132,11 +149,43 @@ const QueueComponent = () => {
                   </Typography>
                 </Box>
               </Box>
-              {isActive ? (
-                <span className="material-symbols-outlined queue-equalizer animate-pulse">equalizer</span>
-              ) : (
-                <Typography className="queue-item-time">{formatDuration(track.duration)}</Typography>
-              )}
+              <Box style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                {isActive ? (
+                  <span className="material-symbols-outlined queue-equalizer animate-pulse">equalizer</span>
+                ) : (
+                  <Typography className="queue-item-time">{formatDuration(track.duration)}</Typography>
+                )}
+                {adminToken && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteTrack(track.item_id);
+                    }}
+                    style={{
+                      background: "transparent",
+                      border: "none",
+                      color: "rgba(255, 255, 255, 0.4)",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      padding: "4px",
+                      borderRadius: "4px",
+                      transition: "color 0.2s, background-color 0.2s",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.color = "#f44336";
+                      e.currentTarget.style.backgroundColor = "rgba(244, 67, 54, 0.1)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.color = "rgba(255, 255, 255, 0.4)";
+                      e.currentTarget.style.backgroundColor = "transparent";
+                    }}
+                    title="Remove from queue"
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>delete</span>
+                  </button>
+                )}
+              </Box>
             </li>
           );
         })}

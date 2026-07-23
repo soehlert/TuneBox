@@ -3,7 +3,7 @@
 import asyncio
 import logging
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, Response
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, Response, Header
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from plexapi.exceptions import PlexApiException
@@ -91,12 +91,18 @@ async def add_to_queue(
 
 
 @router.delete("/queue/{item_id}")
-async def remove_from_queue(item_id: int, background_tasks: BackgroundTasks):
+async def remove_from_queue(
+    item_id: int,
+    background_tasks: BackgroundTasks,
+    x_admin_token: str | None = Header(None),
+):
     """Remove an item from the Redis playback queue.
 
     Returns:
         Removal of track.
     """
+    if not settings.admin_token or x_admin_token != settings.admin_token:
+        raise HTTPException(status_code=401, detail="Unauthorized: Invalid admin token")
     try:
         song = get_track(item_id)
         logger.debug("Removing song: %s", song.title)
