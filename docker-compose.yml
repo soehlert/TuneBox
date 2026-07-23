@@ -20,7 +20,6 @@ services:
       - "8000:8000"
     environment:
       - PLEX_USERNAME=${PLEX_USERNAME}
-      - PLEX_PASSWORD=${PLEX_PASSWORD}
       - PLEX_SERVER_NAME=${PLEX_SERVER_NAME}
       - CLIENT_NAME=${CLIENT_NAME}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}
