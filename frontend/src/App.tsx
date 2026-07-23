@@ -575,9 +575,9 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
       };
     }
     return {
-      background: "rgba(0, 119, 182, 0.15)",
-      border: "1px solid #0077B6",
-      color: "#0077B6",
+      background: "rgba(0, 168, 232, 0.15)",
+      border: "1px solid #00a8e8",
+      color: "#00a8e8",
     };
   };
 
@@ -1974,12 +1974,12 @@ function App() {
                     alignItems: "center",
                     gap: "6px",
                     padding: "6px 12px",
-                    background: "rgba(0, 119, 182, 0.15)",
-                    border: "1px solid #0077B6",
+                    background: "rgba(0, 168, 232, 0.15)",
+                    border: "1px solid #00a8e8",
                     borderRadius: "20px",
                     fontSize: "12px",
                     fontWeight: "bold",
-                    color: "#0077B6",
+                    color: "#00a8e8",
                     cursor: "pointer",
                     flexShrink: 0,
                     whiteSpace: "nowrap"
