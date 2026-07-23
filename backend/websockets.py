@@ -53,11 +53,10 @@ from collections import Counter
 
 
 def calculate_top_vibes(play_queue: list) -> list[str]:
-    """Aggregate track moods (falling back to genres) and retrieve the top 3."""
+    """Aggregate track moods and retrieve the top 3."""
     if not play_queue:
         return []
     
-    # Try to collect moods first
     moods = []
     for item in play_queue:
         item_moods = item.get("moods")
@@ -68,23 +67,28 @@ def calculate_top_vibes(play_queue: list) -> list[str]:
         counts = Counter(moods)
         return [tag for tag, _ in counts.most_common(3)]
         
-    # Fall back to genres if no moods exist
-    genres = []
-    for item in play_queue:
-        item_genres = item.get("genres")
-        if item_genres and isinstance(item_genres, list):
-            genres.extend(item_genres)
-            
-    if genres:
-        counts = Counter(genres)
-        return [tag for tag, _ in counts.most_common(3)]
-        
     return []
 
 
 async def send_queue():
     """Send the current queue to all connected WebSocket clients of 'queue_update' message_type."""
     play_queue = get_redis_queue()
+    
+    # If the queue is empty but there's a currently playing track on the player,
+    # prepend it so the UI always displays it at the top of the queue panel!
+    if not play_queue:
+        current = get_current_playing_track()
+        if current:
+            play_queue = [{
+                "item_id": current.get("item_id"),
+                "title": current["title"],
+                "artist": current["artist"],
+                "duration": current.get("total_time", 0) * 1000,
+                "album_art": current.get("album_art"),
+                "server_id": current.get("server_id"),
+                "server_name": current.get("server_name"),
+            }]
+
     message = {
         "type": "queue_update",
         "message": "Queue update",

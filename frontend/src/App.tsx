@@ -512,6 +512,9 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
         { name: newName },
         { headers: { "x-admin-token": adminToken } }
       );
+      if (clientId === getClientId() && adminToken) {
+        localStorage.setItem("tunebox_admin_name", newName);
+      }
       fetchClients();
     } catch (err) {
       console.error("Failed to rename device:", err);
@@ -1187,13 +1190,13 @@ function GuestModal({ onJoin, onClose }: GuestModalProps) {
         <div style={{ fontSize: "40px", marginBottom: "16px" }}>🎵</div>
         <h2 style={{ color: "#f5a623", margin: "0 0 8px 0", fontSize: "22px" }}>Welcome to TuneBox!</h2>
         <p style={{ color: "#888", fontSize: "14px", marginBottom: "28px", lineHeight: "1.5" }}>
-          Enter your Plex username to get verified voting power, or any nickname to join as a guest.
+          Enter a nickname to join the session.
         </p>
 
         <form onSubmit={handleJoin} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
           <input
             type="text"
-            placeholder="Your name or Plex username"
+            placeholder="Your Nickname"
             value={name}
             onChange={(e) => setName(e.target.value)}
             style={{ ...inputStyle, textAlign: "center", fontSize: "16px", padding: "12px" }}
@@ -1574,7 +1577,7 @@ function App() {
         let name = "Unknown";
         let role = "guest";
         if (isAdmin) {
-          name = `Admin (${instanceName})`;
+          name = localStorage.getItem("tunebox_admin_name") || `Admin (${instanceName})`;
           role = "admin";
         } else if (isDisplay) {
           name = localStorage.getItem("tunebox_display_name") || "Shared Display";
@@ -1987,7 +1990,10 @@ function App() {
                   title="Admin Session — Click to open Settings"
                 >
                   <span className="material-symbols-outlined" style={{ fontSize: "15px" }}>admin_panel_settings</span>
-                  <span>{instanceName ? `Admin (${instanceName})` : "Admin"}</span>
+                  <span>{
+                    localStorage.getItem("tunebox_admin_name") ||
+                    (instanceName ? `Admin (${instanceName})` : "Admin")
+                  }</span>
                 </div>
               )}
 

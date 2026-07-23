@@ -27,7 +27,25 @@ def add_to_queue_redis(song, server_id=None, server_name=None, server_token=None
         )
 
     moods = [m.tag if hasattr(m, "tag") else str(m) for m in getattr(song, "moods", [])] if hasattr(song, "moods") else []
-    genres = [g.tag if hasattr(g, "tag") else str(g) for g in getattr(song, "genres", [])] if hasattr(song, "genres") else []
+
+    # Cascade to Album and Artist level for moods if track level is empty
+    if not moods:
+        try:
+            if hasattr(song, "album"):
+                album = song.album()
+                if album and hasattr(album, "moods") and album.moods:
+                    moods = [m.tag if hasattr(m, "tag") else str(m) for m in album.moods]
+        except Exception:
+            pass
+
+    if not moods:
+        try:
+            if hasattr(song, "artist"):
+                artist = song.artist()
+                if artist and hasattr(artist, "moods") and artist.moods:
+                    moods = [m.tag if hasattr(m, "tag") else str(m) for m in artist.moods]
+        except Exception:
+            pass
 
     song_data = {
         "item_id": song.ratingKey,
@@ -41,7 +59,6 @@ def add_to_queue_redis(song, server_id=None, server_name=None, server_token=None
         "server_address": server_address or getattr(song, "server_address", None),
         "is_fallback": is_fallback,
         "moods": moods,
-        "genres": genres,
     }
 
     client = get_redis_queue_client()
