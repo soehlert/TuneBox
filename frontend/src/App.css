@@ -563,7 +563,7 @@
 .queue-toast-snackbar {
   position: fixed !important;
   bottom: 106px !important;
-  right: 36px !important;
+  right: 20px !important;
   left: auto !important;
   top: auto !important;
   transform: none !important;
