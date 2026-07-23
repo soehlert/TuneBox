@@ -334,6 +334,11 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
   const [playlists, setPlaylists] = useState<{ playlist_id: number; title: string }[]>([]);
   const [selectedPlaylistId, setSelectedPlaylistId] = useState("");
   const [seeding, setSeeding] = useState(false);
+  const [sectionsOpen, setSectionsOpen] = useState({
+    general: true,
+    queue: false,
+    devices: false,
+  });
 
   const [autoplayEnabled, setAutoplayEnabled] = useState(false);
 
@@ -554,6 +559,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
         alignItems: "center",
         justifyContent: "center",
         zIndex: 1000,
+        padding: "16px",
       }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
@@ -562,14 +568,20 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
           background: "#2a0d52",
           border: "1px solid rgba(255, 255, 255, 0.1)",
           borderRadius: "12px",
-          padding: "36px",
-          width: "480px",
-          maxWidth: "90vw",
+          padding: "24px",
+          width: "100%",
+          maxWidth: "480px",
+          maxHeight: "90vh",
+          display: "flex",
+          flexDirection: "column",
           boxShadow: "0 20px 60px rgba(29, 8, 59, 0.5)",
         }}
       >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
-          <h2 style={{ margin: 0, color: "#f5a623", fontSize: "20px" }}>⚙ TuneBox Settings</h2>
+        {/* Sticky Header */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+          <h2 style={{ margin: 0, color: "#f5a623", fontSize: "20px", display: "flex", alignItems: "center", gap: "8px" }}>
+            <span className="material-symbols-outlined">settings</span> TuneBox Settings
+          </h2>
           <button
             onClick={onClose}
             style={{ background: "none", border: "none", color: "rgba(255, 255, 255, 0.4)", fontSize: "22px", cursor: "pointer" }}
@@ -578,341 +590,468 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
           </button>
         </div>
 
-        <form onSubmit={handleSave} style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
-          <div>
-            <label style={labelStyle}>Plex Username</label>
-            <input
-              type="text"
-              value={plexUsername}
-              onChange={(e) => setPlexUsername(e.target.value)}
-              style={inputStyle}
-            />
+        {/* Sticky Alert Message Banner - High Contrast Solid Fill */}
+        {msg && (
+          <div
+            style={{
+              padding: "12px",
+              borderRadius: "8px",
+              background: msg.startsWith("✓") ? "#f5a623" : "#ff4d4d",
+              color: msg.startsWith("✓") ? "#1d083b" : "#ffffff",
+              fontSize: "14px",
+              fontWeight: "bold",
+              textAlign: "center",
+              marginBottom: "16px",
+              boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)",
+            }}
+          >
+            {msg}
           </div>
-          <div>
-            <label style={labelStyle}>TuneBox Instance Name</label>
-            <input
-              type="text"
-              value={localInstanceName}
-              onChange={(e) => setLocalInstanceName(e.target.value)}
-              style={inputStyle}
-            />
-          </div>
-          <div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <label style={labelStyle}>Plex Player (Playback Device)</label>
-              <button
-                type="button"
-                onClick={handleRefreshResources}
-                disabled={refreshing}
-                style={{
-                  background: "none",
-                  border: "none",
-                  color: "#ffc107",
-                  cursor: "pointer",
-                  fontSize: "12px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "4px",
-                  padding: "0 0 8px 0"
-                }}
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>refresh</span>
-                {refreshing ? "Refreshing..." : "Refresh"}
-              </button>
-            </div>
-            {players.length > 0 ? (
-              <select
-                value={selectedPlayer}
-                onChange={(e) => setSelectedPlayer(e.target.value)}
-                style={{ ...inputStyle, cursor: "pointer" }}
-              >
-                <option value="disabled">None (Released / Disconnected)</option>
-                {players.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <input
-                type="text"
-                placeholder="Enter player name manually (or 'disabled')"
-                value={selectedPlayer}
-                onChange={(e) => setSelectedPlayer(e.target.value)}
-                style={inputStyle}
-              />
-            )}
-          </div>
-          <div>
-            <label style={labelStyle}>Plex Media Server</label>
-            {servers.length > 0 ? (
-              <select
-                value={selectedServer}
-                onChange={(e) => setSelectedServer(e.target.value)}
-                style={{ ...inputStyle, cursor: "pointer" }}
-              >
-                {servers.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <input
-                type="text"
-                placeholder="Enter server name manually"
-                value={selectedServer}
-                onChange={(e) => setSelectedServer(e.target.value)}
-                style={inputStyle}
-              />
-            )}
-          </div>
+        )}
 
-          {msg && (
+        {/* Sticky Save Button Row */}
+        <div style={{ display: "flex", gap: "12px", marginBottom: "16px", borderBottom: "1px solid rgba(255, 255, 255, 0.1)", paddingBottom: "12px" }}>
+          <button
+            type="button"
+            onClick={() => {
+              const form = document.getElementById("settings-form") as HTMLFormElement;
+              if (form) form.requestSubmit();
+            }}
+            disabled={saving}
+            style={{
+              background: "var(--color-primary)",
+              color: "#0e0e0f",
+              border: "none",
+              borderRadius: "8px",
+              padding: "12px 24px",
+              fontSize: "15px",
+              fontWeight: "bold",
+              cursor: "pointer",
+              flex: 1,
+              transition: "background-color 0.2s",
+            }}
+            onMouseOver={(e) => (e.currentTarget.style.background = "#d48b17")}
+            onMouseOut={(e) => (e.currentTarget.style.background = "#f5a623")}
+          >
+            {saving ? "Saving Settings..." : "Save Settings"}
+          </button>
+        </div>
+
+        {/* Scrollable Accordion Body */}
+        <div style={{ overflowY: "auto", flex: 1, paddingRight: "4px", display: "flex", flexDirection: "column", gap: "16px" }}>
+          
+          {/* Section 1: General Connection Settings */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
             <div
+              onClick={() => setSectionsOpen(prev => ({ ...prev, general: !prev.general }))}
               style={{
-                padding: "10px",
-                borderRadius: "6px",
-                background: msg.startsWith("✓") ? "#1a3a1a" : "#3a1a1a",
-                color: msg.startsWith("✓") ? "#5cdd5c" : "#ff6b6b",
-                fontSize: "13px",
-                textAlign: "center",
-              }}
-            >
-              {msg}
-            </div>
-          )}
-
-          <div style={{ display: "flex", gap: "12px", marginTop: "10px" }}>
-            <button
-              type="submit"
-              disabled={saving}
-              style={{ ...btnStyle, flex: 1 }}
-              onMouseOver={(e) => (e.currentTarget.style.background = "#d48b17")}
-              onMouseOut={(e) => (e.currentTarget.style.background = "#f5a623")}
-            >
-              {saving ? "Saving..." : "Save Settings"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setConfirmClearOpen(true)}
-              style={{
-                background: "rgba(255, 107, 107, 0.15)",
-                border: "1px solid #ff6b6b",
-                color: "#ff6b6b",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                cursor: "pointer",
+                padding: "12px 14px",
+                background: "rgba(255, 255, 255, 0.04)",
+                border: "1px solid rgba(255, 255, 255, 0.08)",
                 borderRadius: "8px",
-                padding: "10px 16px",
-                fontSize: "14px",
-                fontWeight: "bold",
-                cursor: "pointer",
-                transition: "background-color 0.2s, color 0.2s",
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.backgroundColor = "#ff6b6b";
-                e.currentTarget.style.color = "#fff";
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.backgroundColor = "rgba(255, 107, 107, 0.15)";
-                e.currentTarget.style.color = "#ff6b6b";
+                userSelect: "none",
               }}
             >
-              Clear Queue
-            </button>
-          </div>
-        </form>
-
-        <div style={{ marginTop: "24px", borderTop: "1px solid rgba(255, 255, 255, 0.15)", paddingTop: "20px" }}>
-          <h3 style={{ margin: "0 0 12px 0", color: "#f5a623", fontSize: "16px" }}>🎵 Pre-seed Jukebox</h3>
-          {playlists.length === 0 ? (
-            <p style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "13px", margin: 0 }}>No playlists found on server.</p>
-          ) : (
-            <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-              <select
-                value={selectedPlaylistId}
-                onChange={(e) => setSelectedPlaylistId(e.target.value)}
-                style={{ ...inputStyle, flex: 1, margin: 0, cursor: "pointer" }}
-              >
-                {playlists.map((p) => (
-                  <option key={p.playlist_id} value={p.playlist_id}>
-                    {p.title}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                onClick={handleSeedJukebox}
-                disabled={seeding || !selectedPlaylistId}
-                style={{
-                  background: "var(--color-primary)",
-                  color: "#0e0e0f",
-                  border: "none",
-                  borderRadius: "8px",
-                  padding: "10px 16px",
-                  fontSize: "14px",
-                  fontWeight: "bold",
-                  cursor: "pointer",
-                  whiteSpace: "nowrap",
-                  transition: "background-color 0.2s",
-                }}
-                onMouseOver={(e) => (e.currentTarget.style.background = "#d48b17")}
-                onMouseOut={(e) => (e.currentTarget.style.background = "#f5a623")}
-              >
-                {seeding ? "Seeding..." : "Seed Jukebox"}
-              </button>
+              <span style={{ color: "#f5a623", fontSize: "14px", fontWeight: "bold", display: "flex", alignItems: "center", gap: "6px" }}>
+                💻 General Settings
+              </span>
+              <span style={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "11px" }}>
+                {sectionsOpen.general ? "▲ Collapse" : "▼ Expand"}
+              </span>
             </div>
-          )}
-        </div>
 
-        <div style={{ marginTop: "24px", borderTop: "1px solid rgba(255, 255, 255, 0.15)", paddingTop: "20px" }}>
-          <h3 style={{ margin: "0 0 12px 0", color: "#f5a623", fontSize: "16px" }}>📻 Smart Autoplay Mode</h3>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span style={{ color: "rgba(255, 255, 255, 0.7)", fontSize: "13px", paddingRight: "16px" }}>
-              Keep music playing based on recent vibe when queue falls to 5 or fewer tracks. Guest tracks automatically leapfrog fallback tracks.
-            </span>
-            <input
-              type="checkbox"
-              checked={autoplayEnabled}
-              onChange={(e) => handleToggleAutoplay(e.target.checked)}
-              style={{
-                width: "44px",
-                height: "22px",
-                cursor: "pointer",
-                accentColor: "var(--color-primary)",
-              }}
-            />
-          </div>
-        </div>
-
-        <div style={{ marginTop: "24px", borderTop: "1px solid rgba(255, 255, 255, 0.15)", paddingTop: "20px" }}>
-          <h3 style={{ margin: "0 0 12px 0", color: "#f5a623", fontSize: "16px" }}>💻 Connected Devices</h3>
-          {clients.length === 0 ? (
-            <p style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "13px", margin: 0 }}>No devices connected.</p>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px", maxHeight: "200px", overflowY: "auto" }}>
-              {/* Display screens at the top */}
-              {clients.filter(c => c.is_display).map((c) => (
-                <div
-                  key={c.client_id}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: "8px 12px",
-                    background: "rgba(92, 221, 92, 0.08)",
-                    border: "1px solid rgba(92, 221, 92, 0.2)",
-                    borderRadius: "6px",
-                  }}
-                >
-                  <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                    <span style={{ color: "#fff", fontSize: "14px", fontWeight: "bold", display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                      {c.name} {c.client_id === getClientId() ? " (This Device)" : ""}
-                      <span
-                        className="material-symbols-outlined"
-                        onClick={() => handleOpenRename(c.client_id, c.name)}
-                        style={{ fontSize: "16px", cursor: "pointer", color: "var(--color-primary)", opacity: 0.7, transition: "opacity 0.2s" }}
-                        onMouseOver={(e) => e.currentTarget.style.opacity = "1"}
-                        onMouseOut={(e) => e.currentTarget.style.opacity = "0.7"}
-                        title="Rename Device"
-                      >
-                        edit
-                      </span>
-                    </span>
-                    <span style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "11px", textTransform: "capitalize" }}>
-                      Role: {c.role} • Display Screen
-                    </span>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <span style={{ color: "#5cdd5c", fontSize: "12px", fontWeight: "bold", marginRight: "8px" }}>
-                      ✓ Display
-                    </span>
-                    <button
-                      onClick={() => handleUnsetDisplay(c.client_id)}
-                      style={{
-                        background: "transparent",
-                        border: "1px solid rgba(255, 107, 107, 0.4)",
-                        color: "#ff6b6b",
-                        borderRadius: "4px",
-                        padding: "6px 10px",
-                        fontSize: "11px",
-                        fontWeight: "bold",
-                        cursor: "pointer",
-                        transition: "background-color 0.2s",
-                      }}
-                      onMouseOver={(e) => {
-                        e.currentTarget.style.backgroundColor = "rgba(255, 107, 107, 0.1)";
-                      }}
-                      onMouseOut={(e) => {
-                        e.currentTarget.style.backgroundColor = "transparent";
-                      }}
-                    >
-                      Undisplay
-                    </button>
-                  </div>
+            {sectionsOpen.general && (
+              <form id="settings-form" onSubmit={handleSave} style={{ display: "flex", flexDirection: "column", gap: "14px", padding: "4px 8px 12px 8px" }}>
+                <div>
+                  <label style={labelStyle}>Plex Username</label>
+                  <input
+                    type="text"
+                    value={plexUsername}
+                    onChange={(e) => setPlexUsername(e.target.value)}
+                    style={inputStyle}
+                  />
                 </div>
-              ))}
-
-              {/* Divider if displays and others both exist */}
-              {clients.filter(c => c.is_display).length > 0 && clients.filter(c => !c.is_display).length > 0 && (
-                <div style={{ height: "1px", background: "rgba(255, 255, 255, 0.15)", margin: "8px 0" }} />
-              )}
-
-              {/* Other instances */}
-              {clients.filter(c => !c.is_display).map((c) => (
-                <div
-                  key={c.client_id}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: "8px 12px",
-                    background: "#3a136b",
-                    border: "1px solid rgba(255, 255, 255, 0.05)",
-                    borderRadius: "6px",
-                  }}
-                >
-                  <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                    <span style={{ color: "#fff", fontSize: "14px", fontWeight: "bold", display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                      {c.name} {c.client_id === getClientId() ? " (This Device)" : ""}
-                      <span
-                        className="material-symbols-outlined"
-                        onClick={() => handleOpenRename(c.client_id, c.name)}
-                        style={{ fontSize: "16px", cursor: "pointer", color: "var(--color-primary)", opacity: 0.7, transition: "opacity 0.2s" }}
-                        onMouseOver={(e) => e.currentTarget.style.opacity = "1"}
-                        onMouseOut={(e) => e.currentTarget.style.opacity = "0.7"}
-                        title="Rename Device"
-                      >
-                        edit
-                      </span>
-                    </span>
-                    <span style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "11px", textTransform: "capitalize" }}>
-                      Role: {c.role}
-                    </span>
-                  </div>
-                  {c.client_id !== getClientId() && (
+                <div>
+                  <label style={labelStyle}>TuneBox Instance Name</label>
+                  <input
+                    type="text"
+                    value={localInstanceName}
+                    onChange={(e) => setLocalInstanceName(e.target.value)}
+                    style={inputStyle}
+                  />
+                </div>
+                <div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <label style={labelStyle}>Plex Player (Playback Device)</label>
                     <button
-                      onClick={() => handleSetDisplay(c.client_id)}
+                      type="button"
+                      onClick={handleRefreshResources}
+                      disabled={refreshing}
                       style={{
-                        background: "#f5a623",
-                        color: "#1d083b",
+                        background: "none",
                         border: "none",
-                        borderRadius: "4px",
-                        padding: "6px 10px",
-                        fontSize: "11px",
-                        fontWeight: "bold",
+                        color: "#ffc107",
                         cursor: "pointer",
+                        fontSize: "12px",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                        padding: "0 0 8px 0"
                       }}
-                      onMouseOver={(e) => (e.currentTarget.style.background = "#d48b17")}
-                      onMouseOut={(e) => (e.currentTarget.style.background = "#f5a623")}
                     >
-                      Make Display
+                      <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>refresh</span>
+                      {refreshing ? "Refreshing..." : "Refresh"}
                     </button>
+                  </div>
+                  {players.length > 0 ? (
+                    <select
+                      value={selectedPlayer}
+                      onChange={(e) => setSelectedPlayer(e.target.value)}
+                      style={{ ...inputStyle, cursor: "pointer" }}
+                    >
+                      <option value="disabled">None (Released / Disconnected)</option>
+                      {players.map((p) => (
+                        <option key={p} value={p}>
+                          {p}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      placeholder="Enter player name manually (or 'disabled')"
+                      value={selectedPlayer}
+                      onChange={(e) => setSelectedPlayer(e.target.value)}
+                      style={inputStyle}
+                    />
                   )}
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+                <div>
+                  <label style={labelStyle}>Plex Media Server</label>
+                  {servers.length > 0 ? (
+                    <select
+                      value={selectedServer}
+                      onChange={(e) => setSelectedServer(e.target.value)}
+                      style={{ ...inputStyle, cursor: "pointer" }}
+                    >
+                      {servers.map((s) => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      placeholder="Enter server name manually"
+                      value={selectedServer}
+                      onChange={(e) => setSelectedServer(e.target.value)}
+                      style={inputStyle}
+                    />
+                  )}
+                </div>
+              </form>
+            )}
+          </div>
 
+          {/* Section 2: Queue Management */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            <div
+              onClick={() => setSectionsOpen(prev => ({ ...prev, queue: !prev.queue }))}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                cursor: "pointer",
+                padding: "12px 14px",
+                background: "rgba(255, 255, 255, 0.04)",
+                border: "1px solid rgba(255, 255, 255, 0.08)",
+                borderRadius: "8px",
+                userSelect: "none",
+              }}
+            >
+              <span style={{ color: "#f5a623", fontSize: "14px", fontWeight: "bold", display: "flex", alignItems: "center", gap: "6px" }}>
+                🎵 Queue Management
+              </span>
+              <span style={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "11px" }}>
+                {sectionsOpen.queue ? "▲ Collapse" : "▼ Expand"}
+              </span>
+            </div>
+
+            {sectionsOpen.queue && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px", padding: "4px 8px 12px 8px" }}>
+                {/* Preseed Jukebox */}
+                <div>
+                  <label style={{ ...labelStyle, fontSize: "13px", color: "rgba(255, 255, 255, 0.6)" }}>Pre-seed Jukebox</label>
+                  {playlists.length === 0 ? (
+                    <p style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "13px", margin: 0 }}>No playlists found on server.</p>
+                  ) : (
+                    <div style={{ display: "flex", gap: "10px", alignItems: "center", marginTop: "6px" }}>
+                      <select
+                        value={selectedPlaylistId}
+                        onChange={(e) => setSelectedPlaylistId(e.target.value)}
+                        style={{ ...inputStyle, flex: 1, margin: 0, cursor: "pointer" }}
+                      >
+                        {playlists.map((p) => (
+                          <option key={p.playlist_id} value={p.playlist_id}>
+                            {p.title}
+                          </option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        onClick={handleSeedJukebox}
+                        disabled={seeding || !selectedPlaylistId}
+                        style={{
+                          background: "var(--color-primary)",
+                          color: "#0e0e0f",
+                          border: "none",
+                          borderRadius: "8px",
+                          padding: "10px 16px",
+                          fontSize: "14px",
+                          fontWeight: "bold",
+                          cursor: "pointer",
+                          whiteSpace: "nowrap",
+                          transition: "background-color 0.2s",
+                        }}
+                        onMouseOver={(e) => (e.currentTarget.style.background = "#d48b17")}
+                        onMouseOut={(e) => (e.currentTarget.style.background = "#f5a623")}
+                      >
+                        {seeding ? "Seeding..." : "Seed"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Smart Autoplay toggle */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(255,255,255,0.03)", padding: "12px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.05)" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "4px", paddingRight: "16px" }}>
+                    <span style={{ color: "#fff", fontSize: "14px", fontWeight: "bold", display: "flex", alignItems: "center", gap: "6px" }}>
+                      📻 Smart Autoplay Mode
+                    </span>
+                    <span style={{ color: "rgba(255, 255, 255, 0.5)", fontSize: "11px", lineHeight: "1.4" }}>
+                      Keep music playing based on recent vibe when queue falls to 5 or fewer tracks. Guest tracks automatically leapfrog fallback tracks.
+                    </span>
+                  </div>
+                  <div 
+                    onClick={() => handleToggleAutoplay(!autoplayEnabled)}
+                    style={{
+                      width: "50px",
+                      height: "26px",
+                      backgroundColor: autoplayEnabled ? "var(--color-primary)" : "rgba(255, 255, 255, 0.2)",
+                      borderRadius: "13px",
+                      position: "relative",
+                      cursor: "pointer",
+                      flexShrink: 0,
+                      transition: "background-color 0.2s",
+                    }}
+                  >
+                    <div style={{
+                      width: "20px",
+                      height: "20px",
+                      backgroundColor: "#0e0e0f",
+                      borderRadius: "50%",
+                      position: "absolute",
+                      top: "3px",
+                      left: autoplayEnabled ? "27px" : "3px",
+                      transition: "left 0.2s",
+                    }} />
+                  </div>
+                </div>
+
+                {/* Clear Queue Button - High Contrast Destructive Action */}
+                <div>
+                  <label style={{ ...labelStyle, fontSize: "13px", color: "rgba(255, 255, 255, 0.6)", display: "block", marginBottom: "6px" }}>⚠️ Clear Active Queue</label>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmClearOpen(true)}
+                    style={{
+                      background: "#ff4d4d",
+                      border: "none",
+                      color: "#ffffff",
+                      borderRadius: "8px",
+                      padding: "12px 16px",
+                      fontSize: "14px",
+                      fontWeight: "bold",
+                      cursor: "pointer",
+                      width: "100%",
+                      boxShadow: "0 4px 12px rgba(255, 77, 77, 0.2)",
+                      transition: "background-color 0.2s",
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.backgroundColor = "#e04343";
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.backgroundColor = "#ff4d4d";
+                    }}
+                  >
+                    Clear Queue
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Section 3: Connected Devices */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "12px" }}>
+            <div
+              onClick={() => setSectionsOpen(prev => ({ ...prev, devices: !prev.devices }))}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                cursor: "pointer",
+                padding: "12px 14px",
+                background: "rgba(255, 255, 255, 0.04)",
+                border: "1px solid rgba(255, 255, 255, 0.08)",
+                borderRadius: "8px",
+                userSelect: "none",
+              }}
+            >
+              <span style={{ color: "#f5a623", fontSize: "14px", fontWeight: "bold", display: "flex", alignItems: "center", gap: "6px" }}>
+                💻 Connected Devices
+              </span>
+              <span style={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "11px" }}>
+                {sectionsOpen.devices ? "▲ Collapse" : "▼ Expand"}
+              </span>
+            </div>
+
+            {sectionsOpen.devices && (
+              <div style={{ padding: "4px 8px 12px 8px" }}>
+                {clients.length === 0 ? (
+                  <p style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "13px", margin: 0 }}>No devices connected.</p>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "10px", maxHeight: "200px", overflowY: "auto" }}>
+                    {/* Display screens at the top */}
+                    {clients.filter(c => c.is_display).map((c) => (
+                      <div
+                        key={c.client_id}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          padding: "8px 12px",
+                          background: "rgba(92, 221, 92, 0.08)",
+                          border: "1px solid rgba(92, 221, 92, 0.2)",
+                          borderRadius: "6px",
+                        }}
+                      >
+                        <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                          <span style={{ color: "#fff", fontSize: "14px", fontWeight: "bold", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                            {c.name} {c.client_id === getClientId() ? " (This Device)" : ""}
+                            <span
+                              className="material-symbols-outlined"
+                              onClick={() => handleOpenRename(c.client_id, c.name)}
+                              style={{ fontSize: "16px", cursor: "pointer", color: "var(--color-primary)", opacity: 0.7, transition: "opacity 0.2s" }}
+                              onMouseOver={(e) => e.currentTarget.style.opacity = "1"}
+                              onMouseOut={(e) => e.currentTarget.style.opacity = "0.7"}
+                              title="Rename Device"
+                            >
+                              edit
+                            </span>
+                          </span>
+                          <span style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "11px", textTransform: "capitalize" }}>
+                            Role: {c.role} • Display Screen
+                          </span>
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <span style={{ color: "#5cdd5c", fontSize: "12px", fontWeight: "bold", marginRight: "8px" }}>
+                            ✓ Display
+                          </span>
+                          <button
+                            onClick={() => handleUnsetDisplay(c.client_id)}
+                            style={{
+                              background: "transparent",
+                              border: "1px solid rgba(255, 107, 107, 0.4)",
+                              color: "#ff6b6b",
+                              borderRadius: "4px",
+                              padding: "6px 10px",
+                              fontSize: "11px",
+                              fontWeight: "bold",
+                              cursor: "pointer",
+                              transition: "background-color 0.2s",
+                            }}
+                            onMouseOver={(e) => {
+                              e.currentTarget.style.backgroundColor = "rgba(255, 107, 107, 0.1)";
+                            }}
+                            onMouseOut={(e) => {
+                              e.currentTarget.style.backgroundColor = "transparent";
+                            }}
+                          >
+                            Undisplay
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* Divider if displays and others both exist */}
+                    {clients.filter(c => c.is_display).length > 0 && clients.filter(c => !c.is_display).length > 0 && (
+                      <div style={{ height: "1px", background: "rgba(255, 255, 255, 0.15)", margin: "8px 0" }} />
+                    )}
+
+                    {/* Other instances */}
+                    {clients.filter(c => !c.is_display).map((c) => (
+                      <div
+                        key={c.client_id}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          padding: "8px 12px",
+                          background: "#3a136b",
+                          border: "1px solid rgba(255, 255, 255, 0.05)",
+                          borderRadius: "6px",
+                        }}
+                      >
+                        <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                          <span style={{ color: "#fff", fontSize: "14px", fontWeight: "bold", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                            {c.name} {c.client_id === getClientId() ? " (This Device)" : ""}
+                            <span
+                              className="material-symbols-outlined"
+                              onClick={() => handleOpenRename(c.client_id, c.name)}
+                              style={{ fontSize: "16px", cursor: "pointer", color: "var(--color-primary)", opacity: 0.7, transition: "opacity 0.2s" }}
+                              onMouseOver={(e) => e.currentTarget.style.opacity = "1"}
+                              onMouseOut={(e) => e.currentTarget.style.opacity = "0.7"}
+                              title="Rename Device"
+                            >
+                              edit
+                            </span>
+                          </span>
+                          <span style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "11px", textTransform: "capitalize" }}>
+                            Role: {c.role}
+                          </span>
+                        </div>
+                        {c.client_id !== getClientId() && (
+                          <button
+                            onClick={() => handleSetDisplay(c.client_id)}
+                            style={{
+                              background: "#f5a623",
+                              color: "#1d083b",
+                              border: "none",
+                              borderRadius: "4px",
+                              padding: "6px 10px",
+                              fontSize: "11px",
+                              fontWeight: "bold",
+                              cursor: "pointer",
+                            }}
+                            onMouseOver={(e) => (e.currentTarget.style.background = "#d48b17")}
+                            onMouseOut={(e) => (e.currentTarget.style.background = "#f5a623")}
+                          >
+                            Make Display
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
         <ConfirmModal
           isOpen={confirmClearOpen}
           title="Clear Playback Queue?"
@@ -921,9 +1060,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
           cancelText="Cancel"
           onConfirm={handleExecuteClearQueue}
           onCancel={() => setConfirmClearOpen(false)}
-        />
-
-        <PromptModal
+        />        <PromptModal
           isOpen={renameState.isOpen}
           title="Rename Device"
           message={`Enter a new display name for device "${renameState.currentName}":`}

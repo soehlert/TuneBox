@@ -189,7 +189,7 @@ def is_autoplay_enabled() -> bool:
     """Check if autoplay mode is enabled in Redis."""
     try:
         val = get_redis_queue_client().get("autoplay_enabled")
-        return val == b"true"
+        return val in ("true", b"true")
     except Exception:
         return False
 
