@@ -35,6 +35,8 @@ from backend.services.redis import (
     clear_redis_queue,
     get_redis_queue,
     remove_from_redis_queue,
+    is_autoplay_enabled,
+    set_autoplay_enabled,
 )
 from backend.websockets import send_current_playing, send_queue
 
@@ -45,6 +47,10 @@ logger = logging.getLogger(__name__)
 class QueueAddRequest(BaseModel):
     server_id: str | None = None
     server_name: str | None = None
+
+
+class AutoplayToggleRequest(BaseModel):
+    enabled: bool
 
 
 @router.post("/queue/{item_id}")
@@ -512,4 +518,20 @@ async def seed_playlist(
         raise HTTPException(
             status_code=500, detail=f"Error seeding playlist: {e}"
         ) from e
+
+
+@router.get("/autoplay")
+def get_autoplay_state():
+    """Get the current autoplay enabled status."""
+    return {"autoplay_enabled": is_autoplay_enabled()}
+
+
+@router.post("/autoplay")
+def set_autoplay_state(req: AutoplayToggleRequest, x_admin_token: str | None = Header(None)):
+    """Set the autoplay enabled status (restricted to admin)."""
+    if not settings.admin_token or x_admin_token != settings.admin_token:
+        raise HTTPException(status_code=401, detail="Unauthorized: Invalid admin token")
+    set_autoplay_enabled(req.enabled)
+    return {"autoplay_enabled": is_autoplay_enabled()}
+
 

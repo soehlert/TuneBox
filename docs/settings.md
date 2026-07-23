@@ -26,6 +26,8 @@ TuneBox separates capabilities into host/admin actions and guest actions:
 
 Clicking the **Settings Gear Button** (⚙) on the right side of the **bottom player bar** opens the Settings Modal:
 
+![Host Settings Modal](images/settings_modal.png)
+
 ### 1. Plex Username
 - **Description**: Displays and configures the username associated with your Plex account.
 
