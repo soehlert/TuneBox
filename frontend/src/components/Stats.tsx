@@ -27,6 +27,7 @@ export default function Stats({ apiBase }: { apiBase: string }) {
   const [data, setData] = useState<StatsData | null>(null);
   const [mode, setMode] = useState<"session" | "all_time">("session");
   const [loading, setLoading] = useState(true);
+  const [hideStaff, setHideStaff] = useState(true);
 
   useEffect(() => {
     fetchStats();
@@ -46,7 +47,22 @@ export default function Stats({ apiBase }: { apiBase: string }) {
 
   const getActiveList = (type: "adds" | "skips_cast" | "skips_received") => {
     if (!data) return [];
-    return mode === "session" ? data.session[type] : data.all_time[type];
+    const list = mode === "session" ? data.session[type] : data.all_time[type];
+    if (!hideStaff) return list;
+
+    const adminName = localStorage.getItem("tunebox_admin_name") || "Admin";
+    const instanceName = localStorage.getItem("tunebox_instance_name") || "TuneBox";
+
+    return list.filter(item => {
+      const nameLower = item.username.toLowerCase();
+      return (
+        nameLower !== "tunebox screen" &&
+        nameLower !== "display" &&
+        nameLower !== "admin" &&
+        nameLower !== adminName.toLowerCase() &&
+        nameLower !== instanceName.toLowerCase()
+      );
+    });
   };
 
   const renderTable = (title: string, list: StatItem[], metricName: string, icon: string) => {
@@ -109,19 +125,30 @@ export default function Stats({ apiBase }: { apiBase: string }) {
             🏆 TuneBox Leaderboards
           </Typography>
 
-          <div className="toggle-container">
-            <button 
-              className={`toggle-btn ${mode === "session" ? "active" : ""}`}
-              onClick={() => setMode("session")}
-            >
-              This Party
-            </button>
-            <button 
-              className={`toggle-btn ${mode === "all_time" ? "active" : ""}`}
-              onClick={() => setMode("all_time")}
-            >
-              All Time
-            </button>
+          <div style={{ display: "flex", alignItems: "center", gap: "20px", flexWrap: "wrap" }}>
+            <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", fontSize: "13px", color: "rgba(255, 255, 255, 0.7)" }}>
+              <input
+                type="checkbox"
+                checked={hideStaff}
+                onChange={(e) => setHideStaff(e.target.checked)}
+                style={{ cursor: "pointer" }}
+              />
+              Hide Host & Shared Display
+            </label>
+            <div className="toggle-container">
+              <button 
+                className={`toggle-btn ${mode === "session" ? "active" : ""}`}
+                onClick={() => setMode("session")}
+              >
+                This Party
+              </button>
+              <button 
+                className={`toggle-btn ${mode === "all_time" ? "active" : ""}`}
+                onClick={() => setMode("all_time")}
+              >
+                All Time
+              </button>
+            </div>
           </div>
         </div>
 
