@@ -189,7 +189,7 @@ const QueueComponent = () => {
                 ) : (
                   <Typography className="queue-item-time">{formatDuration(track.duration)}</Typography>
                 )}
-                {adminToken && (
+                {adminToken && !isActive && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();

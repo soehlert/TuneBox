@@ -137,13 +137,22 @@ def get_redis_queue():
 
 
 def clear_redis_queue():
-    """Clear the entire Redis playback queue.
+    """Clear the Redis playback queue, preserving the currently playing track (index 0).
 
     Returns:
-        A cleared redis queue.
+        A cleared redis queue message.
     """
-    get_redis_queue_client().delete("playback_queue")
-    logger.info("The Redis playback queue has been cleared.")
+    client = get_redis_queue_client()
+    queue = client.lrange("playback_queue", 0, -1)
+    if queue:
+        # Keep the first item and discard the rest
+        first_item = queue[0]
+        client.delete("playback_queue")
+        client.rpush("playback_queue", first_item)
+        logger.info("The Redis playback queue has been cleared, keeping the active playing track.")
+    else:
+        client.delete("playback_queue")
+        logger.info("The Redis playback queue was empty and has been cleared.")
 
     return {"message": "The queue has been cleared."}
 
