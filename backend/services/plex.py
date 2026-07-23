@@ -20,6 +20,8 @@ from backend.services.redis import (
     get_cached_data,
     get_redis_queue,
     remove_from_redis_queue,
+    add_to_history,
+    is_autoplay_enabled,
 )
 from backend.utils import TrackTimeTracker, milliseconds_to_seconds
 
@@ -331,6 +333,7 @@ def play_song(player, song, server_token=None, server_url=None):
         "server_name": getattr(song, "server_name", None),
     }
     cache_data("now_playing", song_data)
+    add_to_history(song.ratingKey)
 
     track_time_tracker.start(song.title)
     logger.info("Song %s started playing on player: %s", song.title, player.title)
@@ -401,6 +404,123 @@ async def play_queue_on_device():
         logger.exception("Error starting queue playback: %s", e)
 
 
+def generate_autoplay_tracks():
+    """Analyze recent history, fetch related tracks from Plex, and seed the queue with fallback items."""
+    import random
+    import json
+    from backend.services.redis import get_playback_history, get_redis_cache_client, add_to_queue_redis
+
+    logger.info("Triggering Autoplay track generation.")
+    
+    # 1. Fetch recent playback history
+    history = get_playback_history()
+    
+    # If in testing mode or history is empty, fall back
+    if settings.testing or not history:
+        # We try to load cached playlist tracks as fallback pool
+        try:
+            cached = get_redis_cache_client().get("last_seeded_playlist_tracks")
+            if cached:
+                fallback_pool = json.loads(cached)
+                # Sample up to 10 tracks
+                sampled_ids = random.sample(fallback_pool, min(len(fallback_pool), 10))
+                for tid in sampled_ids:
+                    track = get_track(tid)
+                    try:
+                        add_to_queue_redis(track, is_fallback=True)
+                    except Exception:
+                        pass
+                logger.info("Autoplay seeded queue using cached playlist fallback.")
+                return
+        except Exception as ex:
+            logger.warning("Failed to retrieve cached playlist tracks for autoplay fallback: %s", ex)
+            
+        # Hard fallback to MOCK_TRACKS if cached playlist is unavailable
+        if settings.testing:
+            from backend.services.mock_data import MOCK_TRACKS
+            all_tracks = []
+            for album_tracks in MOCK_TRACKS.values():
+                all_tracks.extend(album_tracks)
+            sampled = random.sample(all_tracks, min(len(all_tracks), 10))
+            for t in sampled:
+                class MockTrack:
+                    ratingKey = t["track_id"]
+                    title = t["title"]
+                    grandparentTitle = t["artist"]
+                    parentTitle = t["album"]
+                    duration = t["duration"] * 1000
+                    thumb = f"/api/music/album-art/{t['track_id']}"
+                try:
+                    add_to_queue_redis(MockTrack(), is_fallback=True)
+                except Exception:
+                    pass
+            logger.info("Autoplay seeded queue using mock track fallback.")
+            return
+
+    # 2. Select up to 3 distinct seeds from the history
+    seeds = list(set(history))[:3]
+    candidate_tracks = []
+    
+    # 3. Query Plex for related tracks
+    for seed_id in seeds:
+        try:
+            seed_track = get_track(seed_id)
+            if hasattr(seed_track, "related") and not settings.testing:
+                related = seed_track.related()
+                for r_item in related:
+                    # Make sure it's a track
+                    if getattr(r_item, "type", "") == "track" or "track" in str(getattr(r_item, "type", "")):
+                        candidate_tracks.append(r_item)
+        except Exception as e:
+            logger.warning("Failed to query related tracks for seed %s: %s", seed_id, e)
+            
+    # Remove duplicates from candidates
+    unique_candidates = {}
+    for c in candidate_tracks:
+        unique_candidates[c.ratingKey] = c
+        
+    candidates = list(unique_candidates.values())
+    
+    # Filter out tracks already in the history to avoid immediate duplicates
+    filtered_candidates = [c for c in candidates if int(c.ratingKey) not in history]
+    
+    # If we have no/few candidates, fall back to cached playlist tracks
+    if len(filtered_candidates) < 10:
+        try:
+            cached = get_redis_cache_client().get("last_seeded_playlist_tracks")
+            if cached:
+                fallback_pool = json.loads(cached)
+                needed = 10 - len(filtered_candidates)
+                sampled_ids = random.sample(fallback_pool, min(len(fallback_pool), needed))
+                for tid in sampled_ids:
+                    try:
+                        # Skip if already in history
+                        if tid in history:
+                            continue
+                        track = get_track(tid)
+                        filtered_candidates.append(track)
+                    except Exception:
+                        pass
+        except Exception as ex:
+            logger.warning("Autoplay fallback pool lookup failed: %s", ex)
+            
+    if not filtered_candidates:
+        logger.warning("No candidates found for autoplay.")
+        return
+        
+    # Shuffle and select 10 tracks
+    random.shuffle(filtered_candidates)
+    selected = filtered_candidates[:10]
+    
+    for track in selected:
+        try:
+            add_to_queue_redis(track, is_fallback=True)
+        except Exception:
+            pass
+            
+    logger.info("Successfully populated queue with %s autoplay fallback tracks.", len(selected))
+
+
 async def playback_orchestrator():
     """Central async background task that manages the playback state machine.
 
@@ -426,12 +546,15 @@ async def playback_orchestrator():
 
             # 1. Drive the queue if nothing is currently playing
             if playback_active:
+                queue = get_redis_queue()
+                if len(queue) <= 5 and is_autoplay_enabled():
+                    await asyncio.to_thread(generate_autoplay_tracks)
+                    queue = get_redis_queue()
+
                 if (
                     not track_time_tracker.is_playing
                     and track_time_tracker.state != "paused"
                 ):
-                    # Get the current queue
-                    queue = get_redis_queue()
                     if queue:
                         # Fetch the first track
                         next_song = queue[0]
@@ -1292,7 +1415,8 @@ def fetch_playlists():
 def seed_queue_from_playlist(playlist_id: int):
     """Import, shuffle, and add tracks from a Plex playlist to the Redis queue."""
     import random
-    from backend.services.redis import add_to_queue_redis
+    import json
+    from backend.services.redis import add_to_queue_redis, get_redis_cache_client
 
     if settings.testing:
         # Generate some mock tracks from the mock data to seed the queue
@@ -1301,8 +1425,16 @@ def seed_queue_from_playlist(playlist_id: int):
         for album_tracks in MOCK_TRACKS.values():
             all_tracks.extend(album_tracks)
         
-        # Select up to 10 random tracks to simulate seeding
+        # Select exactly 10 random tracks to simulate seeding
         sampled = random.sample(all_tracks, min(len(all_tracks), 10))
+        
+        # Cache these track IDs as the fallback pool
+        fallback_pool = [t["track_id"] for t in all_tracks]
+        try:
+            get_redis_cache_client().set("last_seeded_playlist_tracks", json.dumps(fallback_pool))
+        except Exception as ex:
+            logger.warning("Failed to cache fallback pool in tests: %s", ex)
+
         for t in sampled:
             # We mock the track structure so add_to_queue_redis works
             class MockTrack:
@@ -1314,7 +1446,7 @@ def seed_queue_from_playlist(playlist_id: int):
                 thumb = f"/api/music/album-art/{t['track_id']}"
             
             try:
-                add_to_queue_redis(MockTrack())
+                add_to_queue_redis(MockTrack(), is_fallback=True)
             except Exception: # ignore already in queue exception
                 pass
         return {"message": f"Successfully seeded 10 tracks from playlist {playlist_id}."}
@@ -1331,18 +1463,24 @@ def seed_queue_from_playlist(playlist_id: int):
         raise HTTPException(status_code=404, detail="Playlist not found")
         
     tracks = playlist.items()
-    # Limit imported tracks to 100 to avoid high latency or overloading Redis
-    tracks = tracks[:100]
-    random.shuffle(tracks)
+    # Store all playlist track ratingKeys in cache as a fallback pool for Autoplay
+    playlist_track_ids = [int(t.ratingKey) for t in tracks]
+    try:
+        get_redis_cache_client().set("last_seeded_playlist_tracks", json.dumps(playlist_track_ids))
+    except Exception as ex:
+        logger.warning("Failed to cache fallback pool: %s", ex)
+
+    # Select exactly 10 random tracks (or fewer if the playlist is smaller)
+    sample_size = min(len(tracks), 10)
+    sampled_tracks = random.sample(tracks, sample_size)
     
     added_count = 0
-    for track in tracks:
+    for track in sampled_tracks:
         try:
-            add_to_queue_redis(track)
+            add_to_queue_redis(track, is_fallback=True)
             added_count += 1
         except Exception:
             # Skip duplicates or tracks already in queue
             pass
             
     return {"message": f"Successfully seeded {added_count} tracks from playlist '{playlist.title}'."}
-

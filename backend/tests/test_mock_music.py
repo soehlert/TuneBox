@@ -153,4 +153,48 @@ def test_seed_playlist_auth(client, mock_redis):
         settings.admin_token = orig_token
 
 
+def test_get_and_set_autoplay(client, mock_redis):
+    """Test retrieving and updating the autoplay enabled state."""
+    mock_redis_queue, _ = mock_redis
+    redis_store = {}
+
+    def mock_get(key):
+        return redis_store.get(key)
+
+    def mock_set(key, val):
+        redis_store[key] = val.encode() if isinstance(val, str) else val
+
+    mock_redis_queue.get.side_effect = mock_get
+    mock_redis_queue.set.side_effect = mock_set
+
+    # GET state (default should be false)
+    res_get = client.get("/api/music/autoplay")
+    assert res_get.status_code == 200
+    assert res_get.json() == {"autoplay_enabled": False}
+
+    # POST state without token -> 401
+    res_post_unauth = client.post("/api/music/autoplay", json={"enabled": True})
+    assert res_post_unauth.status_code == 401
+
+    # POST state with valid token -> 200
+    orig_token = settings.admin_token
+    settings.admin_token = "valid_test_token"
+    try:
+        res_post = client.post(
+            "/api/music/autoplay",
+            json={"enabled": True},
+            headers={"X-Admin-Token": "valid_test_token"},
+        )
+        assert res_post.status_code == 200
+        assert res_post.json() == {"autoplay_enabled": True}
+
+        # Check GET state updates accordingly
+        res_get_updated = client.get("/api/music/autoplay")
+        assert res_get_updated.json() == {"autoplay_enabled": True}
+    finally:
+        settings.admin_token = orig_token
+
+
+
+
 

@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 CACHE_TTL = 21600
 
 
-def add_to_queue_redis(song, server_id=None, server_name=None, server_token=None, server_address=None):
+def add_to_queue_redis(song, server_id=None, server_name=None, server_token=None, server_address=None, is_fallback=False):
     """Add a song to the Redis queue with optional multi-server connection metadata."""
     if not is_track_object(song):
         msg = "Only songs can be added to the queue."
@@ -36,11 +36,39 @@ def add_to_queue_redis(song, server_id=None, server_name=None, server_token=None
         "server_name": server_name or getattr(song, "server_name", None),
         "server_token": server_token or getattr(song, "server_token", None),
         "server_address": server_address or getattr(song, "server_address", None),
+        "is_fallback": is_fallback,
     }
 
-    # Store the song as a JSON object in Redis
-    get_redis_queue_client().rpush("playback_queue", json.dumps(song_data))
-    logger.info("Added %s (server: %s) to Redis playback queue.", song.title, song_data.get("server_name") or "primary")
+    client = get_redis_queue_client()
+    if is_fallback:
+        # If it's fallback, just append it to the end of the queue
+        client.rpush("playback_queue", json.dumps(song_data))
+        logger.info("Added fallback track %s to Redis queue.", song.title)
+    else:
+        # If it's a guest song, check if fallback songs exist in the queue
+        queue = client.lrange("playback_queue", 0, -1)
+        fallback_indices = []
+        for i, item_bytes in enumerate(queue):
+            item = json.loads(item_bytes)
+            if item.get("is_fallback"):
+                fallback_indices.append(i)
+        
+        if fallback_indices:
+            # 1. Insert guest song before the first fallback track
+            first_fallback_idx = fallback_indices[0]
+            first_fallback_data = queue[first_fallback_idx]
+            client.linsert("playback_queue", "BEFORE", first_fallback_data, json.dumps(song_data))
+            
+            # 2. Remove the last fallback track in the queue
+            last_fallback_idx = fallback_indices[-1]
+            last_fallback_data = queue[last_fallback_idx]
+            client.lrem("playback_queue", -1, last_fallback_data)
+            logger.info("Inserted guest song %s before first fallback and dropped last fallback.", song.title)
+        else:
+            # If no fallback tracks exist, just append to the end as normal
+            client.rpush("playback_queue", json.dumps(song_data))
+            logger.info("Added guest song %s to Redis queue.", song.title)
+
 
 
 def remove_from_redis_queue(item_id):
@@ -131,3 +159,46 @@ def clear_cache(key: str):
     except Exception as e:
         logger.warning("Redis cache clear error for key %s: %s", key, e)
     return {"message": f"Cache cleared for key: {key}"}
+
+
+def add_to_history(track_id: int):
+    """Add a track ID to the playback history list in Redis (capped at 10 items)."""
+    try:
+        client = get_redis_queue_client()
+        # Push to the left (newest first)
+        client.lpush("playback_history", track_id)
+        # Trim to keep only the 10 most recent entries
+        client.ltrim("playback_history", 0, 9)
+        logger.info("Added track %s to playback history.", track_id)
+    except Exception as e:
+        logger.warning("Failed to update playback history: %s", e)
+
+
+def get_playback_history():
+    """Retrieve the recent playback history track IDs from Redis."""
+    try:
+        client = get_redis_queue_client()
+        history = client.lrange("playback_history", 0, -1)
+        return [int(tid) for tid in history]
+    except Exception as e:
+        logger.warning("Failed to fetch playback history: %s", e)
+        return []
+
+
+def is_autoplay_enabled() -> bool:
+    """Check if autoplay mode is enabled in Redis."""
+    try:
+        val = get_redis_queue_client().get("autoplay_enabled")
+        return val == b"true"
+    except Exception:
+        return False
+
+
+def set_autoplay_enabled(enabled: bool):
+    """Set the autoplay mode state in Redis."""
+    try:
+        get_redis_queue_client().set("autoplay_enabled", "true" if enabled else "false")
+    except Exception as e:
+        logger.warning("Failed to set autoplay state: %s", e)
+
+

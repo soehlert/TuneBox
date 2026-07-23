@@ -26,6 +26,8 @@ def tracker():
 @patch("backend.services.redis_client.redis.StrictRedis.from_url")
 def test_get_redis_queue_client(mock_redis):
     """Test the lazy initialization of Redis client."""
+    if hasattr(get_redis_queue_client, "client"):
+        delattr(get_redis_queue_client, "client")
     mock_redis_queue = MagicMock()
     mock_redis.return_value = mock_redis_queue
 

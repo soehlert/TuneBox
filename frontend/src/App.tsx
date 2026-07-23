@@ -335,6 +335,8 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
   const [selectedPlaylistId, setSelectedPlaylistId] = useState("");
   const [seeding, setSeeding] = useState(false);
 
+  const [autoplayEnabled, setAutoplayEnabled] = useState(false);
+
   useEffect(() => {
     axios
       .get(getApiUrl("/api/music/playlists"), {
@@ -347,6 +349,13 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
         }
       })
       .catch((err) => console.error("Failed to load playlists:", err));
+
+    axios
+      .get(getApiUrl("/api/music/autoplay"))
+      .then((res) => {
+        setAutoplayEnabled(res.data.autoplay_enabled ?? false);
+      })
+      .catch((err) => console.error("Failed to load autoplay status:", err));
   }, [adminToken]);
 
   const handleSeedJukebox = async () => {
@@ -365,6 +374,21 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
       setMsg("✗ Failed to seed Jukebox.");
     } finally {
       setSeeding(false);
+    }
+  };
+
+  const handleToggleAutoplay = async (enabled: boolean) => {
+    try {
+      const res = await axios.post(
+        getApiUrl("/api/music/autoplay"),
+        { enabled },
+        { headers: { "x-admin-token": adminToken } }
+      );
+      setAutoplayEnabled(res.data.autoplay_enabled ?? false);
+      setMsg(`✓ Autoplay is now ${enabled ? "enabled" : "disabled"}!`);
+    } catch (err) {
+      console.error("Failed to toggle autoplay:", err);
+      setMsg("✗ Failed to toggle autoplay.");
     }
   };
 
@@ -737,6 +761,26 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
               </button>
             </div>
           )}
+        </div>
+
+        <div style={{ marginTop: "24px", borderTop: "1px solid rgba(255, 255, 255, 0.15)", paddingTop: "20px" }}>
+          <h3 style={{ margin: "0 0 12px 0", color: "#f5a623", fontSize: "16px" }}>📻 Smart Autoplay Mode</h3>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ color: "rgba(255, 255, 255, 0.7)", fontSize: "13px", paddingRight: "16px" }}>
+              Keep music playing based on recent vibe when queue falls to 5 or fewer tracks. Guest tracks automatically leapfrog fallback tracks.
+            </span>
+            <input
+              type="checkbox"
+              checked={autoplayEnabled}
+              onChange={(e) => handleToggleAutoplay(e.target.checked)}
+              style={{
+                width: "44px",
+                height: "22px",
+                cursor: "pointer",
+                accentColor: "var(--color-primary)",
+              }}
+            />
+          </div>
         </div>
 
         <div style={{ marginTop: "24px", borderTop: "1px solid rgba(255, 255, 255, 0.15)", paddingTop: "20px" }}>

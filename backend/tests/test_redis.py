@@ -191,3 +191,35 @@ def test_clear_cache_success(mock_redis):
 
     mock_redis_cache.delete.assert_called_once_with(key)
     assert response == {"message": f"Cache cleared for key: {key}"}
+
+
+def test_add_to_queue_redis_dynamic_replacement(mock_redis, mock_plex_track, mocker):
+    """Test dynamic replacement of fallback tracks in add_to_queue_redis."""
+    mocker.patch("backend.utils.is_track_object", return_value=True)
+    mocker.patch("backend.services.redis.is_song_in_queue", return_value=False)
+    mock_redis_queue, _ = mock_redis
+
+    # Simulate having a queue with fallback items
+    fallback_item_1 = json.dumps({"item_id": "1", "title": "F1", "is_fallback": True})
+    fallback_item_2 = json.dumps({"item_id": "2", "title": "F2", "is_fallback": True})
+    mock_redis_queue.lrange.return_value = [fallback_item_1, fallback_item_2]
+
+    with patch(
+        "backend.services.redis.get_redis_queue_client", return_value=mock_redis_queue
+    ):
+        add_to_queue_redis(mock_plex_track, is_fallback=False)
+
+    # Verify that we insert the guest song before the first fallback track
+    mock_redis_queue.linsert.assert_called_once()
+    insert_args = mock_redis_queue.linsert.call_args[0]
+    assert insert_args[0] == "playback_queue"
+    assert insert_args[1] == "BEFORE"
+    assert insert_args[2] == fallback_item_1
+
+    # Verify that we remove the last fallback track
+    mock_redis_queue.lrem.assert_called_once()
+    lrem_args = mock_redis_queue.lrem.call_args[0]
+    assert lrem_args[0] == "playback_queue"
+    assert lrem_args[1] == -1
+    assert lrem_args[2] == fallback_item_2
+
