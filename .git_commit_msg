@@ -1,7 +1,5 @@
-feat: enhance stats role filtering, add admin logout, and rename jukebox references to TuneBox
+docs: update README intro description, simplify stats feature, and add leaderboards screenshot
 
-- Track client connection role and display mapping inside stats:user_roles Redis hash table.
-- Retrieve roles on statistics queries, enabling dynamic filtering by role ('admin' and 'display') rather than hardcoded names.
-- Style and implement a logout action on the Host/Admin top-right badge pill.
-- Replace Jukebox references with TuneBox on user-facing UI labels, buttons, fields, and descriptions.
-- Document Jukebox Party Stats & Leaderboard feature in README.md.
+- Update the main TuneBox intro text to emphasize app-free guest queueing.
+- Simplify the stats feature list description to focus on user vibe contributions.
+- Copy the latest leaderboards dashboard screenshot to docs/images/leaderboard.png and link it in README.md.

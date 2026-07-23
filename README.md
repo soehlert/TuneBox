@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-**TuneBox** is a modern, collaborative party jukebox that turns your personal music library into a shared, interactive listening experience. Designed for parties, gatherings, and shared spaces, TuneBox allows hosts and guests to queue up songs, vote to skip, and control music playback seamlessly from any web browser.
+**TuneBox** is a modern, collaborative party jukebox that turns your personal music library into a shared, interactive listening experience. Designed for parties, gatherings, and shared spaces, TuneBox allows guests to queue up songs from any device without an app or account.
 
 ---
 
@@ -16,7 +16,7 @@
 - 🗳️ **Collaborative Skip Voting**: Party guests can vote in real-time to skip songs. When the vote threshold is reached, TuneBox skips to the next track
 - 📋 **TuneBox Playlist Pre-Seeding**: Host can import a shuffled sample of tracks from Plex playlists to seed TuneBox. Guest tracks automatically leapfrog ahead of these pre-seeded tracks.
 - 📻 **Smart Autoplay Mode**: Keeps music playing when the guest queue runs low by dynamically seeding the queue with related tracks. Guest selections automatically leapfrog ahead and drop fallback tracks.
-- 🏆 **TuneBox Party Stats & Leaderboard**: Track party stats (who queued the most, who voted skips, whose tracks got skipped) with persistent SQLite all-time and Redis session metrics, and a "Hide Host & Shared Display" role filter.
+- 🏆 **TuneBox Party Stats & Leaderboard**: Track party stats (who queued the most, who voted skips, whose tracks got skipped) to see who is contributing to the vibe and who is killing it.
 - 🎨 **Responsive, Mobile-First UI**: Clean, intuitive interface for browsing artists, albums, and tracks, adding to the queue, and managing playback
 - 🔐 **Setup Wizard**: Simple initial configuration wizard to link your Plex account and choose your preferred audio playback client
 
@@ -51,6 +51,10 @@
 ### ⚙️ Host Settings Modal
 ![Host Settings Modal](./docs/images/settings_modal.png)
 *Configure server and playback parameters, seed the queue, toggle autoplay, and manage connected devices.*
+
+### 🏆 TuneBox Party Leaderboards & Stats
+![TuneBox Leaderboards](./docs/images/leaderboard.png)
+*View party stats to see who requested the most tracks, who cast the most skip votes, and whose music is getting skipped.*
 
 ---
 
