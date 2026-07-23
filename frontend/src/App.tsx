@@ -575,9 +575,9 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
       };
     }
     return {
-      background: "rgba(0, 168, 232, 0.15)",
-      border: "1px solid #00a8e8",
-      color: "#00a8e8",
+      background: "rgba(51, 118, 173, 0.15)",
+      border: "1px solid #3375A8",
+      color: "#3375A8",
     };
   };
 
@@ -670,7 +670,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
 
         {/* Scrollable Accordion Body */}
         <div style={{ overflowY: "auto", flex: 1, paddingRight: "4px", display: "flex", flexDirection: "column", gap: "16px" }}>
-          
+
           {/* Section 1: General Connection Settings */}
           <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
             <div
@@ -868,7 +868,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                       Keep music playing based on recent vibe when queue falls to 5 or fewer tracks. Guest tracks automatically leapfrog fallback tracks.
                     </span>
                   </div>
-                  <div 
+                  <div
                     onClick={() => handleToggleAutoplay(!autoplayEnabled)}
                     style={{
                       width: "50px",
@@ -1974,12 +1974,12 @@ function App() {
                     alignItems: "center",
                     gap: "6px",
                     padding: "6px 12px",
-                    background: "rgba(0, 168, 232, 0.15)",
-                    border: "1px solid #00a8e8",
+                    background: "rgba(51, 118, 173, 0.15)",
+                    border: "1px solid #3375A8",
                     borderRadius: "20px",
                     fontSize: "12px",
                     fontWeight: "bold",
-                    color: "#00a8e8",
+                    color: "#3375A8",
                     cursor: "pointer",
                     flexShrink: 0,
                     whiteSpace: "nowrap"
