@@ -517,7 +517,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
       }
       fetchClients();
     } catch (err) {
-      console.error("Failed to rename device:", err);
+      console.error("Failed to rename user:", err);
     }
   };
 
@@ -947,7 +947,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
               }}
             >
               <span style={{ color: "#f5a623", fontSize: "14px", fontWeight: "bold", display: "flex", alignItems: "center", gap: "6px" }}>
-                💻 Connected Devices
+                👥 Connected Users
               </span>
               <span style={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "11px" }}>
                 {sectionsOpen.devices ? "▲" : "▼"}
@@ -957,7 +957,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
             {sectionsOpen.devices && (
               <div style={{ padding: "4px 8px 12px 8px" }}>
                 {clients.length === 0 ? (
-                  <p style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "13px", margin: 0 }}>No devices connected.</p>
+                  <p style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "13px", margin: 0 }}>No users connected.</p>
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: "10px", maxHeight: "200px", overflowY: "auto" }}>
                     {/* Display screens at the top */}
@@ -976,14 +976,14 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                       >
                         <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
                           <span style={{ color: "#fff", fontSize: "14px", fontWeight: "bold", display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                            {c.name} {c.client_id === getClientId() ? " (This Device)" : ""}
+                            {c.name} {c.client_id === getClientId() ? " (You)" : ""}
                             <span
                               className="material-symbols-outlined"
                               onClick={() => handleOpenRename(c.client_id, c.name)}
                               style={{ fontSize: "16px", cursor: "pointer", color: "var(--color-primary)", opacity: 0.7, transition: "opacity 0.2s" }}
                               onMouseOver={(e) => e.currentTarget.style.opacity = "1"}
                               onMouseOut={(e) => e.currentTarget.style.opacity = "0.7"}
-                              title="Rename Device"
+                              title="Change Username"
                             >
                               edit
                             </span>
@@ -1043,14 +1043,14 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                       >
                         <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
                           <span style={{ color: "#fff", fontSize: "14px", fontWeight: "bold", display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                            {c.name} {c.client_id === getClientId() ? " (This Device)" : ""}
+                            {c.name} {c.client_id === getClientId() ? " (You)" : ""}
                             <span
                               className="material-symbols-outlined"
                               onClick={() => handleOpenRename(c.client_id, c.name)}
                               style={{ fontSize: "16px", cursor: "pointer", color: "var(--color-primary)", opacity: 0.7, transition: "opacity 0.2s" }}
                               onMouseOver={(e) => e.currentTarget.style.opacity = "1"}
                               onMouseOut={(e) => e.currentTarget.style.opacity = "0.7"}
-                              title="Rename Device"
+                              title="Change Username"
                             >
                               edit
                             </span>
@@ -1096,8 +1096,8 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
           onCancel={() => setConfirmClearOpen(false)}
         />        <PromptModal
           isOpen={renameState.isOpen}
-          title="Rename Device"
-          message={`Enter a new display name for device "${renameState.currentName}":`}
+          title="Change Username"
+          message={`Enter a new username for "${renameState.currentName}":`}
           initialValue={renameState.currentName}
           saveText="Save Name"
           cancelText="Cancel"
@@ -1663,7 +1663,11 @@ function App() {
       setIsConfigured(res.data.is_configured);
 
       if (res.data.plex_username) setPlexUsername(res.data.plex_username);
-      if (res.data.client_name) setLocalUsername(res.data.client_name);
+      if (res.data.client_name) {
+        setLocalUsername(res.data.client_name);
+        setInstanceName(res.data.client_name);
+        localStorage.setItem("tunebox_instance_name", res.data.client_name);
+      }
 
       // Testing-mode bypass: backend returns admin_token in status when TESTING=true
       // and setup has been completed. Store it so admin mode activates immediately.
