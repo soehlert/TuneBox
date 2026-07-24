@@ -1625,7 +1625,6 @@ function App() {
   const [filteredArtists, setFilteredArtists] = useState<any[]>([]);
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [accessibleServers, setAccessibleServers] = useState<any[]>([]);
-  const [selectedServerIds, setSelectedServerIds] = useState<string[]>([]);
   const [showServerModal, setShowServerModal] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -1655,12 +1654,6 @@ function App() {
       .then((res) => {
         if (Array.isArray(res.data)) {
           setAccessibleServers(res.data);
-          const primaryIds = res.data.filter((s: any) => s.is_primary).map((s: any) => s.server_id);
-          if (primaryIds.length > 0) {
-            setSelectedServerIds(primaryIds);
-          } else if (res.data.length > 0) {
-            setSelectedServerIds([res.data[0].server_id]);
-          }
         }
       })
       .catch((err) => console.error("Error fetching servers:", err));
@@ -1681,8 +1674,7 @@ function App() {
 
     const fetchArtists = async () => {
       try {
-        const serverParam = selectedServerIds.length > 0 ? `&server_ids=${selectedServerIds.join(",")}` : "";
-        const searchURL = getApiUrl(`/api/music/unified-search?query=${encodeURIComponent(searchTerm)}${serverParam}`);
+        const searchURL = getApiUrl(`/api/music/unified-search?query=${encodeURIComponent(debouncedSearchTerm)}`);
         const artistListURL = getApiUrl("/api/music/artists");
         const endpoint = debouncedSearchTerm ? searchURL : artistListURL;
 
@@ -1717,7 +1709,7 @@ function App() {
       setLoadingArtists(false);
       setArtists([]);
     }
-  }, [debouncedSearchTerm, isConfigured, selectedServerIds]);
+  }, [debouncedSearchTerm, isConfigured]);
 
 
 

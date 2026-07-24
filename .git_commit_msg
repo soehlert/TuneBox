@@ -1,4 +1,4 @@
-fix: offload GET /api/auth/libraries connection checks to non-blocking threadpool
+fix: remove legacy server_ids query parameter from search in App.tsx
 
-- Use asyncio.to_thread and ThreadPoolExecutor in GET /api/auth/libraries to prevent event loop blocking.
-- Fix empty server list response and return live server list instantly with status pills.
+- Remove hardcoded &server_ids parameter from unified-search requests in App.tsx.
+- Allow search to query all enabled libraries saved in General Settings (including cc-ls-plex01).
