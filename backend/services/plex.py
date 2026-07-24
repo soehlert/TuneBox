@@ -1424,7 +1424,7 @@ def search_music(query: str):
             except Exception as ex:
                 logger.warning("Error searching music on finished thread: %s", ex)
 
-    # Deduplicate search results with robust title & artist matching
+    # Deduplicate search results with robust title & artist matching and sources aggregation
     seen_items = {}
     for item in all_raw_results:
         itype = item.get("type")
@@ -1440,11 +1440,36 @@ def search_music(query: str):
         else:
             key = str(id(item))
 
+        s_info = {
+            "server_id": item.get("server_id"),
+            "server_name": item.get("server_name"),
+            "artist_id": item.get("artist_id"),
+            "album_id": item.get("album_id"),
+            "track_id": item.get("track_id"),
+        }
+
         if key not in seen_items:
-            seen_items[key] = item
+            item_copy = dict(item)
+            item_copy["sources"] = [s_info] if item.get("server_name") else []
+            seen_items[key] = item_copy
         else:
-            # Upgrade existing item if new item has richer metadata
             existing = seen_items[key]
+            if "sources" not in existing:
+                existing["sources"] = []
+                if existing.get("server_name"):
+                    existing["sources"].append({
+                        "server_id": existing.get("server_id"),
+                        "server_name": existing.get("server_name"),
+                        "artist_id": existing.get("artist_id"),
+                        "album_id": existing.get("album_id"),
+                        "track_id": existing.get("track_id"),
+                    })
+
+            s_name = item.get("server_name")
+            if s_name and not any(src.get("server_name") == s_name for src in existing["sources"]):
+                existing["sources"].append(s_info)
+
+            # Upgrade existing item if new item has richer metadata
             if not existing.get("artist") and item.get("artist"):
                 existing["artist"] = item.get("artist")
             if not existing.get("thumb") and item.get("thumb"):

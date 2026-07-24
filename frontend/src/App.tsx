@@ -1674,6 +1674,9 @@ function App() {
   // Debouncing hook logic
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   useEffect(() => {
+    if (searchTerm) {
+      setLoadingArtists(true);
+    }
     const handler = setTimeout(() => {
       setDebouncedSearchTerm(searchTerm);
     }, 300);
@@ -1685,6 +1688,7 @@ function App() {
     if (!isConfigured) return;
 
     const fetchArtists = async () => {
+      setLoadingArtists(true);
       try {
         const searchURL = getApiUrl(`/api/music/unified-search?query=${encodeURIComponent(debouncedSearchTerm)}`);
         const artistListURL = getApiUrl("/api/music/artists");

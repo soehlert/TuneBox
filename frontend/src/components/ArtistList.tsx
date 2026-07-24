@@ -233,22 +233,46 @@ function ArtistList({
                     />
                     <div className="artist-card-overlay" style={{ flexDirection: "column", gap: "4px", padding: "12px 8px" }}>
                       <Typography className="artist-card-name">{artist.name}</Typography>
-                      {artist.server_name && (
-                        <span
-                          style={{
-                            fontSize: "10px",
-                            background: "rgba(245, 166, 35, 0.2)",
-                            border: "1px solid rgba(245, 166, 35, 0.4)",
-                            color: "#f5a623",
-                            padding: "1px 6px",
-                            borderRadius: "10px",
-                            fontWeight: 600,
-                            lineHeight: 1.2,
-                          }}
-                        >
-                          {artist.server_name}
-                        </span>
-                      )}
+                      {(() => {
+                        const sources = artist.sources || [];
+                        if (sources.length > 1) {
+                          const names = sources.map((s: any) => s.server_name).filter(Boolean).join(" • ");
+                          return (
+                            <span
+                              style={{
+                                fontSize: "10px",
+                                background: "rgba(46, 204, 113, 0.2)",
+                                border: "1px solid rgba(46, 204, 113, 0.5)",
+                                color: "#2ecc71",
+                                padding: "1px 7px",
+                                borderRadius: "10px",
+                                fontWeight: 700,
+                                lineHeight: 1.2,
+                              }}
+                              title={`Found on ${sources.length} servers: ${names}`}
+                            >
+                              🌐 {sources.length} libraries
+                            </span>
+                          );
+                        }
+                        const sName = artist.server_name || (sources.length === 1 ? sources[0].server_name : null);
+                        return sName ? (
+                          <span
+                            style={{
+                              fontSize: "10px",
+                              background: "rgba(245, 166, 35, 0.2)",
+                              border: "1px solid rgba(245, 166, 35, 0.4)",
+                              color: "#f5a623",
+                              padding: "1px 6px",
+                              borderRadius: "10px",
+                              fontWeight: 600,
+                              lineHeight: 1.2,
+                            }}
+                          >
+                            {sName}
+                          </span>
+                        ) : null;
+                      })()}
                     </div>
                   </Card>
                 ))}
@@ -322,22 +346,46 @@ function ArtistList({
                         }}>
                           {album.title}
                         </Typography>
-                        {album.server_name && (
-                          <span
-                            style={{
-                              fontSize: "9px",
-                              background: "rgba(245, 166, 35, 0.2)",
-                              border: "1px solid rgba(245, 166, 35, 0.4)",
-                              color: "#f5a623",
-                              padding: "1px 5px",
-                              borderRadius: "8px",
-                              fontWeight: 600,
-                              lineHeight: 1.2,
-                            }}
-                          >
-                            {album.server_name}
-                          </span>
-                        )}
+                        {(() => {
+                          const sources = album.sources || [];
+                          if (sources.length > 1) {
+                            const names = sources.map((s: any) => s.server_name).filter(Boolean).join(" • ");
+                            return (
+                              <span
+                                style={{
+                                  fontSize: "9px",
+                                  background: "rgba(46, 204, 113, 0.2)",
+                                  border: "1px solid rgba(46, 204, 113, 0.5)",
+                                  color: "#2ecc71",
+                                  padding: "1px 5px",
+                                  borderRadius: "8px",
+                                  fontWeight: 700,
+                                  lineHeight: 1.2,
+                                }}
+                                title={`Found on ${sources.length} servers: ${names}`}
+                              >
+                                🌐 {sources.length} libraries
+                              </span>
+                            );
+                          }
+                          const sName = album.server_name || (sources.length === 1 ? sources[0].server_name : null);
+                          return sName ? (
+                            <span
+                              style={{
+                                fontSize: "9px",
+                                background: "rgba(245, 166, 35, 0.2)",
+                                border: "1px solid rgba(245, 166, 35, 0.4)",
+                                color: "#f5a623",
+                                padding: "1px 5px",
+                                borderRadius: "8px",
+                                fontWeight: 600,
+                                lineHeight: 1.2,
+                              }}
+                            >
+                              {sName}
+                            </span>
+                          ) : null;
+                        })()}
                       </div>
                     </div>
                   </Card>
@@ -381,24 +429,46 @@ function ArtistList({
                     <div style={{ display: "flex", flexDirection: "column", gap: "2px", minWidth: 0, textAlign: "left" }}>
                       <Typography style={{ color: "white", fontFamily: "var(--font-title)", fontWeight: 700, fontSize: "0.95rem", display: "flex", alignItems: "center", gap: "8px", minWidth: 0 }}>
                         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{track.title}</span>
-                        {track.server_name && (
-                          <span style={{
-                            fontSize: "10px",
-                            background: "rgba(245, 166, 35, 0.15)",
-                            border: "1px solid rgba(245, 166, 35, 0.4)",
-                            color: "#f5a623",
-                            padding: "2px 6px",
-                            borderRadius: "10px",
-                            fontWeight: 600,
-                            maxWidth: "80px",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                            flexShrink: 0
-                          }}>
-                            {track.server_name}
-                          </span>
-                        )}
+                        {(() => {
+                          const sources = track.sources || [];
+                          if (sources.length > 1) {
+                            const names = sources.map((s: any) => s.server_name).filter(Boolean).join(" • ");
+                            return (
+                              <span
+                                style={{
+                                  fontSize: "10px",
+                                  background: "rgba(46, 204, 113, 0.15)",
+                                  border: "1px solid rgba(46, 204, 113, 0.5)",
+                                  color: "#2ecc71",
+                                  padding: "2px 6px",
+                                  borderRadius: "10px",
+                                  fontWeight: 700,
+                                }}
+                                title={`Found on ${sources.length} servers: ${names}`}
+                              >
+                                🌐 {sources.length} libraries
+                              </span>
+                            );
+                          }
+                          const sName = track.server_name || (sources.length === 1 ? sources[0].server_name : null);
+                          return sName ? (
+                            <span style={{
+                              fontSize: "10px",
+                              background: "rgba(245, 166, 35, 0.15)",
+                              border: "1px solid rgba(245, 166, 35, 0.4)",
+                              color: "#f5a623",
+                              padding: "2px 6px",
+                              borderRadius: "10px",
+                              fontWeight: 600,
+                              maxWidth: "120px",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}>
+                              {sName}
+                            </span>
+                          ) : null;
+                        })()}
                       </Typography>
                       <Typography style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "0.75rem", fontFamily: "var(--font-body)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                         {track.artist} • {track.album}

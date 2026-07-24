@@ -1,4 +1,5 @@
-fix: update unified_search_endpoint router to respect enabled library preferences
+fix: prevent flash of no results found and add multi-library badges on deduplicated search items
 
-- Fix unified_search_endpoint in backend/routers/music.py to call search_music(query) when server_ids is omitted.
-- Prevents search router from overriding enabled library settings and querying all 7 servers.
+- Set loading state immediately on search term change in App.tsx to eliminate 300ms flash of 'No results found'.
+- Aggregate sources array on deduplicated search items in backend/services/plex.py.
+- Render '🌐 X libraries' pill badge in ArtistList.tsx when items are found across multiple servers.
