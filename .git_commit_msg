@@ -1,6 +1,4 @@
-fix: restore layout CSS, fix Plex artwork cache key mismatch, and add fanart/poster fallbacks
+perf: add native loading=lazy to FallbackImage to prevent intermediate offscreen image fetches on letter jump
 
-- Revert previous flexbox overhaul to restore exact classic layout CSS.
-- Fix Redis cache key format mismatch in fetch_art in backend/services/plex.py.
-- Add artwork resolution fallbacks (art, poster, album, artist) for Plex items without standard thumb attributes.
-- Fix scroll target ID lookup in ArtistList.tsx.
+- Add loading="lazy" to img element in FallbackImage.tsx.
+- Defers network fetches for offscreen cards when visibleCount expands during alphabet jump.
