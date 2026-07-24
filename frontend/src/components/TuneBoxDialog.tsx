@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import './TuneBoxDialog.css';
 
 export interface TuneBoxDialogProps {
@@ -53,7 +54,7 @@ export const TuneBoxDialog: React.FC<TuneBoxDialogProps> = ({
     'Notice'
   );
 
-  return (
+  return createPortal(
     <div className="tunebox-dialog-overlay" onClick={onCancel || onConfirm}>
       <div className="tunebox-dialog-card" onClick={(e) => e.stopPropagation()}>
         <div className="tunebox-dialog-header">
@@ -95,7 +96,8 @@ export const TuneBoxDialog: React.FC<TuneBoxDialogProps> = ({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 

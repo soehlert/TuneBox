@@ -325,26 +325,10 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
   const [msg, setMsg] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
-
-  const initialSettingsRef = useRef({
-    plexUsername: "",
-    localInstanceName: instanceName,
-    selectedServer: "",
-    selectedPlayer: "",
-  });
-
-  const checkIsDirty = () => {
-    const init = initialSettingsRef.current;
-    return (
-      plexUsername !== init.plexUsername ||
-      localInstanceName !== init.localInstanceName ||
-      selectedServer !== init.selectedServer ||
-      selectedPlayer !== init.selectedPlayer
-    );
-  };
+  const [isFormDirty, setIsFormDirty] = useState(false);
 
   const handleAttemptClose = () => {
-    if (checkIsDirty()) {
+    if (isFormDirty) {
       setShowUnsavedDialog(true);
     } else {
       onClose();
@@ -357,7 +341,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [plexUsername, localInstanceName, selectedServer, selectedPlayer, onClose]);
+  }, [isFormDirty, onClose]);
 
   const [clients, setClients] = useState<ClientSession[]>([]);
   const [playlists, setPlaylists] = useState<{ playlist_id: number; title: string }[]>([]);
@@ -472,6 +456,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
         setSelectedServer(res.data.plex_server_name ?? "");
         setSelectedPlayer(res.data.client_name ?? "");
         if (res.data.instance_name) setInstanceName(res.data.instance_name);
+        setIsFormDirty(false);
       })
       .catch(console.error);
 
@@ -585,6 +570,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
         { headers: { "x-admin-token": adminToken } }
       );
       sessionStorage.clear();
+      setIsFormDirty(false);
       setMsg("✓ Settings saved! Switching server...");
       setTimeout(() => {
         window.location.href = window.location.origin + "/";
@@ -744,7 +730,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                   <input
                     type="text"
                     value={plexUsername}
-                    onChange={(e) => setPlexUsername(e.target.value)}
+                    onChange={(e) => { setPlexUsername(e.target.value); setIsFormDirty(true); }}
                     style={inputStyle}
                   />
                 </div>
@@ -753,7 +739,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                   <input
                     type="text"
                     value={localInstanceName}
-                    onChange={(e) => setLocalInstanceName(e.target.value)}
+                    onChange={(e) => { setLocalInstanceName(e.target.value); setIsFormDirty(true); }}
                     style={inputStyle}
                   />
                 </div>
@@ -783,7 +769,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                   {players.length > 0 ? (
                     <select
                       value={selectedPlayer}
-                      onChange={(e) => setSelectedPlayer(e.target.value)}
+                      onChange={(e) => { setSelectedPlayer(e.target.value); setIsFormDirty(true); }}
                       style={{ ...inputStyle, cursor: "pointer" }}
                     >
                       <option value="disabled">None (Released / Disconnected)</option>
@@ -798,7 +784,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                       type="text"
                       placeholder="Enter player name manually (or 'disabled')"
                       value={selectedPlayer}
-                      onChange={(e) => setSelectedPlayer(e.target.value)}
+                      onChange={(e) => { setSelectedPlayer(e.target.value); setIsFormDirty(true); }}
                       style={inputStyle}
                     />
                   )}
@@ -808,7 +794,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                   {servers.length > 0 ? (
                     <select
                       value={selectedServer}
-                      onChange={(e) => setSelectedServer(e.target.value)}
+                      onChange={(e) => { setSelectedServer(e.target.value); setIsFormDirty(true); }}
                       style={{ ...inputStyle, cursor: "pointer" }}
                     >
                       {servers.map((s) => (
@@ -822,7 +808,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                       type="text"
                       placeholder="Enter server name manually"
                       value={selectedServer}
-                      onChange={(e) => setSelectedServer(e.target.value)}
+                      onChange={(e) => { setSelectedServer(e.target.value); setIsFormDirty(true); }}
                       style={inputStyle}
                     />
                   )}

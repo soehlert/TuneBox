@@ -1,6 +1,4 @@
-feat: add TuneBoxDialog component, move save button to settings footer, and add unsaved changes prompt
+fix: render TuneBoxDialog via React portal at document.body and eliminate false dirty settings warnings
 
-- Create TuneBoxDialog component styled with dark glassmorphism tokens for alerts and confirmations.
-- Replace browser alert() calls in MusicControls.tsx and App.tsx setup wizard with TuneBoxDialog state.
-- Relocate Save Settings button to bottom footer of SettingsModal.
-- Add form dirty state tracking and unsaved changes confirmation dialog on SettingsModal close.
+- Use createPortal(..., document.body) in TuneBoxDialog to escape parent container bounds and position the dialog perfectly centered on screen.
+- Replace manual initial ref comparisons with explicit user-edit state tracking (isFormDirty) in SettingsModal so opening/closing without editing or saving settings never triggers false unsaved changes warnings.
