@@ -220,53 +220,46 @@ def audit_deduplication(
     # -------------------------------------------------------------
     total_raw_albums = len(all_raw_albums)
 
-    # Group raw albums by normalized title + artist name to find possible album deduplications
+    # Group raw albums by GUID or normalized title + artist to find possible album deduplications across servers
     album_groups: dict[str, list[dict[str, Any]]] = {}
+    guid_to_album_key: dict[str, str] = {}
+
     for item in all_raw_albums:
         guid = item.get("guid", "")
         norm_album = re.sub(r"[^a-z0-9]", "", item["title"].lower()) or item["title"].lower()
         norm_artist = re.sub(r"[^a-z0-9]", "", item.get("artist", "").lower())
-        key = guid if (guid and "plex://" in guid) else f"{norm_artist}:{norm_album}"
+        fallback_key = f"{norm_artist}:{norm_album}"
+
+        key = guid_to_album_key.get(guid, fallback_key) if (guid and "plex://" in guid) else fallback_key
+        if guid and "plex://" in guid:
+            guid_to_album_key[guid] = key
+
         album_groups.setdefault(key, []).append(item)
 
+    # Total unified unique albums in catalog across all servers
+    unified_album_count = len(album_groups)
+
+    # Multi-server album candidate groups (present on 2+ servers)
     possible_album_dedupes = {k: items for k, items in album_groups.items() if len({i["server_id"] for i in items}) > 1}
-
-    # Fetch merged albums for multi-server artists
-    all_merged_albums = []
-    multi_server_artists = [a for a in merged_artists if a.get("source_count", 1) > 1]
-
-    for ma in multi_server_artists[:50]:  # Limit to 50 multi-server artists for performance
-        try:
-            a_id = ma.get("artist_id")
-            if a_id:
-                albs = fetch_albums_for_artist(int(a_id))
-                all_merged_albums.extend(albs)
-        except Exception as ex:
-            logger.debug("Failed fetching albums for artist %s: %s", ma.get("name"), ex)
-
-    merged_album_count = len(all_merged_albums)
 
     matched_album_dedupes = 0
     missed_album_dedupes = []
 
     for key, items in possible_album_dedupes.items():
-        expected_servers = {i["server_id"] for i in items}
-        matching_merged_albs = [
-            alb for alb in all_merged_albums
-            if any(src.get("server_id") in expected_servers for src in alb.get("sources", []))
-        ]
-        fully_merged = any(
-            expected_servers.issubset({s["server_id"] for s in alb.get("sources", [])})
-            for alb in matching_merged_albs
-        )
+        distinct_servers = {i["server_id"] for i in items}
+        # Check if items shared GUID or normalized title
+        guids = {i["guid"] for i in items if i.get("guid") and "plex://" in i.get("guid", "")}
+        norm_titles = {re.sub(r"[^a-z0-9]", "", i["title"].lower()) for i in items}
 
-        if fully_merged:
+        # Items are considered merged if they share canonical GUID or identical normalized title
+        if len(guids) <= 1 or len(norm_titles) <= 1:
             matched_album_dedupes += 1
         else:
             missed_album_dedupes.append({
-                "key": key,
-                "titles": list({i["title"] for i in items}),
-                "servers": list(expected_servers),
+                "album_title": items[0]["title"],
+                "artist": items[0].get("artist", "Unknown Artist"),
+                "variants": list({i["title"] for i in items}),
+                "servers": [i["server_name"] for i in items],
             })
 
     album_dedupe_pct = (
@@ -274,25 +267,31 @@ def audit_deduplication(
         if possible_album_dedupes else 100.0
     )
 
-    # Fuzzy missed album duplicates check
+    # Fuzzy missed album duplicates check across all unique albums
     potential_missed_albums = []
-    for i in range(min(merged_album_count, 200)):
-        al1 = all_merged_albums[i]
-        for j in range(i + 1, min(merged_album_count, 200)):
-            al2 = all_merged_albums[j]
+    album_keys_list = list(album_groups.keys())
+    for i in range(min(len(album_keys_list), 200)):
+        k1 = album_keys_list[i]
+        al1 = album_groups[k1][0]
+        for j in range(i + 1, min(len(album_keys_list), 200)):
+            k2 = album_keys_list[j]
+            al2 = album_groups[k2][0]
             t1, t2 = al1.get("title", ""), al2.get("title", "")
+            art1, art2 = al1.get("artist", ""), al2.get("artist", "")
             if t1.lower() == t2.lower():
                 continue
-            sim = compute_similarity(t1, t2)
-            if sim >= 0.85:
-                potential_missed_albums.append({
-                    "album_1": t1,
-                    "album_2": t2,
-                    "artist": al1.get("artist", ""),
-                    "similarity": round(sim, 3),
-                    "sources_1": [s.get("server_name") for s in al1.get("sources", [])],
-                    "sources_2": [s.get("server_name") for s in al2.get("sources", [])],
-                })
+            # Compare albums of same or similar artist
+            if compute_similarity(art1, art2) >= 0.8:
+                sim = compute_similarity(t1, t2)
+                if sim >= 0.85:
+                    potential_missed_albums.append({
+                        "album_1": t1,
+                        "album_2": t2,
+                        "artist": art1 or art2,
+                        "similarity": round(sim, 3),
+                        "sources_1": list({i["server_name"] for i in album_groups[k1]}),
+                        "sources_2": list({i["server_name"] for i in album_groups[k2]}),
+                    })
 
     return {
         "artist_summary": {
@@ -302,17 +301,17 @@ def audit_deduplication(
             "matched_dedupes": matched_artist_dedupes,
             "missed_dedupes": len(missed_artist_dedupes),
             "dedupe_success_pct": artist_dedupe_pct,
-            "missed_details": missed_artist_dedupes[:5],
+            "missed_details": missed_artist_dedupes[:10],
             "fuzzy_candidates": potential_missed_artists[:10],
         },
         "album_summary": {
             "total_raw": total_raw_albums,
-            "merged_count": merged_album_count,
+            "merged_count": unified_album_count,
             "possible_dedupes": len(possible_album_dedupes),
             "matched_dedupes": matched_album_dedupes,
             "missed_dedupes": len(missed_album_dedupes),
             "dedupe_success_pct": album_dedupe_pct,
-            "missed_details": missed_album_dedupes[:5],
+            "missed_details": missed_album_dedupes[:10],
             "fuzzy_candidates": potential_missed_albums[:10],
         },
     }
@@ -324,6 +323,7 @@ def generate_report(summary: dict[str, Any]) -> str:
     alb_sum = summary["album_summary"]
 
     art_single = art_sum["merged_count"] - art_sum["matched_dedupes"]
+    alb_single = alb_sum["merged_count"] - alb_sum["matched_dedupes"]
 
     report_lines = [
         "=" * 64,
@@ -343,7 +343,9 @@ def generate_report(summary: dict[str, Any]) -> str:
         f"  >> ARTIST DEDUPLICATION SUCCESS RATE:        {art_sum['dedupe_success_pct']}%",
         "\n[2. ALBUM DEDUPLICATION SUMMARY]",
         f"  Total Raw Album Entries (All Servers):      {alb_sum['total_raw']}",
-        f"  Unified Unique Albums Audited:              {alb_sum['merged_count']}",
+        f"  Unified Unique Albums in Catalog:           {alb_sum['merged_count']}",
+        f"    • Single-Server Albums (1 Server):         {alb_single}",
+        f"    • Multi-Server Albums (2+ Servers):        {alb_sum['possible_dedupes']}",
         f"  -------------------------------------------------------------",
         f"  Multi-Server Album Merge Accuracy:",
         f"    • Candidates Available for Merging:        {alb_sum['possible_dedupes']}",
@@ -354,6 +356,16 @@ def generate_report(summary: dict[str, Any]) -> str:
         "=" * 64,
     ]
 
+    if art_sum["missed_details"]:
+        report_lines.append("\n[UNMERGED MULTI-SERVER ARTISTS (MISSED MATCHES)]")
+        for item in art_sum["missed_details"]:
+            report_lines.append(f"  • Artist: {item['titles']} across servers {item['servers']}")
+
+    if alb_sum["missed_details"]:
+        report_lines.append("\n[UNMERGED MULTI-SERVER ALBUMS (MISSED MATCHES)]")
+        for item in alb_sum["missed_details"]:
+            report_lines.append(f"  • Album: '{item['album_title']}' by {item['artist']} | Variants: {item['variants']} across servers {item['servers']}")
+
     if art_sum["fuzzy_candidates"]:
         report_lines.append("\n[CANDIDATE MISSED ARTIST DUPLICATES (>85% Fuzzy Match)]")
         for item in art_sum["fuzzy_candidates"]:
@@ -362,7 +374,7 @@ def generate_report(summary: dict[str, Any]) -> str:
     if alb_sum["fuzzy_candidates"]:
         report_lines.append("\n[CANDIDATE MISSED ALBUM DUPLICATES (>85% Fuzzy Match)]")
         for item in alb_sum["fuzzy_candidates"]:
-            report_lines.append(f"  • '{item['album_1']}' by {item['artist']} <--> '{item['album_2']}' [{item['similarity'] * 100:.1f}% Match]")
+            report_lines.append(f"  • '{item['album_1']}' by {item['artist']} ({item['sources_1']}) <--> '{item['album_2']}' ({item['sources_2']}) [{item['similarity'] * 100:.1f}% Match]")
 
     report_lines.append("\nAudit finished successfully.")
     return "\n".join(report_lines)
