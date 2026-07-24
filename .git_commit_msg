@@ -1,4 +1,4 @@
-fix: restrict background pre-warming to enabled servers and redesign connection status pills
+fix: update unified_search_endpoint router to respect enabled library preferences
 
-- Update pre_warm_all_caches in backend/services/plex.py to only warm enabled servers.
-- Update GET /api/auth/libraries and App.tsx to display ⚪ Not Connected for unchecked servers, and 🟢 Connected / 🔴 Failed for active checked servers.
+- Fix unified_search_endpoint in backend/routers/music.py to call search_music(query) when server_ids is omitted.
+- Prevents search router from overriding enabled library settings and querying all 7 servers.

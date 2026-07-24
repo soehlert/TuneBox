@@ -389,18 +389,22 @@ def get_accessible_servers():
 
 @router.get("/unified-search")
 async def unified_search_endpoint(query: str, server_ids: str | None = None):
-    """Search for music across multiple selected Plex servers concurrently."""
+    """Search for music across enabled Plex servers (or specific requested server_ids)."""
     try:
-        all_servers = fetch_accessible_plex_servers()
-        if not all_servers:
-            return search_music(query)
+        from backend.services.plex import search_music, fetch_accessible_plex_servers, search_music_on_server
 
-        target_servers = all_servers
-        if server_ids:
-            requested_ids = set(server_ids.split(","))
-            target_servers = [s for s in all_servers if s["server_id"] in requested_ids]
-            if not target_servers:
-                target_servers = all_servers
+        if not server_ids:
+            return await asyncio.to_thread(search_music, query)
+
+        all_servers = fetch_accessible_plex_servers()
+        requested_ids = {s.strip().lower() for s in server_ids.split(",")}
+        target_servers = [
+            s for s in all_servers
+            if str(s.get("server_id", "")).lower() in requested_ids or s.get("name", "").lower() in requested_ids
+        ]
+
+        if not target_servers:
+            return await asyncio.to_thread(search_music, query)
 
         tasks = [asyncio.to_thread(search_music_on_server, s, query) for s in target_servers]
         results_nested = await asyncio.gather(*tasks, return_exceptions=True)
@@ -413,7 +417,7 @@ async def unified_search_endpoint(query: str, server_ids: str | None = None):
         return combined_results
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Error executing unified search: {e}"
+            status_code=500, detail=f"Error searching music library: {e}"
         ) from e
 
 
