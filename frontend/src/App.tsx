@@ -634,40 +634,43 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
         }}
       >
         {/* Sticky Header */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-          <h2 style={{ margin: 0, color: "#f5a623", fontSize: "20px", display: "flex", alignItems: "center", gap: "8px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "16px" }}>
+          <h2 style={{ margin: 0, color: "#f5a623", fontSize: "19px", display: "flex", alignItems: "center", gap: "8px", whiteSpace: "nowrap" }}>
             <span className="material-symbols-outlined">settings</span> TuneBox Settings
           </h2>
+
+          {selectedServer && (
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "5px",
+                padding: "3px 9px",
+                background: "rgba(255, 255, 255, 0.07)",
+                border: "1px solid rgba(255, 255, 255, 0.15)",
+                borderRadius: "14px",
+                fontSize: "11px",
+                fontWeight: 600,
+                color: "rgba(255, 255, 255, 0.75)",
+                whiteSpace: "nowrap",
+                maxWidth: "160px",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+              title={`Connected Plex Server: ${selectedServer}`}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: "14px", color: "#5cdd5c", flexShrink: 0 }}>dns</span>
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{selectedServer}</span>
+            </div>
+          )}
+
           <button
             onClick={handleAttemptClose}
-            style={{ background: "none", border: "none", color: "rgba(255, 255, 255, 0.4)", fontSize: "22px", cursor: "pointer" }}
+            style={{ background: "none", border: "none", color: "rgba(255, 255, 255, 0.4)", fontSize: "22px", cursor: "pointer", padding: "0 4px" }}
           >
             ✕
           </button>
         </div>
-
-        {/* Connected Plex Server Pill */}
-        {selectedServer && (
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "4px 12px",
-              background: "rgba(92, 221, 92, 0.1)",
-              border: "1px solid rgba(92, 221, 92, 0.3)",
-              borderRadius: "14px",
-              fontSize: "12px",
-              fontWeight: 600,
-              color: "#5cdd5c",
-              marginBottom: "14px",
-              alignSelf: "flex-start"
-            }}
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: "15px", color: "#5cdd5c" }}>dns</span>
-            <span>Connected Server: <strong>{selectedServer}</strong></span>
-          </div>
-        )}
 
         {/* Sticky Alert Message Banner - High Contrast Translucent Fill */}
         {msg && (

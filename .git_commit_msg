@@ -1,5 +1,4 @@
-fix: relocate server badge to SettingsModal and protect mobile Queue button from overflow
+fix: place small server pill inside SettingsModal header row
 
-- Remove server indicator badge from MusicControls.tsx to eliminate player bar layout crowding.
-- Render green connected server pill near top of SettingsModal in App.tsx right below the header.
-- Update MusicControls.css mobile overrides to flex-protect .player-right-section and .player-queue-btn so the mobile Queue button is always visible on screen.
+- Move small server pill into SettingsModal header row flexbox in App.tsx between title and close button.
+- Add flex-wrap and responsive text truncation so the server pill sits inline on laptop views and wraps cleanly on mobile views.
