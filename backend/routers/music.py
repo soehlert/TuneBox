@@ -126,7 +126,7 @@ async def add_to_queue(
         all_servers = fetch_accessible_plex_servers() if (server_id and not settings.testing) else []
         target_res = next((s for s in all_servers if s["server_id"] == server_id), None)
 
-        s_name = server_name or (target_res.get("name") if target_res else "Primary Server")
+        s_name = server_name or (target_res.get("name") if target_res else settings.plex_server_name or "plex-so")
         
         codec = ""
         bitrate = 0

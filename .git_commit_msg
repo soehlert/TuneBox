@@ -1,5 +1,6 @@
-fix: auto-enable servers on boot, log audio quality diagnostics, and add mobile tap popups for library badges
+fix: resolve queue text overflow, add title hover tooltips, and use server name settings
 
-- Default get_enabled_server_ids to all accessible servers on fresh boot so remote servers connect without manual settings save.
-- Extract audio codec, bitrate, and quality score in queue and playback handlers and output explicit [Quality Selector] and [Playback Engine] logs.
-- Add tap/click popups to 🌐 X libraries pill badges in ArtistList.tsx and ArtistAlbums.tsx for mobile devices.
+- Wrap track titles in flex-bounded nodes with text-overflow ellipsis in Queue.tsx so long titles do not overlap timestamps.
+- Add flexShrink: 0 to server badges so they never get cut off.
+- Add title hover tooltip for full track names in the queue.
+- Use settings.plex_server_name (plex-so) instead of 'Home Server' fallback in backend loggers and payloads.

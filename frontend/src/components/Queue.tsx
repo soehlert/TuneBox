@@ -295,26 +295,38 @@ const QueueComponent = () => {
                 ) : null}
                 <Box className="queue-item-art-placeholder" style={{ display: track.item_id ? "none" : "flex" }}>🎵</Box>
                 <Box className="queue-item-meta">
-                  <Typography className="queue-item-title" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                    {track.title}
+                  <Box style={{ display: "flex", alignItems: "center", gap: "6px", minWidth: 0, width: "100%" }}>
+                    <Typography
+                      className="queue-item-title"
+                      title={track.title}
+                      style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0, flex: 1 }}
+                    >
+                      {track.title}
+                    </Typography>
                     {track.server_name && (
                       <span
                         style={{
                           fontSize: "9px",
-                          background: "rgba(245, 166, 35, 0.2)",
-                          border: "1px solid rgba(245, 166, 35, 0.4)",
-                          color: "#f5a623",
+                          background: isActive ? "rgba(0, 0, 0, 0.2)" : "rgba(245, 166, 35, 0.2)",
+                          border: isActive ? "1px solid rgba(0, 0, 0, 0.3)" : "1px solid rgba(245, 166, 35, 0.4)",
+                          color: isActive ? "#0e0e0f" : "#f5a623",
                           padding: "1px 5px",
                           borderRadius: "8px",
                           fontWeight: 600,
                           lineHeight: 1.2,
+                          flexShrink: 0,
                         }}
+                        title={`Source Library: ${track.server_name}`}
                       >
                         {track.server_name}
                       </span>
                     )}
-                  </Typography>
-                  <Typography className="queue-item-artist">
+                  </Box>
+                  <Typography
+                    className="queue-item-artist"
+                    title={track.artist}
+                    style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                  >
                     {track.artist}
                   </Typography>
                 </Box>

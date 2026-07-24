@@ -302,7 +302,7 @@ def get_track(item_id):
 
 def play_song(player, song, server_token=None, server_url=None):
     """Play a specific song on the Plex player."""
-    s_name = getattr(song, "server_name", None) or "Home Server"
+    s_name = getattr(song, "server_name", None) or settings.plex_server_name or "plex-so"
     codec = ""
     bitrate = 0
     if getattr(song, "media", None) and len(song.media) > 0:
