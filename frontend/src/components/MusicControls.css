@@ -189,59 +189,77 @@
 /* Responsive Overrides for Mobile */
 @media (max-width: 900px) {
   .player-inner-container {
-    padding: 0 12px;
+    padding: 0 8px;
+  }
+
+  .player-controls-row {
+    gap: 4px;
   }
 
   .player-left-section {
-    flex: 1 1 auto;
-    min-width: 80px;
-    max-width: 38%;
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 30%;
   }
 
-  .player-album-art {
-    width: 36px;
-    height: 36px;
-    margin-right: 6px;
-  }
-
+  .player-album-art,
   .player-album-art-placeholder {
-    width: 36px;
-    height: 36px;
-    margin-right: 6px;
-    font-size: 0.9rem;
+    width: 34px;
+    height: 34px;
+    margin-right: 4px;
+    font-size: 0.85rem;
   }
 
   .player-song-title {
-    font-size: 0.8rem !important;
+    font-size: 0.75rem !important;
   }
 
   .player-song-artist {
-    font-size: 0.7rem !important;
+    font-size: 0.65rem !important;
   }
 
   .player-center-section {
-    flex: 0 0 auto;
+    flex: 1 1 auto;
+    min-width: 0;
+    justify-content: center;
+    gap: 4px !important;
   }
 
   .player-controls-buttons {
-    gap: 4px;
+    gap: 4px !important;
+  }
+
+  .player-controls-buttons button span:not(.material-symbols-outlined) {
+    display: none !important;
+  }
+
+  .player-controls-buttons button {
+    padding: 6px 8px !important;
+    min-width: auto !important;
   }
 
   .player-right-section {
     flex: 0 0 auto !important;
     min-width: max-content !important;
-    gap: 6px !important;
+    margin-left: auto !important;
+    gap: 4px !important;
     overflow: visible !important;
+    z-index: 10;
   }
 
   .player-queue-btn {
     display: flex !important;
     flex-shrink: 0 !important;
     color: var(--color-primary) !important;
-    background: rgba(229, 149, 0, 0.18) !important;
-    border: 1px solid rgba(229, 149, 0, 0.4) !important;
-    border-radius: 8px !important;
-    padding: 6px 10px !important;
+    background: rgba(229, 149, 0, 0.22) !important;
+    border: 1px solid rgba(229, 149, 0, 0.5) !important;
+    border-radius: 50% !important;
+    width: 36px !important;
+    height: 36px !important;
+    padding: 0 !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4) !important;
   }
 
   .player-device-group {

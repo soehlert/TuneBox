@@ -1,5 +1,5 @@
-fix: ensure mobile Queue button is always visible with prominent primary badge styling
+fix: compact mobile playback controls to ensure Queue button is permanently visible when playing
 
-- Align player-queue-btn media query breakpoint with mobile layout (< 900px) in MusicControls.css.
-- Style player-queue-btn with prominent primary glass badge.
-- Enforce flex-shrink: 0 and overflow: visible on player-right-section to prevent clipping.
+- Compact control button text labels on mobile in MusicControls.css.
+- Set margin-left: auto on player-right-section to dock Queue button permanently on right edge of bottom player bar.
+- Render player-queue-btn as circular primary glass badge on mobile.
