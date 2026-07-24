@@ -1,66 +1,57 @@
-# 🧠 Brainstorm: Separating Connected Users & Devices for Kiosks and Leaderboards
-
 ## Goal
-Decouple the concepts of **Connected Users** (human participants for party stats and leaderboards) and **Connected Devices** (physical browser instances that can be designated as central display Kiosks), while keeping the guest connection flow fast and zero-friction without forcing users to type a device name manually.
+1. Design a sane, local mechanism for hosts/admins to manually override TuneBox deduplication results (force-merge separate entries, split false-positive merges, and lock match states).
+2. Fix missing artist artwork for items residing on secondary/remote Plex servers without requiring write access to remote Plex servers.
 
 ## Constraints
-- **Zero Friction for Guests**: Guests joining via QR code must NOT be forced to type both a username AND a device name.
-- **Leaderboard Accuracy**: Leaderboard stats (songs queued, skips voted) must accurately attribute actions to a human user identity across session reconnects.
-- **Kiosk Control**: Hosts must be able to designate specific browser sessions/devices as the central TV/kiosk display screen.
-- **No Heavy Authentication**: No account registration or complex login for party guests.
+- **Read-Only Remote Access**: TuneBox must never attempt to write metadata or lock fields back to remote Plex Media Server databases.
+- **Local Persistence**: All manual merge overrides, unmerges, and match locks must be stored in TuneBox's local persistent store (Redis/SQLite).
+- **Multi-Server Key Disparity**: An artist or album has different local `ratingKey` IDs on each Plex server (e.g. AC/DC is ID `101` on Server A and ID `504` on Server B). Overrides must identify items using composite keys `(server_id, ratingKey)` or canonical Plex GUIDs.
 
 ## Known Context
-- Currently, TuneBox tracks sessions in Redis under `connected_clients` as `{ client_id, name, role, is_display }`.
-- `name` is currently serving as both the user's handle and the device identifier.
-- The Admin settings panel currently groups these under "👥 Connected Users" with a "Make Display" action button.
+- **Deduplication Engine**: `backend/services/plex.py` currently merges artists and albums across servers using canonical Plex GUIDs (`plex://artist/...`) and title normalization (`re.sub(r"[^a-z0-9]", "", title)`).
+- **Image Proxying (`fetch_art`)**: TuneBox proxies images from Plex using `/api/music/artist-image/{artist_id}?server_id={server_id}`.
+- **Why Remote Artist Pictures Fail**:
+  1. Secondary server artist images fail if `server_id` is omitted in frontend image URLs, causing TuneBox to search the primary server (`plex-so`) where the secondary `artist_id` doesn't exist.
+  2. Plex Media Server does not automatically download artist bio photos unless agents match the artist.
+  3. When an artist is merged across multiple servers, if Server A lacks an artist photo, TuneBox currently does not attempt to fetch art from candidate Servers B or C that *do* have photos.
 
 ## Risks
-- **Identity Confusion**: If a user re-joins from a different tab or browser, they might create duplicate "users" on the leaderboard.
-- **Generic Device Labels**: User-Agent strings alone (e.g., "Chrome on macOS") can be identical for multiple guests on similar devices.
-- **State Desynchronization**: If device state and user session state are separate, disconnecting a device might leave phantom user leaderboard stats.
-
----
+- **ID Instability**: Raw integer `ratingKey`s on Plex can change if a server library is recreated. Storing overrides solely by integer ID could orphan locks. *(Mitigation: Use canonical GUIDs when available, falling back to composite `server_id:ratingKey` pairs)*.
+- **UI Clutter**: Adding matching controls to everyday guest views will degrade the simple jukebox experience. *(Mitigation: Keep match/unmerge/lock controls strictly within Host Settings / Admin views)*.
 
 ## Options
 
-### Option 1: Automatic User-Agent Detection + Persistent Device ID (Recommended)
-- **Mechanism**:
-  - Automatically parse `navigator.userAgent` on client connect (e.g., `"Safari on iPhone"`, `"Chrome on Mac"`).
-  - Store a unique `device_id` in `localStorage` alongside the user's `username`.
-  - When connecting, client sends `{ client_id, user_name, device_label: "Safari on iPhone" }`.
-- **User Experience**:
-  - Guests only enter a username (or keep default guest handle).
-  - Device label is auto-detected silently.
-  - Host sees: `"Alex (Safari on iPhone)"` in Connected Devices list.
+### Option 1: Local Override & Lock Registry with Multi-Server Image Fallback (Recommended)
+- **Local Override Registry**:
+  - Maintain a local Redis hash `manual_dedupe_overrides` with three rule types:
+    1. **Force Merge**: Explicitly group `[serverA:id1, serverB:id2]` into a single entity regardless of title/GUID differences.
+    2. **Unmerge / Split**: Explicitly separate `serverA:id1` from `serverB:id2` regardless of matching titles/GUIDs.
+    3. **Match Lock**: Flag an artist/album entity as `"locked": true`, instructing deduplication routines to bypass auto-merging or auto-splitting for that entity.
+- **Multi-Server Artwork Fallback**:
+  - Update `fetch_art` for merged entities: if Server A returns 404 or has no `thumb`, automatically check connected candidate Servers B and C for that merged artist before giving up.
+  - Ensure frontend image URLs pass `server_id` or query the unified entity.
+- **Admin UI**:
+  - Add an "Edit Match & Artwork" modal accessible in Host Settings -> Catalog Audit or from the Artist detail view.
 
-### Option 2: Default "User's Device" Labeling with Optional Rename
-- **Mechanism**:
-  - Set default device label automatically to `"{user_name}'s Device"` (e.g., `"Sam's Device"`).
-  - Provide a subtle inline edit pencil icon in the Connected Devices list so hosts can rename a device if needed (e.g., rename `"Living Room iPad"`).
-- **User Experience**:
-  - Zero extra steps for guests.
-  - Full customization control for host.
+### Option 2: CLI / Audit Script Interactive Overrides
+- Extend `audit_deduplication.py` with an interactive CLI mode (`--fix`) that prompts the user to approve/reject missed or suspect merges and saves choices to a JSON config file.
+- *Pros*: Quick to script; minimal frontend UI needed.
+- *Cons*: Host must run CLI commands in terminal to fix catalog mistakes.
 
-### Option 3: Mandatory Dual Input (Username + Device Name)
-- **Mechanism**:
-  - Prompt guest for both "Your Name" and "Device Name" on first join.
-- **User Experience**:
-  - High friction and annoying for party guests scanning a QR code.
-
----
+### Option 3: External Artwork Provider Fallback (Fanart.tv / MusicBrainz)
+- When no connected Plex server has an artist photo, query Fanart.tv or Last.fm APIs directly using artist name/MBID to fetch high-res artist posters.
+- *Pros*: Fills in missing artist pictures even if all Plex servers lack photos.
+- *Cons*: Requires external API keys and network calls to third-party services.
 
 ## Recommendation
-**Combine Option 1 & Option 2**:
-1. Automatically detect device details via `User-Agent` parsing (e.g., `"iPhone"`, `"iPad"`, `"Mac Chrome"`).
-2. Store a persistent `device_id` in `localStorage`.
-3. In the backend and WebSocket registry, track both `user_name` (for leaderboards) and `device_info` (for kiosk assignment).
-4. In Settings, split the panel cleanly into:
-   - **👥 Active Party Guests** (for leaderboards and guest management).
-   - **🖥️ Connected Display Kiosks & Screens** (showing auto-detected device labels like `"Sam's iPhone"`, with "Make Kiosk" actions).
-
----
+Implement **Option 1**:
+1. Store local deduplication overrides and lock states in Redis (`manual_dedupe_overrides`).
+2. Add a clean "Edit Match" modal in Host Settings for force-merging, unmerging, and locking items.
+3. Enhance `fetch_art` image proxying to try all candidate servers of a merged entity, and ensure `server_id` is properly passed from the frontend.
 
 ## Acceptance Criteria
-1. Guests joining via QR code only enter a username (or use default handle); device name is auto-detected without manual input.
-2. Device model and browser (e.g., `"iPhone / Safari"`) are parsed automatically and attached to session telemetry.
-3. Kiosk screens can be managed independently of guest user leaderboard stats.
+1. Admin can force-merge two separate artists/albums into one unified entry.
+2. Admin can unmerge incorrectly matched artists/albums into separate entries.
+3. Admin can toggle a "Lock" state on any artist/album that prevents background deduplication scans from changing its match state.
+4. Remote server artist pictures render correctly in TuneBox by passing `server_id` and falling back across candidate servers for merged entities.
+5. All override rules are stored locally in TuneBox without writing to remote Plex servers.
