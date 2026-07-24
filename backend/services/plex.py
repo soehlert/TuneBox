@@ -998,7 +998,7 @@ def fetch_all_artists():
     all_results = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(target_servers), 8)) as executor:
         futures = [executor.submit(_fetch_server_artists, s) for s in target_servers]
-        done, not_done = concurrent.futures.wait(futures, timeout=4.0)
+        done, not_done = concurrent.futures.wait(futures, timeout=10.0)
         for f in done:
             try:
                 if not f.exception():
@@ -1087,11 +1087,11 @@ def get_target_plex_connection(server_id: str | None = None):
         )
         if res:
             try:
-                conn = res.connect(timeout=8)
+                conn = res.connect(timeout=3)
             except Exception as ssl_ex:
                 logger.debug("Primary connect failed for %s, retrying ssl=False: %s", server_name, ssl_ex)
                 try:
-                    conn = res.connect(timeout=8, ssl=False)
+                    conn = res.connect(timeout=3, ssl=False)
                 except Exception as ex2:
                     logger.warning("Failed MyPlex connect for %s: %s", server_name, ex2)
     except Exception as ex:
@@ -1166,7 +1166,7 @@ def fetch_albums_for_artist(artist_id: int, server_id: str | None = None):
     all_album_results = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(artist_sources), 5)) as executor:
         futures = [executor.submit(_fetch_server_albums, src) for src in artist_sources]
-        done, not_done = concurrent.futures.wait(futures, timeout=4.0)
+        done, not_done = concurrent.futures.wait(futures, timeout=10.0)
         for f in done:
             try:
                 if not f.exception():
@@ -1345,7 +1345,7 @@ def search_music(query: str):
     all_raw_results = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(target_servers), 8)) as executor:
         futures = [executor.submit(search_music_on_server, s, query) for s in target_servers]
-        done, not_done = concurrent.futures.wait(futures, timeout=4.0)
+        done, not_done = concurrent.futures.wait(futures, timeout=10.0)
         for f in done:
             try:
                 if not f.exception():
@@ -1616,7 +1616,7 @@ def search_music_on_server(server_res: dict, query: str):
                 if not track_results:
                     try:
                         all_tracks = music_lib.all(libtype="track")
-                        track_results = [t for t in all_tracks if query_lower in t.title.lower() or query_lower in getattr(t, "grandparentTitle", "").lower()]
+                        track_results = [t for t in all_tracks if query_lower in t.title.lower()]
                     except Exception as ex_tr:
                         logger.debug("Failed fallback track fetch: %s", ex_tr)
 
@@ -1638,17 +1638,18 @@ def search_music_on_server(server_res: dict, query: str):
                         "server_name": server_res.get("name"),
                     })
                 for item in track_results:
-                    formatted.append({
-                        "title": item.title,
-                        "type": "track",
-                        "track_id": item.ratingKey,
-                        "album_id": item.parentRatingKey,
-                        "duration": milliseconds_to_seconds(item.duration) if item.duration else 0,
-                        "artist": getattr(item, "grandparentTitle", ""),
-                        "album": getattr(item, "parentTitle", ""),
-                        "server_id": server_res.get("server_id"),
-                        "server_name": server_res.get("name"),
-                    })
+                    if query_lower in item.title.lower():
+                        formatted.append({
+                            "title": item.title,
+                            "type": "track",
+                            "track_id": item.ratingKey,
+                            "album_id": item.parentRatingKey,
+                            "duration": milliseconds_to_seconds(item.duration) if item.duration else 0,
+                            "artist": getattr(item, "grandparentTitle", ""),
+                            "album": getattr(item, "parentTitle", ""),
+                            "server_id": server_res.get("server_id"),
+                            "server_name": server_res.get("name"),
+                        })
             except Exception as lib_ex:
                 logger.warning("Error searching music section '%s' on server %s: %s", getattr(music_lib, "title", "Unknown"), server_res.get("name"), lib_ex)
 

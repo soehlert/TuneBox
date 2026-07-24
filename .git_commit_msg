@@ -1,4 +1,4 @@
-fix: add fail-safe search fallback and fix settings modal close binding
+fix: enforce title-only track search matching and optimize remote server timeouts
 
-- Add fail-safe search fallback using all(libtype=...) filtering in search_music_on_server when section search returns empty results.
-- Bind Save Settings button directly to handleSave in App.tsx to ensure modal closes even when form is unmounted.
+- Filter track search results so tracks are only returned if query_lower is directly in track.title.lower().
+- Optimize per-connection timeout to 3s and increase ThreadPoolExecutor wait timeout to 10s so remote shared servers (cc-ls-plex01) return catalog data reliably.
