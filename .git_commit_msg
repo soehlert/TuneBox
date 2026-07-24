@@ -1,5 +1,4 @@
-fix: align mobile main-content scroll container with laptop view to enforce lazy loading
+fix: default open General Settings section and auto-refresh Plex devices on settings load
 
-- Set .main-content to height: 100% and overflow-y: auto on mobile in App.css.
-- Set .main-wrapper to flex-direction: row and overflow: hidden on mobile.
-- Ensures native loading="lazy" uses .main-content as scroll container root, preventing offscreen image loads on mobile.
+- Set general: true, devices: true, guests: true in sectionsOpen default state in App.tsx.
+- Automatically invoke handleRefreshResources() when loading settings to trigger Plex device auto-discovery.

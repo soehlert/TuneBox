@@ -339,23 +339,15 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
     }
   };
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") handleAttemptClose();
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isFormDirty, onClose]);
-
   const [clients, setClients] = useState<ClientSession[]>([]);
   const [playlists, setPlaylists] = useState<{ playlist_id: number; title: string }[]>([]);
   const [selectedPlaylistId, setSelectedPlaylistId] = useState("");
   const [seeding, setSeeding] = useState(false);
   const [sectionsOpen, setSectionsOpen] = useState({
-    general: false,
+    general: true,
     queue: false,
-    devices: false,
-    guests: false,
+    devices: true,
+    guests: true,
   });
 
   const [autoplayEnabled, setAutoplayEnabled] = useState(false);
@@ -465,13 +457,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
       })
       .catch(console.error);
 
-    axios
-      .get(getApiUrl("/api/auth/resources"))
-      .then((res) => {
-        setServers(res.data.servers ?? []);
-        setPlayers(res.data.players ?? []);
-      })
-      .catch(console.error);
+    handleRefreshResources();
   }, [adminToken]);
 
   useEffect(() => {
