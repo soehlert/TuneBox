@@ -1,7 +1,4 @@
-feat: settings modal UX enhancements, artist poster strict filtering, and admin stop queue control
+fix: stop button clears entire queue, stops active playback, and removes now playing track
 
-- Keep settings modal open upon hitting Save Settings.
-- Auto-collapse other accordion sections when expanding a settings section.
-- Fix false "Failed" server connection badge before saving settings.
-- Restrict fetch_art artist artwork to target artist's own images to prevent random album art fallback.
-- Add POST /api/music/stop-queue endpoint and Stop Queue buttons in App.tsx and Queue.tsx to stop playback and drain now playing.
+- Add force_all parameter to clear_redis_queue to support total queue deletion.
+- Update stop_the_queue endpoint to issue player stop, reset playback tracker, delete now_playing from Redis, and force-clear the playback queue.
