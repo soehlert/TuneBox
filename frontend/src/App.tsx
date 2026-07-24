@@ -897,7 +897,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                             }}
                             title={!lib.enabled ? "Not connected (Unchecked)" : lib.status === "failed" ? lib.error || "Connection failed" : lib.status === "connected" ? "Successfully connected to server" : "Connecting to server..."}
                           >
-                            {!lib.enabled ? "⚪ Not Connected" : lib.status === "connected" ? "🟢 Connected" : lib.status === "failed" ? "🔴 Failed" : lib.status === "connecting" ? "🔵 Connecting" : "🔵 Enabled"}
+                            {!lib.enabled ? "⚪ Not Connected" : lib.status === "connected" ? "🟢 Connected" : lib.status === "failed" ? "🔴 Failed" : "🔵 Connecting"}
                           </span>
                         </label>
                       ))
