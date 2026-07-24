@@ -83,12 +83,8 @@ function ArtistList({
     });
 
     prefetchArtists.slice(0, 60).forEach((artist) => {
-      const aId = artist.artist_id || (artist as any).id;
-      const sParam = (artist as any).server_id ? `?server_id=${(artist as any).server_id}` : "";
-      if (aId) {
-        const img = new Image();
-        img.src = `${apiBase}/api/music/artist-image/${aId}${sParam}`;
-      }
+      const img = new Image();
+      img.src = `${apiBase}/api/music/artist-image/${artist.artist_id}`;
     });
 
     const targetIndex = filteredArtists.findIndex((artist) => {
@@ -105,9 +101,8 @@ function ArtistList({
         setVisibleCount(targetIndex + 36);
       }
       const targetArtist = filteredArtists[targetIndex];
-      const targetId = targetArtist.artist_id || (targetArtist as any).id;
       setTimeout(() => {
-        const el = document.getElementById(`artist-${targetId}`);
+        const el = document.getElementById(`artist-${targetArtist.artist_id}`);
         if (el) {
           el.scrollIntoView({ behavior: "smooth", block: "start" });
         }
@@ -221,22 +216,19 @@ function ArtistList({
                 Artists
               </Typography>
               <div className="artist-grid">
-                {searchArtists.map((artist) => {
-                  const aId = artist.artist_id || artist.id;
-                  const sParam = artist.server_id ? `?server_id=${artist.server_id}` : "";
-                  return (
-                    <Card
-                      className="artist-card"
-                      key={aId}
-                      id={`artist-${aId}`}
-                      onClick={() => handleArtistClick(aId, artist.server_id)}
-                    >
-                      <FallbackImage
-                        src={`${apiBase}/api/music/artist-image/${aId}${sParam}`}
-                        alt={artist.name}
-                        type="artist"
-                        className="artist-photo"
-                      />
+                {searchArtists.map((artist) => (
+                  <Card
+                    className="artist-card"
+                    key={artist.artist_id}
+                    id={`artist-${artist.artist_id}`}
+                    onClick={() => handleArtistClick(artist.artist_id, artist.server_id)}
+                  >
+                    <FallbackImage
+                      src={`${apiBase}/api/music/artist-image/${artist.artist_id}`}
+                      alt={artist.name}
+                      type="artist"
+                      className="artist-photo"
+                    />
                     <div className="artist-card-overlay" style={{ flexDirection: "column", gap: "4px", padding: "12px 8px" }}>
                       <Typography className="artist-card-name">{artist.name}</Typography>
                       {artist.server_name && (
@@ -257,8 +249,7 @@ function ArtistList({
                       )}
                     </div>
                   </Card>
-                );
-              })}
+                ))}
               </div>
             </div>
           )}
@@ -449,28 +440,24 @@ function ArtistList({
         <div style={{ display: "flex", flexDirection: "column", gap: "20px", width: "100%" }}>
           {/* Artist grid */}
           <div className="artist-grid">
-            {currentArtists.map((artist) => {
-              const aId = artist.artist_id || (artist as any).id;
-              const sParam = (artist as any).server_id ? `?server_id=${(artist as any).server_id}` : "";
-              return (
-                <Card
-                  className="artist-card"
-                  key={aId}
-                  id={`artist-${aId}`}
-                  onClick={() => handleArtistClick(aId, (artist as any).server_id)}
-                >
-                  <FallbackImage
-                    src={`${apiBase}/api/music/artist-image/${aId}${sParam}`}
-                    alt={artist.name}
-                    type="artist"
-                    className="artist-photo"
-                  />
-                  <div className="artist-card-overlay">
-                    <Typography className="artist-card-name">{artist.name}</Typography>
-                  </div>
-                </Card>
-              );
-            })}
+            {currentArtists.map((artist) => (
+              <Card
+                className="artist-card"
+                key={artist.artist_id}
+                id={`artist-${artist.artist_id}`}
+                onClick={() => handleArtistClick(artist.artist_id)}
+              >
+                <FallbackImage
+                  src={`${apiBase}/api/music/artist-image/${artist.artist_id}`}
+                  alt={artist.name}
+                  type="artist"
+                  className="artist-photo"
+                />
+                <div className="artist-card-overlay">
+                  <Typography className="artist-card-name">{artist.name}</Typography>
+                </div>
+              </Card>
+            ))}
           </div>
 
           {/* Infinite Scroll Loader Target */}

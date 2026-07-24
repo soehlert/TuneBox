@@ -13,7 +13,6 @@ import theme from "./theme";
 import TuneBoxLogo from "../public/TuneBox.svg";
 import Stats from "./components/Stats";
 import TuneBoxDialog from "./components/TuneBoxDialog";
-import { getDeviceId, getDeviceLabel } from "./utils/device";
 import "./App.css";
 import "./components/Queue.css";
 
@@ -30,10 +29,7 @@ interface GuestProfile {
 
 interface ClientSession {
   client_id: string;
-  device_id?: string;
   name: string;
-  device_label?: string;
-  display_name?: string;
   role: string;
   is_display: boolean;
   connected_at: string;
@@ -112,8 +108,6 @@ function ConfirmModal({
   onConfirm,
   onCancel,
 }: ConfirmModalProps) {
-  const mouseDownTargetRef = useRef<EventTarget | null>(null);
-
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -137,14 +131,7 @@ function ConfirmModal({
         justifyContent: "center",
         zIndex: 1200,
       }}
-      onMouseDown={(e) => {
-        mouseDownTargetRef.current = e.target;
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget && mouseDownTargetRef.current === e.currentTarget) {
-          onCancel();
-        }
-      }}
+      onClick={(e) => e.target === e.currentTarget && onCancel()}
     >
       <div
         style={{
@@ -220,7 +207,6 @@ function PromptModal({
   onCancel,
 }: PromptModalProps) {
   const [val, setVal] = useState(initialValue);
-  const mouseDownTargetRef = useRef<EventTarget | null>(null);
 
   useEffect(() => {
     setVal(initialValue);
@@ -259,14 +245,7 @@ function PromptModal({
         justifyContent: "center",
         zIndex: 1200,
       }}
-      onMouseDown={(e) => {
-        mouseDownTargetRef.current = e.target;
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget && mouseDownTargetRef.current === e.currentTarget) {
-          onCancel();
-        }
-      }}
+      onClick={(e) => e.target === e.currentTarget && onCancel()}
     >
       <div
         style={{
@@ -553,21 +532,10 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
         { name: newName },
         { headers: { "x-admin-token": adminToken } }
       );
-      if (clientId === getClientId()) {
-        const rawGuest = localStorage.getItem("tunebox_guest");
-        if (rawGuest) {
-          try {
-            const parsed = JSON.parse(rawGuest);
-            parsed.name = newName;
-            localStorage.setItem("tunebox_guest", JSON.stringify(parsed));
-          } catch (e) {}
-        }
-        if (adminToken) {
-          localStorage.setItem("tunebox_admin_name", newName);
-        }
+      if (clientId === getClientId() && adminToken) {
+        localStorage.setItem("tunebox_admin_name", newName);
       }
       fetchClients();
-      setMsg("✓ User handle updated");
     } catch (err) {
       console.error("Failed to rename user:", err);
     }
@@ -638,8 +606,6 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
     };
   };
 
-  const settingsMouseDownRef = useRef<EventTarget | null>(null);
-
   return (
     <div
       style={{
@@ -658,14 +624,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
         padding: "16px",
         boxSizing: "border-box",
       }}
-      onMouseDown={(e) => {
-        settingsMouseDownRef.current = e.target;
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget && settingsMouseDownRef.current === e.currentTarget) {
-          handleAttemptClose();
-        }
-      }}
+      onClick={handleAttemptClose}
     >
       <div
         onClick={(e) => e.stopPropagation()}
@@ -1082,10 +1041,10 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                       >
                         <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
                           <span style={{ color: "#fff", fontSize: "14px", fontWeight: "bold" }}>
-                            {c.name ? `${c.name}'s ${c.device_label || 'Device'}` : (c.device_label || 'Web Device')}
+                            {c.name}
                           </span>
                           <span style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "11px" }}>
-                            {c.is_display ? "Kiosk Display Screen" : `Device Session (${c.device_label || 'Web Browser'})`}
+                            {c.is_display ? "Kiosk Display Screen" : `Device Session (${c.role})`}
                           </span>
                         </div>
                         {c.is_display ? (
@@ -1786,8 +1745,6 @@ function App() {
             name,
             role,
             is_display: isDisplay,
-            device_id: getDeviceId(),
-            device_label: getDeviceLabel(),
           })
         );
       }
@@ -1823,16 +1780,6 @@ function App() {
           console.log("Received unset_display_mode WS push!");
           localStorage.removeItem("tunebox_display");
           setIsDisplay(false);
-        } else if (data.type === "rename_client") {
-          console.log("Received rename_client WS push:", data.name);
-          if (guestProfile) {
-            const updated = { ...guestProfile, name: data.name };
-            setGuestProfile(updated);
-            localStorage.setItem("tunebox_guest", JSON.stringify(updated));
-          } else if (isAdmin) {
-            localStorage.setItem("tunebox_admin_name", data.name);
-          }
-          setLocalUsername(data.name);
         } else if (data.message === "pong") {
           window.clearTimeout(pongTimeout);
         }

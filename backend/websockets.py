@@ -154,26 +154,11 @@ async def update_websocket_clients():
         await asyncio.sleep(1)
 
 
-def _register_client(
-    client_id: str,
-    name: str,
-    role: str,
-    is_display: bool = False,
-    device_id: str | None = None,
-    device_label: str | None = None,
-):
+def _register_client(client_id: str, name: str, role: str, is_display: bool = False):
     """Upsert a client entry in the registry."""
     existing = client_registry.get(client_id, {})
-    dev_id = device_id or existing.get("device_id") or client_id
-    dev_label = device_label or existing.get("device_label") or "Web Device"
-    display_name = f"{name}'s {dev_label}" if dev_label else name
-
     client_registry[client_id] = {
-        "client_id": client_id,
-        "device_id": dev_id,
         "name": name,
-        "device_label": dev_label,
-        "display_name": display_name,
         "role": role,
         "is_display": is_display or existing.get("is_display", False),
         "connected_at": existing.get("connected_at", datetime.now(UTC).isoformat()),
@@ -217,9 +202,7 @@ async def websocket_handler(websocket: WebSocket):
         name = data.get("name", "Unknown")
         role = data.get("role", "guest")
         is_display = data.get("is_display", False)
-        device_id = data.get("device_id")
-        device_label = data.get("device_label")
-        _register_client(client_id, name, role, is_display, device_id, device_label)
+        _register_client(client_id, name, role, is_display)
         active_connections["client_control"][client_id] = websocket
         session_id = client_id
         await broadcast_skip_status()
@@ -279,9 +262,7 @@ async def websocket_handler(websocket: WebSocket):
                 name = data.get("name", "Unknown")
                 role = data.get("role", "guest")
                 is_display = data.get("is_display", False)
-                device_id = data.get("device_id")
-                device_label = data.get("device_label")
-                _register_client(client_id, name, role, is_display, device_id, device_label)
+                _register_client(client_id, name, role, is_display)
                 active_connections["client_control"][client_id] = websocket
                 await broadcast_skip_status()
 

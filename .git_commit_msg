@@ -1,4 +1,0 @@
-fix: return fallback SVG with HTTP 200 on missing Plex artwork to eliminate DevTools 404s
-
-- Update get_artist_image, get_album_art, get_track_art in backend/routers/music.py to return styled fallback SVG images with HTTP 200 OK.
-- Prevents 404 error entries in browser DevTools Network and Console logs for items without Plex poster artwork.

@@ -489,8 +489,6 @@ async def rename_client(client_id: str, req: RenameClientRequest, x_admin_token:
         raise HTTPException(status_code=404, detail="Client not found")
 
     ws.client_registry[client_id]["name"] = req.name
-    dev_label = ws.client_registry[client_id].get("device_label", "Web Device")
-    ws.client_registry[client_id]["display_name"] = f"{req.name}'s {dev_label}"
     await ws.send_to_client_id(client_id, {"type": "rename_client", "name": req.name})
     return {"message": f"Client {client_id} renamed to {req.name}"}
 
