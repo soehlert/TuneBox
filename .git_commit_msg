@@ -1,4 +1,5 @@
-feat: rename Make Display to Make Kiosk and add explanatory Kiosk info modal
+feat: add Escape key listener to PromptModal and separate Connected Devices & Kiosks from Active Party Guests
 
-- Rename "Make Display" button to "Make Kiosk" and "Undisplay" to "Remove Kiosk" in SettingsModal.
-- Add help icon button next to Connected Users & Kiosks header opening TuneBoxDialog explaining shared kiosk display mode.
+- Add capture phase Escape key listener to PromptModal so pressing Escape closes it immediately.
+- Split SettingsModal into two distinct collapsible accordion groups: Connected Devices & Kiosks and Active Party Guests at the bottom.
+- Add help_outline button next to Connected Devices & Kiosks opening TuneBoxDialog explaining shared kiosk display mode.

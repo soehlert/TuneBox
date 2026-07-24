@@ -215,10 +215,13 @@ function PromptModal({
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onCancel();
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        onCancel();
+      }
     };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown, true);
+    return () => window.removeEventListener("keydown", handleKeyDown, true);
   }, [isOpen, onCancel]);
 
   if (!isOpen) return null;
@@ -352,6 +355,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
     general: false,
     queue: false,
     devices: false,
+    guests: false,
   });
 
   const [autoplayEnabled, setAutoplayEnabled] = useState(false);
@@ -981,8 +985,8 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
             )}
           </div>
 
-          {/* Section 3: Connected Users & Kiosks */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "12px" }}>
+          {/* Section 3: Connected Devices & Kiosks */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
             <div
               onClick={() => setSectionsOpen(prev => ({ ...prev, devices: !prev.devices }))}
               style={{
@@ -998,7 +1002,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
               }}
             >
               <span style={{ color: "#f5a623", fontSize: "14px", fontWeight: "bold", display: "flex", alignItems: "center", gap: "6px" }}>
-                👥 Connected Users & Kiosks
+                🖥️ Connected Devices & Kiosks
                 <span
                   className="material-symbols-outlined"
                   onClick={(e) => {
@@ -1019,11 +1023,10 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
             {sectionsOpen.devices && (
               <div style={{ padding: "4px 8px 12px 8px" }}>
                 {clients.length === 0 ? (
-                  <p style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "13px", margin: 0 }}>No connected users or kiosks.</p>
+                  <p style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "13px", margin: 0 }}>No connected devices.</p>
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: "10px", maxHeight: "200px", overflowY: "auto" }}>
-                    {/* Display screens / Kiosks at the top */}
-                    {clients.filter(c => c.is_display).map((c) => (
+                    {clients.map((c) => (
                       <div
                         key={c.client_id}
                         style={{
@@ -1031,67 +1034,109 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                           alignItems: "center",
                           justifyContent: "space-between",
                           padding: "8px 12px",
-                          background: "rgba(92, 221, 92, 0.08)",
-                          border: "1px solid rgba(92, 221, 92, 0.2)",
+                          background: c.is_display ? "rgba(92, 221, 92, 0.08)" : "#3a136b",
+                          border: c.is_display ? "1px solid rgba(92, 221, 92, 0.2)" : "1px solid rgba(255, 255, 255, 0.05)",
                           borderRadius: "6px",
                         }}
                       >
                         <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                          <span style={{ color: "#fff", fontSize: "14px", fontWeight: "bold", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                          <span style={{ color: "#fff", fontSize: "14px", fontWeight: "bold" }}>
                             {c.name}
-                            <span
-                              className="material-symbols-outlined"
-                              onClick={() => handleOpenRename(c.client_id, c.name)}
-                              style={{ fontSize: "16px", cursor: "pointer", color: "var(--color-primary)", opacity: 0.7, transition: "opacity 0.2s" }}
-                              onMouseOver={(e) => e.currentTarget.style.opacity = "1"}
-                              onMouseOut={(e) => e.currentTarget.style.opacity = "0.7"}
-                              title="Change Display Name"
-                            >
-                              edit
+                          </span>
+                          <span style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "11px" }}>
+                            {c.is_display ? "Kiosk Display Screen" : `Device Session (${c.role})`}
+                          </span>
+                        </div>
+                        {c.is_display ? (
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                            <span style={{ color: "#5cdd5c", fontSize: "12px", fontWeight: "bold", marginRight: "4px" }}>
+                              ✓ Kiosk Mode
                             </span>
-                          </span>
-                          <span style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "11px", textTransform: "capitalize" }}>
-                            Role: {c.role} • Kiosk Screen
-                          </span>
-                        </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                          <span style={{ color: "#5cdd5c", fontSize: "12px", fontWeight: "bold", marginRight: "4px" }}>
-                            ✓ Kiosk Mode
-                          </span>
-                          <button
-                            onClick={() => handleUnsetDisplay(c.client_id)}
-                            style={{
-                              background: "transparent",
-                              border: "1px solid rgba(255, 107, 107, 0.4)",
-                              color: "#ff6b6b",
-                              borderRadius: "4px",
-                              padding: "6px 10px",
-                              fontSize: "11px",
-                              fontWeight: "bold",
-                              cursor: "pointer",
-                              transition: "background-color 0.2s",
-                            }}
-                            onMouseOver={(e) => {
-                              e.currentTarget.style.backgroundColor = "rgba(255, 107, 107, 0.1)";
-                            }}
-                            onMouseOut={(e) => {
-                              e.currentTarget.style.backgroundColor = "transparent";
-                            }}
-                            title="Return device to standard view"
-                          >
-                            Remove Kiosk
-                          </button>
-                        </div>
+                            <button
+                              onClick={() => handleUnsetDisplay(c.client_id)}
+                              style={{
+                                background: "transparent",
+                                border: "1px solid rgba(255, 107, 107, 0.4)",
+                                color: "#ff6b6b",
+                                borderRadius: "4px",
+                                padding: "6px 10px",
+                                fontSize: "11px",
+                                fontWeight: "bold",
+                                cursor: "pointer",
+                                transition: "background-color 0.2s",
+                              }}
+                              onMouseOver={(e) => {
+                                e.currentTarget.style.backgroundColor = "rgba(255, 107, 107, 0.1)";
+                              }}
+                              onMouseOut={(e) => {
+                                e.currentTarget.style.backgroundColor = "transparent";
+                              }}
+                              title="Return device to standard view"
+                            >
+                              Remove Kiosk
+                            </button>
+                          </div>
+                        ) : (
+                          c.client_id !== getClientId() && (
+                            <button
+                              onClick={() => handleSetDisplay(c.client_id)}
+                              style={{
+                                background: "#f5a623",
+                                color: "#1d083b",
+                                border: "none",
+                                borderRadius: "4px",
+                                padding: "6px 10px",
+                                fontSize: "11px",
+                                fontWeight: "bold",
+                                cursor: "pointer",
+                              }}
+                              onMouseOver={(e) => (e.currentTarget.style.background = "#d48b17")}
+                              onMouseOut={(e) => (e.currentTarget.style.background = "#f5a623")}
+                              title="Set as Party Kiosk Display"
+                            >
+                              Make Kiosk
+                            </button>
+                          )
+                        )}
                       </div>
                     ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
-                    {/* Divider if kiosks and others both exist */}
-                    {clients.filter(c => c.is_display).length > 0 && clients.filter(c => !c.is_display).length > 0 && (
-                      <div style={{ height: "1px", background: "rgba(255, 255, 255, 0.15)", margin: "8px 0" }} />
-                    )}
+          {/* Section 4: Active Party Guests */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "12px" }}>
+            <div
+              onClick={() => setSectionsOpen(prev => ({ ...prev, guests: !prev.guests }))}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                cursor: "pointer",
+                padding: "12px 14px",
+                background: "rgba(255, 255, 255, 0.04)",
+                border: "1px solid rgba(255, 255, 255, 0.08)",
+                borderRadius: "8px",
+                userSelect: "none",
+              }}
+            >
+              <span style={{ color: "#f5a623", fontSize: "14px", fontWeight: "bold", display: "flex", alignItems: "center", gap: "6px" }}>
+                👥 Active Party Guests
+              </span>
+              <span style={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "11px" }}>
+                {sectionsOpen.guests ? "▲" : "▼"}
+              </span>
+            </div>
 
-                    {/* Other instances */}
-                    {clients.filter(c => !c.is_display).map((c) => (
+            {sectionsOpen.guests && (
+              <div style={{ padding: "4px 8px 12px 8px" }}>
+                {clients.length === 0 ? (
+                  <p style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "13px", margin: 0 }}>No active party guests.</p>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "10px", maxHeight: "200px", overflowY: "auto" }}>
+                    {clients.map((c) => (
                       <div
                         key={c.client_id}
                         style={{
@@ -1099,8 +1144,8 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                           alignItems: "center",
                           justifyContent: "space-between",
                           padding: "8px 12px",
-                          background: "#3a136b",
-                          border: "1px solid rgba(255, 255, 255, 0.05)",
+                          background: "rgba(255, 255, 255, 0.03)",
+                          border: "1px solid rgba(255, 255, 255, 0.06)",
                           borderRadius: "6px",
                         }}
                       >
@@ -1113,35 +1158,15 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                               style={{ fontSize: "16px", cursor: "pointer", color: "var(--color-primary)", opacity: 0.7, transition: "opacity 0.2s" }}
                               onMouseOver={(e) => e.currentTarget.style.opacity = "1"}
                               onMouseOut={(e) => e.currentTarget.style.opacity = "0.7"}
-                              title="Change Display Name"
+                              title="Edit Username"
                             >
                               edit
                             </span>
                           </span>
                           <span style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "11px", textTransform: "capitalize" }}>
-                            Role: {c.role}
+                            Role: {c.role} {c.is_display ? "• Display Screen" : ""}
                           </span>
                         </div>
-                        {c.client_id !== getClientId() && (
-                          <button
-                            onClick={() => handleSetDisplay(c.client_id)}
-                            style={{
-                              background: "#f5a623",
-                              color: "#1d083b",
-                              border: "none",
-                              borderRadius: "4px",
-                              padding: "6px 10px",
-                              fontSize: "11px",
-                              fontWeight: "bold",
-                              cursor: "pointer",
-                            }}
-                            onMouseOver={(e) => (e.currentTarget.style.background = "#d48b17")}
-                            onMouseOut={(e) => (e.currentTarget.style.background = "#f5a623")}
-                            title="Convert this device into a shared party kiosk display with guest QR code"
-                          >
-                            Make Kiosk
-                          </button>
-                        )}
                       </div>
                     ))}
                   </div>
@@ -1208,10 +1233,11 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
           open={showKioskInfo}
           type="info"
           icon="help_outline"
-          title="🖥️ What is TuneBox Kiosk Mode?"
+          title="🖥️ What is a Kiosk Screen?"
           message={`Turning a connected device into a Kiosk converts it into a shared, central party display screen.\n\n• Displays a prominent QR code for guests to scan and join instantly.\n• Shows full-screen album artwork and live queue status.\n• Disables individual voting on the screen so guests interact from their own phones.`}
           confirmText="Got It"
           onConfirm={() => setShowKioskInfo(false)}
+          onCancel={() => setShowKioskInfo(false)}
         />
         <ConfirmModal
           isOpen={confirmClearOpen}
