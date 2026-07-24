@@ -493,12 +493,26 @@ async def clear_redis_cache(key: str):
         return result
 
 
+FALLBACK_ARTIST_SVG = """<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 300 300">
+  <rect width="300" height="300" fill="#1d083b"/>
+  <circle cx="150" cy="120" r="45" fill="rgba(255,255,255,0.25)"/>
+  <path d="M70 240 c0 -45 35 -70 80 -70 s80 25 80 70 z" fill="rgba(255,255,255,0.25)"/>
+</svg>"""
+
+FALLBACK_ALBUM_SVG = """<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 300 300">
+  <rect width="300" height="300" fill="#1d083b"/>
+  <circle cx="150" cy="150" r="110" fill="#120526" stroke="rgba(255,255,255,0.15)" stroke-width="6"/>
+  <circle cx="150" cy="150" r="40" fill="none" stroke="rgba(245,166,35,0.6)" stroke-width="6"/>
+  <circle cx="150" cy="150" r="10" fill="rgba(245,166,35,0.8)"/>
+</svg>"""
+
+
 @router.get("/artist-image/{artist_id}")
 def get_artist_image(artist_id: int, request: Request, server_id: str | None = None):
     """Fetch and proxy the artist image from Plex.
 
     Returns:
-        Artist image from Plex in streaming response format.
+        Artist image from Plex in streaming response format, or fallback SVG if not found.
     """
     etag = f'"artist-{artist_id}-{server_id or "primary"}"'
     headers = {
@@ -510,16 +524,12 @@ def get_artist_image(artist_id: int, request: Request, server_id: str | None = N
 
     try:
         response = fetch_art(artist_id, "artist", server_id=server_id)
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Error fetching artist image: {e}"
-        ) from e
-    else:
         return StreamingResponse(
             response.iter_content(chunk_size=1024), media_type="image/jpeg", headers=headers
         )
+    except Exception as e:
+        logger.debug("No artist image available for %s (%s): %s", artist_id, server_id, e)
+        return Response(content=FALLBACK_ARTIST_SVG, media_type="image/svg+xml", headers=headers)
 
 
 @router.get("/album-art/{album_id}")
@@ -527,7 +537,7 @@ def get_album_art(album_id: int, request: Request, server_id: str | None = None)
     """Fetch and proxy the album art from Plex.
 
     Returns:
-        Album art from Plex in streaming response format.
+        Album art from Plex in streaming response format, or fallback SVG if not found.
     """
     etag = f'"album-{album_id}-{server_id or "primary"}"'
     headers = {
@@ -539,16 +549,12 @@ def get_album_art(album_id: int, request: Request, server_id: str | None = None)
 
     try:
         response = fetch_art(album_id, "album", server_id=server_id)
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Error fetching album art: {e}"
-        ) from e
-    else:
         return StreamingResponse(
             response.iter_content(chunk_size=1024), media_type="image/jpeg", headers=headers
         )
+    except Exception as e:
+        logger.debug("No album art available for %s (%s): %s", album_id, server_id, e)
+        return Response(content=FALLBACK_ALBUM_SVG, media_type="image/svg+xml", headers=headers)
 
 
 @router.get("/track-art/{track_id}")
@@ -556,7 +562,7 @@ def get_track_art(track_id: int, request: Request, server_id: str | None = None)
     """Fetch and proxy the track art from Plex.
 
     Returns:
-        Track art from Plex in streaming response format.
+        Track art from Plex in streaming response format, or fallback SVG if not found.
     """
     etag = f'"track-{track_id}-{server_id or "primary"}"'
     headers = {
@@ -568,16 +574,12 @@ def get_track_art(track_id: int, request: Request, server_id: str | None = None)
 
     try:
         response = fetch_art(track_id, "track", server_id=server_id)
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Error fetching track art: {e}"
-        ) from e
-    else:
         return StreamingResponse(
             response.iter_content(chunk_size=1024), media_type="image/jpeg", headers=headers
         )
+    except Exception as e:
+        logger.debug("No track art available for %s (%s): %s", track_id, server_id, e)
+        return Response(content=FALLBACK_ALBUM_SVG, media_type="image/svg+xml", headers=headers)
 
 
 @router.get("/playlists")
