@@ -272,14 +272,17 @@ Retrieves a list of available Plex playlists (restricted to admin).
   ```
 
 #### `POST /api/music/playlists/{playlist_id}/seed`
-Imports, shuffles, and seeds the playback queue with tracks from the selected playlist.
+Imports, shuffles, and preseeds the playback queue with tracks from the selected playlist.
 - **Headers**:
   - `X-Admin-Token` *(required, string)*: Valid host admin token.
+- **Query Parameters**:
+  - `count` *(optional, integer, default: 10)*: Number of tracks to preseed. If requested count exceeds the playlist size, all available tracks in the playlist will be preseeded without erroring.
 - **Response `200 OK`**:
   ```json
   {
-    "message": "Successfully seeded 10 tracks from playlist 'Party Hits'."
+    "message": "Successfully seeded 15 tracks from playlist 'Party Hits'."
   }
+  ```
 
 #### `GET /api/music/autoplay`
 Retrieves the current state of Smart Autoplay Mode.
