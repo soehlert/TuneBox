@@ -1,4 +1,1 @@
-fix: place small server pill inside SettingsModal header row
-
-- Move small server pill into SettingsModal header row flexbox in App.tsx between title and close button.
-- Add flex-wrap and responsive text truncation so the server pill sits inline on laptop views and wraps cleanly on mobile views.
+docs: add docs/admin.md detailing host admin capabilities and update README.md

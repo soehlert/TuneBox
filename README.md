@@ -88,6 +88,7 @@ Get TuneBox up and running on your local network using Docker Compose:
 
 For in-depth details on system architecture, custom deployment setups, development guidelines, and API specifications, explore the documentation suite:
 
+- 👑 **[Admin Features & Capabilities Guide](docs/admin.md)**: Overview of queue reordering, force skipping, host settings, and display kiosk controls.
 - 🏛️ **[System Architecture](docs/architecture.md)**: Deep dive into the tech stack (FastAPI, React, Vite, Redis, Plex API) and component flow diagrams.
 - 🛠️ **[Developer Guide](docs/development.md)**: Environment setup, coding standards, local mock library testing, Makefile commands, and step-by-step developer walkthroughs.
 - 🌐 **[Deployment & Hosting Guide](docs/deployment.md)**: Production reverse-proxy configuration (Nginx, SSL/HTTPS) and direct LAN deployment instructions.
