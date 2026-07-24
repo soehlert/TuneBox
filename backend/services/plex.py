@@ -126,8 +126,11 @@ def get_current_playing_track():
     """Fetch the currently playing track details from cache and the local tracker.
 
     Returns:
-        The current track info or None if nothing is playing.
+        The current track info or None if nothing is playing or stopped.
     """
+    if track_time_tracker.state == "stopped":
+        return None
+
     cached_track = get_cached_data("now_playing")
     if not cached_track:
         return None
@@ -869,44 +872,33 @@ def stop_playback():
     # ruff: noqa: PLW0603
     global playback_active
 
+    playback_active = False
+    track_time_tracker.stop()
+
     try:
         player = get_active_player()
         if player:
             logger.info("Stopping playback on %s", player.title)
-            # Modern Plexamp clients often require pause instead of stop, or standard stop/pause without type constraints.
-            # We attempt stop first, and fall back to other commands if needed.
             stop_success = False
             for cmd in [
-                lambda: player.pause(mtype="music"),
                 lambda: player.stop(mtype="music"),
+                lambda: player.stop(),
+                lambda: player.pause(mtype="music"),
                 lambda: player.pause(),
-                lambda: player.stop()
             ]:
                 try:
                     cmd()
                     stop_success = True
                     break
-                except Exception as ex:
-                    logger.debug("Playback control command fallback failed: %s", ex)
-            
+                except Exception as e:
+                    logger.debug("Playback stop attempt failed: %s", e)
+
             if not stop_success:
-                logger.warning("All playback control stop/pause commands failed on player '%s'", player.title)
+                logger.warning("All stop/pause commands failed on player %s", player.title)
 
-            playback_active = False
-
-            # Instead of resetting the tracker and clearing cache completely:
-            # We keep the current track but mark it as stopped/paused with 0 elapsed.
-            cached_track = get_cached_data("now_playing")
-            if cached_track:
-                cached_track["track_state"] = "paused"
-                cache_data("now_playing", cached_track)
-            
-            # Reset tracker to paused state at 0 elapsed
-            track_time_tracker.state = "paused"
-            track_time_tracker.accumulated_elapsed = 0.0
-            track_time_tracker.last_resume_time = None
-            return {"message": "Playback stopped successfully."}
-        raise HTTPException(status_code=400, detail="No active player found.")
+        from backend.services.redis import clear_cache
+        clear_cache("now_playing")
+        return {"message": "Playback stopped successfully."}
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Error stopping playback: {e}"

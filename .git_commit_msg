@@ -1,4 +1,5 @@
-fix: stop button clears entire queue, stops active playback, and removes now playing track
+fix: prioritize player.stop in stop_playback and return None in get_current_playing_track when stopped
 
-- Add force_all parameter to clear_redis_queue to support total queue deletion.
-- Update stop_the_queue endpoint to issue player stop, reset playback tracker, delete now_playing from Redis, and force-clear the playback queue.
+- Reorder player command fallback list to attempt player.stop() before player.pause().
+- Return None in get_current_playing_track when track_time_tracker.state is stopped so WebSockets broadcast current_track: null.
+- Reset bottom music control bar to empty/stopped state on stop action.
