@@ -273,7 +273,11 @@ function ArtistList({
                           );
                         }
                         const sName = artist.server_name || (sources.length === 1 ? sources[0].server_name : null);
-                        return sName ? (
+                        if (!sName) return null;
+                        const sLower = sName.toLowerCase();
+                        if (sLower === "plex-so" || sLower === "home server" || sLower === "primary server") return null;
+
+                        return (
                           <span
                             style={{
                               fontSize: "10px",
@@ -288,7 +292,7 @@ function ArtistList({
                           >
                             {sName}
                           </span>
-                        ) : null;
+                        );
                       })()}
                     </div>
                   </Card>
@@ -396,7 +400,11 @@ function ArtistList({
                             );
                           }
                           const sName = album.server_name || (sources.length === 1 ? sources[0].server_name : null);
-                          return sName ? (
+                          if (!sName) return null;
+                          const sLower = sName.toLowerCase();
+                          if (sLower === "plex-so" || sLower === "home server" || sLower === "primary server") return null;
+
+                          return (
                             <span
                               style={{
                                 fontSize: "9px",
@@ -411,7 +419,7 @@ function ArtistList({
                             >
                               {sName}
                             </span>
-                          ) : null;
+                          );
                         })()}
                       </div>
                     </div>
@@ -488,7 +496,11 @@ function ArtistList({
                             );
                           }
                           const sName = track.server_name || (sources.length === 1 ? sources[0].server_name : null);
-                          return sName ? (
+                          if (!sName) return null;
+                          const sLower = sName.toLowerCase();
+                          if (sLower === "plex-so" || sLower === "home server" || sLower === "primary server") return null;
+
+                          return (
                             <span style={{
                               fontSize: "10px",
                               background: "rgba(245, 166, 35, 0.15)",
@@ -504,7 +516,7 @@ function ArtistList({
                             }}>
                               {sName}
                             </span>
-                          ) : null;
+                          );
                         })()}
                       </Typography>
                       <Typography style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "0.75rem", fontFamily: "var(--font-body)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>

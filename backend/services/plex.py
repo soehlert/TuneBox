@@ -1221,9 +1221,13 @@ def fetch_albums_for_artist(artist_id: int, server_id: str | None = None):
     import concurrent.futures
     import re
 
+    all_servers = fetch_accessible_plex_servers()
+    s_map = {s.get("server_id"): s.get("name") for s in all_servers if s.get("server_id")}
+
     def _fetch_server_albums(src):
         s_id = src.get("server_id")
         a_id = src.get("artist_id")
+        s_name = src.get("server_name") or s_map.get(s_id) or (settings.plex_server_name if not s_id else "Remote Server")
         try:
             plex = get_target_plex_connection(s_id)
             artist_item = plex.fetchItem(int(a_id))
@@ -1235,6 +1239,7 @@ def fetch_albums_for_artist(artist_id: int, server_id: str | None = None):
                     "artist": artist_item.title,
                     "title": album.title,
                     "server_id": s_id,
+                    "server_name": s_name,
                     "thumb": getattr(album, "thumb", None),
                 })
                 if getattr(album, "thumb", None):
@@ -1267,8 +1272,10 @@ def fetch_albums_for_artist(artist_id: int, server_id: str | None = None):
                 "artist": item["artist"],
                 "title": item["title"],
                 "server_id": item["server_id"],
+                "server_name": item["server_name"],
                 "sources": [{
                     "server_id": item["server_id"],
+                    "server_name": item["server_name"],
                     "album_id": item["album_id"],
                 }],
                 "source_count": 1,
@@ -1278,6 +1285,7 @@ def fetch_albums_for_artist(artist_id: int, server_id: str | None = None):
             if not any(s["server_id"] == item["server_id"] for s in existing["sources"]):
                 existing["sources"].append({
                     "server_id": item["server_id"],
+                    "server_name": item["server_name"],
                     "album_id": item["album_id"],
                 })
                 existing["source_count"] = len(existing["sources"])

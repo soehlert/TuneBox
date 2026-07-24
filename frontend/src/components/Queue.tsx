@@ -309,24 +309,33 @@ const QueueComponent = () => {
                   >
                     {track.artist}
                   </Typography>
-                  <Box style={{ display: "flex", marginTop: "2px" }}>
-                    <span
-                      style={{
-                        fontSize: "9px",
-                        background: isActive ? "rgba(0, 0, 0, 0.25)" : "rgba(245, 166, 35, 0.2)",
-                        border: isActive ? "1px solid rgba(0, 0, 0, 0.4)" : "1px solid rgba(245, 166, 35, 0.4)",
-                        color: isActive ? "#0e0e0f" : "#f5a623",
-                        padding: "1px 6px",
-                        borderRadius: "8px",
-                        fontWeight: 700,
-                        lineHeight: 1.2,
-                        display: "inline-block",
-                      }}
-                      title={`Source Library: ${track.server_name || "plex-so"}`}
-                    >
-                      {track.server_name || "plex-so"}
-                    </span>
-                  </Box>
+                  {(() => {
+                    const sName = track.server_name;
+                    if (!sName) return null;
+                    const sLower = sName.toLowerCase();
+                    if (sLower === "plex-so" || sLower === "home server" || sLower === "primary server") return null;
+
+                    return (
+                      <Box style={{ display: "flex", marginTop: "2px" }}>
+                        <span
+                          style={{
+                            fontSize: "9px",
+                            background: isActive ? "rgba(0, 0, 0, 0.25)" : "rgba(245, 166, 35, 0.2)",
+                            border: isActive ? "1px solid rgba(0, 0, 0, 0.4)" : "1px solid rgba(245, 166, 35, 0.4)",
+                            color: isActive ? "#0e0e0f" : "#f5a623",
+                            padding: "1px 6px",
+                            borderRadius: "8px",
+                            fontWeight: 700,
+                            lineHeight: 1.2,
+                            display: "inline-block",
+                          }}
+                          title={`Source Library: ${sName}`}
+                        >
+                          {sName}
+                        </span>
+                      </Box>
+                    );
+                  })()}
                 </Box>
               </Box>
               <Box style={{ display: "flex", alignItems: "center", gap: "6px" }}>
