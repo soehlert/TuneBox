@@ -254,15 +254,14 @@ def audit_deduplication(
         guids = {i["guid"] for i in items if i.get("guid") and "plex://" in i.get("guid", "")}
         norm_titles = {re.sub(r"[^a-z0-9]", "", i["title"].lower()) for i in items}
 
-        # Items are considered merged if they share canonical GUID or identical normalized title
         if len(guids) <= 1 or len(norm_titles) <= 1:
             matched_album_dedupes += 1
         else:
             missed_album_dedupes.append({
                 "album_title": items[0]["title"],
                 "artist": items[0].get("artist", "Unknown Artist"),
-                "variants": list({i["title"] for i in items}),
-                "servers": [i["server_name"] for i in items],
+                "variants": sorted(list({i["title"] for i in items})),
+                "servers": sorted(list({i["server_name"] for i in items})),
             })
 
     album_dedupe_pct = (
@@ -367,7 +366,8 @@ def generate_report(summary: dict[str, Any]) -> str:
     if alb_sum["missed_details"]:
         report_lines.append("\n[UNMERGED MULTI-SERVER ALBUMS (MISSED MATCHES)]")
         for item in alb_sum["missed_details"]:
-            report_lines.append(f"  • Album: '{item['album_title']}' by {item['artist']} | Variants: {item['variants']} across servers {item['servers']}")
+            srv_str = ", ".join(item["servers"])
+            report_lines.append(f"  • Album: '{item['album_title']}' by {item['artist']} | Variants: {item['variants']} (servers: {srv_str})")
 
     if art_sum["fuzzy_candidates"]:
         report_lines.append("\n[CANDIDATE MISSED ARTIST DUPLICATES (>85% Fuzzy Match)]")
