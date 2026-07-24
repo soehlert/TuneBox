@@ -928,11 +928,7 @@ def skip_current_track():
 
 
 def fetch_all_artists():
-    """Fetch all artists from the Plex music library with Redis caching.
-
-    Returns:
-        A list of all the artists in a Plex music library.
-    """
+    """Fetch all artists across enabled Plex music libraries with Redis caching & multi-server deduplication."""
     if settings.testing:
         return MOCK_ARTISTS
 
@@ -943,17 +939,90 @@ def fetch_all_artists():
         logger.info("Fetching artists from cache.")
         return cached_artists
 
-    plex = get_plex_connection()
-    music_library = plex.library.section("Music")
-    artists = music_library.all(libtype="artist")
-    artist_list = []
-    for artist in artists:
-        artist_list.append({
-            "artist_id": artist.ratingKey,
-            "name": artist.title,
-        })
-        if getattr(artist, "thumb", None):
-            cache_data(f"thumb_path:artist:{artist.ratingKey}", artist.thumb)
+    enabled_ids = get_enabled_server_ids()
+    all_servers = fetch_accessible_plex_servers()
+    target_servers = [s for s in all_servers if s.get("server_id") in enabled_ids] if enabled_ids else all_servers
+
+    if not target_servers:
+        target_servers = [{"server_id": None, "name": settings.plex_server_name or "Primary Plex"}]
+
+    import concurrent.futures
+    import re
+    merged_map = {}  # { norm_key: artist_dict }
+
+    def _fetch_server_artists(s_info):
+        s_id = s_info.get("server_id")
+        s_name = s_info.get("name", "Plex Server")
+        try:
+            plex = get_target_plex_connection(s_id)
+            music_lib = None
+            try:
+                music_lib = plex.library.section("Music")
+            except Exception:
+                for sec in plex.library.sections():
+                    if sec.type == "artist":
+                        music_lib = sec
+                        break
+
+            if not music_lib:
+                return []
+
+            artists = music_lib.all(libtype="artist")
+            results = []
+            for artist in artists:
+                results.append({
+                    "artist_id": artist.ratingKey,
+                    "name": artist.title,
+                    "server_id": s_id,
+                    "server_name": s_name,
+                    "thumb": getattr(artist, "thumb", None),
+                })
+                if getattr(artist, "thumb", None):
+                    cache_data(f"thumb_path:artist:{artist.ratingKey}", artist.thumb)
+            return results
+        except Exception as ex:
+            logger.warning("Failed to fetch artists from server %s: %s", s_name, ex)
+            return []
+
+    all_results = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(target_servers), 5)) as executor:
+        futures = [executor.submit(_fetch_server_artists, s) for s in target_servers]
+        for f in concurrent.futures.as_completed(futures, timeout=5.0):
+            try:
+                all_results.extend(f.result())
+            except Exception as ex:
+                logger.warning("Error fetching artists from thread: %s", ex)
+
+    for item in all_results:
+        norm_key = re.sub(r"[^a-z0-9]", "", item["name"].lower())
+        if not norm_key:
+            norm_key = item["name"].lower()
+
+        if norm_key not in merged_map:
+            merged_map[norm_key] = {
+                "artist_id": item["artist_id"],
+                "name": item["name"],
+                "sources": [{
+                    "server_id": item["server_id"],
+                    "server_name": item["server_name"],
+                    "artist_id": item["artist_id"],
+                }],
+                "source_count": 1,
+                "server_names": [item["server_name"]],
+            }
+        else:
+            existing = merged_map[norm_key]
+            if not any(s["server_id"] == item["server_id"] for s in existing["sources"]):
+                existing["sources"].append({
+                    "server_id": item["server_id"],
+                    "server_name": item["server_name"],
+                    "artist_id": item["artist_id"],
+                })
+                existing["source_count"] = len(existing["sources"])
+                existing["server_names"].append(item["server_name"])
+
+    artist_list = list(merged_map.values())
+    artist_list.sort(key=lambda x: x["name"].lower())
 
     cache_data(cache_key, artist_list)
 
@@ -1009,11 +1078,7 @@ def get_target_plex_connection(server_id: str | None = None):
 
 
 def fetch_albums_for_artist(artist_id: int, server_id: str | None = None):
-    """Fetch albums for a specific artist by their ID with Redis caching.
-
-    Returns:
-        A list of albums for an artist.
-    """
+    """Fetch albums for an artist across linked servers with Redis caching & deduplication."""
     if settings.testing:
         return MOCK_ALBUMS.get(int(artist_id), [])
 
@@ -1024,19 +1089,82 @@ def fetch_albums_for_artist(artist_id: int, server_id: str | None = None):
         logger.info("Fetching albums for artist %s from cache.", artist_id)
         return cached_albums
 
-    plex = get_target_plex_connection(server_id)
-    artist = plex.fetchItem(int(artist_id))
-    albums = artist.albums()
-    album_list = []
-    for album in albums:
-        album_list.append({
-            "album_id": album.ratingKey,
-            "artist": artist.title,
-            "title": album.title,
-            "server_id": server_id,
-        })
-        if getattr(album, "thumb", None):
-            cache_data(f"thumb_path:album:{album.ratingKey}", album.thumb)
+    # Look up if this artist has multi-server sources in cached all_artists
+    all_artists = get_cached_data("all_artists") or []
+    artist_sources = []
+    if all_artists:
+        for a in all_artists:
+            if str(a.get("artist_id")) == str(artist_id):
+                artist_sources = a.get("sources", [])
+                break
+
+    if not artist_sources:
+        artist_sources = [{"server_id": server_id, "artist_id": artist_id}]
+
+    import concurrent.futures
+    import re
+
+    def _fetch_server_albums(src):
+        s_id = src.get("server_id")
+        a_id = src.get("artist_id")
+        try:
+            plex = get_target_plex_connection(s_id)
+            artist_item = plex.fetchItem(int(a_id))
+            albums = artist_item.albums()
+            res = []
+            for album in albums:
+                res.append({
+                    "album_id": album.ratingKey,
+                    "artist": artist_item.title,
+                    "title": album.title,
+                    "server_id": s_id,
+                    "thumb": getattr(album, "thumb", None),
+                })
+                if getattr(album, "thumb", None):
+                    cache_data(f"thumb_path:album:{album.ratingKey}", album.thumb)
+            return res
+        except Exception as ex:
+            logger.warning("Failed to fetch albums for artist %s on server %s: %s", a_id, s_id, ex)
+            return []
+
+    all_album_results = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(artist_sources), 5)) as executor:
+        futures = [executor.submit(_fetch_server_albums, src) for src in artist_sources]
+        for f in concurrent.futures.as_completed(futures, timeout=5.0):
+            try:
+                all_album_results.extend(f.result())
+            except Exception as ex:
+                logger.warning("Error fetching artist albums from thread: %s", ex)
+
+    merged_albums = {}
+    for item in all_album_results:
+        norm_title = re.sub(r"[^a-z0-9]", "", item["title"].lower())
+        if not norm_title:
+            norm_title = item["title"].lower()
+
+        if norm_title not in merged_albums:
+            merged_albums[norm_title] = {
+                "album_id": item["album_id"],
+                "artist": item["artist"],
+                "title": item["title"],
+                "server_id": item["server_id"],
+                "sources": [{
+                    "server_id": item["server_id"],
+                    "album_id": item["album_id"],
+                }],
+                "source_count": 1,
+            }
+        else:
+            existing = merged_albums[norm_title]
+            if not any(s["server_id"] == item["server_id"] for s in existing["sources"]):
+                existing["sources"].append({
+                    "server_id": item["server_id"],
+                    "album_id": item["album_id"],
+                })
+                existing["source_count"] = len(existing["sources"])
+
+    album_list = list(merged_albums.values())
+    album_list.sort(key=lambda x: x["title"].lower())
 
     cache_data(cache_key, album_list)
     logger.info("Caching %d albums for artist %s.", len(album_list), artist_id)
@@ -1045,11 +1173,7 @@ def fetch_albums_for_artist(artist_id: int, server_id: str | None = None):
 
 
 def fetch_tracks_for_album(album_id: int, server_id: str | None = None):
-    """Fetch tracks for a specific album by its ID with Redis caching.
-
-    Returns:
-        A list of tracks for an album.
-    """
+    """Fetch tracks for an album with audio quality ranking and failover sources."""
     if settings.testing:
         album_title = "Unknown Album"
         for _a_id, albums in MOCK_ALBUMS.items():
@@ -1090,17 +1214,28 @@ def fetch_tracks_for_album(album_id: int, server_id: str | None = None):
         except Exception:
             pass
 
-    track_list = [
-        {
+    track_list = []
+    for track in tracks:
+        # Determine audio quality (codec / bitrate) for smart stream ranking
+        codec = ""
+        bitrate = 0
+        if getattr(track, "media", None) and len(track.media) > 0:
+            m = track.media[0]
+            codec = getattr(m, "audioCodec", "") or getattr(m, "container", "")
+            bitrate = getattr(m, "bitrate", 0) or 0
+
+        is_lossless = bool(codec and ("flac" in codec.lower() or "alac" in codec.lower() or "wav" in codec.lower()))
+        quality_score = 1000000 if is_lossless else (bitrate or 256)
+
+        track_list.append({
             "track_id": track.ratingKey,
             "title": track.title,
-            "duration": milliseconds_to_seconds(track.duration)
-            if track.duration
-            else 0,
+            "duration": milliseconds_to_seconds(track.duration) if track.duration else 0,
             "server_id": server_id,
-        }
-        for track in tracks
-    ]
+            "codec": codec,
+            "bitrate": bitrate,
+            "quality_score": quality_score,
+        })
 
     result = {
         "album_title": album.title,
@@ -1115,17 +1250,12 @@ def fetch_tracks_for_album(album_id: int, server_id: str | None = None):
     return result
 
 
-def search_music(query):
-    """Search for artists, albums, and tracks in Plex.
-
-    Returns:
-        A list of artists, albums, and/or tracks.
-    """
+def search_music(query: str):
+    """Search across ALL enabled Plex servers with multi-server deduplication."""
     if settings.testing:
         query_lower = query.lower()
         results = []
 
-        # 1. Search artists
         for artist in MOCK_ARTISTS:
             if query_lower in artist["name"].lower():
                 results.append(
@@ -1136,7 +1266,6 @@ def search_music(query):
                     }
                 )
 
-        # 2. Search albums
         for artist_id, albums in MOCK_ALBUMS.items():
             for album in albums:
                 if query_lower in album["title"].lower():
@@ -1149,7 +1278,6 @@ def search_music(query):
                         }
                     )
 
-        # 3. Search tracks
         for album_id, tracks in MOCK_TRACKS.items():
             for track in tracks:
                 if query_lower in track["title"].lower():
@@ -1166,45 +1294,44 @@ def search_music(query):
 
         return results
 
-    plex = get_plex_connection()
-    music_library = plex.library.section("Music")
+    enabled_ids = get_enabled_server_ids()
+    all_servers = fetch_accessible_plex_servers()
+    target_servers = [s for s in all_servers if s.get("server_id") in enabled_ids] if enabled_ids else all_servers
 
-    artist_results = music_library.search(query, libtype="artist")
-    album_results = music_library.search(query, libtype="album")
-    track_results = music_library.search(query, libtype="track")
+    if not target_servers:
+        target_servers = [{"server_id": None, "name": settings.plex_server_name or "Primary Plex"}]
 
-    query_lower = query.strip().lower()
-    formatted_results = []
-    for item in artist_results:
-        formatted_results.append(
-            {"name": item.title, "type": item.type, "artist_id": item.ratingKey}
-        )
-    for item in album_results:
-        formatted_results.append(
-            {
-                "title": item.title,
-                "type": item.type,
-                "album_id": item.ratingKey,
-                "artist": item.parentTitle,
-            }
-        )
-    for item in track_results:
-        if query_lower in item.title.lower():
-            formatted_results.append(
-                {
-                    "title": item.title,
-                    "type": item.type,
-                    "track_id": item.ratingKey,
-                    "album_id": item.parentRatingKey,
-                    "duration": milliseconds_to_seconds(item.duration)
-                    if item.duration
-                    else 0,
-                    "artist": item.grandparentTitle,
-                    "album": item.parentTitle,
-                }
-            )
+    import concurrent.futures
+    import re
 
-    return formatted_results
+    all_raw_results = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(target_servers), 5)) as executor:
+        futures = [executor.submit(search_music_on_server, s, query) for s in target_servers]
+        for f in concurrent.futures.as_completed(futures, timeout=5.0):
+            try:
+                all_raw_results.extend(f.result())
+            except Exception as ex:
+                logger.warning("Error searching music on thread: %s", ex)
+
+    # Deduplicate search results
+    seen_items = set()
+    deduped_results = []
+    for item in all_raw_results:
+        itype = item.get("type")
+        if itype == "artist":
+            key = f"artist:{re.sub(r'[^a-z0-9]', '', item.get('name', '').lower())}"
+        elif itype == "album":
+            key = f"album:{re.sub(r'[^a-z0-9]', '', item.get('title', '').lower())}:{re.sub(r'[^a-z0-9]', '', item.get('artist', '').lower())}"
+        elif itype == "track":
+            key = f"track:{re.sub(r'[^a-z0-9]', '', item.get('title', '').lower())}:{re.sub(r'[^a-z0-9]', '', item.get('artist', '').lower())}"
+        else:
+            key = str(id(item))
+
+        if key not in seen_items:
+            seen_items.add(key)
+            deduped_results.append(item)
+
+    return deduped_results
 
 
 def fetch_art(item_id: int, item_type: str, server_id: str | None = None):
@@ -1335,6 +1462,36 @@ def fetch_accessible_plex_servers():
     except Exception as e:
         logger.warning("Failed to fetch accessible Plex servers: %s", e)
         return []
+
+
+def get_enabled_server_ids() -> list[str]:
+    """Get list of server_ids that are enabled for the unified music catalog."""
+    import json
+    try:
+        from backend.services.redis import get_redis_cache_client
+        val = get_redis_cache_client().get("enabled_server_ids")
+        if val:
+            return json.loads(val)
+    except Exception as e:
+        logger.debug("Failed to read enabled_server_ids from Redis: %s", e)
+
+    accessible = fetch_accessible_plex_servers()
+    if not accessible and settings.testing:
+        return ["mock-primary-server", "mock-nas-server"]
+    return [s["server_id"] for s in accessible if "server_id" in s]
+
+
+def set_enabled_server_ids(server_ids: list[str]):
+    """Set list of server_ids enabled for the unified music catalog."""
+    import json
+    try:
+        from backend.services.redis import get_redis_cache_client, clear_cache
+        get_redis_cache_client().set("enabled_server_ids", json.dumps(server_ids))
+        clear_cache("all_artists")
+        clear_cache("artists")
+        clear_cache("accessible_plex_servers")
+    except Exception as e:
+        logger.warning("Failed to save enabled_server_ids: %s", e)
 
 
 def search_music_on_server(server_res: dict, query: str):

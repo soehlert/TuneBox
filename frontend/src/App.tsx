@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from "react";
-import { createPortal } from "react-dom";
 import { Routes, Route, Link, useNavigate, useLocation } from "react-router-dom";
 import { ThemeProvider } from "@mui/material/styles";
 import axios from "axios";
@@ -1598,16 +1597,8 @@ function App() {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [accessibleServers, setAccessibleServers] = useState<any[]>([]);
   const [selectedServerIds, setSelectedServerIds] = useState<string[]>([]);
-  const [showServerMenu, setShowServerMenu] = useState(false);
   const [showServerModal, setShowServerModal] = useState(false);
-  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
   const searchInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth < 768);
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
 
   // Clear search query when clear_search parameter is present
   useEffect(() => {
@@ -1617,11 +1608,9 @@ function App() {
     }
   }, [location.search]);
 
-  // Close dropdown on Escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        setShowServerMenu(false);
         setShowServerModal(false);
       }
     };
@@ -2056,102 +2045,6 @@ function App() {
                     }
                   }}
                 />
-                {accessibleServers.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setShowServerMenu(!showServerMenu);
-                    }}
-                    style={{
-                      background: "none",
-                      border: "none",
-                      color: selectedServerIds.length > 1 ? "#f5a623" : "rgba(255,255,255,0.4)",
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      padding: "4px",
-                      marginRight: "4px",
-                      transition: "color 0.2s",
-                      flexShrink: 0,
-                    }}
-                    title="Select servers to search"
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>dns</span>
-                  </button>
-                )}
-                {showServerMenu && isMobile &&
-                  createPortal(
-                    <div className="server-dropdown-overlay" onClick={() => setShowServerMenu(false)}>
-                      <div className="server-dropdown-menu" onClick={(e) => e.stopPropagation()}>
-                        <div className="server-dropdown-header">
-                          <span>SEARCH LIBRARIES</span>
-                          <button
-                            type="button"
-                            className="server-dropdown-close-btn"
-                            onClick={() => setShowServerMenu(false)}
-                          >
-                            ✕
-                          </button>
-                        </div>
-                        {accessibleServers.map((s) => {
-                          const isChecked = selectedServerIds.includes(s.server_id);
-                          return (
-                            <label key={s.server_id} className="server-dropdown-item">
-                              <input
-                                type="checkbox"
-                                checked={isChecked}
-                                onChange={() => {
-                                  if (isChecked) {
-                                    if (selectedServerIds.length > 1) {
-                                      setSelectedServerIds(selectedServerIds.filter((id) => id !== s.server_id));
-                                    }
-                                  } else {
-                                    setSelectedServerIds([...selectedServerIds, s.server_id]);
-                                  }
-                                }}
-                              />
-                              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                {s.name} {s.is_primary ? "(Home)" : ""}
-                              </span>
-                            </label>
-                          );
-                        })}
-                      </div>
-                    </div>,
-                    document.body
-                  )
-                }
-                {showServerMenu && !isMobile && (
-                  <div className="server-dropdown-menu" onClick={(e) => e.stopPropagation()}>
-                    <div className="server-dropdown-header">
-                      <span>SEARCH LIBRARIES</span>
-                    </div>
-                    {accessibleServers.map((s) => {
-                      const isChecked = selectedServerIds.includes(s.server_id);
-                      return (
-                        <label key={s.server_id} className="server-dropdown-item">
-                          <input
-                            type="checkbox"
-                            checked={isChecked}
-                            onChange={() => {
-                              if (isChecked) {
-                                if (selectedServerIds.length > 1) {
-                                  setSelectedServerIds(selectedServerIds.filter((id) => id !== s.server_id));
-                                }
-                              } else {
-                                setSelectedServerIds([...selectedServerIds, s.server_id]);
-                              }
-                            }}
-                          />
-                          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {s.name} {s.is_primary ? "(Home)" : ""}
-                          </span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                )}
               </div>
 
               {/* Admin identity badge */}

@@ -394,6 +394,38 @@ async def update_settings(
     # Trigger pre-warming task in background
     background_tasks.add_task(pre_warm_all_caches)
 
+
+class LibrariesToggleRequest(BaseModel):
+    enabled_server_ids: list[str]
+
+
+@router.get("/libraries")
+async def get_libraries():
+    """Get list of accessible Plex servers with enabled state for unified catalog."""
+    from backend.services.plex import fetch_accessible_plex_servers, get_enabled_server_ids
+    servers = fetch_accessible_plex_servers()
+    enabled_ids = set(get_enabled_server_ids())
+    return [
+        {
+            **s,
+            "enabled": s.get("server_id") in enabled_ids or not enabled_ids,
+        }
+        for s in servers
+    ]
+
+
+@router.post("/libraries")
+async def update_libraries(
+    req: LibrariesToggleRequest,
+    x_admin_token: str | None = Header(None),
+):
+    """Toggle enabled servers for the unified catalog."""
+    if not settings.admin_token or x_admin_token != settings.admin_token:
+        raise HTTPException(status_code=401, detail="Unauthorized: Invalid admin token")
+    from backend.services.plex import set_enabled_server_ids
+    set_enabled_server_ids(req.enabled_server_ids)
+    return {"message": "Enabled libraries updated successfully", "enabled_server_ids": req.enabled_server_ids}
+
     return {"message": "Settings successfully updated!"}
 
 

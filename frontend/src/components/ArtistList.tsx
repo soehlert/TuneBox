@@ -12,6 +12,8 @@ interface Artist {
   artist_id: number;
   name: string;
   thumb?: string;
+  source_count?: number;
+  server_names?: string[];
 }
 
 interface ArtistListProps {
@@ -455,6 +457,23 @@ function ArtistList({
                 />
                 <div className="artist-card-overlay">
                   <Typography className="artist-card-name">{artist.name}</Typography>
+                  {Boolean(artist.source_count && artist.source_count > 1) && (
+                    <span
+                      style={{
+                        fontSize: "10px",
+                        background: "rgba(51, 117, 173, 0.25)",
+                        border: "1px solid #3375A8",
+                        color: "#9bd0ff",
+                        padding: "2px 6px",
+                        borderRadius: "10px",
+                        fontWeight: "bold",
+                        marginTop: "4px",
+                      }}
+                      title={`Sourced from: ${artist.server_names?.join(", ") || "Multiple Servers"}`}
+                    >
+                      ⚡ {artist.source_count} Sources
+                    </span>
+                  )}
                 </div>
               </Card>
             ))}

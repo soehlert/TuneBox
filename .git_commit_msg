@@ -1,5 +1,8 @@
-fix: compact mobile playback controls to ensure Queue button is permanently visible when playing
+feat: implement unified multi-server library deduplication, audio quality ranking & search cleaning
 
-- Compact control button text labels on mobile in MusicControls.css.
-- Set margin-left: auto on player-right-section to dock Queue button permanently on right edge of bottom player bar.
-- Render player-queue-btn as circular primary glass badge on mobile.
+- Add get_enabled_server_ids and set_enabled_server_ids in backend/services/plex.py.
+- Add GET/POST /api/auth/libraries endpoints in backend/routers/auth.py.
+- Update fetch_all_artists, fetch_albums_for_artist, fetch_tracks_for_album, and search_music to query all enabled servers in parallel and deduplicate results.
+- Rank track stream sources by audio quality (lossless FLAC/ALAC > 320k MP3 > 256k AAC).
+- Remove search bar server dropdown from App.tsx (search automatically queries enabled servers).
+- Render ⚡ X Sources badge on multi-server artist cards in ArtistList.tsx.
