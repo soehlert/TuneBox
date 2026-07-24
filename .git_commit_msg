@@ -1,3 +1,3 @@
-fix: remove handleRefreshResources call from settings mount in App.tsx
+fix: re-add Escape keydown listener in SettingsModal in App.tsx
 
-- Fetch resources silently without running handleRefreshResources() on settings modal open.
+- Add useEffect keydown listener for Escape key to trigger handleAttemptClose() in SettingsModal.
