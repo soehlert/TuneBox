@@ -7,6 +7,10 @@ const QueueComponent = () => {
   const [vibes, setVibes] = useState<string[]>([]);
   const adminToken = localStorage.getItem("tunebox_admin_token") || "";
 
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const touchDragRef = useRef<{ index: number; targetIndex: number | null } | null>(null);
+
   const handleDeleteTrack = async (itemId: number | string) => {
     try {
       const response = await fetch(`${apiBase}/api/music/queue/${itemId}`, {
@@ -21,6 +25,111 @@ const QueueComponent = () => {
     } catch (error) {
       console.error("Error deleting track from queue:", error);
     }
+  };
+
+  const handleReorder = async (fromIndex: number, toIndex: number) => {
+    if (fromIndex < 1 || toIndex < 1 || fromIndex === toIndex) return;
+    try {
+      const response = await fetch(`${apiBase}/api/music/queue/reorder`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Admin-Token": adminToken,
+        },
+        body: JSON.stringify({ from_index: fromIndex, to_index: toIndex }),
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to reorder queue: ${response.statusText}`);
+      }
+    } catch (error) {
+      console.error("Error reordering queue:", error);
+    }
+  };
+
+  const handleMoveTop = async (fromIndex: number) => {
+    if (fromIndex <= 1) return;
+    try {
+      const response = await fetch(`${apiBase}/api/music/queue/move-top`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Admin-Token": adminToken,
+        },
+        body: JSON.stringify({ from_index: fromIndex }),
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to move track to top: ${response.statusText}`);
+      }
+    } catch (error) {
+      console.error("Error moving track to top:", error);
+    }
+  };
+
+  // Mouse Drag and Drop Handlers
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    if (index === 0 || !adminToken) return;
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", index.toString());
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    if (index === 0 || draggedIndex === null || !adminToken) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (dragOverIndex !== index) {
+      setDragOverIndex(index);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent, targetIndex: number) => {
+    e.preventDefault();
+    if (draggedIndex !== null && targetIndex > 0 && draggedIndex !== targetIndex) {
+      handleReorder(draggedIndex, targetIndex);
+    }
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
+
+  // Mobile Touch Drag Handlers
+  const handleTouchStart = (_e: React.TouchEvent, index: number) => {
+    if (index === 0 || !adminToken) return;
+    touchDragRef.current = { index, targetIndex: null };
+    setDraggedIndex(index);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!touchDragRef.current || !adminToken) return;
+    const touch = e.touches[0];
+    const targetElement = document.elementFromPoint(touch.clientX, touch.clientY);
+    const itemElement = targetElement?.closest(".queue-item");
+    if (itemElement) {
+      const idxAttr = itemElement.getAttribute("data-index");
+      if (idxAttr) {
+        const targetIdx = parseInt(idxAttr, 10);
+        if (targetIdx > 0) {
+          touchDragRef.current.targetIndex = targetIdx;
+          setDragOverIndex(targetIdx);
+        }
+      }
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (touchDragRef.current) {
+      const { index, targetIndex } = touchDragRef.current;
+      if (targetIndex !== null && targetIndex > 0 && index !== targetIndex) {
+        handleReorder(index, targetIndex);
+      }
+    }
+    touchDragRef.current = null;
+    setDraggedIndex(null);
+    setDragOverIndex(null);
   };
 
   const formatDuration = (ms: number | string) => {
@@ -142,9 +251,32 @@ const QueueComponent = () => {
       <ul className="queue-list">
         {queue.map((track, index) => {
           const isActive = index === 0;
+          const isDragging = draggedIndex === index;
+          const isDragOver = dragOverIndex === index;
+
           return (
-            <li key={index} className={`queue-item ${isActive ? 'active' : ''}`}>
+            <li
+              key={index}
+              data-index={index}
+              draggable={!isActive && !!adminToken}
+              onDragStart={(e) => handleDragStart(e, index)}
+              onDragOver={(e) => handleDragOver(e, index)}
+              onDrop={(e) => handleDrop(e, index)}
+              onDragEnd={handleDragEnd}
+              className={`queue-item ${isActive ? 'active' : ''} ${isDragging ? 'dragging' : ''} ${isDragOver ? 'drag-over' : ''}`}
+            >
               <Box className="queue-item-left">
+                {adminToken && !isActive && (
+                  <span
+                    className="material-symbols-outlined queue-drag-handle"
+                    onTouchStart={(e) => handleTouchStart(e, index)}
+                    onTouchMove={handleTouchMove}
+                    onTouchEnd={handleTouchEnd}
+                    title="Drag to reorder"
+                  >
+                    drag_indicator
+                  </span>
+                )}
                 {track.item_id ? (
                   <img
                     src={`${apiBase}/api/music/track-art/${track.item_id}${track.server_id ? '?server_id=' + track.server_id : ''}`}
@@ -183,41 +315,73 @@ const QueueComponent = () => {
                   </Typography>
                 </Box>
               </Box>
-              <Box style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <Box style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                 {isActive ? (
                   <span className="material-symbols-outlined queue-equalizer animate-pulse">equalizer</span>
                 ) : (
                   <Typography className="queue-item-time">{formatDuration(track.duration)}</Typography>
                 )}
                 {adminToken && !isActive && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteTrack(track.item_id);
-                    }}
-                    style={{
-                      background: "transparent",
-                      border: "none",
-                      color: "rgba(255, 255, 255, 0.4)",
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      padding: "4px",
-                      borderRadius: "4px",
-                      transition: "color 0.2s, background-color 0.2s",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.color = "#f44336";
-                      e.currentTarget.style.backgroundColor = "rgba(244, 67, 54, 0.1)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.color = "rgba(255, 255, 255, 0.4)";
-                      e.currentTarget.style.backgroundColor = "transparent";
-                    }}
-                    title="Remove from queue"
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>delete</span>
-                  </button>
+                  <>
+                    {index > 1 && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleMoveTop(index);
+                        }}
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          color: "rgba(255, 255, 255, 0.4)",
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          padding: "4px",
+                          borderRadius: "4px",
+                          transition: "color 0.2s, background-color 0.2s",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.color = "#f5a623";
+                          e.currentTarget.style.backgroundColor = "rgba(245, 166, 35, 0.1)";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.color = "rgba(255, 255, 255, 0.4)";
+                          e.currentTarget.style.backgroundColor = "transparent";
+                        }}
+                        title="Move to Next (Up Next)"
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>vertical_align_top</span>
+                      </button>
+                    )}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteTrack(track.item_id);
+                      }}
+                      style={{
+                        background: "transparent",
+                        border: "none",
+                        color: "rgba(255, 255, 255, 0.4)",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        padding: "4px",
+                        borderRadius: "4px",
+                        transition: "color 0.2s, background-color 0.2s",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.color = "#f44336";
+                        e.currentTarget.style.backgroundColor = "rgba(244, 67, 54, 0.1)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.color = "rgba(255, 255, 255, 0.4)";
+                        e.currentTarget.style.backgroundColor = "transparent";
+                      }}
+                      title="Remove from queue"
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>delete</span>
+                    </button>
+                  </>
                 )}
               </Box>
             </li>

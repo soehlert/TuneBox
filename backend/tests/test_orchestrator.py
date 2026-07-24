@@ -99,3 +99,75 @@ async def test_resync_detects_drift(mocker):
     expected_elapsed = 20.0
     # The accumulated elapsed time should be adjusted to 20s (Plex's offset)
     assert pytest.approx(track_time_tracker.accumulated_elapsed) == expected_elapsed
+
+
+def test_reorder_queue_endpoint(mocker):
+    """Test POST /api/music/queue/reorder with admin header."""
+    from fastapi.testclient import TestClient
+    from backend.config import settings
+    from backend.main import app
+
+    settings.admin_token = "test_admin_token"
+    client = TestClient(app)
+
+    mocker.patch("backend.routers.music.reorder_redis_queue", return_value={"message": "Queue reordered successfully."})
+    mocker.patch("backend.routers.music.send_queue")
+
+    # Unauthorized request without admin token
+    unauth_resp = client.post("/api/music/queue/reorder", json={"from_index": 2, "to_index": 1})
+    assert unauth_resp.status_code == 401
+
+    # Authorized request
+    auth_resp = client.post(
+        "/api/music/queue/reorder",
+        json={"from_index": 2, "to_index": 1},
+        headers={"X-Admin-Token": "test_admin_token"},
+    )
+    assert auth_resp.status_code == 200
+    assert auth_resp.json() == {"message": "Queue reordered successfully."}
+
+
+def test_move_top_queue_endpoint(mocker):
+    """Test POST /api/music/queue/move-top with admin header."""
+    from fastapi.testclient import TestClient
+    from backend.config import settings
+    from backend.main import app
+
+    settings.admin_token = "test_admin_token"
+    client = TestClient(app)
+
+    mocker.patch("backend.routers.music.move_to_top_redis_queue", return_value={"message": "Queue reordered successfully."})
+    mocker.patch("backend.routers.music.send_queue")
+
+    auth_resp = client.post(
+        "/api/music/queue/move-top",
+        json={"from_index": 3},
+        headers={"X-Admin-Token": "test_admin_token"},
+    )
+    assert auth_resp.status_code == 200
+    assert auth_resp.json() == {"message": "Queue reordered successfully."}
+
+
+def test_skip_endpoint_admin_token(mocker):
+    """Test POST /api/music/skip with optional admin header."""
+    from fastapi.testclient import TestClient
+    from backend.config import settings
+    from backend.main import app
+
+    settings.admin_token = "test_admin_token"
+    client = TestClient(app)
+
+    mocker.patch("backend.routers.music.skip_current_track", return_value={"message": "Track skipped successfully."})
+    mocker.patch("backend.websockets.reset_skip_votes")
+    mocker.patch("backend.routers.music.send_queue")
+    mocker.patch("backend.routers.music.send_current_playing")
+
+    # Guest skip request
+    guest_resp = client.post("/api/music/skip")
+    assert guest_resp.status_code == 200
+
+    # Admin force skip request
+    admin_resp = client.post("/api/music/skip", headers={"X-Admin-Token": "test_admin_token"})
+    assert admin_resp.status_code == 200
+    assert admin_resp.json() == {"message": "Track skipped successfully."}
+

@@ -180,3 +180,30 @@
   flex-shrink: 0;
   margin-left: 12px;
 }
+
+.queue-drag-handle {
+  font-size: 20px !important;
+  color: rgba(255, 255, 255, 0.3);
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+  transition: color 0.2s;
+  margin-right: -4px;
+}
+
+.queue-drag-handle:hover,
+.queue-drag-handle:active {
+  color: var(--color-primary);
+  cursor: grabbing;
+}
+
+.queue-item.dragging {
+  opacity: 0.4;
+  border: 1px dashed var(--color-primary);
+}
+
+.queue-item.drag-over {
+  background-color: rgba(245, 166, 35, 0.12) !important;
+  border-top: 2px solid var(--color-primary);
+}
+

@@ -156,6 +156,21 @@ const MusicControlsComponent = ({
     }
   };
 
+  const adminToken = localStorage.getItem("tunebox_admin_token") || "";
+
+  const handleForceSkip = async () => {
+    try {
+      await fetch(`${apiBase}/api/music/skip`, {
+        method: "POST",
+        headers: {
+          "X-Admin-Token": adminToken,
+        },
+      });
+    } catch (error) {
+      console.error("Error force skipping track:", error);
+    }
+  };
+
   const handleCastSkipVote = () => {
     if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
       const cid = localStorage.getItem("tunebox_client_id") || "";
@@ -258,6 +273,40 @@ const MusicControlsComponent = ({
                   <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>skip_next</span>
                   <span>Skip ({skipVotes}/{skipTotal})</span>
                 </button>
+
+                {adminToken && (
+                  <button
+                    onClick={handleForceSkip}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      background: "rgba(244, 67, 54, 0.15)",
+                      border: "1px solid rgba(244, 67, 54, 0.4)",
+                      color: "#ff6b6b",
+                      borderRadius: "20px",
+                      padding: "6px 12px",
+                      fontSize: "12px",
+                      fontWeight: "bold",
+                      cursor: "pointer",
+                      transition: "all 0.2s",
+                      fontFamily: "var(--font-body)",
+                      whiteSpace: "nowrap"
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.backgroundColor = "rgba(244, 67, 54, 0.25)";
+                      e.currentTarget.style.borderColor = "#f44336";
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.backgroundColor = "rgba(244, 67, 54, 0.15)";
+                      e.currentTarget.style.borderColor = "rgba(244, 67, 54, 0.4)";
+                    }}
+                    title="Force Skip Track (Admin)"
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>skip_next</span>
+                    <span>Force Skip</span>
+                  </button>
+                )}
               </>
             ) : (
               <button onClick={handleStartQueue} className="player-start-queue-btn">

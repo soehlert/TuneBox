@@ -33,7 +33,9 @@ from backend.services.redis import (
     clear_cache,
     clear_redis_queue,
     get_redis_queue,
+    move_to_top_redis_queue,
     remove_from_redis_queue,
+    reorder_redis_queue,
     is_autoplay_enabled,
     set_autoplay_enabled,
 )
@@ -41,6 +43,15 @@ from backend.websockets import send_current_playing, send_queue
 
 router = APIRouter(prefix="/api/music", tags=["Music"])
 logger = logging.getLogger(__name__)
+
+
+class QueueReorderRequest(BaseModel):
+    from_index: int
+    to_index: int
+
+
+class QueueMoveTopRequest(BaseModel):
+    from_index: int
 
 
 class QueueAddRequest(BaseModel):
@@ -51,6 +62,46 @@ class QueueAddRequest(BaseModel):
 
 class AutoplayToggleRequest(BaseModel):
     enabled: bool
+
+
+@router.post("/queue/reorder")
+async def reorder_queue(
+    payload: QueueReorderRequest,
+    background_tasks: BackgroundTasks,
+    x_admin_token: str | None = Header(None),
+):
+    """Reorder an item in the Redis playback queue (restricted to admin)."""
+    if not settings.admin_token or x_admin_token != settings.admin_token:
+        raise HTTPException(status_code=401, detail="Unauthorized host operation.")
+
+    try:
+        result = reorder_redis_queue(payload.from_index, payload.to_index)
+        background_tasks.add_task(send_queue)
+        return result
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve)) from ve
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error reordering queue: {e}") from e
+
+
+@router.post("/queue/move-top")
+async def move_queue_top(
+    payload: QueueMoveTopRequest,
+    background_tasks: BackgroundTasks,
+    x_admin_token: str | None = Header(None),
+):
+    """Move an item to index 1 (next track up) in the playback queue (restricted to admin)."""
+    if not settings.admin_token or x_admin_token != settings.admin_token:
+        raise HTTPException(status_code=401, detail="Unauthorized host operation.")
+
+    try:
+        result = move_to_top_redis_queue(payload.from_index)
+        background_tasks.add_task(send_queue)
+        return result
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve)) from ve
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error moving track to top of queue: {e}") from e
 
 
 @router.post("/queue/{item_id}")
@@ -220,13 +271,21 @@ async def stop_queue(background_tasks: BackgroundTasks):
     return result
 
 
+
+
+
 @router.post("/skip")
-async def skip_track(background_tasks: BackgroundTasks):
-    """Skip the currently playing track.
-    
-    Returns:
-        A JSON message about skipping track.
-    """
+async def skip_track(
+    background_tasks: BackgroundTasks,
+    x_admin_token: str | None = Header(None),
+):
+    """Skip the currently playing track. If x_admin_token is supplied, forces an immediate skip."""
+    if x_admin_token and x_admin_token != settings.admin_token:
+        raise HTTPException(status_code=401, detail="Unauthorized host operation.")
+
+    from backend.websockets import reset_skip_votes  # noqa: PLC0415
+    await reset_skip_votes()
+
     result = skip_current_track()
     background_tasks.add_task(send_queue)
     background_tasks.add_task(send_current_playing)

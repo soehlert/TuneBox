@@ -184,6 +184,41 @@ Removes a specific track from the active playback queue.
   }
   ```
 
+#### `POST /api/music/queue/reorder`
+Reorders an upcoming track in the queue (restricted to admin).
+- **Headers**:
+  - `X-Admin-Token` *(required, string)*: Valid host admin token.
+- **Request Body**:
+  ```json
+  {
+    "from_index": 3,
+    "to_index": 1
+  }
+  ```
+- **Response `200 OK`**:
+  ```json
+  {
+    "message": "Queue reordered successfully."
+  }
+  ```
+
+#### `POST /api/music/queue/move-top`
+Moves an upcoming track to index 1 (next track up) in the queue (restricted to admin).
+- **Headers**:
+  - `X-Admin-Token` *(required, string)*: Valid host admin token.
+- **Request Body**:
+  ```json
+  {
+    "from_index": 4
+  }
+  ```
+- **Response `200 OK`**:
+  ```json
+  {
+    "message": "Queue reordered successfully."
+  }
+  ```
+
 #### `GET /api/music/playlists`
 Retrieves a list of available Plex playlists (restricted to admin).
 - **Headers**:

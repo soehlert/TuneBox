@@ -163,6 +163,48 @@ def clear_redis_queue():
     return {"message": "The queue has been cleared."}
 
 
+def reorder_redis_queue(from_index: int, to_index: int):
+    """Reorder a track in the Redis queue from from_index to to_index.
+
+    Indices 0 (currently playing track) cannot be moved or replaced.
+
+    Returns:
+        Dict status message.
+    """
+    client = get_redis_queue_client()
+    queue = client.lrange("playback_queue", 0, -1)
+
+    if not queue:
+        return {"message": "Queue is empty."}
+
+    if from_index < 1 or from_index >= len(queue):
+        raise ValueError(f"Invalid from_index {from_index} for queue length {len(queue)}")
+
+    if to_index < 1 or to_index >= len(queue):
+        raise ValueError(f"Invalid to_index {to_index} for queue length {len(queue)}")
+
+    if from_index == to_index:
+        return {"message": "No queue movement required."}
+
+    item = queue.pop(from_index)
+    queue.insert(to_index, item)
+
+    client.delete("playback_queue")
+    client.rpush("playback_queue", *queue)
+
+    logger.info("Reordered Redis playback queue: item from index %d to %d", from_index, to_index)
+    return {"message": "Queue reordered successfully."}
+
+
+def move_to_top_redis_queue(from_index: int):
+    """Move a track at from_index to position 1 (next track after current playing track).
+
+    Returns:
+        Dict status message.
+    """
+    return reorder_redis_queue(from_index, 1)
+
+
 def cache_data(key, data, ttl: int = CACHE_TTL):
     """Cache data in Redis with custom TTL."""
     try:

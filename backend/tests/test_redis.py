@@ -12,7 +12,9 @@ from backend.services.redis import (
     clear_redis_queue,
     get_cached_data,
     get_redis_queue,
+    move_to_top_redis_queue,
     remove_from_redis_queue,
+    reorder_redis_queue,
 )
 
 
@@ -243,4 +245,59 @@ def test_add_to_queue_redis_no_leapfrog_playing_fallback(mock_redis, mock_plex_t
     mock_redis_queue.linsert.assert_not_called()
     # Should append to the end instead
     mock_redis_queue.rpush.assert_called_once()
+
+
+def test_reorder_redis_queue_success(mock_redis):
+    """Test reordering items in Redis queue."""
+    mock_redis_queue, _ = mock_redis
+    item_0 = json.dumps({"item_id": "0", "title": "Playing Track"})
+    item_1 = json.dumps({"item_id": "1", "title": "Track 1"})
+    item_2 = json.dumps({"item_id": "2", "title": "Track 2"})
+    item_3 = json.dumps({"item_id": "3", "title": "Track 3"})
+    mock_redis_queue.lrange.return_value = [item_0, item_1, item_2, item_3]
+
+    with patch(
+        "backend.services.redis.get_redis_queue_client", return_value=mock_redis_queue
+    ):
+        # Move index 3 ("Track 3") to index 1 (right after playing track)
+        response = reorder_redis_queue(3, 1)
+
+    assert response == {"message": "Queue reordered successfully."}
+    mock_redis_queue.delete.assert_called_once_with("playback_queue")
+    mock_redis_queue.rpush.assert_called_once_with("playback_queue", item_0, item_3, item_1, item_2)
+
+
+def test_reorder_redis_queue_invalid_bounds(mock_redis):
+    """Test reordering with invalid index bounds."""
+    mock_redis_queue, _ = mock_redis
+    item_0 = json.dumps({"item_id": "0", "title": "Playing Track"})
+    item_1 = json.dumps({"item_id": "1", "title": "Track 1"})
+    mock_redis_queue.lrange.return_value = [item_0, item_1]
+
+    with patch(
+        "backend.services.redis.get_redis_queue_client", return_value=mock_redis_queue
+    ):
+        with pytest.raises(ValueError, match="Invalid from_index 0"):
+            reorder_redis_queue(0, 1)
+
+        with pytest.raises(ValueError, match="Invalid to_index 2"):
+            reorder_redis_queue(1, 2)
+
+
+def test_move_to_top_redis_queue(mock_redis):
+    """Test moving item to position 1 via move_to_top_redis_queue."""
+    mock_redis_queue, _ = mock_redis
+    item_0 = json.dumps({"item_id": "0", "title": "Playing Track"})
+    item_1 = json.dumps({"item_id": "1", "title": "Track 1"})
+    item_2 = json.dumps({"item_id": "2", "title": "Track 2"})
+    mock_redis_queue.lrange.return_value = [item_0, item_1, item_2]
+
+    with patch(
+        "backend.services.redis.get_redis_queue_client", return_value=mock_redis_queue
+    ):
+        response = move_to_top_redis_queue(2)
+
+    assert response == {"message": "Queue reordered successfully."}
+    mock_redis_queue.rpush.assert_called_once_with("playback_queue", item_0, item_2, item_1)
+
 
