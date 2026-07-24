@@ -1,6 +1,4 @@
-fix: enable ssl=False fallback for remote shared server connections and auto-close settings modal on save
+fix: add fail-safe search fallback and fix settings modal close binding
 
-- Match Plex resources by clientIdentifier as well as name in get_target_plex_connection.
-- Add ssl=False retry fallback in res.connect() for remote shared servers (e.g., cc-ls-plex01) with SSL direct certs.
-- Do not fall back to primary_plex if target remote server connection fails.
-- Auto-close SettingsModal in handleSave in App.tsx.
+- Add fail-safe search fallback using all(libtype=...) filtering in search_music_on_server when section search returns empty results.
+- Bind Save Settings button directly to handleSave in App.tsx to ensure modal closes even when form is unmounted.

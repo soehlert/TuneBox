@@ -1581,14 +1581,49 @@ def search_music_on_server(server_res: dict, query: str):
 
         for music_lib in music_libs:
             try:
-                artist_results = music_lib.search(query, libtype="artist")
-                album_results = music_lib.search(query, libtype="album")
-                track_results = music_lib.search(query, libtype="track")
+                artist_results = []
+                try:
+                    artist_results = music_lib.search(title=query, libtype="artist")
+                except Exception:
+                    pass
+
+                if not artist_results:
+                    try:
+                        all_artists = music_lib.all(libtype="artist")
+                        artist_results = [a for a in all_artists if query_lower in a.title.lower()]
+                    except Exception as ex_art:
+                        logger.debug("Failed fallback artist fetch: %s", ex_art)
+
+                album_results = []
+                try:
+                    album_results = music_lib.search(title=query, libtype="album")
+                except Exception:
+                    pass
+
+                if not album_results:
+                    try:
+                        all_albums = music_lib.all(libtype="album")
+                        album_results = [alb for alb in all_albums if query_lower in alb.title.lower()]
+                    except Exception as ex_alb:
+                        logger.debug("Failed fallback album fetch: %s", ex_alb)
+
+                track_results = []
+                try:
+                    track_results = music_lib.search(title=query, libtype="track")
+                except Exception:
+                    pass
+
+                if not track_results:
+                    try:
+                        all_tracks = music_lib.all(libtype="track")
+                        track_results = [t for t in all_tracks if query_lower in t.title.lower() or query_lower in getattr(t, "grandparentTitle", "").lower()]
+                    except Exception as ex_tr:
+                        logger.debug("Failed fallback track fetch: %s", ex_tr)
 
                 for item in artist_results:
                     formatted.append({
                         "name": item.title,
-                        "type": item.type,
+                        "type": "artist",
                         "artist_id": item.ratingKey,
                         "server_id": server_res.get("server_id"),
                         "server_name": server_res.get("name"),
@@ -1596,7 +1631,7 @@ def search_music_on_server(server_res: dict, query: str):
                 for item in album_results:
                     formatted.append({
                         "title": item.title,
-                        "type": item.type,
+                        "type": "album",
                         "album_id": item.ratingKey,
                         "artist": getattr(item, "parentTitle", ""),
                         "server_id": server_res.get("server_id"),
@@ -1605,7 +1640,7 @@ def search_music_on_server(server_res: dict, query: str):
                 for item in track_results:
                     formatted.append({
                         "title": item.title,
-                        "type": item.type,
+                        "type": "track",
                         "track_id": item.ratingKey,
                         "album_id": item.parentRatingKey,
                         "duration": milliseconds_to_seconds(item.duration) if item.duration else 0,

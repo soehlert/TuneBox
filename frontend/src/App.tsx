@@ -1200,10 +1200,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
         <div style={{ display: "flex", gap: "12px", marginTop: "16px", paddingTop: "12px", borderTop: "1px solid rgba(255, 255, 255, 0.1)" }}>
           <button
             type="button"
-            onClick={() => {
-              const form = document.getElementById("settings-form") as HTMLFormElement;
-              if (form) form.requestSubmit();
-            }}
+            onClick={handleSave}
             disabled={saving}
             style={{
               flex: 1,
