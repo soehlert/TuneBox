@@ -1,4 +1,4 @@
-fix: dynamically update connected device labels when username is changed in active party guests
+fix: prevent modal backdrop close on text selection drag
 
-- Recalculate display_name in rename_client endpoint in backend/routers/auth.py.
-- Construct device title dynamically in frontend/src/App.tsx from c.name and c.device_label.
+- Add mouseDownTargetRef to PromptModal, ConfirmModal, SettingsModal, and TuneBoxDialog backdrop handlers.
+- Only close modal on backdrop click if both mousedown and click originated on the backdrop element.

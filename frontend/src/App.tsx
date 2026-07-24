@@ -112,6 +112,8 @@ function ConfirmModal({
   onConfirm,
   onCancel,
 }: ConfirmModalProps) {
+  const mouseDownTargetRef = useRef<EventTarget | null>(null);
+
   useEffect(() => {
     if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -135,7 +137,14 @@ function ConfirmModal({
         justifyContent: "center",
         zIndex: 1200,
       }}
-      onClick={(e) => e.target === e.currentTarget && onCancel()}
+      onMouseDown={(e) => {
+        mouseDownTargetRef.current = e.target;
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && mouseDownTargetRef.current === e.currentTarget) {
+          onCancel();
+        }
+      }}
     >
       <div
         style={{
@@ -211,6 +220,7 @@ function PromptModal({
   onCancel,
 }: PromptModalProps) {
   const [val, setVal] = useState(initialValue);
+  const mouseDownTargetRef = useRef<EventTarget | null>(null);
 
   useEffect(() => {
     setVal(initialValue);
@@ -249,7 +259,14 @@ function PromptModal({
         justifyContent: "center",
         zIndex: 1200,
       }}
-      onClick={(e) => e.target === e.currentTarget && onCancel()}
+      onMouseDown={(e) => {
+        mouseDownTargetRef.current = e.target;
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && mouseDownTargetRef.current === e.currentTarget) {
+          onCancel();
+        }
+      }}
     >
       <div
         style={{
@@ -610,6 +627,8 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
     };
   };
 
+  const settingsMouseDownRef = useRef<EventTarget | null>(null);
+
   return (
     <div
       style={{
@@ -628,7 +647,14 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
         padding: "16px",
         boxSizing: "border-box",
       }}
-      onClick={handleAttemptClose}
+      onMouseDown={(e) => {
+        settingsMouseDownRef.current = e.target;
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && settingsMouseDownRef.current === e.currentTarget) {
+          handleAttemptClose();
+        }
+      }}
     >
       <div
         onClick={(e) => e.stopPropagation()}

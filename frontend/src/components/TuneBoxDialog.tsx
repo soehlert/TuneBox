@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import './TuneBoxDialog.css';
 
@@ -29,16 +29,19 @@ export const TuneBoxDialog: React.FC<TuneBoxDialogProps> = ({
   onCancel,
   onThird,
 }) => {
+  const mouseDownTargetRef = useRef<EventTarget | null>(null);
+
   useEffect(() => {
     if (!open) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && onCancel) {
-        onCancel();
+      if (e.key === 'Escape') {
+        if (onCancel) onCancel();
+        else if (onConfirm) onConfirm();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [open, onCancel]);
+  }, [open, onCancel, onConfirm]);
 
   if (!open) return null;
 
@@ -55,7 +58,18 @@ export const TuneBoxDialog: React.FC<TuneBoxDialogProps> = ({
   );
 
   return createPortal(
-    <div className="tunebox-dialog-overlay" onClick={onCancel || onConfirm}>
+    <div
+      className="tunebox-dialog-overlay"
+      onMouseDown={(e) => {
+        mouseDownTargetRef.current = e.target;
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && mouseDownTargetRef.current === e.currentTarget) {
+          if (onCancel) onCancel();
+          else if (onConfirm) onConfirm();
+        }
+      }}
+    >
       <div className="tunebox-dialog-card" onClick={(e) => e.stopPropagation()}>
         <div className="tunebox-dialog-header">
           <span className={`material-symbols-outlined tunebox-dialog-icon ${type}`}>
