@@ -14,8 +14,9 @@ Admin privileges are granted via an `X-Admin-Token` session token established du
 | **Drag & Drop Queue Reorder** | Reorder any queued tracks in real-time via drag handle icon (desktop & mobile). | Queue Sidebar / Modal |
 | **Move to Next** | Instantly push any song in the queue to be played next. | Track Menu (⋮) in Queue |
 | **Force Skip** | Override guest skip vote counts and immediately skip to the next track. | Player Bar (`Force Skip` button) |
-| **Queue Item Deletion** | Remove specific songs or clear the entire queue. | Track Menu (⋮) & Queue Header |
-| **Plex Account & Server Settings** | Change linked Plex credentials, target server, and active playback client. | Host Settings Modal (`⚙️`) |
+| **Stop Queue & Playback** | Stop active speaker playback, clear now-playing state, and drain all items from the queue. | Queue Header & Host Settings |
+| **Queue Item Deletion** | Remove specific songs or clear upcoming items from the queue. | Track Menu (⋮) & Host Settings |
+| **Multi-Server Library Management** | Enable or disable multi-server catalog discovery across primary and shared Plex servers. | Host Settings Modal (`⚙️`) |
 | **Smart Autoplay Control** | Enable or disable dynamic background track auto-seeding. | Host Settings Modal -> Queue |
 | **Display / Kiosk Delegation** | Set connected client sessions as shared kiosk screens or guest controllers. | Host Settings Modal -> Connected Users |
 
@@ -39,17 +40,26 @@ When guests are voting to skip a song, the host can bypass vote thresholds:
 - Click the blue **Force Skip** button on the playback bar.
 - TuneBox immediately skips the currently playing track and advances the queue.
 
-### 4. Remove & Clear
+### 4. Stop Queue & Playback
+- Click **⏹️ Stop** in the queue header or **⏹️ Stop Queue & Playback** in Host Settings.
+- TuneBox sends a stop command to the active Plex player, resets local playback tracking, wipes the now-playing track, and drains all items from the queue.
+
+### 5. Remove & Clear
 - **Individual Delete**: Select **Remove from Queue** in the track menu (`⋮`).
-- **Clear Queue**: Click **Clear Queue** in the queue header to purge all guest-queued songs.
+- **Clear Queue**: Click **Clear Queue** in Host Settings to purge upcoming guest-queued songs (preserving current track if active).
 
 ---
 
 ## ⚙️ Host Settings & Display Control
 
-### 1. Settings Form Protection
-- The **Save Settings** button sits at the bottom footer of the Settings Modal.
-- If you edit settings without saving, closing the modal prompts an unsaved changes warning dialog (`TuneBoxDialog`) giving options to **Save Settings**, **Discard**, or **Keep Editing**.
+### 1. Auto-Collapsing Accordions & Clean UX
+- The Settings Modal features auto-collapsing accordions: expanding one section automatically collapses all others to keep the interface uncluttered.
+- Designed with scrollbar-free styling (`hide-scrollbar`) while maintaining smooth touch and mouse scrolling.
 
-### 2. Display / Kiosk Mode
-Admins can view all connected user sessions under **Connected Users** in Settings and designate specific devices as dedicated display kiosks.
+### 2. Multi-Server Library Selection & Settings Protection
+- Hosts can check or uncheck accessible Plex Media Servers under **Plex Media Servers (Unified Catalog)**. Selected servers default strictly to your primary server until remote servers are explicitly enabled.
+- The **Save Settings** button persists settings with a green status message without auto-closing the modal.
+- Closing the modal with unsaved changes prompts a confirmation dialog (`TuneBoxDialog`) offering **Save Settings**, **Discard**, or **Keep Editing**.
+
+### 3. Display / Kiosk Mode
+Admins can view all connected user sessions under **Active Party Guests** and **Connected Devices & Kiosks** in Settings and designate specific devices as dedicated display kiosks.

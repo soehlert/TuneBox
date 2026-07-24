@@ -1,4 +1,5 @@
-fix: remove visible scrollbars from settings modal
+docs: update README, API reference, and Admin guide for multi-server catalog and stop queue controls
 
-- Add .hide-scrollbar utility class in index.css for WebKit, Firefox, and IE/Edge.
-- Apply hide-scrollbar class and scrollbarWidth: none to Settings modal container and lists in App.tsx.
+- Update README.md features with multi-server unified library catalog, audio quality prioritization, multi-library badges, and admin stop queue controls.
+- Update docs/api.md with specifications for POST /api/auth/libraries and POST /api/music/stop-queue endpoints.
+- Update docs/admin.md with stop queue instructions, auto-collapsing settings accordions, primary server defaults, and scrollbar-free modal design.

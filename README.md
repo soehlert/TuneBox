@@ -8,17 +8,17 @@
 
 ## ✨ Features
 
-- 🎧 **Plex Music Library Backend**: Streams and indexes music directly from your existing Plex Media Server library or others you have access to
-- 🔀 **Cross-Server Unified Queue**: Seamlessly build a single party queue with tracks pulled from multiple different Plex servers at the same time
-- 🌐 **Multi-Server Unified Search**: Search across multiple home and shared Plex Media Servers simultaneously with server selection search settings
+- 🎧 **Multi-Server Unified Music Library**: Streams, indexes, and merges music across your primary home Plex server and shared remote servers simultaneously
+- 🏆 **Smart Quality-Based Track Prioritization**: When identical albums or tracks are found on multiple servers, TuneBox automatically selects and streams the highest audio quality (Lossless FLAC/ALAC > High Bitrate MP3)
+- 🌐 **Multi-Library Badges & Modals**: Visual badges (`🌐 X libraries`) indicate items hosted across multiple servers. Tapping a badge opens a custom glassmorphism modal detailing all hosting libraries
 - 📱 **Guest Access via QR Code**: Guests scan a QR code at your party to browse music and queue tracks instantly—no app installation or accounts required
-- ⚡ **Real-Time Queue Synchronization**: Everyone's device stays in sync. Changes to the queue, current track progress, and playback state update instantly across all connected instances
-- 🗳️ **Collaborative Skip Voting**: Party guests can vote in real-time to skip songs. When the vote threshold is reached, TuneBox skips to the next track
-- 📋 **TuneBox Playlist Pre-Seeding**: Host can import a shuffled sample of tracks from Plex playlists to seed TuneBox. Guest tracks automatically leapfrog ahead of these pre-seeded tracks.
-- 📻 **Smart Autoplay Mode**: Keeps music playing when the guest queue runs low by dynamically seeding the queue with related tracks. Guest selections automatically leapfrog ahead and drop fallback tracks.
-- 🏆 **TuneBox Party Stats & Leaderboard**: Track party stats (who queued the most, who voted skips, whose tracks got skipped) to see who is contributing to the vibe and who is killing it.
-- 🎨 **Responsive, Mobile-First UI**: Clean, intuitive interface for browsing artists, albums, and tracks, adding to the queue, and managing playback
-- 🔐 **Setup Wizard**: Simple initial configuration wizard to link your Plex account and choose your preferred audio playback client
+- ⚡ **Real-Time Queue Synchronization**: Everyone's device stays in sync. Queue changes, track progress, and playback state update instantly across all connected clients
+- 🗳️ **Collaborative Skip Voting**: Party guests vote in real-time to skip songs. When the threshold is reached, TuneBox skips to the next track
+- ⏹️ **Admin Stop & Queue Drain Control**: Admin capability to stop active speaker playback, clear now-playing state, and wipe the entire queue immediately
+- 📋 **Playlist Pre-Seeding**: Host can seed TuneBox from Plex playlists. Guest selections automatically leapfrog ahead of pre-seeded tracks
+- 📻 **Smart Autoplay Mode**: Keeps music playing when the guest queue runs low by dynamically seeding related tracks. Guest selections automatically leapfrog fallback tracks
+- 🏆 **Party Stats & Leaderboards**: Track party stats (top queue contributors, skip voters, most skipped tracks) to see who is driving the vibe
+- ⚙️ **Refined Settings Modal**: Clean, auto-collapsing accordions with scrollbar-free design, non-closing save confirmations, and primary server defaults
 
 ---
 

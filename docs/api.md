@@ -68,6 +68,24 @@ Saves selected Plex Server and Client Player configuration.
   }
   ```
 
+#### `POST /api/auth/libraries`
+Saves enabled server IDs for unified music library indexing and catalog discovery.
+- **Headers**:
+  - `X-Admin-Token` *(required, string)*: Valid host admin token.
+- **Request Body**:
+  ```json
+  {
+    "enabled_server_ids": ["primary-server-id", "remote-server-id"]
+  }
+  ```
+- **Response `200 OK`**:
+  ```json
+  {
+    "message": "Enabled server selection saved successfully.",
+    "enabled_server_ids": ["primary-server-id", "remote-server-id"]
+  }
+  ```
+
 ---
 
 ### Music Endpoints (`/api/music`)
@@ -139,6 +157,26 @@ Retrieves tracks belonging to an album.
       "album": "Discovery"
     }
   ]
+  ```
+
+#### `POST /api/music/clear-queue`
+Clears upcoming items from the Redis playback queue (preserving index 0 if active).
+- **Response `200 OK`**:
+  ```json
+  {
+    "message": "The queue has been cleared."
+  }
+  ```
+
+#### `POST /api/music/stop-queue`
+Stops active speaker playback, resets local playback tracker, wipes now-playing state, and drains the entire playback queue (including active track).
+- **Headers**:
+  - `X-Admin-Token` *(required, string)*: Valid host admin token.
+- **Response `200 OK`**:
+  ```json
+  {
+    "message": "Playback stopped and entire queue cleared successfully."
+  }
   ```
 
 #### `GET /api/music/queue`
