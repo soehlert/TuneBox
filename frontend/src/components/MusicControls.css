@@ -228,14 +228,20 @@
   }
 
   .player-right-section {
-    flex: 0 0 auto;
-    min-width: max-content;
-    gap: 2px;
+    flex: 0 0 auto !important;
+    min-width: max-content !important;
+    gap: 6px !important;
+    overflow: visible !important;
   }
 
   .player-queue-btn {
     display: flex !important;
     flex-shrink: 0 !important;
+    color: var(--color-primary) !important;
+    background: rgba(229, 149, 0, 0.18) !important;
+    border: 1px solid rgba(229, 149, 0, 0.4) !important;
+    border-radius: 8px !important;
+    padding: 6px 10px !important;
   }
 
   .player-device-group {
@@ -247,8 +253,8 @@
   }
 }
 
-/* Hide queue popup button on desktop (>= 1024px) since queue sidebar is visible */
-@media (min-width: 1024px) {
+/* Hide queue popup button on desktop (>= 900px) since queue sidebar is visible */
+@media (min-width: 900px) {
   .player-queue-btn {
     display: none !important;
   }

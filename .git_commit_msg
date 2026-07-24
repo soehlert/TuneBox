@@ -1,3 +1,5 @@
-fix: re-add Escape keydown listener in SettingsModal in App.tsx
+fix: ensure mobile Queue button is always visible with prominent primary badge styling
 
-- Add useEffect keydown listener for Escape key to trigger handleAttemptClose() in SettingsModal.
+- Align player-queue-btn media query breakpoint with mobile layout (< 900px) in MusicControls.css.
+- Style player-queue-btn with prominent primary glass badge.
+- Enforce flex-shrink: 0 and overflow: visible on player-right-section to prevent clipping.
