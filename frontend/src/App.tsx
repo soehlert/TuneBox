@@ -569,12 +569,8 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
         },
         { headers: { "x-admin-token": adminToken } }
       );
-      sessionStorage.clear();
       setIsFormDirty(false);
-      setMsg("✓ Settings saved! Switching server...");
-      setTimeout(() => {
-        window.location.href = window.location.origin + "/";
-      }, 300);
+      setMsg("✓ Settings saved!");
     } catch {
       setMsg("✗ Failed to save settings.");
     } finally {
