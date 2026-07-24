@@ -1557,18 +1557,24 @@ def fetch_art(item_id: int, item_type: str, server_id: str | None = None):
         thumb_path = get_cached_data(cache_key)
         if not thumb_path:
             item = plex.fetchItem(item_id)
-            thumb_path = (
-                getattr(item, "thumb", None)
-                or getattr(item, "parentThumb", None)
-                or getattr(item, "grandparentThumb", None)
-            )
-            if not thumb_path and hasattr(item, "album"):
-                try:
-                    alb = item.album()
-                    if alb:
-                        thumb_path = getattr(alb, "thumb", None)
-                except Exception:
-                    pass
+            if item_type == "artist":
+                thumb_path = getattr(item, "thumb", None)
+                if not thumb_path and hasattr(item, "albums"):
+                    try:
+                        for alb in item.albums():
+                            if getattr(alb, "thumb", None):
+                                thumb_path = alb.thumb
+                                break
+                    except Exception:
+                        pass
+            elif item_type == "album":
+                thumb_path = getattr(item, "thumb", None)
+            else:
+                thumb_path = (
+                    getattr(item, "thumb", None)
+                    or getattr(item, "parentThumb", None)
+                    or getattr(item, "grandparentThumb", None)
+                )
 
             if not thumb_path:
                 raise HTTPException(

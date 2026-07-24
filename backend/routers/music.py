@@ -269,6 +269,36 @@ async def clear_the_queue(background_tasks: BackgroundTasks):
         return result
 
 
+@router.post("/stop-queue")
+async def stop_the_queue(background_tasks: BackgroundTasks, x_admin_token: str | None = Header(None)):
+    """Stop active playback, clear now playing, and drain the playback queue."""
+    if not settings.admin_token or x_admin_token != settings.admin_token:
+        raise HTTPException(status_code=401, detail="Unauthorized: Invalid admin token")
+    try:
+        from backend.services.plex import stop_playback
+        from backend.services.redis import clear_cache
+
+        try:
+            stop_playback()
+        except Exception as p_ex:
+            logger.debug("Failed to issue player stop: %s", p_ex)
+
+        clear_cache("now_playing")
+        result = clear_redis_queue()
+
+        from backend.websockets import reset_skip_votes
+        await reset_skip_votes()
+        await send_queue()
+        await send_current_playing()
+        return {"message": "Playback stopped and queue drained completely."}
+
+    except Exception as e:
+        logger.warning("Error stopping queue: %s", e)
+        raise HTTPException(
+            status_code=500, detail=f"Error stopping queue: {e}"
+        ) from e
+
+
 @router.post("/play-queue")
 async def play_queue(background_tasks: BackgroundTasks):
     """Start playing the entire queue on the active player."""

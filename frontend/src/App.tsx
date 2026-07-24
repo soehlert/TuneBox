@@ -593,9 +593,6 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
 
       setIsFormDirty(false);
       setMsg("✓ Settings saved!");
-      setTimeout(() => {
-        onClose();
-      }, 400);
     } catch {
       setMsg("✗ Failed to save settings.");
     } finally {
@@ -754,7 +751,14 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
           {/* Section 1: General Settings */}
           <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
             <div
-              onClick={() => setSectionsOpen(prev => ({ ...prev, general: !prev.general }))}
+              onClick={() => {
+                setSectionsOpen(prev => ({
+                  general: !prev.general,
+                  queue: false,
+                  devices: false,
+                  guests: false,
+                }));
+              }}
               style={{
                 display: "flex",
                 justifyContent: "space-between",
@@ -872,21 +876,27 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                                 ? "rgba(255, 255, 255, 0.08)"
                                 : lib.status === "connected"
                                 ? "rgba(46, 204, 113, 0.15)"
-                                : "rgba(231, 76, 60, 0.15)",
+                                : lib.status === "failed"
+                                ? "rgba(231, 76, 60, 0.15)"
+                                : "rgba(245, 166, 35, 0.15)",
                               border: !lib.enabled
                                 ? "1px solid rgba(255, 255, 255, 0.2)"
                                 : lib.status === "connected"
                                 ? "1px solid rgba(46, 204, 113, 0.4)"
-                                : "1px solid rgba(231, 76, 60, 0.4)",
+                                : lib.status === "failed"
+                                ? "1px solid rgba(231, 76, 60, 0.4)"
+                                : "1px solid rgba(245, 166, 35, 0.4)",
                               color: !lib.enabled
                                 ? "#aaa"
                                 : lib.status === "connected"
                                 ? "#2ecc71"
-                                : "#e74c3c",
+                                : lib.status === "failed"
+                                ? "#e74c3c"
+                                : "#f5a623",
                             }}
-                            title={!lib.enabled ? "Not connected (Unchecked)" : lib.error || (lib.status === "connected" ? "Successfully connected to server" : "Connection failed")}
+                            title={!lib.enabled ? "Not connected (Unchecked)" : lib.status === "failed" ? lib.error || "Connection failed" : lib.status === "connected" ? "Successfully connected to server" : "Save settings to apply connection"}
                           >
-                            {!lib.enabled ? "⚪ Not Connected" : lib.status === "connected" ? "🟢 Connected" : "🔴 Failed"}
+                            {!lib.enabled ? "⚪ Not Connected" : lib.status === "connected" ? "🟢 Connected" : lib.status === "failed" ? "🔴 Failed" : "🟡 Enabled"}
                           </span>
                         </label>
                       ))
@@ -900,7 +910,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
           {/* Section 2: Queue Management */}
           <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
             <div
-              onClick={() => setSectionsOpen(prev => ({ ...prev, queue: !prev.queue }))}
+              onClick={() => setSectionsOpen(prev => ({ general: false, queue: !prev.queue, devices: false, guests: false }))}
               style={{
                 display: "flex",
                 justifyContent: "space-between",
@@ -1000,34 +1010,64 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                   </div>
                 </div>
 
-                {/* Clear Queue Button - High Contrast Destructive Action */}
+                {/* Queue Control Buttons */}
                 <div>
-                  <label style={{ ...labelStyle, fontSize: "13px", color: "rgba(255, 255, 255, 0.6)", display: "block", marginBottom: "6px" }}>⚠️ Clear Active Queue</label>
-                  <button
-                    type="button"
-                    onClick={() => setConfirmClearOpen(true)}
-                    style={{
-                      background: "#ff4d4d",
-                      border: "none",
-                      color: "#ffffff",
-                      borderRadius: "8px",
-                      padding: "12px 16px",
-                      fontSize: "14px",
-                      fontWeight: "bold",
-                      cursor: "pointer",
-                      width: "100%",
-                      boxShadow: "0 4px 12px rgba(255, 77, 77, 0.2)",
-                      transition: "background-color 0.2s",
-                    }}
-                    onMouseOver={(e) => {
-                      e.currentTarget.style.backgroundColor = "#e04343";
-                    }}
-                    onMouseOut={(e) => {
-                      e.currentTarget.style.backgroundColor = "#ff4d4d";
-                    }}
-                  >
-                    Clear Queue
-                  </button>
+                  <label style={{ ...labelStyle, fontSize: "13px", color: "rgba(255, 255, 255, 0.6)", display: "block", marginBottom: "6px" }}>⚠️ Admin Controls</label>
+                  <div style={{ display: "flex", gap: "10px" }}>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmClearOpen(true)}
+                      style={{
+                        flex: 1,
+                        background: "#e67e22",
+                        border: "none",
+                        color: "#ffffff",
+                        borderRadius: "8px",
+                        padding: "12px 14px",
+                        fontSize: "13px",
+                        fontWeight: "bold",
+                        cursor: "pointer",
+                        transition: "background-color 0.2s",
+                      }}
+                    >
+                      Clear Queue
+                    </button>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          await fetch(getApiUrl("/api/music/stop-queue"), {
+                            method: "POST",
+                            headers: { "x-admin-token": adminToken },
+                          });
+                          setMsg("✓ Playback stopped & queue drained!");
+                        } catch (err) {
+                          console.error("Error stopping queue:", err);
+                        }
+                      }}
+                      style={{
+                        flex: 1,
+                        background: "#ff4d4d",
+                        border: "none",
+                        color: "#ffffff",
+                        borderRadius: "8px",
+                        padding: "12px 14px",
+                        fontSize: "13px",
+                        fontWeight: "bold",
+                        cursor: "pointer",
+                        boxShadow: "0 4px 12px rgba(255, 77, 77, 0.2)",
+                        transition: "background-color 0.2s",
+                      }}
+                      onMouseOver={(e) => {
+                        e.currentTarget.style.backgroundColor = "#e04343";
+                      }}
+                      onMouseOut={(e) => {
+                        e.currentTarget.style.backgroundColor = "#ff4d4d";
+                      }}
+                    >
+                      ⏹️ Stop Queue & Playback
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -1036,7 +1076,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
           {/* Section 3: Connected Devices & Kiosks */}
           <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
             <div
-              onClick={() => setSectionsOpen(prev => ({ ...prev, devices: !prev.devices }))}
+              onClick={() => setSectionsOpen(prev => ({ general: false, queue: false, devices: !prev.devices, guests: false }))}
               style={{
                 display: "flex",
                 justifyContent: "space-between",
@@ -1157,7 +1197,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
           {/* Section 4: Active Party Guests */}
           <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "12px" }}>
             <div
-              onClick={() => setSectionsOpen(prev => ({ ...prev, guests: !prev.guests }))}
+              onClick={() => setSectionsOpen(prev => ({ general: false, queue: false, devices: false, guests: !prev.guests }))}
               style={{
                 display: "flex",
                 justifyContent: "space-between",
