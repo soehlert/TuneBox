@@ -1,5 +1,4 @@
-fix: prioritize player.stop in stop_playback and return None in get_current_playing_track when stopped
+fix: remove visible scrollbars from settings modal
 
-- Reorder player command fallback list to attempt player.stop() before player.pause().
-- Return None in get_current_playing_track when track_time_tracker.state is stopped so WebSockets broadcast current_track: null.
-- Reset bottom music control bar to empty/stopped state on stop action.
+- Add .hide-scrollbar utility class in index.css for WebKit, Firefox, and IE/Edge.
+- Apply hide-scrollbar class and scrollbarWidth: none to Settings modal container and lists in App.tsx.

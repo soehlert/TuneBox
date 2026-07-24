@@ -717,7 +717,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
           </div>
         )}
         {/* Scrollable Accordion Body */}
-        <div style={{ overflowY: "auto", flex: 1, paddingRight: "4px", display: "flex", flexDirection: "column", gap: "16px" }}>
+        <div className="hide-scrollbar" style={{ overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: "16px", scrollbarWidth: "none", msOverflowStyle: "none" }}>
 
           <Link
             to="/stats"
@@ -1113,7 +1113,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                 {clients.length === 0 ? (
                   <p style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "13px", margin: 0 }}>No connected devices.</p>
                 ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: "10px", maxHeight: "200px", overflowY: "auto" }}>
+                  <div className="hide-scrollbar" style={{ display: "flex", flexDirection: "column", gap: "10px", maxHeight: "200px", overflowY: "auto", scrollbarWidth: "none", msOverflowStyle: "none" }}>
                     {clients.map((c) => (
                       <div
                         key={c.client_id}
