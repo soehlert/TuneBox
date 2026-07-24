@@ -1,5 +1,5 @@
-fix: add quality selector logging and multi-library album pill badges
+fix: auto-enable servers on boot, log audio quality diagnostics, and add mobile tap popups for library badges
 
-- Add [Quality Selector] log when queuing tracks to log chosen library and bitrate info.
-- Add [Playback Engine] log in play_song to log source server during playback.
-- Update ArtistAlbums.tsx to render 🌐 X libraries pill badge for multi-server albums.
+- Default get_enabled_server_ids to all accessible servers on fresh boot so remote servers connect without manual settings save.
+- Extract audio codec, bitrate, and quality score in queue and playback handlers and output explicit [Quality Selector] and [Playback Engine] logs.
+- Add tap/click popups to 🌐 X libraries pill badges in ArtistList.tsx and ArtistAlbums.tsx for mobile devices.

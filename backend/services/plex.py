@@ -303,7 +303,22 @@ def get_track(item_id):
 def play_song(player, song, server_token=None, server_url=None):
     """Play a specific song on the Plex player."""
     s_name = getattr(song, "server_name", None) or "Home Server"
-    logger.info("[Playback Engine] Playing track '%s' from library '%s' on player: %s", getattr(song, "title", "Track"), s_name, player.title)
+    codec = ""
+    bitrate = 0
+    if getattr(song, "media", None) and len(song.media) > 0:
+        m = song.media[0]
+        codec = (getattr(m, "audioCodec", "") or getattr(m, "container", "") or "").upper()
+        bitrate = getattr(m, "bitrate", 0) or 0
+
+    quality_str = f"{codec} {bitrate}kbps" if (codec or bitrate) else "Standard Quality"
+    logger.info(
+        "[Playback Engine] Playing track '%s' by '%s' from library '%s' | Audio Quality: %s on player: %s",
+        getattr(song, "title", "Track"),
+        getattr(song, "grandparentTitle", getattr(song, "artist", "Unknown Artist")),
+        s_name,
+        quality_str,
+        player.title
+    )
     target_plex = get_plex_connection()
     if server_url and server_token and not settings.testing:
         try:
@@ -1612,7 +1627,7 @@ def fetch_accessible_plex_servers():
 
 
 def get_enabled_server_ids() -> list[str]:
-    """Get list of server_ids that are enabled for the unified music catalog. Defaults strictly to ONLY the Home server."""
+    """Get list of server_ids that are enabled for the unified music catalog. Defaults to all accessible servers on fresh boot."""
     import json
     try:
         from backend.services.redis import get_redis_cache_client
@@ -1625,11 +1640,11 @@ def get_enabled_server_ids() -> list[str]:
         logger.debug("Failed to read enabled_server_ids from Redis: %s", e)
 
     accessible = fetch_accessible_plex_servers()
-    primary = [s["server_id"] for s in accessible if s.get("is_primary")]
-    if primary:
-        return primary
-    if accessible:
-        return [accessible[0]["server_id"]]
+    all_ids = [s["server_id"] for s in accessible if s.get("server_id")]
+    if all_ids:
+        # Save default enabled server IDs to Redis so it persists across calls
+        set_enabled_server_ids(all_ids)
+        return all_ids
     if settings.testing:
         return ["mock-primary-server"]
     return []

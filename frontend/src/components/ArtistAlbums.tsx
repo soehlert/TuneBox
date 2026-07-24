@@ -88,6 +88,13 @@ function ArtistAlbums() {
                           borderRadius: "8px",
                           fontWeight: 700,
                           lineHeight: 1.2,
+                          cursor: "pointer",
+                        }}
+                        title={`Found on ${sources.length} servers`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const listStr = sources.map((s: any) => `• ${s.server_name || "Unknown Library"}`).join("\n");
+                          alert(`"${album.title}" is available on ${sources.length} libraries:\n\n${listStr}`);
                         }}
                       >
                         🌐 {sources.length} libraries

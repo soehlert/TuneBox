@@ -127,9 +127,25 @@ async def add_to_queue(
         target_res = next((s for s in all_servers if s["server_id"] == server_id), None)
 
         s_name = server_name or (target_res.get("name") if target_res else "Primary Server")
+        
+        codec = ""
+        bitrate = 0
+        if getattr(song, "media", None) and len(song.media) > 0:
+            m = song.media[0]
+            codec = (getattr(m, "audioCodec", "") or getattr(m, "container", "") or "").upper()
+            bitrate = getattr(m, "bitrate", 0) or 0
+
+        is_lossless = bool(codec and ("FLAC" in codec or "ALAC" in codec or "WAV" in codec))
+        quality_score = 1000000 if is_lossless else (bitrate or 256)
+        quality_str = f"{codec} {bitrate}kbps (Lossless)" if is_lossless else f"{codec or 'MP3'} {bitrate or 320}kbps"
+
         logger.info(
-            "[Quality Selector] Queued track '%s' from library '%s' (server_id: %s, duration: %ss)",
-            song.title, s_name, server_id or "primary", getattr(song, "duration", 0) // 1000 if getattr(song, "duration", 0) else 0
+            "[Quality Selector] Queued track '%s' by '%s' from library '%s' | Audio Quality: %s (Quality Score: %d)",
+            song.title,
+            getattr(song, "grandparentTitle", getattr(song, "artist", "Unknown Artist")),
+            s_name,
+            quality_str,
+            quality_score
         )
 
         add_to_queue_redis(
