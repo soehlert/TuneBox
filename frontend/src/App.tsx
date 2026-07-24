@@ -553,8 +553,18 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
         { name: newName },
         { headers: { "x-admin-token": adminToken } }
       );
-      if (clientId === getClientId() && adminToken) {
-        localStorage.setItem("tunebox_admin_name", newName);
+      if (clientId === getClientId()) {
+        const rawGuest = localStorage.getItem("tunebox_guest");
+        if (rawGuest) {
+          try {
+            const parsed = JSON.parse(rawGuest);
+            parsed.name = newName;
+            localStorage.setItem("tunebox_guest", JSON.stringify(parsed));
+          } catch (e) {}
+        }
+        if (adminToken) {
+          localStorage.setItem("tunebox_admin_name", newName);
+        }
       }
       fetchClients();
     } catch (err) {
@@ -1815,8 +1825,9 @@ function App() {
         } else if (data.type === "rename_client") {
           console.log("Received rename_client WS push:", data.name);
           if (guestProfile) {
-            setGuestProfile((prev) => (prev ? { ...prev, name: data.name } : null));
-            localStorage.setItem("tunebox_guest_name", data.name);
+            const updated = { ...guestProfile, name: data.name };
+            setGuestProfile(updated);
+            localStorage.setItem("tunebox_guest", JSON.stringify(updated));
           } else if (isAdmin) {
             localStorage.setItem("tunebox_admin_name", data.name);
           }

@@ -1,5 +1,4 @@
-feat: make alphabet rail always visible on mobile and sync target user rename via WebSocket
+fix: persist guest name rename in tunebox_guest JSON localStorage and add artist.id fallback on image requests
 
-- Update App.css mobile media query to display left-sidebar as a 36px glassmorphic rail on mobile viewports.
-- Offset main-content margin-left to 36px on mobile viewports.
-- Add rename_client WebSocket push handler in App.tsx to update guestProfile state and persist to localStorage.
+- Update tunebox_guest JSON string in localStorage on WebSocket rename_client push and admin rename execution in App.tsx.
+- Add artist.id fallback and ?server_id= parameter on artist image URLs in ArtistList.tsx to prevent 404s.
