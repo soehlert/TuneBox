@@ -294,7 +294,7 @@ const QueueComponent = () => {
                   />
                 ) : null}
                 <Box className="queue-item-art-placeholder" style={{ display: track.item_id ? "none" : "flex" }}>🎵</Box>
-                <Box className="queue-item-meta">
+                <Box className="queue-item-meta" style={{ display: "flex", flexDirection: "column", gap: "2px", minWidth: 0, width: "100%" }}>
                   <Typography
                     className="queue-item-title"
                     title={track.title}
@@ -302,32 +302,30 @@ const QueueComponent = () => {
                   >
                     {track.title}
                   </Typography>
-                  <Box style={{ display: "flex", alignItems: "center", gap: "6px", minWidth: 0, width: "100%", marginTop: "2px" }}>
-                    <Typography
-                      className="queue-item-artist"
-                      title={track.artist}
-                      style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0, flex: 1 }}
+                  <Typography
+                    className="queue-item-artist"
+                    title={track.artist}
+                    style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "100%" }}
+                  >
+                    {track.artist}
+                  </Typography>
+                  <Box style={{ display: "flex", marginTop: "2px" }}>
+                    <span
+                      style={{
+                        fontSize: "9px",
+                        background: isActive ? "rgba(0, 0, 0, 0.25)" : "rgba(245, 166, 35, 0.2)",
+                        border: isActive ? "1px solid rgba(0, 0, 0, 0.4)" : "1px solid rgba(245, 166, 35, 0.4)",
+                        color: isActive ? "#0e0e0f" : "#f5a623",
+                        padding: "1px 6px",
+                        borderRadius: "8px",
+                        fontWeight: 700,
+                        lineHeight: 1.2,
+                        display: "inline-block",
+                      }}
+                      title={`Source Library: ${track.server_name || "plex-so"}`}
                     >
-                      {track.artist}
-                    </Typography>
-                    {track.server_name && (
-                      <span
-                        style={{
-                          fontSize: "9px",
-                          background: isActive ? "rgba(0, 0, 0, 0.2)" : "rgba(245, 166, 35, 0.2)",
-                          border: isActive ? "1px solid rgba(0, 0, 0, 0.3)" : "1px solid rgba(245, 166, 35, 0.4)",
-                          color: isActive ? "#0e0e0f" : "#f5a623",
-                          padding: "1px 5px",
-                          borderRadius: "8px",
-                          fontWeight: 600,
-                          lineHeight: 1.2,
-                          flexShrink: 0,
-                        }}
-                        title={`Source Library: ${track.server_name}`}
-                      >
-                        {track.server_name}
-                      </span>
-                    )}
+                      {track.server_name || "plex-so"}
+                    </span>
                   </Box>
                 </Box>
               </Box>

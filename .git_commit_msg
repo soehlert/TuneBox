@@ -1,4 +1,4 @@
-fix: style multi-library popups with TuneBoxDialog and move queue server pill below artist name
+fix: position queue server pill badge on line 3 below artist name and ensure visibility
 
-- Replace native browser alerts with TuneBoxDialog component in ArtistList.tsx and ArtistAlbums.tsx for multi-library badges.
-- Move server pill badge in Queue.tsx to line 2 alongside artist name below track title.
+- Update Queue.tsx meta layout to 3 lines: Line 1 title, Line 2 artist, Line 3 server pill badge.
+- Add fallback default to ensure server pill badge renders for all queue items.
