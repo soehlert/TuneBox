@@ -219,36 +219,6 @@ const QueueComponent = () => {
     <Box className="queue-wrapper">
       <Box className="queue-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <Typography className="queue-title">Up Next</Typography>
-        {adminToken && (queue.length > 0 || vibes?.length > 0) && (
-          <button
-            onClick={async () => {
-              try {
-                await fetch(`${apiBase}/api/music/stop-queue`, {
-                  method: "POST",
-                  headers: { "X-Admin-Token": adminToken },
-                });
-              } catch (e) {
-                console.error("Error stopping playback:", e);
-              }
-            }}
-            style={{
-              background: "rgba(255, 77, 77, 0.15)",
-              border: "1px solid rgba(255, 77, 77, 0.4)",
-              color: "#ff6b6b",
-              padding: "4px 8px",
-              borderRadius: "6px",
-              fontSize: "11px",
-              fontWeight: "bold",
-              cursor: "pointer",
-              transition: "background 0.2s",
-            }}
-            onMouseOver={(e) => (e.currentTarget.style.background = "rgba(255, 77, 77, 0.3)")}
-            onMouseOut={(e) => (e.currentTarget.style.background = "rgba(255, 77, 77, 0.15)")}
-            title="Stop active playback and drain queue"
-          >
-            ⏹️ Stop
-          </button>
-        )}
       </Box>
       
       {vibes && vibes.length > 0 && (

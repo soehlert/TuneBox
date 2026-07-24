@@ -1845,11 +1845,13 @@ def fetch_playlists():
     return [{"playlist_id": p.ratingKey, "title": p.title} for p in playlists]
 
 
-def seed_queue_from_playlist(playlist_id: int):
+def seed_queue_from_playlist(playlist_id: int, count: int = 10):
     """Import, shuffle, and add tracks from a Plex playlist to the Redis queue."""
     import random
     import json
     from backend.services.redis import add_to_queue_redis, get_redis_cache_client
+
+    target_count = max(1, count)
 
     if settings.testing:
         # Generate some mock tracks from the mock data to seed the queue
@@ -1858,8 +1860,9 @@ def seed_queue_from_playlist(playlist_id: int):
         for album_tracks in MOCK_TRACKS.values():
             all_tracks.extend(album_tracks)
         
-        # Select exactly 10 random tracks to simulate seeding
-        sampled = random.sample(all_tracks, min(len(all_tracks), 10))
+        # Select up to target_count random tracks to simulate seeding
+        sample_size = min(len(all_tracks), target_count)
+        sampled = random.sample(all_tracks, sample_size)
         
         # Cache these track IDs as the fallback pool
         fallback_pool = [t["track_id"] for t in all_tracks]
@@ -1868,6 +1871,7 @@ def seed_queue_from_playlist(playlist_id: int):
         except Exception as ex:
             logger.warning("Failed to cache fallback pool in tests: %s", ex)
 
+        added_count = 0
         for t in sampled:
             # We mock the track structure so add_to_queue_redis works
             class MockTrack:
@@ -1880,9 +1884,10 @@ def seed_queue_from_playlist(playlist_id: int):
             
             try:
                 add_to_queue_redis(MockTrack(), is_fallback=True)
+                added_count += 1
             except Exception: # ignore already in queue exception
                 pass
-        return {"message": f"Successfully seeded 10 tracks from playlist {playlist_id}."}
+        return {"message": f"Successfully seeded {added_count} tracks from playlist {playlist_id}."}
 
     plex = get_plex_connection()
     # Find the playlist
@@ -1903,8 +1908,8 @@ def seed_queue_from_playlist(playlist_id: int):
     except Exception as ex:
         logger.warning("Failed to cache fallback pool: %s", ex)
 
-    # Select exactly 10 random tracks (or fewer if the playlist is smaller)
-    sample_size = min(len(tracks), 10)
+    # Select target_count random tracks (or entire playlist if count exceeds len(tracks))
+    sample_size = min(len(tracks), target_count)
     sampled_tracks = random.sample(tracks, sample_size)
     
     added_count = 0

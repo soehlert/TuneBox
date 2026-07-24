@@ -153,6 +153,24 @@ def test_seed_playlist_auth(client, mock_redis):
         settings.admin_token = orig_token
 
 
+def test_seed_playlist_custom_count_and_exceeding_count(client, mock_redis):
+    """Test custom count parameter and ensuring count exceeding available tracks doesn't error."""
+    orig_token = settings.admin_token
+    settings.admin_token = "valid_test_token"
+    try:
+        # Custom count = 5
+        res_custom = client.post("/api/music/playlists/5001/seed?count=5", headers={"X-Admin-Token": "valid_test_token"})
+        assert res_custom.status_code == 200
+        assert "seeded 5 tracks" in res_custom.json()["message"]
+
+        # Exceeding count = 9999 (should safely seed all available mock tracks without erroring)
+        res_exceed = client.post("/api/music/playlists/5001/seed?count=9999", headers={"X-Admin-Token": "valid_test_token"})
+        assert res_exceed.status_code == 200
+        assert "Successfully seeded" in res_exceed.json()["message"]
+    finally:
+        settings.admin_token = orig_token
+
+
 def test_get_and_set_autoplay(client, mock_redis):
     """Test retrieving and updating the autoplay enabled state."""
     mock_redis_queue, _ = mock_redis

@@ -354,6 +354,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
   const [libraries, setLibraries] = useState<any[]>([]);
   const [playlists, setPlaylists] = useState<{ playlist_id: number; title: string }[]>([]);
   const [selectedPlaylistId, setSelectedPlaylistId] = useState("");
+  const [preseedCount, setPreseedCount] = useState(10);
   const [seeding, setSeeding] = useState(false);
   const [sectionsOpen, setSectionsOpen] = useState({
     general: false,
@@ -397,17 +398,17 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
   const handleSeedJukebox = async () => {
     if (!selectedPlaylistId) return;
     setSeeding(true);
-    setMsg("Seeding TuneBox...");
+    setMsg("Preseeding TuneBox...");
     try {
       const res = await axios.post(
-        getApiUrl(`/api/music/playlists/${selectedPlaylistId}/seed`),
+        getApiUrl(`/api/music/playlists/${selectedPlaylistId}/seed?count=${preseedCount}`),
         {},
         { headers: { "x-admin-token": adminToken } }
       );
-      setMsg(`✓ ${res.data.message || "TuneBox seeded successfully!"}`);
+      setMsg(`✓ ${res.data.message || "TuneBox preseeded successfully!"}`);
     } catch (err) {
-      console.error("Failed to seed TuneBox:", err);
-      setMsg("✗ Failed to seed TuneBox.");
+      console.error("Failed to preseed TuneBox:", err);
+      setMsg("✗ Failed to preseed TuneBox.");
     } finally {
       setSeeding(false);
     }
@@ -878,25 +879,25 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                                 ? "rgba(46, 204, 113, 0.15)"
                                 : lib.status === "failed"
                                 ? "rgba(231, 76, 60, 0.15)"
-                                : "rgba(245, 166, 35, 0.15)",
+                                : "rgba(52, 152, 219, 0.15)",
                               border: !lib.enabled
                                 ? "1px solid rgba(255, 255, 255, 0.2)"
                                 : lib.status === "connected"
                                 ? "1px solid rgba(46, 204, 113, 0.4)"
                                 : lib.status === "failed"
                                 ? "1px solid rgba(231, 76, 60, 0.4)"
-                                : "1px solid rgba(245, 166, 35, 0.4)",
+                                : "1px solid rgba(52, 152, 219, 0.4)",
                               color: !lib.enabled
                                 ? "#aaa"
                                 : lib.status === "connected"
                                 ? "#2ecc71"
                                 : lib.status === "failed"
                                 ? "#e74c3c"
-                                : "#f5a623",
+                                : "#3498db",
                             }}
-                            title={!lib.enabled ? "Not connected (Unchecked)" : lib.status === "failed" ? lib.error || "Connection failed" : lib.status === "connected" ? "Successfully connected to server" : "Save settings to apply connection"}
+                            title={!lib.enabled ? "Not connected (Unchecked)" : lib.status === "failed" ? lib.error || "Connection failed" : lib.status === "connected" ? "Successfully connected to server" : "Connecting to server..."}
                           >
-                            {!lib.enabled ? "⚪ Not Connected" : lib.status === "connected" ? "🟢 Connected" : lib.status === "failed" ? "🔴 Failed" : "🟡 Enabled"}
+                            {!lib.enabled ? "⚪ Not Connected" : lib.status === "connected" ? "🟢 Connected" : lib.status === "failed" ? "🔴 Failed" : lib.status === "connecting" ? "🔵 Connecting" : "🔵 Enabled"}
                           </span>
                         </label>
                       ))
@@ -936,11 +937,11 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                 {/* Playlist Selection & Seeding */}
                 <div>
                   <label style={labelStyle}>Seed Playlist to Queue</label>
-                  <div style={{ display: "flex", gap: "8px", marginTop: "4px" }}>
+                  <div style={{ display: "flex", gap: "8px", marginTop: "4px", alignItems: "center" }}>
                     <select
                       value={selectedPlaylistId}
                       onChange={(e) => setSelectedPlaylistId(e.target.value)}
-                      style={{ ...inputStyle, flex: 1, cursor: "pointer" }}
+                      style={{ ...inputStyle, flex: 2, cursor: "pointer" }}
                     >
                       <option value="">Select a playlist...</option>
                       {playlists.map((pl) => (
@@ -949,6 +950,18 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                         </option>
                       ))}
                     </select>
+                    <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                      <span style={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.6)", whiteSpace: "nowrap" }}>Count:</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={500}
+                        value={preseedCount}
+                        onChange={(e) => setPreseedCount(Math.max(1, parseInt(e.target.value) || 1))}
+                        style={{ ...inputStyle, width: "55px", padding: "6px 8px", textAlign: "center" }}
+                        title="Number of tracks to preseed"
+                      />
+                    </div>
                     <button
                       type="button"
                       onClick={handleSeedJukebox}
@@ -959,6 +972,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                         border: "none",
                         borderRadius: "6px",
                         padding: "0 16px",
+                        height: "36px",
                         fontWeight: "bold",
                         fontSize: "13px",
                         cursor: seeding || !selectedPlaylistId ? "not-allowed" : "pointer",
@@ -966,11 +980,11 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                         whiteSpace: "nowrap",
                       }}
                     >
-                      {seeding ? "Seeding..." : "Seed Queue"}
+                      {seeding ? "Preseeding..." : "Preseed Queue"}
                     </button>
                   </div>
                   <span style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "11px", display: "block", marginTop: "4px" }}>
-                    Shuffles and seeds playlist tracks into the queue. Guest selections automatically take priority.
+                    Shuffles and preseeds playlist tracks into the queue. Guest selections automatically take priority.
                   </span>
                 </div>
 

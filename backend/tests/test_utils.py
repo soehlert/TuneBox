@@ -23,8 +23,9 @@ def tracker():
     return TrackTimeTracker()
 
 
+@patch("backend.services.redis_client._resolve_redis_url", side_effect=lambda url: url)
 @patch("backend.services.redis_client.redis.StrictRedis.from_url")
-def test_get_redis_queue_client(mock_redis):
+def test_get_redis_queue_client(mock_redis, mock_resolve):
     """Test the lazy initialization of Redis client."""
     if hasattr(get_redis_queue_client, "client"):
         delattr(get_redis_queue_client, "client")
