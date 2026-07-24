@@ -321,7 +321,6 @@ interface SettingsModalProps {
 function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: SettingsModalProps) {
   const [plexUsername, setPlexUsername] = useState("");
   const [localInstanceName, setLocalInstanceName] = useState(instanceName);
-  const [servers, setServers] = useState<string[]>([]);
   const [selectedServer, setSelectedServer] = useState("");
   const [players, setPlayers] = useState<string[]>([]);
   const [selectedPlayer, setSelectedPlayer] = useState("");
@@ -352,6 +351,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
   }, [isFormDirty, onClose]);
 
   const [clients, setClients] = useState<ClientSession[]>([]);
+  const [libraries, setLibraries] = useState<any[]>([]);
   const [playlists, setPlaylists] = useState<{ playlist_id: number; title: string }[]>([]);
   const [selectedPlaylistId, setSelectedPlaylistId] = useState("");
   const [seeding, setSeeding] = useState(false);
@@ -433,7 +433,6 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
     setMsg("Refreshing devices...");
     try {
       const res = await axios.get(getApiUrl("/api/auth/resources?refresh=true"));
-      setServers(res.data.servers ?? []);
       setPlayers(res.data.players ?? []);
       setMsg("✓ Devices refreshed!");
     } catch (err) {
@@ -472,8 +471,14 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
     axios
       .get(getApiUrl("/api/auth/resources"))
       .then((res) => {
-        setServers(res.data.servers ?? []);
         setPlayers(res.data.players ?? []);
+      })
+      .catch(console.error);
+
+    axios
+      .get(getApiUrl("/api/auth/libraries"))
+      .then((res) => {
+        setLibraries(res.data ?? []);
       })
       .catch(console.error);
   }, [adminToken]);
@@ -826,28 +831,38 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                   )}
                 </div>
                 <div>
-                  <label style={labelStyle}>Plex Media Server</label>
-                  {servers.length > 0 ? (
-                    <select
-                      value={selectedServer}
-                      onChange={(e) => { setSelectedServer(e.target.value); setIsFormDirty(true); }}
-                      style={{ ...inputStyle, cursor: "pointer" }}
-                    >
-                      {servers.map((s) => (
-                        <option key={s} value={s}>
-                          {s}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input
-                      type="text"
-                      placeholder="Enter server name manually"
-                      value={selectedServer}
-                      onChange={(e) => { setSelectedServer(e.target.value); setIsFormDirty(true); }}
-                      style={inputStyle}
-                    />
-                  )}
+                  <label style={labelStyle}>Plex Media Servers (Unified Catalog)</label>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "8px", background: "rgba(255, 255, 255, 0.03)", padding: "10px 12px", borderRadius: "8px", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
+                    {libraries.length === 0 ? (
+                      <span style={{ color: "rgba(255, 255, 255, 0.5)", fontSize: "13px" }}>No servers found.</span>
+                    ) : (
+                      libraries.map((lib) => (
+                        <label key={lib.server_id || lib.name} style={{ display: "flex", alignItems: "center", gap: "10px", color: "#fff", fontSize: "13px", cursor: "pointer", userSelect: "none" }}>
+                          <input
+                            type="checkbox"
+                            checked={lib.enabled}
+                            onChange={async (e) => {
+                              const updatedEnabled = e.target.checked;
+                              const nextLibs = libraries.map((l) => l.server_id === lib.server_id ? { ...l, enabled: updatedEnabled } : l);
+                              setLibraries(nextLibs);
+                              const enabledIds = nextLibs.filter((l) => l.enabled).map((l) => l.server_id);
+                              try {
+                                await axios.post(
+                                  getApiUrl("/api/auth/libraries"),
+                                  { enabled_server_ids: enabledIds },
+                                  { headers: { "x-admin-token": adminToken } }
+                                );
+                                setMsg("✓ Active libraries updated!");
+                              } catch (err) {
+                                console.error("Failed to update libraries:", err);
+                              }
+                            }}
+                          />
+                          <span>{lib.name} {lib.is_primary ? "(Home Server)" : ""}</span>
+                        </label>
+                      ))
+                    )}
+                  </div>
                 </div>
               </form>
             )}

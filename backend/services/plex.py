@@ -1483,20 +1483,27 @@ def fetch_accessible_plex_servers():
 
 
 def get_enabled_server_ids() -> list[str]:
-    """Get list of server_ids that are enabled for the unified music catalog."""
+    """Get list of server_ids that are enabled for the unified music catalog. Defaults strictly to ONLY the Home server."""
     import json
     try:
         from backend.services.redis import get_redis_cache_client
         val = get_redis_cache_client().get("enabled_server_ids")
         if val:
-            return json.loads(val)
+            parsed = json.loads(val)
+            if isinstance(parsed, list) and len(parsed) > 0:
+                return parsed
     except Exception as e:
         logger.debug("Failed to read enabled_server_ids from Redis: %s", e)
 
     accessible = fetch_accessible_plex_servers()
-    if not accessible and settings.testing:
-        return ["mock-primary-server", "mock-nas-server"]
-    return [s["server_id"] for s in accessible if "server_id" in s]
+    primary = [s["server_id"] for s in accessible if s.get("is_primary")]
+    if primary:
+        return primary
+    if accessible:
+        return [accessible[0]["server_id"]]
+    if settings.testing:
+        return ["mock-primary-server"]
+    return []
 
 
 def set_enabled_server_ids(server_ids: list[str]):

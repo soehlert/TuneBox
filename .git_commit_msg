@@ -1,5 +1,5 @@
-fix: resolve thread timeout 500 error with non-blocking wait and add Plex GUID matching
+fix: replace single server dropdown with multi-selector checklist in General Settings and default strictly to Home server
 
-- Replace as_completed with non-blocking concurrent.futures.wait(timeout=4.0) in fetch_all_artists, fetch_albums_for_artist, and search_music.
-- Return responsive server results without throwing HTTP 500 when remote servers time out.
-- Match on Plex GUIDs (plex://artist/...) in deduplication logic for 100% confidence artist matching.
+- Update get_enabled_server_ids to default strictly to Home server only.
+- Replace single dropdown with interactive multi-selector checklist under General Settings in App.tsx.
+- Save active server selection live via POST /api/auth/libraries.
