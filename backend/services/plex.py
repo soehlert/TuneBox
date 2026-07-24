@@ -1666,11 +1666,12 @@ def get_enabled_server_ids() -> list[str]:
         logger.debug("Failed to read enabled_server_ids from Redis: %s", e)
 
     accessible = fetch_accessible_plex_servers()
-    all_ids = [s["server_id"] for s in accessible if s.get("server_id")]
-    if all_ids:
-        # Save default enabled server IDs to Redis so it persists across calls
-        set_enabled_server_ids(all_ids)
-        return all_ids
+    primary_ids = [s["server_id"] for s in accessible if s.get("is_primary") and s.get("server_id")]
+    if not primary_ids and accessible:
+        primary_ids = [accessible[0]["server_id"]]
+    if primary_ids:
+        set_enabled_server_ids(primary_ids)
+        return primary_ids
     if settings.testing:
         return ["mock-primary-server"]
     return []

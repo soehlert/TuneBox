@@ -1,4 +1,4 @@
-fix: align album library resolution with artists and revert automatic Redis cache flush
+fix: default enabled server selection to primary server only
 
-- Revert automatic total Redis flushing in set_enabled_server_ids to standard targeted cache clearing.
-- Update fetch_albums_for_artist to use identical all_servers lookup logic as fetch_all_artists.
+- Update get_enabled_server_ids in backend/services/plex.py to select only primary server (is_primary) by default on initial setup.
+- Keep remote servers unchecked by default in Settings until manually enabled by user.
