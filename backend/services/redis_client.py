@@ -1,8 +1,19 @@
 """Handle lazily creating redis clients in a central location."""
 
+import socket
 import redis
 
 from backend.config import settings
+
+
+def _resolve_redis_url(url: str) -> str:
+    """Fallback from 'redis' hostname to '127.0.0.1' when running outside Docker container."""
+    if "redis://redis:" in url or url.startswith("redis://redis"):
+        try:
+            socket.gethostbyname("redis")
+        except socket.gaierror:
+            return url.replace("redis://redis", "redis://127.0.0.1")
+    return url
 
 
 def get_redis_queue_client():
@@ -12,8 +23,9 @@ def get_redis_queue_client():
         A Redis queue client.
     """
     if not hasattr(get_redis_queue_client, "client"):
+        target_url = _resolve_redis_url(settings.redis_url)
         get_redis_queue_client.client = redis.StrictRedis.from_url(
-            settings.redis_url, db=0, decode_responses=True
+            target_url, db=0, decode_responses=True
         )
     return get_redis_queue_client.client
 
@@ -25,7 +37,9 @@ def get_redis_cache_client():
         A Redis cache client.
     """
     if not hasattr(get_redis_cache_client, "client"):
+        target_url = _resolve_redis_url(settings.redis_url)
         get_redis_cache_client.client = redis.StrictRedis.from_url(
-            settings.redis_url, db=1, decode_responses=True
+            target_url, db=1, decode_responses=True
         )
     return get_redis_cache_client.client
+

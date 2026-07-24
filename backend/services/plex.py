@@ -953,23 +953,25 @@ def is_music_library_section(sec) -> bool:
     return True
 
 
-def fetch_all_artists() -> list[dict]:
-    """Fetch all artists across all enabled Plex servers, merging duplicates with quality ranking."""
+def fetch_all_artists(target_server_ids: list[str] | None = None) -> list[dict]:
+    """Fetch all artists across specified or enabled Plex servers, merging duplicates with quality ranking."""
     if settings.testing:
         return MOCK_ARTISTS
 
     cache_key = "all_artists"
-    cached = get_cached_data(cache_key)
-    if cached:
-        return cached
+    if not target_server_ids:
+        cached = get_cached_data(cache_key)
+        if cached:
+            return cached
 
-    enabled_ids = get_enabled_server_ids()
+    enabled_ids = target_server_ids if target_server_ids is not None else get_enabled_server_ids()
     all_accessible = fetch_accessible_plex_servers()
     enabled_set = {str(x).lower() for x in enabled_ids}
     
     target_servers = [
         s for s in all_accessible
         if str(s.get("server_id", "")).lower() in enabled_set
+        or str(s.get("name", "")).lower() in enabled_set
     ]
 
     if not target_servers:

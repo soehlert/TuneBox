@@ -109,7 +109,13 @@ def audit_deduplication(raw_catalogs: dict[str, list[dict[str, Any]]] | None = N
         raw_catalogs = fetch_raw_server_catalogs()
 
     if merged_artists is None:
-        merged_artists = fetch_all_artists()
+        # Extract target server IDs from raw_catalogs to scope deduplication fetch
+        target_server_ids = []
+        for items in raw_catalogs.values():
+            for i in items:
+                if i.get("server_id") and i["server_id"] not in target_server_ids:
+                    target_server_ids.append(i["server_id"])
+        merged_artists = fetch_all_artists(target_server_ids=target_server_ids if target_server_ids else None)
 
     all_raw_items = []
     for s_name, items in raw_catalogs.items():
