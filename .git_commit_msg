@@ -1,5 +1,4 @@
-fix: resolve playback orchestrator int conversion error and refine drag-and-drop UI
+fix: handle unconfigured player in orchestrator without dropping queue, and refine drag insertion line styling
 
-- Remove unsafe int() casts in get_track, play_queue_on_device, and playback_orchestrator to prevent ValueError crashes when handling non-numeric or string track rating keys.
-- Update queue drag-over styling in Queue.css to render a clean top insertion line indicator instead of highlighting the entire track card background.
-- Attach HTML5 draggable property and handleDragStart specifically to the drag handle icon so clicking row text or buttons does not trigger ghost container dragging.
+- Catch PlexApiException in playback_orchestrator when no active player is configured or reachable, setting playback_active to False to preserve all songs in the queue.
+- Remove box-shadow and outline blurs on .queue-item.drag-over in Queue.css to render a crisp 3px solid top insertion line indicator between tracks.
