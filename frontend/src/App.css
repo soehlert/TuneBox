@@ -337,8 +337,8 @@
   }
 
   .main-content {
-    margin-left: 36px;
-    padding: 16px 12px 120px 12px;
+    margin-left: 42px;
+    padding: 16px 16px 120px 16px;
     height: auto;
     overflow-y: visible;
   }
@@ -395,7 +395,7 @@
   background: rgba(18, 6, 36, 0.70);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  z-index: 40;
+  z-index: 90;
   display: flex;
   flex-direction: column;
   padding: 20px;

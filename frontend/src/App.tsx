@@ -567,6 +567,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
         }
       }
       fetchClients();
+      setMsg("✓ User handle updated");
     } catch (err) {
       console.error("Failed to rename user:", err);
     }

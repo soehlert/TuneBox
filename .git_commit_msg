@@ -1,4 +1,5 @@
-fix: persist guest name rename in tunebox_guest JSON localStorage and add artist.id fallback on image requests
+fix: mobile queue drawer z-index and add rename toast feedback
 
-- Update tunebox_guest JSON string in localStorage on WebSocket rename_client push and admin rename execution in App.tsx.
-- Add artist.id fallback and ?server_id= parameter on artist image URLs in ArtistList.tsx to prevent 404s.
+- Set z-index: 90 on mobile-queue-overlay in App.css to prevent alphabet rail overlap.
+- Set margin-left: 42px on main-content on mobile for proper card spacing.
+- Add setMsg toast feedback on user rename in SettingsModal in App.tsx.
