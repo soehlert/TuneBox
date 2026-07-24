@@ -1,4 +1,4 @@
-fix: remove page hard-reload on save settings and make TuneBoxDialog fully responsive
+fix: update Force Skip button to blue info pill style and prevent player bar badge collision
 
-- Update handleSave in SettingsModal to keep the user on the current page with the settings modal open, displaying a green "Settings saved!" toast banner.
-- Update TuneBoxDialog.css to use responsive layout (100dvh, calc(100% - 32px), max-width 440px, and mobile column action buttons) so dialogs fit mobile and laptop screens seamlessly without hardcoded pixel overflows.
+- Update Force Skip button styling in MusicControls.tsx to use the blue info pill theme (rgba(51, 117, 173, 0.15) background, #3376ad border, #9bd0ff text).
+- Update flex layout rules in MusicControls.css and add max-width text truncation to server-indicator-badge to prevent overlapping between center player controls and right section badges on narrower viewports.

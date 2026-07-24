@@ -293,9 +293,9 @@ const MusicControlsComponent = ({
                       display: "flex",
                       alignItems: "center",
                       gap: "4px",
-                      background: "rgba(244, 67, 54, 0.15)",
-                      border: "1px solid rgba(244, 67, 54, 0.4)",
-                      color: "#ff6b6b",
+                      background: "rgba(51, 117, 173, 0.15)",
+                      border: "1px solid #3376ad",
+                      color: "#9bd0ff",
                       borderRadius: "20px",
                       padding: "6px 12px",
                       fontSize: "12px",
@@ -303,15 +303,18 @@ const MusicControlsComponent = ({
                       cursor: "pointer",
                       transition: "all 0.2s",
                       fontFamily: "var(--font-body)",
-                      whiteSpace: "nowrap"
+                      whiteSpace: "nowrap",
+                      flexShrink: 0
                     }}
                     onMouseOver={(e) => {
-                      e.currentTarget.style.backgroundColor = "rgba(244, 67, 54, 0.25)";
-                      e.currentTarget.style.borderColor = "#f44336";
+                      e.currentTarget.style.backgroundColor = "rgba(51, 117, 173, 0.28)";
+                      e.currentTarget.style.borderColor = "#4895d9";
+                      e.currentTarget.style.color = "#ffffff";
                     }}
                     onMouseOut={(e) => {
-                      e.currentTarget.style.backgroundColor = "rgba(244, 67, 54, 0.15)";
-                      e.currentTarget.style.borderColor = "rgba(244, 67, 54, 0.4)";
+                      e.currentTarget.style.backgroundColor = "rgba(51, 117, 173, 0.15)";
+                      e.currentTarget.style.borderColor = "#3376ad";
+                      e.currentTarget.style.color = "#9bd0ff";
                     }}
                     title="Force Skip Track (Admin)"
                   >
@@ -348,11 +351,14 @@ const MusicControlsComponent = ({
                 whiteSpace: "nowrap",
                 cursor: "pointer",
                 marginRight: "8px",
+                maxWidth: "140px",
+                overflow: "hidden",
+                flexShrink: 1
               }}
               title="Click to view connected Plex server details"
             >
-              <span className="material-symbols-outlined" style={{ fontSize: "14px", color: "#5cdd5c" }}>dns</span>
-              <span className="server-name-text">
+              <span className="material-symbols-outlined" style={{ fontSize: "14px", color: "#5cdd5c", flexShrink: 0 }}>dns</span>
+              <span className="server-name-text" style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
                 {primaryServerName}
               </span>
             </div>
