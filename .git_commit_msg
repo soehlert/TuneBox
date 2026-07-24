@@ -1,5 +1,4 @@
-fix: robust album/track deduplication and restrict background cache warming
+fix: filter artist_sources by enabled servers and use positional Plex search
 
-- Improve artist/album attribute extraction in search_music_on_server using parentTitle, grandparentTitle, and artist fallbacks.
-- Merge duplicate albums and tracks cleanly by normalized title and artist keys in search_music.
-- Preserve enabled_server_ids across cache reinitializations so background tasks only query checked libraries.
+- Filter artist_sources in fetch_albums_for_artist against get_enabled_server_ids so stale multi-server sources in Redis do not trigger connections to unchecked servers (alpha, NAS, plexcu, svenghali, RogNAS).
+- Update search_music_on_server to use positional query search (music_lib.search(query)) so artists like Billy Strings return from remote shared Plex libraries.

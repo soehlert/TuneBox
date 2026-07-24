@@ -1191,6 +1191,15 @@ def fetch_albums_for_artist(artist_id: int, server_id: str | None = None):
                 artist_sources = a.get("sources", [])
                 break
 
+    enabled_ids = get_enabled_server_ids()
+    enabled_set = {str(x).lower() for x in enabled_ids}
+
+    if artist_sources:
+        artist_sources = [
+            src for src in artist_sources
+            if not src.get("server_id") or str(src.get("server_id", "")).lower() in enabled_set
+        ]
+
     if not artist_sources:
         artist_sources = [{"server_id": server_id, "artist_id": artist_id}]
 
@@ -1653,9 +1662,12 @@ def search_music_on_server(server_res: dict, query: str):
             try:
                 artist_results = []
                 try:
-                    artist_results = music_lib.search(title=query, libtype="artist")
+                    artist_results = music_lib.search(query, libtype="artist")
                 except Exception:
-                    pass
+                    try:
+                        artist_results = music_lib.search(title=query, libtype="artist")
+                    except Exception:
+                        pass
 
                 if not artist_results:
                     try:
@@ -1666,9 +1678,12 @@ def search_music_on_server(server_res: dict, query: str):
 
                 album_results = []
                 try:
-                    album_results = music_lib.search(title=query, libtype="album")
+                    album_results = music_lib.search(query, libtype="album")
                 except Exception:
-                    pass
+                    try:
+                        album_results = music_lib.search(title=query, libtype="album")
+                    except Exception:
+                        pass
 
                 if not album_results:
                     try:
@@ -1679,9 +1694,12 @@ def search_music_on_server(server_res: dict, query: str):
 
                 track_results = []
                 try:
-                    track_results = music_lib.search(title=query, libtype="track")
+                    track_results = music_lib.search(query, libtype="track")
                 except Exception:
-                    pass
+                    try:
+                        track_results = music_lib.search(title=query, libtype="track")
+                    except Exception:
+                        pass
 
                 if not track_results:
                     try:
