@@ -970,9 +970,11 @@ def fetch_all_artists():
             artists = music_lib.all(libtype="artist")
             results = []
             for artist in artists:
+                guid_val = getattr(artist, "guid", None) or getattr(artist, "ratingKey", "")
                 results.append({
                     "artist_id": artist.ratingKey,
                     "name": artist.title,
+                    "guid": str(guid_val),
                     "server_id": s_id,
                     "server_name": s_name,
                     "thumb": getattr(artist, "thumb", None),
@@ -985,21 +987,33 @@ def fetch_all_artists():
             return []
 
     all_results = []
-    with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(target_servers), 5)) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(target_servers), 8)) as executor:
         futures = [executor.submit(_fetch_server_artists, s) for s in target_servers]
-        for f in concurrent.futures.as_completed(futures, timeout=5.0):
+        done, not_done = concurrent.futures.wait(futures, timeout=4.0)
+        for f in done:
             try:
-                all_results.extend(f.result())
+                if not f.exception():
+                    all_results.extend(f.result())
             except Exception as ex:
-                logger.warning("Error fetching artists from thread: %s", ex)
+                logger.warning("Error fetching artists from finished thread: %s", ex)
+
+        if not_done:
+            logger.warning("%d server(s) timed out during artist fetch. Returning available results.", len(not_done))
+
+    # Map by GUID or normalized name for 100% confidence deduplication
+    guid_to_norm = {}
 
     for item in all_results:
-        norm_key = re.sub(r"[^a-z0-9]", "", item["name"].lower())
-        if not norm_key:
-            norm_key = item["name"].lower()
+        raw_guid = item.get("guid", "")
+        norm_name = re.sub(r"[^a-z0-9]", "", item["name"].lower()) or item["name"].lower()
 
-        if norm_key not in merged_map:
-            merged_map[norm_key] = {
+        # Deduplication key prioritizing GUID when available
+        dedup_key = guid_to_norm.get(raw_guid, norm_name) if raw_guid and "plex://" in raw_guid else norm_name
+        if raw_guid and "plex://" in raw_guid:
+            guid_to_norm[raw_guid] = dedup_key
+
+        if dedup_key not in merged_map:
+            merged_map[dedup_key] = {
                 "artist_id": item["artist_id"],
                 "name": item["name"],
                 "sources": [{
@@ -1011,7 +1025,7 @@ def fetch_all_artists():
                 "server_names": [item["server_name"]],
             }
         else:
-            existing = merged_map[norm_key]
+            existing = merged_map[dedup_key]
             if not any(s["server_id"] == item["server_id"] for s in existing["sources"]):
                 existing["sources"].append({
                     "server_id": item["server_id"],
@@ -1130,11 +1144,13 @@ def fetch_albums_for_artist(artist_id: int, server_id: str | None = None):
     all_album_results = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(artist_sources), 5)) as executor:
         futures = [executor.submit(_fetch_server_albums, src) for src in artist_sources]
-        for f in concurrent.futures.as_completed(futures, timeout=5.0):
+        done, not_done = concurrent.futures.wait(futures, timeout=4.0)
+        for f in done:
             try:
-                all_album_results.extend(f.result())
+                if not f.exception():
+                    all_album_results.extend(f.result())
             except Exception as ex:
-                logger.warning("Error fetching artist albums from thread: %s", ex)
+                logger.warning("Error fetching artist albums from finished thread: %s", ex)
 
     merged_albums = {}
     for item in all_album_results:
@@ -1305,13 +1321,15 @@ def search_music(query: str):
     import re
 
     all_raw_results = []
-    with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(target_servers), 5)) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(target_servers), 8)) as executor:
         futures = [executor.submit(search_music_on_server, s, query) for s in target_servers]
-        for f in concurrent.futures.as_completed(futures, timeout=5.0):
+        done, not_done = concurrent.futures.wait(futures, timeout=4.0)
+        for f in done:
             try:
-                all_raw_results.extend(f.result())
+                if not f.exception():
+                    all_raw_results.extend(f.result())
             except Exception as ex:
-                logger.warning("Error searching music on thread: %s", ex)
+                logger.warning("Error searching music on finished thread: %s", ex)
 
     # Deduplicate search results
     seen_items = set()

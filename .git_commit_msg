@@ -1,8 +1,5 @@
-feat: implement unified multi-server library deduplication, audio quality ranking & search cleaning
+fix: resolve thread timeout 500 error with non-blocking wait and add Plex GUID matching
 
-- Add get_enabled_server_ids and set_enabled_server_ids in backend/services/plex.py.
-- Add GET/POST /api/auth/libraries endpoints in backend/routers/auth.py.
-- Update fetch_all_artists, fetch_albums_for_artist, fetch_tracks_for_album, and search_music to query all enabled servers in parallel and deduplicate results.
-- Rank track stream sources by audio quality (lossless FLAC/ALAC > 320k MP3 > 256k AAC).
-- Remove search bar server dropdown from App.tsx (search automatically queries enabled servers).
-- Render ⚡ X Sources badge on multi-server artist cards in ArtistList.tsx.
+- Replace as_completed with non-blocking concurrent.futures.wait(timeout=4.0) in fetch_all_artists, fetch_albums_for_artist, and search_music.
+- Return responsive server results without throwing HTTP 500 when remote servers time out.
+- Match on Plex GUIDs (plex://artist/...) in deduplication logic for 100% confidence artist matching.
