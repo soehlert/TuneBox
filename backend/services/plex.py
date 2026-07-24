@@ -1056,12 +1056,12 @@ _plex_connection_cache = {}  # { server_id: (plex_instance, timestamp) }
 
 
 def get_target_plex_connection(server_id: str | None = None):
-    """Connect to a specific target Plex server by server_id, or fallback to primary connection."""
+    """Connect to a target Plex server (local or remote shared server)."""
     if not server_id or settings.testing:
         return get_plex_connection()
 
     primary_plex = get_plex_connection()
-    if hasattr(primary_plex, "machineIdentifier") and primary_plex.machineIdentifier == server_id:
+    if getattr(primary_plex, "machineIdentifier", None) == server_id:
         return primary_plex
 
     now = time.time()
@@ -1071,39 +1071,60 @@ def get_target_plex_connection(server_id: str | None = None):
             return cached_instance
 
     all_servers = fetch_accessible_plex_servers()
-    target_res = next((s for s in all_servers if s["server_id"] == server_id), None)
-    if not target_res or target_res.get("is_primary"):
+    target_res = next((s for s in all_servers if s.get("server_id") == server_id or s.get("name", "").lower() == str(server_id).lower()), None)
+    if target_res and target_res.get("is_primary"):
         return primary_plex
 
-    server_name = target_res.get("name", "")
+    server_name = target_res.get("name", "") if target_res else str(server_id)
+    token = target_res.get("access_token") if target_res else settings.plex_token
     conn = None
 
+    # Method 1: Connect via MyPlex Resource
     try:
         account = get_myplex_account()
-        # Match resource by clientIdentifier or name
         res = next(
             (r for r in account.resources() if r.clientIdentifier == server_id or (server_name and r.name.lower() == server_name.lower())),
             None
         )
         if res:
             try:
-                conn = res.connect(timeout=3)
+                conn = res.connect(timeout=4)
             except Exception as ssl_ex:
                 logger.debug("Primary connect failed for %s, retrying ssl=False: %s", server_name, ssl_ex)
                 try:
-                    conn = res.connect(timeout=3, ssl=False)
+                    conn = res.connect(timeout=4, ssl=False)
                 except Exception as ex2:
-                    logger.warning("Failed MyPlex connect for %s: %s", server_name, ex2)
+                    logger.debug("Failed MyPlex connect for %s: %s", server_name, ex2)
     except Exception as ex:
-        logger.warning("Failed to locate resource %s (%s) on MyPlex: %s", server_name, server_id, ex)
+        logger.debug("Failed to locate resource %s (%s) on MyPlex: %s", server_name, server_id, ex)
 
-    if not conn and target_res.get("server_url"):
+    # Method 2: Direct connection via server_url
+    if not conn and target_res and target_res.get("server_url"):
         try:
             from plexapi.server import PlexServer
-            t_token = target_res.get("access_token") or settings.plex_token
-            conn = PlexServer(target_res["server_url"], t_token, timeout=8)
+            conn = PlexServer(target_res["server_url"], token or settings.plex_token, timeout=5)
         except Exception as ex:
-            logger.warning("Failed direct URL connect for %s: %s", server_name, ex)
+            logger.debug("Failed direct URL connect for %s: %s", server_name, ex)
+
+    # Method 3: Fallback iterate connections on MyPlex resource
+    if not conn:
+        try:
+            account = get_myplex_account()
+            for r in account.resources():
+                if r.clientIdentifier == server_id or r.name.lower() == server_name.lower():
+                    r_token = r.accessToken or token or settings.plex_token
+                    for c in r.connections:
+                        try:
+                            from plexapi.server import PlexServer
+                            conn = PlexServer(c.uri, r_token, timeout=3)
+                            if conn:
+                                break
+                        except Exception:
+                            continue
+                if conn:
+                    break
+        except Exception as ex:
+            logger.warning("Final connection fallback failed for %s: %s", server_name, ex)
 
     if conn:
         _plex_connection_cache[server_id] = (conn, now)

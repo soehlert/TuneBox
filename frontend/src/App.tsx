@@ -2195,6 +2195,18 @@ function App() {
                     />
                   }
                 />
+                <Route
+                  path="/artists"
+                  element={
+                    <ArtistList
+                      filteredArtists={filteredArtists}
+                      loading={loadingArtists}
+                      searchResults={searchResults}
+                      isSearching={Boolean(debouncedSearchTerm)}
+                      selectedLetter={selectedLetter}
+                    />
+                  }
+                />
                 <Route path="/artists/:artistId/albums" element={<ArtistAlbums />} />
                 <Route path="/albums/:albumId/tracks" element={<TrackList />} />
               </Routes>

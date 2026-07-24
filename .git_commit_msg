@@ -1,4 +1,4 @@
-fix: enforce title-only track search matching and optimize remote server timeouts
+fix: add /artists route in App.tsx and implement 3-tier remote server connection engine
 
-- Filter track search results so tracks are only returned if query_lower is directly in track.title.lower().
-- Optimize per-connection timeout to 3s and increase ThreadPoolExecutor wait timeout to 10s so remote shared servers (cc-ls-plex01) return catalog data reliably.
+- Add /artists route matching ArtistList in App.tsx to resolve missing route warning.
+- Implement 3-tier connection engine (MyPlex resource -> direct URL -> connection URI loop) in get_target_plex_connection for shared remote servers (cc-ls-plex01).
