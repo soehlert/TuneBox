@@ -12,6 +12,7 @@ import Queue from "./components/Queue";
 import theme from "./theme";
 import TuneBoxLogo from "../public/TuneBox.svg";
 import Stats from "./components/Stats";
+import TuneBoxDialog from "./components/TuneBoxDialog";
 import "./App.css";
 import "./components/Queue.css";
 
@@ -316,30 +317,48 @@ interface SettingsModalProps {
 function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: SettingsModalProps) {
   const [plexUsername, setPlexUsername] = useState("");
   const [localInstanceName, setLocalInstanceName] = useState(instanceName);
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
   const [servers, setServers] = useState<string[]>([]);
   const [selectedServer, setSelectedServer] = useState("");
   const [players, setPlayers] = useState<string[]>([]);
   const [selectedPlayer, setSelectedPlayer] = useState("");
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
+  const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
+
+  const initialSettingsRef = useRef({
+    plexUsername: "",
+    localInstanceName: instanceName,
+    selectedServer: "",
+    selectedPlayer: "",
+  });
+
+  const checkIsDirty = () => {
+    const init = initialSettingsRef.current;
+    return (
+      plexUsername !== init.plexUsername ||
+      localInstanceName !== init.localInstanceName ||
+      selectedServer !== init.selectedServer ||
+      selectedPlayer !== init.selectedPlayer
+    );
+  };
+
+  const handleAttemptClose = () => {
+    if (checkIsDirty()) {
+      setShowUnsavedDialog(true);
+    } else {
+      onClose();
+    }
+  };
 
   useEffect(() => {
-    if (msg) {
-      const timer = setTimeout(() => {
-        setMsg("");
-      }, 4000);
-      return () => clearTimeout(timer);
-    }
-  }, [msg]);
-  const [refreshing, setRefreshing] = useState(false);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") handleAttemptClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [plexUsername, localInstanceName, selectedServer, selectedPlayer, onClose]);
+
   const [clients, setClients] = useState<ClientSession[]>([]);
   const [playlists, setPlaylists] = useState<{ playlist_id: number; title: string }[]>([]);
   const [selectedPlaylistId, setSelectedPlaylistId] = useState("");
@@ -351,6 +370,15 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
   });
 
   const [autoplayEnabled, setAutoplayEnabled] = useState(false);
+
+  useEffect(() => {
+    if (msg) {
+      const timer = setTimeout(() => {
+        setMsg("");
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [msg]);
 
   useEffect(() => {
     axios
@@ -595,21 +623,25 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
     <div
       style={{
         position: "fixed",
-        inset: 0,
-        background: "rgba(29, 8, 59, 0.8)",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: "rgba(0, 0, 0, 0.7)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         zIndex: 1000,
         padding: "16px",
       }}
-      onClick={(e) => e.target === e.currentTarget && onClose()}
+      onClick={handleAttemptClose}
     >
       <div
+        onClick={(e) => e.stopPropagation()}
         style={{
-          background: "#2a0d52",
+          background: "#141416",
           border: "1px solid rgba(255, 255, 255, 0.1)",
-          borderRadius: "12px",
+          borderRadius: "16px",
           padding: "24px",
           width: "100%",
           maxWidth: "480px",
@@ -625,7 +657,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
             <span className="material-symbols-outlined">settings</span> TuneBox Settings
           </h2>
           <button
-            onClick={onClose}
+            onClick={handleAttemptClose}
             style={{ background: "none", border: "none", color: "rgba(255, 255, 255, 0.4)", fontSize: "22px", cursor: "pointer" }}
           >
             ✕
@@ -649,35 +681,6 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
             {msg}
           </div>
         )}
-
-        {/* Sticky Save Button Row */}
-        <div style={{ display: "flex", gap: "12px", marginBottom: "16px", borderBottom: "1px solid rgba(255, 255, 255, 0.1)", paddingBottom: "12px" }}>
-          <button
-            type="button"
-            onClick={() => {
-              const form = document.getElementById("settings-form") as HTMLFormElement;
-              if (form) form.requestSubmit();
-            }}
-            disabled={saving}
-            style={{
-              background: "var(--color-primary)",
-              color: "#0e0e0f",
-              border: "none",
-              borderRadius: "8px",
-              padding: "12px 24px",
-              fontSize: "15px",
-              fontWeight: "bold",
-              cursor: "pointer",
-              flex: 1,
-              transition: "background-color 0.2s",
-            }}
-            onMouseOver={(e) => (e.currentTarget.style.background = "#d48b17")}
-            onMouseOut={(e) => (e.currentTarget.style.background = "#f5a623")}
-          >
-            {saving ? "Saving Settings..." : "Save Settings"}
-          </button>
-        </div>
-
         {/* Scrollable Accordion Body */}
         <div style={{ overflowY: "auto", flex: 1, paddingRight: "4px", display: "flex", flexDirection: "column", gap: "16px" }}>
 
@@ -1122,6 +1125,53 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
             )}
           </div>
         </div>
+
+        {/* Sticky Save Button Row at Bottom */}
+        <div style={{ display: "flex", gap: "12px", marginTop: "16px", paddingTop: "12px", borderTop: "1px solid rgba(255, 255, 255, 0.1)" }}>
+          <button
+            type="button"
+            onClick={() => {
+              const form = document.getElementById("settings-form") as HTMLFormElement;
+              if (form) form.requestSubmit();
+            }}
+            disabled={saving}
+            style={{
+              background: "var(--color-primary)",
+              color: "#0e0e0f",
+              border: "none",
+              borderRadius: "8px",
+              padding: "12px 24px",
+              fontSize: "15px",
+              fontWeight: "bold",
+              cursor: "pointer",
+              flex: 1,
+              transition: "background-color 0.2s",
+            }}
+            onMouseOver={(e) => (e.currentTarget.style.background = "#d48b17")}
+            onMouseOut={(e) => (e.currentTarget.style.background = "#f5a623")}
+          >
+            {saving ? "Saving Settings..." : "Save Settings"}
+          </button>
+        </div>
+
+        <TuneBoxDialog
+          open={showUnsavedDialog}
+          title="Unsaved Changes"
+          message="You have unsaved changes to your TuneBox settings. Do you want to save or discard your changes before closing?"
+          confirmText="Save Settings"
+          thirdText="Discard"
+          cancelText="Keep Editing"
+          onConfirm={() => {
+            setShowUnsavedDialog(false);
+            const form = document.getElementById("settings-form") as HTMLFormElement;
+            if (form) form.requestSubmit();
+          }}
+          onThird={() => {
+            setShowUnsavedDialog(false);
+            onClose();
+          }}
+          onCancel={() => setShowUnsavedDialog(false)}
+        />
         <ConfirmModal
           isOpen={confirmClearOpen}
           title="Clear Playback Queue?"
@@ -1437,6 +1487,10 @@ function App() {
     const raw = localStorage.getItem("tunebox_guest");
     return raw ? (JSON.parse(raw) as GuestProfile) : null;
   });
+  const [appDialog, setAppDialog] = useState<{ open: boolean; title?: string; message: string }>({
+    open: false,
+    message: "",
+  });
 
   // Artist library / Search states
   const navigate = useNavigate();
@@ -1726,7 +1780,11 @@ function App() {
   const handleStartLinking = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!localUsername.trim() || !plexUsername.trim()) {
-      alert("Please enter both Plex username and TuneBox Instance Name.");
+      setAppDialog({
+        open: true,
+        title: "Setup Warning",
+        message: "Please enter both Plex username and TuneBox Instance Name.",
+      });
       return;
     }
     try {
@@ -1789,7 +1847,11 @@ function App() {
     const serverName = isManualConfig ? customServer : selectedServer;
     const playerClientName = isManualConfig ? customPlayer : selectedPlayer;
     if (!serverName) {
-      alert("Please select or enter a Plex server name.");
+      setAppDialog({
+        open: true,
+        title: "Setup Warning",
+        message: "Please select or enter a Plex server name.",
+      });
       setIsSubmitting(false);
       return;
     }
@@ -1813,7 +1875,11 @@ function App() {
       setStep(4);
     } catch (err) {
       console.error("Save config failed:", err);
-      alert("Failed to save configuration settings.");
+      setAppDialog({
+        open: true,
+        title: "Setup Error",
+        message: "Failed to save configuration settings.",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -2454,6 +2520,13 @@ function App() {
           }
         `}</style>
       </div>
+
+      <TuneBoxDialog
+        open={appDialog.open}
+        title={appDialog.title}
+        message={appDialog.message}
+        onConfirm={() => setAppDialog((prev) => ({ ...prev, open: false }))}
+      />
     </ThemeProvider>
   );
 }

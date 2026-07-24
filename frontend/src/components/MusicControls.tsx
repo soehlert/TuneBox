@@ -5,6 +5,7 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import PauseIcon from '@mui/icons-material/Pause';
 import DevicesIcon from '@mui/icons-material/Devices';
 import { FallbackImage } from './FallbackImage';
+import TuneBoxDialog from './TuneBoxDialog';
 import "./MusicControls.css";
 
 const MusicControlsComponent = ({
@@ -27,6 +28,10 @@ const MusicControlsComponent = ({
   const [skipVotes, setSkipVotes] = useState<number>(0);
   const [skipTotal, setSkipTotal] = useState<number>(0);
   const [hasVoted, setHasVoted] = useState<boolean>(false);
+  const [dialogConfig, setDialogConfig] = useState<{ open: boolean; title?: string; message: string }>({
+    open: false,
+    message: '',
+  });
   const socketRef = useRef<WebSocket | null>(null);
   const timerRef = useRef<any>(null);
   const isDev = window.location.port === "5173";
@@ -152,7 +157,11 @@ const MusicControlsComponent = ({
         setIsPlaying(true);
       } else {
         const errorData = await response.json();
-        alert(errorData.detail || "No Plex player selected. Please select an active player in Settings.");
+        setDialogConfig({
+          open: true,
+          title: "Playback Player Warning",
+          message: errorData.detail || "No Plex playback player selected. Please select an active player in Settings.",
+        });
       }
     } catch (error) {
       console.error('Error starting queue playback:', error);
@@ -393,6 +402,13 @@ const MusicControlsComponent = ({
           <Typography className="player-time-text">{duration}</Typography>
         </Box>
       )}
+
+      <TuneBoxDialog
+        open={dialogConfig.open}
+        title={dialogConfig.title}
+        message={dialogConfig.message}
+        onConfirm={() => setDialogConfig((prev) => ({ ...prev, open: false }))}
+      />
     </Box>
   );
 };

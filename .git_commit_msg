@@ -1,4 +1,6 @@
-fix: display explicit warning alert when playback is started without a selected Plex player
+feat: add TuneBoxDialog component, move save button to settings footer, and add unsaved changes prompt
 
-- Update POST /api/music/play-queue in backend/routers/music.py to check for an active player and raise an HTTP 400 with a descriptive error message if no player is selected.
-- Update handleStartQueue in MusicControls.tsx to display an alert informing the user to select an active player in Settings.
+- Create TuneBoxDialog component styled with dark glassmorphism tokens for alerts and confirmations.
+- Replace browser alert() calls in MusicControls.tsx and App.tsx setup wizard with TuneBoxDialog state.
+- Relocate Save Settings button to bottom footer of SettingsModal.
+- Add form dirty state tracking and unsaved changes confirmation dialog on SettingsModal close.
