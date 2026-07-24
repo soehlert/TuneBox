@@ -323,26 +323,34 @@ def generate_report(summary: dict[str, Any]) -> str:
     art_sum = summary["artist_summary"]
     alb_sum = summary["album_summary"]
 
+    art_single = art_sum["merged_count"] - art_sum["matched_dedupes"]
+
     report_lines = [
         "=" * 64,
         "       TUNEBOX MULTI-SERVER DEDUPLICATION AUDIT REPORT",
         "=" * 64,
         "\n[1. ARTIST DEDUPLICATION SUMMARY]",
-        f"  Total Raw Artists across Servers:     {art_sum['total_raw']}",
-        f"  Merged Artists in TuneBox Catalog:    {art_sum['merged_count']}",
-        f"  Possible Multi-Server Artist Dedupes: {art_sum['possible_dedupes']}",
-        f"  Successfully Matched Artist Dedupes:  {art_sum['matched_dedupes']}",
-        f"  Missed Artist Dedupes (Unmerged):     {art_sum['missed_dedupes']}",
+        f"  Total Raw Artist Entries (All Servers):     {art_sum['total_raw']}",
+        f"  Unified Unique Artists in Catalog:          {art_sum['merged_count']}",
+        f"    • Single-Server Artists (1 Server):        {art_single}",
+        f"    • Multi-Server Artists (2+ Servers):       {art_sum['possible_dedupes']}",
         f"  -------------------------------------------------------------",
-        f"  >> ARTIST DEDUPLICATION SUCCESS RATE: {art_sum['dedupe_success_pct']}%",
+        f"  Multi-Server Artist Merge Accuracy:",
+        f"    • Candidates Available for Merging:        {art_sum['possible_dedupes']}",
+        f"    • Successfully Merged (Matched):           {art_sum['matched_dedupes']}",
+        f"    • Missed Merges (Left Separate):           {art_sum['missed_dedupes']}",
+        f"  -------------------------------------------------------------",
+        f"  >> ARTIST DEDUPLICATION SUCCESS RATE:        {art_sum['dedupe_success_pct']}%",
         "\n[2. ALBUM DEDUPLICATION SUMMARY]",
-        f"  Total Raw Albums across Servers:      {alb_sum['total_raw']}",
-        f"  Merged Albums Audited:                {alb_sum['merged_count']}",
-        f"  Possible Multi-Server Album Dedupes:  {alb_sum['possible_dedupes']}",
-        f"  Successfully Matched Album Dedupes:   {alb_sum['matched_dedupes']}",
-        f"  Missed Album Dedupes (Unmerged):      {alb_sum['missed_dedupes']}",
+        f"  Total Raw Album Entries (All Servers):      {alb_sum['total_raw']}",
+        f"  Unified Unique Albums Audited:              {alb_sum['merged_count']}",
         f"  -------------------------------------------------------------",
-        f"  >> ALBUM DEDUPLICATION SUCCESS RATE:  {alb_sum['dedupe_success_pct']}%",
+        f"  Multi-Server Album Merge Accuracy:",
+        f"    • Candidates Available for Merging:        {alb_sum['possible_dedupes']}",
+        f"    • Successfully Merged (Matched):           {alb_sum['matched_dedupes']}",
+        f"    • Missed Merges (Left Separate):           {alb_sum['missed_dedupes']}",
+        f"  -------------------------------------------------------------",
+        f"  >> ALBUM DEDUPLICATION SUCCESS RATE:         {alb_sum['dedupe_success_pct']}%",
         "=" * 64,
     ]
 
