@@ -955,32 +955,41 @@ def fetch_all_artists():
         s_name = s_info.get("name", "Plex Server")
         try:
             plex = get_target_plex_connection(s_id)
-            music_lib = None
+            music_libs = []
             try:
-                music_lib = plex.library.section("Music")
-            except Exception:
                 for sec in plex.library.sections():
-                    if sec.type == "artist":
-                        music_lib = sec
-                        break
+                    if sec.type in ("artist", "music"):
+                        music_libs.append(sec)
+            except Exception:
+                pass
 
-            if not music_lib:
+            if not music_libs:
+                try:
+                    music_libs = [plex.library.section("Music")]
+                except Exception:
+                    pass
+
+            if not music_libs:
                 return []
 
-            artists = music_lib.all(libtype="artist")
             results = []
-            for artist in artists:
-                guid_val = getattr(artist, "guid", None) or getattr(artist, "ratingKey", "")
-                results.append({
-                    "artist_id": artist.ratingKey,
-                    "name": artist.title,
-                    "guid": str(guid_val),
-                    "server_id": s_id,
-                    "server_name": s_name,
-                    "thumb": getattr(artist, "thumb", None),
-                })
-                if getattr(artist, "thumb", None):
-                    cache_data(f"thumb_path:artist:{artist.ratingKey}", artist.thumb)
+            for music_lib in music_libs:
+                try:
+                    artists = music_lib.all(libtype="artist")
+                    for artist in artists:
+                        guid_val = getattr(artist, "guid", None) or getattr(artist, "ratingKey", "")
+                        results.append({
+                            "artist_id": artist.ratingKey,
+                            "name": artist.title,
+                            "guid": str(guid_val),
+                            "server_id": s_id,
+                            "server_name": s_name,
+                            "thumb": getattr(artist, "thumb", None),
+                        })
+                        if getattr(artist, "thumb", None):
+                            cache_data(f"thumb_path:artist:{artist.ratingKey}", artist.thumb)
+                except Exception as lib_ex:
+                    logger.warning("Error fetching artists from section '%s' on server %s: %s", getattr(music_lib, "title", "Unknown"), s_name, lib_ex)
             return results
         except Exception as ex:
             logger.warning("Failed to fetch artists from server %s: %s", s_name, ex)
@@ -1520,7 +1529,7 @@ def set_enabled_server_ids(server_ids: list[str]):
 
 
 def search_music_on_server(server_res: dict, query: str):
-    """Search music on a specific Plex server resource."""
+    """Search music on a specific Plex server resource across all music sections."""
     if settings.testing:
         results = search_music(query)
         for r in results:
@@ -1532,56 +1541,66 @@ def search_music_on_server(server_res: dict, query: str):
         server_id = server_res.get("server_id")
         target_plex = get_target_plex_connection(server_id)
 
-        # Locate music section dynamically (by name or by section type 'artist')
-        music_lib = None
+        # Locate all music sections dynamically (by type 'artist' or 'music' or section names)
+        music_libs = []
         try:
-            music_lib = target_plex.library.section("Music")
-        except Exception:
             for sec in target_plex.library.sections():
-                if sec.type == "artist":
-                    music_lib = sec
-                    break
+                if sec.type in ("artist", "music"):
+                    music_libs.append(sec)
+        except Exception as sec_ex:
+            logger.debug("Failed to list sections for server %s: %s", server_res.get("name"), sec_ex)
 
-        if not music_lib:
+        if not music_libs:
+            try:
+                music_libs = [target_plex.library.section("Music")]
+            except Exception:
+                pass
+
+        if not music_libs:
             logger.warning("No music section found on server %s", server_res.get("name"))
             return []
 
-        artist_results = music_lib.search(query, libtype="artist")
-        album_results = music_lib.search(query, libtype="album")
-        track_results = music_lib.search(query, libtype="track")
-
-        query_lower = query.strip().lower()
         formatted = []
-        for item in artist_results:
-            formatted.append({
-                "name": item.title,
-                "type": item.type,
-                "artist_id": item.ratingKey,
-                "server_id": server_res.get("server_id"),
-                "server_name": server_res.get("name"),
-            })
-        for item in album_results:
-            formatted.append({
-                "title": item.title,
-                "type": item.type,
-                "album_id": item.ratingKey,
-                "artist": getattr(item, "parentTitle", ""),
-                "server_id": server_res.get("server_id"),
-                "server_name": server_res.get("name"),
-            })
-        for item in track_results:
-            if query_lower in item.title.lower():
-                formatted.append({
-                    "title": item.title,
-                    "type": item.type,
-                    "track_id": item.ratingKey,
-                    "album_id": item.parentRatingKey,
-                    "duration": milliseconds_to_seconds(item.duration) if item.duration else 0,
-                    "artist": getattr(item, "grandparentTitle", ""),
-                    "album": getattr(item, "parentTitle", ""),
-                    "server_id": server_res.get("server_id"),
-                    "server_name": server_res.get("name"),
-                })
+        query_lower = query.strip().lower()
+
+        for music_lib in music_libs:
+            try:
+                artist_results = music_lib.search(query, libtype="artist")
+                album_results = music_lib.search(query, libtype="album")
+                track_results = music_lib.search(query, libtype="track")
+
+                for item in artist_results:
+                    formatted.append({
+                        "name": item.title,
+                        "type": item.type,
+                        "artist_id": item.ratingKey,
+                        "server_id": server_res.get("server_id"),
+                        "server_name": server_res.get("name"),
+                    })
+                for item in album_results:
+                    formatted.append({
+                        "title": item.title,
+                        "type": item.type,
+                        "album_id": item.ratingKey,
+                        "artist": getattr(item, "parentTitle", ""),
+                        "server_id": server_res.get("server_id"),
+                        "server_name": server_res.get("name"),
+                    })
+                for item in track_results:
+                    formatted.append({
+                        "title": item.title,
+                        "type": item.type,
+                        "track_id": item.ratingKey,
+                        "album_id": item.parentRatingKey,
+                        "duration": milliseconds_to_seconds(item.duration) if item.duration else 0,
+                        "artist": getattr(item, "grandparentTitle", ""),
+                        "album": getattr(item, "parentTitle", ""),
+                        "server_id": server_res.get("server_id"),
+                        "server_name": server_res.get("name"),
+                    })
+            except Exception as lib_ex:
+                logger.warning("Error searching music section '%s' on server %s: %s", getattr(music_lib, "title", "Unknown"), server_res.get("name"), lib_ex)
+
         return formatted
     except Exception as e:
         logger.warning("Error searching server %s: %s", server_res.get("name"), e)

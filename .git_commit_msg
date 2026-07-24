@@ -1,4 +1,4 @@
-fix: defer active libraries API update until clicking Save Settings in App.tsx
+fix: scan all music section types and remove title-only track search filter
 
-- Move /api/auth/libraries POST request to handleSave in App.tsx.
-- Remove instant API call and toast from server checkbox onChange handler.
+- Dynamically scan all sections of type 'artist' and 'music' in search_music_on_server and _fetch_server_artists (fixes section 'Fern' on cc-ls-plex01).
+- Remove title-only string check in search_music_on_server track processing so artist search queries return tracks.
