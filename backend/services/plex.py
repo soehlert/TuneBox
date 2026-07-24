@@ -111,10 +111,9 @@ def pre_warm_all_caches():
             from backend.routers.auth import fetch_and_cache_resources
             fetch_and_cache_resources(refresh=True)
 
-        # 2. Warm artists if plex connection works
+        # 2. Warm artists only for enabled servers
         if settings.plex_token:
-            logger.info("Background warming Plex artists cache...")
-            clear_cache("all_artists")
+            logger.info("Background warming Plex artists cache for enabled servers...")
             fetch_all_artists()
             logger.info("Background cache pre-warming complete.")
     except Exception as e:

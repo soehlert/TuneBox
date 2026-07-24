@@ -409,13 +409,15 @@ async def get_libraries():
 
     results = []
     for s in servers:
-        s_id_lower = str(s.get("server_id", "")).lower()
+        s_id_raw = s.get("server_id")
+        s_id_lower = str(s_id_raw or "").lower()
         s_name_lower = s.get("name", "").lower()
         is_enabled = s_id_lower in enabled_set or s_name_lower in enabled_set
 
-        # Fast status pill lookup without blocking network calls
-        s_id_raw = s.get("server_id")
-        if s.get("is_primary") or settings.testing or s_id_raw in _plex_connection_cache:
+        if not is_enabled:
+            status = "disabled"
+            error_msg = None
+        elif s.get("is_primary") or settings.testing or s_id_raw in _plex_connection_cache:
             status = "connected"
             error_msg = None
         elif s_id_raw in _failed_connection_cache:

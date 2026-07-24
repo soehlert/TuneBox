@@ -1,4 +1,4 @@
-fix: remove expensive .all() search fallbacks and add detailed search logging
+fix: restrict background pre-warming to enabled servers and redesign connection status pills
 
-- Remove music_lib.all() fallback scans in search_music_on_server, dropping search latency from 10s down to 200ms.
-- Add step-by-step [Plex Search] log statements for search start, per-server queries, timing, and deduplication totals in backend/services/plex.py.
+- Update pre_warm_all_caches in backend/services/plex.py to only warm enabled servers.
+- Update GET /api/auth/libraries and App.tsx to display ⚪ Not Connected for unchecked servers, and 🟢 Connected / 🔴 Failed for active checked servers.

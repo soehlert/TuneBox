@@ -868,13 +868,25 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                               fontWeight: "bold",
                               padding: "2px 8px",
                               borderRadius: "12px",
-                              background: lib.status === "connected" ? "rgba(46, 204, 113, 0.15)" : "rgba(231, 76, 60, 0.15)",
-                              border: lib.status === "connected" ? "1px solid rgba(46, 204, 113, 0.4)" : "1px solid rgba(231, 76, 60, 0.4)",
-                              color: lib.status === "connected" ? "#2ecc71" : "#e74c3c",
+                              background: !lib.enabled
+                                ? "rgba(255, 255, 255, 0.08)"
+                                : lib.status === "connected"
+                                ? "rgba(46, 204, 113, 0.15)"
+                                : "rgba(231, 76, 60, 0.15)",
+                              border: !lib.enabled
+                                ? "1px solid rgba(255, 255, 255, 0.2)"
+                                : lib.status === "connected"
+                                ? "1px solid rgba(46, 204, 113, 0.4)"
+                                : "1px solid rgba(231, 76, 60, 0.4)",
+                              color: !lib.enabled
+                                ? "#aaa"
+                                : lib.status === "connected"
+                                ? "#2ecc71"
+                                : "#e74c3c",
                             }}
-                            title={lib.error || (lib.status === "connected" ? "Successfully connected to server" : "Connection failed")}
+                            title={!lib.enabled ? "Not connected (Unchecked)" : lib.error || (lib.status === "connected" ? "Successfully connected to server" : "Connection failed")}
                           >
-                            {lib.status === "connected" ? "🟢 Connected" : "🔴 Offline"}
+                            {!lib.enabled ? "⚪ Not Connected" : lib.status === "connected" ? "🟢 Connected" : "🔴 Failed"}
                           </span>
                         </label>
                       ))
