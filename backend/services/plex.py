@@ -31,8 +31,8 @@ HEARTBEAT_INTERVAL = 5
 DRIFT_THRESHOLD = 8.0
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-logging.getLogger("urllib3.connectionpool").setLevel(logging.CRITICAL)
-logging.getLogger("urllib3").setLevel(logging.CRITICAL)
+for _log_name in ("plexapi", "plexapi.myplex", "plexapi.server", "urllib3", "urllib3.connectionpool", "requests"):
+    logging.getLogger(_log_name).setLevel(logging.CRITICAL)
 
 
 logger = logging.getLogger(__name__)

@@ -22,6 +22,9 @@ from backend.services.plex import (
 )
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+for _log_name in ("plexapi", "plexapi.myplex", "plexapi.server", "urllib3", "urllib3.connectionpool", "requests"):
+    logging.getLogger(_log_name).setLevel(logging.CRITICAL)
+
 logger = logging.getLogger(__name__)
 
 
