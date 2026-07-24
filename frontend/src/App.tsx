@@ -877,7 +877,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
               <div style={{ display: "flex", flexDirection: "column", gap: "14px", padding: "4px 8px 12px 8px" }}>
                 {/* Playlist Selection & Seeding */}
                 <div>
-                  <label style={labelStyle}>Import Playlist to Queue</label>
+                  <label style={labelStyle}>Seed Playlist to Queue</label>
                   <div style={{ display: "flex", gap: "8px", marginTop: "4px" }}>
                     <select
                       value={selectedPlaylistId}
@@ -908,11 +908,11 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                         whiteSpace: "nowrap",
                       }}
                     >
-                      {seeding ? "Importing..." : "Import Tracks"}
+                      {seeding ? "Seeding..." : "Seed Queue"}
                     </button>
                   </div>
                   <span style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "11px", display: "block", marginTop: "4px" }}>
-                    Imports tracks into the queue. Guest selections automatically take priority.
+                    Shuffles and seeds playlist tracks into the queue. Guest selections automatically take priority.
                   </span>
                 </div>
 
