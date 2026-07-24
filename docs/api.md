@@ -68,6 +68,25 @@ Saves selected Plex Server and Client Player configuration.
   }
   ```
 
+#### `GET /api/auth/clients`
+Retrieves currently active connected clients and devices (restricted to admin).
+- **Headers**:
+  - `X-Admin-Token` *(required, string)*: Valid host admin token.
+- **Response `200 OK`**:
+  ```json
+  [
+    {
+      "client_id": "session-uuid-1234",
+      "device_id": "device-uuid-5678",
+      "name": "Alex",
+      "device_label": "iPhone / Safari",
+      "display_name": "Alex's iPhone / Safari",
+      "role": "guest",
+      "is_display": false
+    }
+  ]
+  ```
+
 ---
 
 ### Music Endpoints (`/api/music`)
@@ -383,5 +402,20 @@ Broadcast periodically (every 1 second tick or when playback state changes).
     "remaining_percentage": 85.9,
     "track_state": "playing"
   }
+}
+```
+
+#### 3. `client_control` Event (Client Registration Handshake)
+Sent by connected clients on WebSocket connection to register session and device telemetry.
+
+```json
+{
+  "type": "client_control",
+  "client_id": "session-uuid-1234",
+  "name": "Alex",
+  "role": "guest",
+  "is_display": false,
+  "device_id": "device-uuid-5678",
+  "device_label": "iPhone / Safari"
 }
 ```

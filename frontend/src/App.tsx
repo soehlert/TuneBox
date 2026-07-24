@@ -13,6 +13,7 @@ import theme from "./theme";
 import TuneBoxLogo from "../public/TuneBox.svg";
 import Stats from "./components/Stats";
 import TuneBoxDialog from "./components/TuneBoxDialog";
+import { getDeviceId, getDeviceLabel } from "./utils/device";
 import "./App.css";
 import "./components/Queue.css";
 
@@ -29,7 +30,10 @@ interface GuestProfile {
 
 interface ClientSession {
   client_id: string;
+  device_id?: string;
   name: string;
+  device_label?: string;
+  display_name?: string;
   role: string;
   is_display: boolean;
   connected_at: string;
@@ -1041,10 +1045,10 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                       >
                         <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
                           <span style={{ color: "#fff", fontSize: "14px", fontWeight: "bold" }}>
-                            {c.name}
+                            {c.display_name || `${c.name}'s ${c.device_label || 'Device'}`}
                           </span>
                           <span style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "11px" }}>
-                            {c.is_display ? "Kiosk Display Screen" : `Device Session (${c.role})`}
+                            {c.is_display ? "Kiosk Display Screen" : `Device Session (${c.device_label || 'Web Browser'})`}
                           </span>
                         </div>
                         {c.is_display ? (
@@ -1745,6 +1749,8 @@ function App() {
             name,
             role,
             is_display: isDisplay,
+            device_id: getDeviceId(),
+            device_label: getDeviceLabel(),
           })
         );
       }

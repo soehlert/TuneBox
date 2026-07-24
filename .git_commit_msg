@@ -1,0 +1,7 @@
+feat: decouple connected users and devices with auto-detected device labels
+
+- Create device.ts helper with getDeviceId() and getDeviceLabel() using navigator.userAgent.
+- Pass device_id and device_label in WebSocket client_control handshake.
+- Update _register_client in backend/websockets.py to record device metadata and display_name.
+- Document GET /api/auth/clients and client_control WebSocket schema in docs/api.md.
+- Update SettingsModal to render auto-detected device labels in Connected Devices & Kiosks section.
