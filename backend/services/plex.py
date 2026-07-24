@@ -979,7 +979,7 @@ def fetch_all_artists() -> list[dict]:
     ]
 
     if not target_servers:
-        target_servers = [s for s in all_accessible if s.get("is_primary")]
+        target_servers = [s for s in all_accessible if s.get("is_primary")] or (all_accessible[:1] if all_accessible else [])
 
     merged_map = {}  # { norm_key: artist_dict }
 
@@ -1628,7 +1628,8 @@ def fetch_accessible_plex_servers():
 
         for resource in account.resources():
             if resource.provides and "server" in resource.provides.lower():
-                is_primary = bool(primary_name and resource.name.lower() == primary_name)
+                is_owned = getattr(resource, "owned", False)
+                is_primary = bool(is_owned or (primary_name and primary_name in resource.name.lower()))
                 conn_url = None
                 if resource.connections:
                     conn_url = resource.connections[0].uri
@@ -1645,6 +1646,9 @@ def fetch_accessible_plex_servers():
                     "server_url": conn_url,
                 })
 
+        if servers and not any(s.get("is_primary") for s in servers):
+            servers[0]["is_primary"] = True
+
         cache_data(cache_key, servers)
         return servers
     except Exception as e:
@@ -1653,7 +1657,7 @@ def fetch_accessible_plex_servers():
 
 
 def get_enabled_server_ids() -> list[str]:
-    """Get list of server_ids that are enabled for the unified music catalog. Defaults to all accessible servers on fresh boot."""
+    """Get list of server_ids that are enabled for the unified music catalog. Defaults to primary server on fresh boot."""
     import json
     try:
         from backend.services.redis import get_redis_cache_client

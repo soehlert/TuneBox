@@ -1,4 +1,5 @@
-fix: default enabled server selection to primary server only
+fix: account for resource.owned in primary server detection and add artist catalog fallbacks
 
-- Update get_enabled_server_ids in backend/services/plex.py to select only primary server (is_primary) by default on initial setup.
-- Keep remote servers unchecked by default in Settings until manually enabled by user.
+- Use resource.owned in fetch_accessible_plex_servers to reliably identify owned home servers.
+- Ensure at least one server is marked as primary if any servers exist.
+- Add fallbacks in fetch_all_artists so target_servers is never empty and the artist catalog never renders blank.
