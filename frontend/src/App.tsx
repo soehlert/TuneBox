@@ -1234,7 +1234,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
           type="info"
           icon="help_outline"
           title="🖥️ What is a Kiosk Screen?"
-          message={`Turning a connected device into a Kiosk converts it into a shared, central party display screen.\n\n• Displays a prominent QR code for guests to scan and join instantly.\n• Shows full-screen album artwork and live queue status.\n• Disables individual voting on the screen so guests interact from their own phones.`}
+          message={`Turning a connected device into a Kiosk converts it into a shared, central party display screen.\n\n• Displays a prominent QR code for guests to scan and join instantly.\n• Shows live party queue status.\n• Disables individual voting on the screen so guests interact from their own phones.`}
           confirmText="Got It"
           onConfirm={() => setShowKioskInfo(false)}
           onCancel={() => setShowKioskInfo(false)}
