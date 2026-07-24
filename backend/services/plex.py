@@ -1244,10 +1244,12 @@ def fetch_albums_for_artist(artist_id: int, server_id: str | None = None):
             albums = artist_item.albums()
             res = []
             for album in albums:
+                guid_val = getattr(album, "guid", None) or getattr(album, "ratingKey", "")
                 res.append({
                     "album_id": album.ratingKey,
                     "artist": artist_item.title,
                     "title": album.title,
+                    "guid": str(guid_val),
                     "server_id": s_id,
                     "server_name": resolved_name,
                     "thumb": getattr(album, "thumb", None),
@@ -1270,18 +1272,22 @@ def fetch_albums_for_artist(artist_id: int, server_id: str | None = None):
             except Exception as ex:
                 logger.warning("Error fetching artist albums from finished thread: %s", ex)
 
+    guid_to_norm = {}
     merged_albums = {}
     for item in all_album_results:
-        norm_title = re.sub(r"[^a-z0-9]", "", item["title"].lower())
-        if not norm_title:
-            norm_title = item["title"].lower()
+        raw_guid = item.get("guid", "")
+        norm_title = re.sub(r"[^a-z0-9]", "", item["title"].lower()) or item["title"].lower()
+
+        dedup_key = guid_to_norm.get(raw_guid, norm_title) if raw_guid and "plex://" in raw_guid else norm_title
+        if raw_guid and "plex://" in raw_guid:
+            guid_to_norm[raw_guid] = dedup_key
 
         s_id = item.get("server_id")
         s_info = next((s for s in all_servers if str(s.get("server_id", "")).lower() == str(s_id or "").lower()), None)
         resolved_item_sname = (s_info.get("name") if s_info else None) or item.get("server_name") or settings.plex_server_name or "plex-so"
 
-        if norm_title not in merged_albums:
-            merged_albums[norm_title] = {
+        if dedup_key not in merged_albums:
+            merged_albums[dedup_key] = {
                 "album_id": item["album_id"],
                 "artist": item["artist"],
                 "title": item["title"],
@@ -1295,7 +1301,7 @@ def fetch_albums_for_artist(artist_id: int, server_id: str | None = None):
                 "source_count": 1,
             }
         else:
-            existing = merged_albums[norm_title]
+            existing = merged_albums[dedup_key]
             if not any(str(s.get("server_id", "")).lower() == str(item.get("server_id", "")).lower() for s in existing["sources"] if s.get("server_id")):
                 existing["sources"].append({
                     "server_id": item["server_id"],
