@@ -459,7 +459,13 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
       })
       .catch(console.error);
 
-    handleRefreshResources();
+    axios
+      .get(getApiUrl("/api/auth/resources"))
+      .then((res) => {
+        setServers(res.data.servers ?? []);
+        setPlayers(res.data.players ?? []);
+      })
+      .catch(console.error);
   }, [adminToken]);
 
   useEffect(() => {

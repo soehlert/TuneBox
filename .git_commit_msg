@@ -1,3 +1,3 @@
-fix: collapse all settings accordion sections by default in App.tsx
+fix: remove handleRefreshResources call from settings mount in App.tsx
 
-- Set general, queue, devices, guests to false in sectionsOpen initial state in App.tsx.
+- Fetch resources silently without running handleRefreshResources() on settings modal open.
