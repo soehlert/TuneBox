@@ -1,4 +1,0 @@
-fix: format TuneBoxDialog body with pre-wrap for bulleted lists and remove inaccurate artwork wording
-
-- Update TuneBoxDialog.css .tunebox-dialog-body with white-space: pre-wrap to preserve clean vertical bulleted lists.
-- Update Kiosk info modal text to remove full-screen album artwork mention and format bulleted features cleanly.
