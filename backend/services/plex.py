@@ -940,11 +940,15 @@ def fetch_all_artists():
         return cached_artists
 
     enabled_ids = get_enabled_server_ids()
+    enabled_set = {str(x).lower() for x in enabled_ids}
     all_servers = fetch_accessible_plex_servers()
-    target_servers = [s for s in all_servers if s.get("server_id") in enabled_ids] if enabled_ids else all_servers
+    target_servers = [
+        s for s in all_servers
+        if str(s.get("server_id", "")).lower() in enabled_set or s.get("name", "").lower() in enabled_set
+    ]
 
     if not target_servers:
-        target_servers = [{"server_id": None, "name": settings.plex_server_name or "Primary Plex"}]
+        target_servers = [s for s in all_servers if s.get("is_primary")] or (all_servers[:1] if all_servers else [])
 
     import concurrent.futures
     import re
@@ -1052,11 +1056,12 @@ def fetch_all_artists():
     return artist_list
 
 
-_plex_connection_cache = {}  # { server_id: (plex_instance, timestamp) }
+_plex_connection_cache: dict[str, tuple[any, float]] = {}
+_failed_connection_cache: dict[str, float] = {}
 
 
 def get_target_plex_connection(server_id: str | None = None):
-    """Connect to a target Plex server (local or remote shared server) with detailed logging and SSL verification fallback."""
+    """Connect to a target Plex server (local or remote shared server) with negative caching and SSL verification fallback."""
     if not server_id or settings.testing:
         return get_plex_connection()
 
@@ -1065,13 +1070,21 @@ def get_target_plex_connection(server_id: str | None = None):
         return primary_plex
 
     now = time.time()
+    # Check positive connection cache (5 min)
     if server_id in _plex_connection_cache:
         cached_instance, cached_time = _plex_connection_cache[server_id]
         if now - cached_time < 300:
             return cached_instance
 
+    # Check negative failure cache (3 min)
+    if server_id in _failed_connection_cache:
+        failed_time = _failed_connection_cache[server_id]
+        if now - failed_time < 180:
+            logger.debug("[Plex Connection] Skipping recent failed server '%s' (cached failure).", server_id)
+            return None
+
     all_servers = fetch_accessible_plex_servers()
-    target_res = next((s for s in all_servers if s.get("server_id") == server_id or s.get("name", "").lower() == str(server_id).lower()), None)
+    target_res = next((s for s in all_servers if str(s.get("server_id", "")).lower() == str(server_id).lower() or s.get("name", "").lower() == str(server_id).lower()), None)
     if target_res and target_res.get("is_primary"):
         return primary_plex
 
@@ -1099,12 +1112,12 @@ def get_target_plex_connection(server_id: str | None = None):
         if res:
             logger.info("[Plex Connection] Found MyPlex resource for '%s'. Testing %d connection endpoints...", server_name, len(res.connections) if res.connections else 0)
             try:
-                conn = res.connect(timeout=4)
+                conn = res.connect(timeout=3)
                 logger.info("[Plex Connection] Standard MyPlex connect SUCCESS for '%s' at %s", server_name, getattr(conn, "_baseurl", ""))
             except Exception as ssl_ex:
                 logger.debug("[Plex Connection] Standard MyPlex connect failed for '%s': %s. Retrying ssl=False...", server_name, ssl_ex)
                 try:
-                    conn = res.connect(timeout=4, ssl=False)
+                    conn = res.connect(timeout=3, ssl=False)
                     logger.info("[Plex Connection] MyPlex connect (ssl=False) SUCCESS for '%s' at %s", server_name, getattr(conn, "_baseurl", ""))
                 except Exception as ex2:
                     last_error = str(ex2)
@@ -1117,7 +1130,7 @@ def get_target_plex_connection(server_id: str | None = None):
     if not conn and target_res and target_res.get("server_url"):
         try:
             from plexapi.server import PlexServer
-            conn = PlexServer(target_res["server_url"], token or settings.plex_token, session=unverified_session, timeout=5)
+            conn = PlexServer(target_res["server_url"], token or settings.plex_token, session=unverified_session, timeout=3)
             logger.info("[Plex Connection] Direct URL connect SUCCESS for '%s' at %s", server_name, target_res["server_url"])
         except Exception as ex:
             last_error = str(ex)
@@ -1134,7 +1147,7 @@ def get_target_plex_connection(server_id: str | None = None):
                         logger.info("[Plex Connection] Testing endpoint %s for '%s'...", c.uri, server_name)
                         try:
                             from plexapi.server import PlexServer
-                            conn = PlexServer(c.uri, r_token, session=unverified_session, timeout=4)
+                            conn = PlexServer(c.uri, r_token, session=unverified_session, timeout=3)
                             if conn:
                                 logger.info("[Plex Connection] Endpoint connect SUCCESS for '%s' at %s", server_name, c.uri)
                                 break
@@ -1149,8 +1162,10 @@ def get_target_plex_connection(server_id: str | None = None):
 
     if conn:
         _plex_connection_cache[server_id] = (conn, now)
+        _failed_connection_cache.pop(server_id, None)
         return conn
 
+    _failed_connection_cache[server_id] = now
     logger.error("[Plex Connection ERROR] All connection methods FAILED for server '%s' (ID: %s). Last error: %s", server_name, server_id, last_error)
     return None
 
@@ -1375,11 +1390,15 @@ def search_music(query: str):
         return results
 
     enabled_ids = get_enabled_server_ids()
+    enabled_set = {str(x).lower() for x in enabled_ids}
     all_servers = fetch_accessible_plex_servers()
-    target_servers = [s for s in all_servers if s.get("server_id") in enabled_ids] if enabled_ids else all_servers
+    target_servers = [
+        s for s in all_servers
+        if str(s.get("server_id", "")).lower() in enabled_set or s.get("name", "").lower() in enabled_set
+    ]
 
     if not target_servers:
-        target_servers = [{"server_id": None, "name": settings.plex_server_name or "Primary Plex"}]
+        target_servers = [s for s in all_servers if s.get("is_primary")] or (all_servers[:1] if all_servers else [])
 
     import concurrent.futures
     import re

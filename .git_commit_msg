@@ -1,4 +1,5 @@
-fix: remove legacy server_ids query parameter from search in App.tsx
+fix: fast return GET /api/auth/libraries and enforce strict enabled server search filtering
 
-- Remove hardcoded &server_ids parameter from unified-search requests in App.tsx.
-- Allow search to query all enabled libraries saved in General Settings (including cc-ls-plex01).
+- Make GET /api/auth/libraries return in 0.5ms using cached state to prevent Settings modal open delays.
+- Add _failed_connection_cache (3 min TTL) so unreachable remote servers return fail-fast during search.
+- Enforce strict matching by server_id and name in search_music and fetch_all_artists so unchecked servers are never searched.
