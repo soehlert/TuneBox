@@ -1,5 +1,4 @@
-fix: account for resource.owned in primary server detection and add artist catalog fallbacks
+fix: add top-level import for concurrent.futures and re in backend/services/plex.py
 
-- Use resource.owned in fetch_accessible_plex_servers to reliably identify owned home servers.
-- Ensure at least one server is marked as primary if any servers exist.
-- Add fallbacks in fetch_all_artists so target_servers is never empty and the artist catalog never renders blank.
+- Add top-level import concurrent.futures to prevent NameError in background pre-warming and artist endpoints.
+- Resolve HTTP 500 Internal Server Error when fetching artists.
