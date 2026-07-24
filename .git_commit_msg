@@ -1,5 +1,4 @@
-style: remove misleading hover affordance from track rows in TrackList.css
+fix: catch PlexConnectionError gracefully in check_plexamp_resync
 
-- Set cursor: default on .track-card.
-- Remove :hover background shifts, border highlights, and transform translations from .track-card:hover.
-- Leaves "Add to Queue" button as the sole explicit interactive control on the row.
+- Wrap get_plex_connection call in check_plexamp_resync with try/except PlexConnectionError.
+- Prevents exception tracebacks when internet/DNS connectivity temporarily drops.

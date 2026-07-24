@@ -655,7 +655,12 @@ async def check_plexamp_resync(force_align: bool = False):
         return
 
     try:
-        plex = get_plex_connection()
+        try:
+            plex = get_plex_connection()
+        except PlexConnectionError as e:
+            logger.debug("Plex connection offline during background resync check: %s", e)
+            return
+
         try:
             player = await asyncio.to_thread(get_active_player)
         except Exception:  # noqa: BLE001
