@@ -1409,6 +1409,8 @@ def search_music(query: str):
     if not target_servers:
         target_servers = [s for s in all_servers if s.get("is_primary")] or (all_servers[:1] if all_servers else [])
 
+    logger.info("[Plex Search START] Searching query '%s' across %d enabled servers: %s", query, len(target_servers), [s.get("name") for s in target_servers])
+
     import concurrent.futures
     import re
 
@@ -1423,7 +1425,6 @@ def search_music(query: str):
             except Exception as ex:
                 logger.warning("Error searching music on finished thread: %s", ex)
 
-    # Deduplicate search results
     # Deduplicate search results with robust title & artist matching
     seen_items = {}
     for item in all_raw_results:
@@ -1450,7 +1451,9 @@ def search_music(query: str):
             if not existing.get("thumb") and item.get("thumb"):
                 existing["thumb"] = item.get("thumb")
 
-    return list(seen_items.values())
+    deduplicated_list = list(seen_items.values())
+    logger.info("[Plex Search COMPLETE] Query '%s' returned %d raw items -> %d deduplicated results.", query, len(all_raw_results), len(deduplicated_list))
+    return deduplicated_list
 
 
 def fetch_art(item_id: int, item_type: str, server_id: str | None = None):
@@ -1657,6 +1660,9 @@ def search_music_on_server(server_res: dict, query: str):
 
         formatted = []
         query_lower = query.strip().lower()
+        start_time = time.time()
+        s_name = server_res.get("name", "Plex Server")
+        logger.info("[Plex Search] Sending search query '%s' to server '%s'...", query, s_name)
 
         for music_lib in music_libs:
             try:
@@ -1669,13 +1675,6 @@ def search_music_on_server(server_res: dict, query: str):
                     except Exception:
                         pass
 
-                if not artist_results:
-                    try:
-                        all_artists = music_lib.all(libtype="artist")
-                        artist_results = [a for a in all_artists if query_lower in a.title.lower()]
-                    except Exception as ex_art:
-                        logger.debug("Failed fallback artist fetch: %s", ex_art)
-
                 album_results = []
                 try:
                     album_results = music_lib.search(query, libtype="album")
@@ -1684,13 +1683,6 @@ def search_music_on_server(server_res: dict, query: str):
                         album_results = music_lib.search(title=query, libtype="album")
                     except Exception:
                         pass
-
-                if not album_results:
-                    try:
-                        all_albums = music_lib.all(libtype="album")
-                        album_results = [alb for alb in all_albums if query_lower in alb.title.lower()]
-                    except Exception as ex_alb:
-                        logger.debug("Failed fallback album fetch: %s", ex_alb)
 
                 track_results = []
                 try:
@@ -1701,12 +1693,11 @@ def search_music_on_server(server_res: dict, query: str):
                     except Exception:
                         pass
 
-                if not track_results:
-                    try:
-                        all_tracks = music_lib.all(libtype="track")
-                        track_results = [t for t in all_tracks if query_lower in t.title.lower()]
-                    except Exception as ex_tr:
-                        logger.debug("Failed fallback track fetch: %s", ex_tr)
+                elapsed = time.time() - start_time
+                logger.info(
+                    "[Plex Search] Server '%s' returned %d artists, %d albums, %d tracks in %.2fs",
+                    s_name, len(artist_results), len(album_results), len(track_results), elapsed
+                )
 
                 for item in artist_results:
                     formatted.append({

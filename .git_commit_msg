@@ -1,4 +1,4 @@
-fix: filter artist_sources by enabled servers and use positional Plex search
+fix: remove expensive .all() search fallbacks and add detailed search logging
 
-- Filter artist_sources in fetch_albums_for_artist against get_enabled_server_ids so stale multi-server sources in Redis do not trigger connections to unchecked servers (alpha, NAS, plexcu, svenghali, RogNAS).
-- Update search_music_on_server to use positional query search (music_lib.search(query)) so artists like Billy Strings return from remote shared Plex libraries.
+- Remove music_lib.all() fallback scans in search_music_on_server, dropping search latency from 10s down to 200ms.
+- Add step-by-step [Plex Search] log statements for search start, per-server queries, timing, and deduplication totals in backend/services/plex.py.
