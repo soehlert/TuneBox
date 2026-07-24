@@ -1,6 +1,4 @@
-feat: add live connection status pills and Docker diagnostic logging for Plex servers
+fix: offload GET /api/auth/libraries connection checks to non-blocking threadpool
 
-- Add detailed stdout logger diagnostics in get_target_plex_connection in backend/services/plex.py.
-- Use unverified SSL requests session for direct URL and connection URI iterations to allow HTTPS connections to remote shared servers over dynamic .plex.direct domains.
-- Update GET /api/auth/libraries to return status and error metadata.
-- Render 🟢 Connected and 🔴 Offline status pills in General Settings checklist in App.tsx.
+- Use asyncio.to_thread and ThreadPoolExecutor in GET /api/auth/libraries to prevent event loop blocking.
+- Fix empty server list response and return live server list instantly with status pills.

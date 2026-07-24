@@ -401,39 +401,40 @@ class LibrariesToggleRequest(BaseModel):
 
 @router.get("/libraries")
 async def get_libraries():
-    """Get list of accessible Plex servers with enabled state and live connection status pill metadata."""
+    """Get list of accessible Plex servers with enabled state and connection status pill metadata."""
+    import concurrent.futures
     from backend.services.plex import fetch_accessible_plex_servers, get_enabled_server_ids, get_target_plex_connection
-    servers = fetch_accessible_plex_servers()
-    enabled_ids = set(get_enabled_server_ids())
-    results = []
 
-    for s in servers:
+    servers = await asyncio.to_thread(fetch_accessible_plex_servers)
+    enabled_ids = set(get_enabled_server_ids())
+
+    def _check_server(s):
         s_id = s.get("server_id")
         is_enabled = s_id in enabled_ids or not enabled_ids
+        if s.get("is_primary") or settings.testing:
+            return {**s, "enabled": is_enabled, "status": "connected", "error": None}
+
         status = "offline"
         error_msg = None
-
-        if settings.testing:
-            status = "connected"
-        else:
-            try:
-                conn = get_target_plex_connection(s_id)
-                if conn:
-                    status = "connected"
-                else:
-                    status = "offline"
-                    error_msg = "Could not establish connection to remote server."
-            except Exception as ex:
+        try:
+            conn = get_target_plex_connection(s_id)
+            if conn:
+                status = "connected"
+            else:
                 status = "offline"
-                error_msg = str(ex)
+                error_msg = "Could not connect to remote server"
+        except Exception as ex:
+            status = "offline"
+            error_msg = str(ex)
 
-        results.append({
-            **s,
-            "enabled": is_enabled,
-            "status": status,
-            "error": error_msg,
-        })
+        return {**s, "enabled": is_enabled, "status": status, "error": error_msg}
 
+    if not servers:
+        return []
+
+    results = await asyncio.to_thread(
+        lambda: list(concurrent.futures.ThreadPoolExecutor(max_workers=min(len(servers), 6)).map(_check_server, servers))
+    )
     return results
 
 
