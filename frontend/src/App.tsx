@@ -1045,7 +1045,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                       >
                         <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
                           <span style={{ color: "#fff", fontSize: "14px", fontWeight: "bold" }}>
-                            {c.display_name || `${c.name}'s ${c.device_label || 'Device'}`}
+                            {c.name ? `${c.name}'s ${c.device_label || 'Device'}` : (c.device_label || 'Web Device')}
                           </span>
                           <span style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "11px" }}>
                             {c.is_display ? "Kiosk Display Screen" : `Device Session (${c.device_label || 'Web Browser'})`}
