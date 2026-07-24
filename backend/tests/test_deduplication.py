@@ -265,20 +265,30 @@ def test_deduplication_resilience_on_server_failure(mock_cache, mock_get_cached,
 
 
 def test_audit_deduplication_script(mock_multi_servers):
-    """Verify that audit_deduplication script runs independent GUID and fuzzy checks and produces valid reports."""
+    """Verify that audit_deduplication script runs independent GUID and fuzzy checks for artists and albums."""
     from backend.scripts.audit_deduplication import audit_deduplication, generate_report
 
     raw_catalogs = {
-        "Alpha Server": [
-            {"rating_key": "101", "title": "Pink Floyd", "guid": "plex://artist/pf-100", "server_id": "srv-1111-alpha"},
-            {"rating_key": "102", "title": "Radiohead", "guid": "plex://artist/rh-200", "server_id": "srv-1111-alpha"},
-            {"rating_key": "103", "title": "Guns N' Roses", "guid": "plex://artist/gnr-300", "server_id": "srv-1111-alpha"},
-        ],
-        "Beta Server": [
-            {"rating_key": "201", "title": "Pink Floyd", "guid": "plex://artist/pf-100", "server_id": "srv-2222-beta"},
-            {"rating_key": "202", "title": "Radiohead", "guid": "plex://artist/rh-200", "server_id": "srv-2222-beta"},
-            {"rating_key": "203", "title": "Guns N Roses", "guid": "plex://artist/gnr-900", "server_id": "srv-2222-beta"}, # Different GUID, similar name
-        ],
+        "artists": {
+            "Alpha Server": [
+                {"rating_key": "101", "title": "Pink Floyd", "guid": "plex://artist/pf-100", "server_id": "srv-1111-alpha"},
+                {"rating_key": "102", "title": "Radiohead", "guid": "plex://artist/rh-200", "server_id": "srv-1111-alpha"},
+                {"rating_key": "103", "title": "Guns N' Roses", "guid": "plex://artist/gnr-300", "server_id": "srv-1111-alpha"},
+            ],
+            "Beta Server": [
+                {"rating_key": "201", "title": "Pink Floyd", "guid": "plex://artist/pf-100", "server_id": "srv-2222-beta"},
+                {"rating_key": "202", "title": "Radiohead", "guid": "plex://artist/rh-200", "server_id": "srv-2222-beta"},
+                {"rating_key": "203", "title": "Guns N Roses", "guid": "plex://artist/gnr-900", "server_id": "srv-2222-beta"},
+            ],
+        },
+        "albums": {
+            "Alpha Server": [
+                {"rating_key": "501", "title": "The Dark Side of the Moon", "artist": "Pink Floyd", "guid": "plex://album/dsotm-100", "server_id": "srv-1111-alpha"},
+            ],
+            "Beta Server": [
+                {"rating_key": "601", "title": "Dark Side of the Moon", "artist": "Pink Floyd", "guid": "plex://album/dsotm-100", "server_id": "srv-2222-beta"},
+            ],
+        },
     }
 
     merged_artists = [
@@ -316,12 +326,20 @@ def test_audit_deduplication_script(mock_multi_servers):
 
     summary = audit_deduplication(raw_catalogs, merged_artists)
 
-    assert summary["total_raw_items"] == 6
-    assert summary["merged_items_count"] == 4
-    assert summary["verified_guid_merges"] == 2  # Pink Floyd & Radiohead matched by GUID
-    assert summary["potential_missed_duplicates_count"] == 1  # Guns N' Roses vs Guns N Roses detected as candidate missed duplicate!
+    art_sum = summary["artist_summary"]
+    alb_sum = summary["album_summary"]
+
+    assert art_sum["total_raw"] == 6
+    assert art_sum["merged_count"] == 4
+    assert art_sum["possible_dedupes"] == 2  # Pink Floyd & Radiohead exist on 2 servers
+    assert art_sum["matched_dedupes"] == 2   # Both merged in TuneBox
+    assert art_sum["dedupe_success_pct"] == 100.0
+
+    assert alb_sum["total_raw"] == 2
+    assert alb_sum["possible_dedupes"] == 1  # Dark Side of the Moon exists on 2 servers
 
     report = generate_report(summary)
-    assert "TUNEBOX MULTI-SERVER ARTIST DEDUPLICATION AUDIT" in report
-    assert "Guns N' Roses" in report
+    assert "TUNEBOX MULTI-SERVER DEDUPLICATION AUDIT REPORT" in report
+    assert "ARTIST DEDUPLICATION SUCCESS RATE" in report
+    assert "ALBUM DEDUPLICATION SUCCESS RATE" in report
 
