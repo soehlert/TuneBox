@@ -1,0 +1,5 @@
+style: remove misleading hover affordance from track rows in TrackList.css
+
+- Set cursor: default on .track-card.
+- Remove :hover background shifts, border highlights, and transform translations from .track-card:hover.
+- Leaves "Add to Queue" button as the sole explicit interactive control on the row.

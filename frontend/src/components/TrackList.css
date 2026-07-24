@@ -53,15 +53,8 @@
   justify-content: space-between !important;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
   transition: border-color 0.25s, transform 0.25s, box-shadow 0.25s !important;
-  cursor: pointer;
+  cursor: default;
   box-sizing: border-box;
-}
-
-.track-card:hover {
-  background-color: rgba(255, 255, 255, 0.04) !important;
-  border-color: var(--color-primary) !important;
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(229, 149, 0, 0.15) !important;
 }
 
 .track-card-left {
