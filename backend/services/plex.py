@@ -942,42 +942,56 @@ def skip_current_track():
     return {"message": "Track skipped successfully."}
 
 
-def fetch_all_artists():
-    """Fetch all artists across enabled Plex music libraries with Redis caching & multi-server deduplication."""
+def is_music_library_section(sec) -> bool:
+    """Check if a Plex library section is a genuine music section (excluding Podcasts, Audiobooks, etc.)."""
+    sec_type = str(getattr(sec, "type", "")).lower()
+    sec_title = str(getattr(sec, "title", "")).lower()
+    
+    if sec_type not in ("artist", "music"):
+        return False
+
+    excluded_keywords = ("audiobook", "audiobooks", "podcast", "podcasts", "spoken", "speech", "book", "books")
+    for kw in excluded_keywords:
+        if kw in sec_title:
+            logger.info("[Plex Library Filter] Ignoring non-music section '%s' (type: %s)", getattr(sec, "title", ""), sec_type)
+            return False
+
+    return True
+
+
+def fetch_all_artists() -> list[dict]:
+    """Fetch all artists across all enabled Plex servers, merging duplicates with quality ranking."""
     if settings.testing:
         return MOCK_ARTISTS
 
     cache_key = "all_artists"
-    cached_artists = get_cached_data(cache_key)
-
-    if cached_artists:
-        logger.info("Fetching artists from cache.")
-        return cached_artists
+    cached = get_cached_data(cache_key)
+    if cached:
+        return cached
 
     enabled_ids = get_enabled_server_ids()
+    all_accessible = fetch_accessible_plex_servers()
     enabled_set = {str(x).lower() for x in enabled_ids}
-    all_servers = fetch_accessible_plex_servers()
+    
     target_servers = [
-        s for s in all_servers
-        if str(s.get("server_id", "")).lower() in enabled_set or s.get("name", "").lower() in enabled_set
+        s for s in all_accessible
+        if str(s.get("server_id", "")).lower() in enabled_set
     ]
 
     if not target_servers:
-        target_servers = [s for s in all_servers if s.get("is_primary")] or (all_servers[:1] if all_servers else [])
+        target_servers = [s for s in all_accessible if s.get("is_primary")]
 
-    import concurrent.futures
-    import re
     merged_map = {}  # { norm_key: artist_dict }
 
     def _fetch_server_artists(s_info):
         s_id = s_info.get("server_id")
-        s_name = s_info.get("name", "Plex Server")
+        s_name = s_info.get("name", settings.plex_server_name or "plex-so")
         try:
             plex = get_target_plex_connection(s_id)
             music_libs = []
             try:
                 for sec in plex.library.sections():
-                    if sec.type in ("artist", "music"):
+                    if is_music_library_section(sec):
                         music_libs.append(sec)
             except Exception:
                 pass
@@ -1691,7 +1705,7 @@ def search_music_on_server(server_res: dict, query: str):
         music_libs = []
         try:
             for sec in target_plex.library.sections():
-                if sec.type in ("artist", "music"):
+                if is_music_library_section(sec):
                     music_libs.append(sec)
         except Exception as sec_ex:
             logger.debug("Failed to list sections for server %s: %s", server_res.get("name"), sec_ex)

@@ -1,5 +1,5 @@
-fix: attach album server names and omit single badges for primary server
+fix: exclude Audiobooks and Podcasts libraries from catalog scanning and searches
 
-- Preserve server_name in fetch_albums_for_artist so album multi-library popups display actual library names instead of 'Unknown Library'.
-- Omit single server pill badges for items from primary server (plex-so) across Queue, ArtistList, and ArtistAlbums.
-- Retain single server pill badges for remote servers (cc-ls-plex01) and multi-library badges (🌐 X libraries).
+- Add is_music_library_section filter in backend/services/plex.py.
+- Ignore library sections titled Audiobooks, Podcasts, Spoken, or Speech.
+- Prevent non-music entries from merging with music artists and corrupting album artwork.
