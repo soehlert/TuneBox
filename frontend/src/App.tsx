@@ -354,7 +354,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
   const [libraries, setLibraries] = useState<any[]>([]);
   const [playlists, setPlaylists] = useState<{ playlist_id: number; title: string }[]>([]);
   const [selectedPlaylistId, setSelectedPlaylistId] = useState("");
-  const [preseedCount, setPreseedCount] = useState(10);
+  const [preseedCount, setPreseedCount] = useState<string>("10");
   const [seeding, setSeeding] = useState(false);
   const [sectionsOpen, setSectionsOpen] = useState({
     general: false,
@@ -399,9 +399,10 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
     if (!selectedPlaylistId) return;
     setSeeding(true);
     setMsg("Preseeding TuneBox...");
+    const parsedCount = Math.max(1, parseInt(preseedCount, 10) || 10);
     try {
       const res = await axios.post(
-        getApiUrl(`/api/music/playlists/${selectedPlaylistId}/seed?count=${preseedCount}`),
+        getApiUrl(`/api/music/playlists/${selectedPlaylistId}/seed?count=${parsedCount}`),
         {},
         { headers: { "x-admin-token": adminToken } }
       );
@@ -954,10 +955,9 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                       <span style={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.6)", whiteSpace: "nowrap" }}>Count:</span>
                       <input
                         type="number"
-                        min={1}
-                        max={500}
+                        inputMode="numeric"
                         value={preseedCount}
-                        onChange={(e) => setPreseedCount(Math.max(1, parseInt(e.target.value) || 1))}
+                        onChange={(e) => setPreseedCount(e.target.value)}
                         style={{ ...inputStyle, width: "55px", padding: "6px 8px", textAlign: "center" }}
                         title="Number of tracks to preseed"
                       />
