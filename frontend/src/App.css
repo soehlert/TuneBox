@@ -325,12 +325,20 @@
   }
 
   .left-sidebar {
-    display: none;
+    display: flex;
+    width: 36px;
+    padding: 6px 0;
+    z-index: 45;
+  }
+
+  .left-sidebar .alphabet-filter button {
+    font-size: 11px;
+    padding: 2px 0;
   }
 
   .main-content {
-    margin-left: 0;
-    padding: 16px 16px 120px 16px;
+    margin-left: 36px;
+    padding: 16px 12px 120px 12px;
     height: auto;
     overflow-y: visible;
   }

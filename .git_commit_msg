@@ -1,5 +1,5 @@
-fix: restore Seed Playlist terminology in Settings Modal
+fix: re-enable always-on mobile alphabet jump rail in App.css
 
-- Change section label back to Seed Playlist to Queue in App.tsx.
-- Change button text back to Seed Queue / Seeding....
-- Update helper description text.
+- Set display: flex and width: 36px on left-sidebar under @media (max-width: 900px).
+- Set margin-left: 36px on main-content on mobile.
+- Preserves z-index: 90 on mobile-queue-overlay to prevent queue panel overlap.
