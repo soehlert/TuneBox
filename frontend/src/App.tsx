@@ -325,6 +325,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
   const [msg, setMsg] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
+  const [showKioskInfo, setShowKioskInfo] = useState(false);
   const [isFormDirty, setIsFormDirty] = useState(false);
 
   const handleAttemptClose = () => {
@@ -607,14 +608,17 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
         position: "fixed",
         top: 0,
         left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: "rgba(0, 0, 0, 0.7)",
+        width: "100vw",
+        height: "100vh",
+        background: "rgba(14, 14, 15, 0.75)",
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        zIndex: 1000,
+        zIndex: 10000,
         padding: "16px",
+        boxSizing: "border-box",
       }}
       onClick={handleAttemptClose}
     >
@@ -622,15 +626,17 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
         onClick={(e) => e.stopPropagation()}
         style={{
           background: "#141416",
-          border: "1px solid rgba(255, 255, 255, 0.1)",
+          border: "1px solid rgba(255, 255, 255, 0.12)",
           borderRadius: "16px",
-          padding: "24px",
-          width: "100%",
+          padding: "20px 24px",
+          width: "calc(100% - 32px)",
           maxWidth: "480px",
-          maxHeight: "90vh",
+          maxHeight: "calc(100dvh - 32px)",
           display: "flex",
           flexDirection: "column",
-          boxShadow: "0 20px 60px rgba(29, 8, 59, 0.5)",
+          boxShadow: "0 12px 32px rgba(0, 0, 0, 0.6)",
+          boxSizing: "border-box",
+          color: "#fff",
         }}
       >
         {/* Sticky Header */}
@@ -721,7 +727,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
             View TuneBox Stats & Leaderboard 🏆
           </Link>
 
-          {/* Section 1: General Connection Settings */}
+          {/* Section 1: General Settings */}
           <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
             <div
               onClick={() => setSectionsOpen(prev => ({ ...prev, general: !prev.general }))}
@@ -864,48 +870,46 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
             </div>
 
             {sectionsOpen.queue && (
-              <div style={{ display: "flex", flexDirection: "column", gap: "16px", padding: "4px 8px 12px 8px" }}>
-                {/* Preseed TuneBox */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "14px", padding: "4px 8px 12px 8px" }}>
+                {/* Playlist Selection & Seeding */}
                 <div>
-                  <label style={{ ...labelStyle, fontSize: "13px", color: "rgba(255, 255, 255, 0.6)" }}>Pre-seed TuneBox</label>
-                  {playlists.length === 0 ? (
-                    <p style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "13px", margin: 0 }}>No playlists found on server.</p>
-                  ) : (
-                    <div style={{ display: "flex", gap: "10px", alignItems: "center", marginTop: "6px" }}>
-                      <select
-                        value={selectedPlaylistId}
-                        onChange={(e) => setSelectedPlaylistId(e.target.value)}
-                        style={{ ...inputStyle, flex: 1, margin: 0, cursor: "pointer" }}
-                      >
-                        {playlists.map((p) => (
-                          <option key={p.playlist_id} value={p.playlist_id}>
-                            {p.title}
-                          </option>
-                        ))}
-                      </select>
-                      <button
-                        type="button"
-                        onClick={handleSeedJukebox}
-                        disabled={seeding || !selectedPlaylistId}
-                        style={{
-                          background: "var(--color-primary)",
-                          color: "#0e0e0f",
-                          border: "none",
-                          borderRadius: "8px",
-                          padding: "10px 16px",
-                          fontSize: "14px",
-                          fontWeight: "bold",
-                          cursor: "pointer",
-                          whiteSpace: "nowrap",
-                          transition: "background-color 0.2s",
-                        }}
-                        onMouseOver={(e) => (e.currentTarget.style.background = "#d48b17")}
-                        onMouseOut={(e) => (e.currentTarget.style.background = "#f5a623")}
-                      >
-                        {seeding ? "Seeding..." : "Seed"}
-                      </button>
-                    </div>
-                  )}
+                  <label style={labelStyle}>Import Playlist to Queue</label>
+                  <div style={{ display: "flex", gap: "8px", marginTop: "4px" }}>
+                    <select
+                      value={selectedPlaylistId}
+                      onChange={(e) => setSelectedPlaylistId(e.target.value)}
+                      style={{ ...inputStyle, flex: 1, cursor: "pointer" }}
+                    >
+                      <option value="">Select a playlist...</option>
+                      {playlists.map((pl) => (
+                        <option key={pl.playlist_id} value={pl.playlist_id}>
+                          {pl.title}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={handleSeedJukebox}
+                      disabled={seeding || !selectedPlaylistId}
+                      style={{
+                        background: "#3375A8",
+                        color: "white",
+                        border: "none",
+                        borderRadius: "6px",
+                        padding: "0 16px",
+                        fontWeight: "bold",
+                        fontSize: "13px",
+                        cursor: seeding || !selectedPlaylistId ? "not-allowed" : "pointer",
+                        opacity: seeding || !selectedPlaylistId ? 0.5 : 1,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {seeding ? "Importing..." : "Import Tracks"}
+                    </button>
+                  </div>
+                  <span style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "11px", display: "block", marginTop: "4px" }}>
+                    Imports tracks into the queue. Guest selections automatically take priority.
+                  </span>
                 </div>
 
                 {/* Smart Autoplay toggle */}
@@ -977,7 +981,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
             )}
           </div>
 
-          {/* Section 3: Connected Devices */}
+          {/* Section 3: Connected Users & Kiosks */}
           <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "12px" }}>
             <div
               onClick={() => setSectionsOpen(prev => ({ ...prev, devices: !prev.devices }))}
@@ -994,7 +998,18 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
               }}
             >
               <span style={{ color: "#f5a623", fontSize: "14px", fontWeight: "bold", display: "flex", alignItems: "center", gap: "6px" }}>
-                👥 Connected Users
+                👥 Connected Users & Kiosks
+                <span
+                  className="material-symbols-outlined"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowKioskInfo(true);
+                  }}
+                  style={{ fontSize: "16px", color: "#3375A8", cursor: "pointer" }}
+                  title="What is Kiosk Mode?"
+                >
+                  help_outline
+                </span>
               </span>
               <span style={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "11px" }}>
                 {sectionsOpen.devices ? "▲" : "▼"}
@@ -1004,10 +1019,10 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
             {sectionsOpen.devices && (
               <div style={{ padding: "4px 8px 12px 8px" }}>
                 {clients.length === 0 ? (
-                  <p style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "13px", margin: 0 }}>No users connected.</p>
+                  <p style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "13px", margin: 0 }}>No connected users or kiosks.</p>
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: "10px", maxHeight: "200px", overflowY: "auto" }}>
-                    {/* Display screens at the top */}
+                    {/* Display screens / Kiosks at the top */}
                     {clients.filter(c => c.is_display).map((c) => (
                       <div
                         key={c.client_id}
@@ -1030,18 +1045,18 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                               style={{ fontSize: "16px", cursor: "pointer", color: "var(--color-primary)", opacity: 0.7, transition: "opacity 0.2s" }}
                               onMouseOver={(e) => e.currentTarget.style.opacity = "1"}
                               onMouseOut={(e) => e.currentTarget.style.opacity = "0.7"}
-                              title="Change Username"
+                              title="Change Display Name"
                             >
                               edit
                             </span>
                           </span>
                           <span style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "11px", textTransform: "capitalize" }}>
-                            Role: {c.role} • Display Screen
+                            Role: {c.role} • Kiosk Screen
                           </span>
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                          <span style={{ color: "#5cdd5c", fontSize: "12px", fontWeight: "bold", marginRight: "8px" }}>
-                            ✓ Display
+                          <span style={{ color: "#5cdd5c", fontSize: "12px", fontWeight: "bold", marginRight: "4px" }}>
+                            ✓ Kiosk Mode
                           </span>
                           <button
                             onClick={() => handleUnsetDisplay(c.client_id)}
@@ -1062,14 +1077,15 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                             onMouseOut={(e) => {
                               e.currentTarget.style.backgroundColor = "transparent";
                             }}
+                            title="Return device to standard view"
                           >
-                            Undisplay
+                            Remove Kiosk
                           </button>
                         </div>
                       </div>
                     ))}
 
-                    {/* Divider if displays and others both exist */}
+                    {/* Divider if kiosks and others both exist */}
                     {clients.filter(c => c.is_display).length > 0 && clients.filter(c => !c.is_display).length > 0 && (
                       <div style={{ height: "1px", background: "rgba(255, 255, 255, 0.15)", margin: "8px 0" }} />
                     )}
@@ -1097,7 +1113,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                               style={{ fontSize: "16px", cursor: "pointer", color: "var(--color-primary)", opacity: 0.7, transition: "opacity 0.2s" }}
                               onMouseOver={(e) => e.currentTarget.style.opacity = "1"}
                               onMouseOut={(e) => e.currentTarget.style.opacity = "0.7"}
-                              title="Change Username"
+                              title="Change Display Name"
                             >
                               edit
                             </span>
@@ -1121,8 +1137,9 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                             }}
                             onMouseOver={(e) => (e.currentTarget.style.background = "#d48b17")}
                             onMouseOut={(e) => (e.currentTarget.style.background = "#f5a623")}
+                            title="Convert this device into a shared party kiosk display with guest QR code"
                           >
-                            Make Display
+                            Make Kiosk
                           </button>
                         )}
                       </div>
@@ -1144,19 +1161,24 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
             }}
             disabled={saving}
             style={{
-              background: "var(--color-primary)",
-              color: "#0e0e0f",
-              border: "none",
-              borderRadius: "8px",
-              padding: "12px 24px",
-              fontSize: "15px",
-              fontWeight: "bold",
-              cursor: "pointer",
               flex: 1,
+              background: "#f5a623",
+              color: "#141416",
+              border: "none",
+              padding: "12px",
+              borderRadius: "8px",
+              fontWeight: "bold",
+              fontSize: "15px",
+              cursor: saving ? "not-allowed" : "pointer",
+              opacity: saving ? 0.7 : 1,
               transition: "background-color 0.2s",
             }}
-            onMouseOver={(e) => (e.currentTarget.style.background = "#d48b17")}
-            onMouseOut={(e) => (e.currentTarget.style.background = "#f5a623")}
+            onMouseOver={(e) => {
+              if (!saving) e.currentTarget.style.backgroundColor = "#d48b17";
+            }}
+            onMouseOut={(e) => {
+              if (!saving) e.currentTarget.style.backgroundColor = "#f5a623";
+            }}
           >
             {saving ? "Saving Settings..." : "Save Settings"}
           </button>
@@ -1164,11 +1186,13 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
 
         <TuneBoxDialog
           open={showUnsavedDialog}
+          type="confirm"
+          icon="warning"
           title="Unsaved Changes"
-          message="You have unsaved changes to your TuneBox settings. Do you want to save or discard your changes before closing?"
+          message="You have unsaved setting changes. Would you like to save your changes before closing?"
           confirmText="Save Settings"
-          thirdText="Discard"
-          cancelText="Keep Editing"
+          cancelText="Discard"
+          thirdText="Keep Editing"
           onConfirm={() => {
             setShowUnsavedDialog(false);
             const form = document.getElementById("settings-form") as HTMLFormElement;
@@ -1179,6 +1203,15 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
             onClose();
           }}
           onCancel={() => setShowUnsavedDialog(false)}
+        />
+        <TuneBoxDialog
+          open={showKioskInfo}
+          type="info"
+          icon="help_outline"
+          title="🖥️ What is TuneBox Kiosk Mode?"
+          message={`Turning a connected device into a Kiosk converts it into a shared, central party display screen.\n\n• Displays a prominent QR code for guests to scan and join instantly.\n• Shows full-screen album artwork and live queue status.\n• Disables individual voting on the screen so guests interact from their own phones.`}
+          confirmText="Got It"
+          onConfirm={() => setShowKioskInfo(false)}
         />
         <ConfirmModal
           isOpen={confirmClearOpen}
