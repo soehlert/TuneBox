@@ -1812,6 +1812,15 @@ function App() {
           console.log("Received unset_display_mode WS push!");
           localStorage.removeItem("tunebox_display");
           setIsDisplay(false);
+        } else if (data.type === "rename_client") {
+          console.log("Received rename_client WS push:", data.name);
+          if (guestProfile) {
+            setGuestProfile((prev) => (prev ? { ...prev, name: data.name } : null));
+            localStorage.setItem("tunebox_guest_name", data.name);
+          } else if (isAdmin) {
+            localStorage.setItem("tunebox_admin_name", data.name);
+          }
+          setLocalUsername(data.name);
         } else if (data.message === "pong") {
           window.clearTimeout(pongTimeout);
         }

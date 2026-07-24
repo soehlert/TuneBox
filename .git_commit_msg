@@ -1,4 +1,5 @@
-fix: prevent modal backdrop close on text selection drag
+feat: make alphabet rail always visible on mobile and sync target user rename via WebSocket
 
-- Add mouseDownTargetRef to PromptModal, ConfirmModal, SettingsModal, and TuneBoxDialog backdrop handlers.
-- Only close modal on backdrop click if both mousedown and click originated on the backdrop element.
+- Update App.css mobile media query to display left-sidebar as a 36px glassmorphic rail on mobile viewports.
+- Offset main-content margin-left to 36px on mobile viewports.
+- Add rename_client WebSocket push handler in App.tsx to update guestProfile state and persist to localStorage.
