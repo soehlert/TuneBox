@@ -302,7 +302,8 @@ def get_track(item_id):
 
 def play_song(player, song, server_token=None, server_url=None):
     """Play a specific song on the Plex player."""
-    logger.info("Attempting to play song: %s on player: %s", getattr(song, "title", "Track"), player.title)
+    s_name = getattr(song, "server_name", None) or "Home Server"
+    logger.info("[Playback Engine] Playing track '%s' from library '%s' on player: %s", getattr(song, "title", "Track"), s_name, player.title)
     target_plex = get_plex_connection()
     if server_url and server_token and not settings.testing:
         try:

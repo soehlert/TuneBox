@@ -126,10 +126,16 @@ async def add_to_queue(
         all_servers = fetch_accessible_plex_servers() if (server_id and not settings.testing) else []
         target_res = next((s for s in all_servers if s["server_id"] == server_id), None)
 
+        s_name = server_name or (target_res.get("name") if target_res else "Primary Server")
+        logger.info(
+            "[Quality Selector] Queued track '%s' from library '%s' (server_id: %s, duration: %ss)",
+            song.title, s_name, server_id or "primary", getattr(song, "duration", 0) // 1000 if getattr(song, "duration", 0) else 0
+        )
+
         add_to_queue_redis(
             song,
             server_id=server_id,
-            server_name=server_name or (target_res.get("name") if target_res else None),
+            server_name=s_name,
             server_token=target_res.get("access_token") if target_res else None,
             server_address=getattr(t_plex, "_baseurl", target_res.get("server_url") if target_res else None),
             added_by=username,

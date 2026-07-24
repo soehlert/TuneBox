@@ -1,5 +1,5 @@
-fix: prevent flash of no results found and add multi-library badges on deduplicated search items
+fix: add quality selector logging and multi-library album pill badges
 
-- Set loading state immediately on search term change in App.tsx to eliminate 300ms flash of 'No results found'.
-- Aggregate sources array on deduplicated search items in backend/services/plex.py.
-- Render '🌐 X libraries' pill badge in ArtistList.tsx when items are found across multiple servers.
+- Add [Quality Selector] log when queuing tracks to log chosen library and bitrate info.
+- Add [Playback Engine] log in play_song to log source server during playback.
+- Update ArtistAlbums.tsx to render 🌐 X libraries pill badge for multi-server albums.

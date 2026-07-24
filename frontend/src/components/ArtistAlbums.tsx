@@ -10,6 +10,8 @@ interface Album {
   album_id: number;
   title: string;
   thumb: string | null;
+  server_name?: string;
+  sources?: any[];
 }
 
 function ArtistAlbums() {
@@ -68,10 +70,32 @@ function ArtistAlbums() {
                 type="album"
                 className="album-cover"
               />
-              <div className="album-card-overlay">
+              <div className="album-card-overlay" style={{ flexDirection: "column", gap: "2px" }}>
                 <Typography className="album-card-title">
                   {album.title}
                 </Typography>
+                {(() => {
+                  const sources = album.sources || [];
+                  if (sources.length > 1) {
+                    return (
+                      <span
+                        style={{
+                          fontSize: "9px",
+                          background: "rgba(46, 204, 113, 0.2)",
+                          border: "1px solid rgba(46, 204, 113, 0.5)",
+                          color: "#2ecc71",
+                          padding: "1px 5px",
+                          borderRadius: "8px",
+                          fontWeight: 700,
+                          lineHeight: 1.2,
+                        }}
+                      >
+                        🌐 {sources.length} libraries
+                      </span>
+                    );
+                  }
+                  return null;
+                })()}
               </div>
             </Card>
           ))}
