@@ -80,8 +80,19 @@ def fetch_raw_server_catalogs(
             except Exception:
                 pass
 
+            server_tracks = 0
+            server_albums = 0
             for music_lib in music_libs:
                 try:
+                    try:
+                        server_tracks += getattr(music_lib, "totalSize", 0) or len(music_lib.all(libtype="track"))
+                    except Exception:
+                        pass
+                    try:
+                        server_albums += len(music_lib.all(libtype="album"))
+                    except Exception:
+                        pass
+
                     artists = music_lib.all(libtype="artist")
                     for artist in artists:
                         guid_val = getattr(artist, "guid", None) or getattr(artist, "ratingKey", "")
@@ -95,7 +106,7 @@ def fetch_raw_server_catalogs(
                 except Exception as ex:
                     logger.warning("Failed fetching artists from %s: %s", s_name, ex)
             raw_catalogs[s_name] = raw_items
-            logger.info("Retrieved %d raw artists from server '%s'", len(raw_items), s_name)
+            logger.info("Retrieved %d raw artists (%d albums, %d total tracks/songs) from server '%s'", len(raw_items), server_albums, server_tracks, s_name)
         except Exception as ex:
             logger.error("Failed to connect to server '%s': %s", s_name, ex)
 
@@ -226,11 +237,11 @@ def generate_report(summary: dict[str, Any]) -> str:
     """Format audit results as a human-readable text report."""
     report_lines = [
         "=" * 60,
-        "       TUNEBOX MULTI-SERVER DEDUPLICATION AUDIT REPORT",
+        "       TUNEBOX MULTI-SERVER ARTIST DEDUPLICATION AUDIT",
         "=" * 60,
-        f"Total Raw Items across Servers:      {summary['total_raw_items']}",
-        f"Merged Items in TuneBox Catalog:     {summary['merged_items_count']}",
-        f"Deduplication Reduction:             {summary['compression_ratio']}%",
+        f"Total Raw Artists across Servers:    {summary['total_raw_items']}",
+        f"Merged Artists in TuneBox Catalog:   {summary['merged_items_count']}",
+        f"Artist Deduplication Reduction:      {summary['compression_ratio']}%",
         "-" * 60,
         "CANONICAL GUID INTEGRITY",
         f"Multi-Server GUID Groups Identified: {summary['multi_server_guid_groups']}",

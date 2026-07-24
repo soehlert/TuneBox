@@ -322,6 +322,6 @@ def test_audit_deduplication_script(mock_multi_servers):
     assert summary["potential_missed_duplicates_count"] == 1  # Guns N' Roses vs Guns N Roses detected as candidate missed duplicate!
 
     report = generate_report(summary)
-    assert "TUNEBOX MULTI-SERVER DEDUPLICATION AUDIT REPORT" in report
+    assert "TUNEBOX MULTI-SERVER ARTIST DEDUPLICATION AUDIT" in report
     assert "Guns N' Roses" in report
 
