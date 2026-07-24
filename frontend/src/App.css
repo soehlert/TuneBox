@@ -319,9 +319,9 @@
   }
 
   .main-wrapper {
-    flex-direction: column;
+    flex-direction: row;
     height: calc(100vh - 70px - 110px);
-    overflow-y: auto;
+    overflow: hidden;
   }
 
   .left-sidebar {
@@ -339,8 +339,8 @@
   .main-content {
     margin-left: clamp(28px, 6vw, 36px);
     padding: 16px 12px 120px 12px;
-    height: auto;
-    overflow-y: visible;
+    height: 100%;
+    overflow-y: auto;
   }
 
   .queue-container {

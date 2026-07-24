@@ -1,5 +1,5 @@
-style: apply clamp() sizing exclusively to sidebar width, font size, and content offset
+fix: align mobile main-content scroll container with laptop view to enforce lazy loading
 
-- Set width: clamp(48px, 4vw, 60px) on left-sidebar and margin-left clamp on main-content on desktop.
-- Set width: clamp(28px, 6vw, 36px) on left-sidebar and margin-left clamp on main-content on mobile.
-- Use clamp() for alphabet filter button font-size and padding.
+- Set .main-content to height: 100% and overflow-y: auto on mobile in App.css.
+- Set .main-wrapper to flex-direction: row and overflow: hidden on mobile.
+- Ensures native loading="lazy" uses .main-content as scroll container root, preventing offscreen image loads on mobile.
