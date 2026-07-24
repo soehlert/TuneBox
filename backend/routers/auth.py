@@ -401,17 +401,40 @@ class LibrariesToggleRequest(BaseModel):
 
 @router.get("/libraries")
 async def get_libraries():
-    """Get list of accessible Plex servers with enabled state for unified catalog."""
-    from backend.services.plex import fetch_accessible_plex_servers, get_enabled_server_ids
+    """Get list of accessible Plex servers with enabled state and live connection status pill metadata."""
+    from backend.services.plex import fetch_accessible_plex_servers, get_enabled_server_ids, get_target_plex_connection
     servers = fetch_accessible_plex_servers()
     enabled_ids = set(get_enabled_server_ids())
-    return [
-        {
+    results = []
+
+    for s in servers:
+        s_id = s.get("server_id")
+        is_enabled = s_id in enabled_ids or not enabled_ids
+        status = "offline"
+        error_msg = None
+
+        if settings.testing:
+            status = "connected"
+        else:
+            try:
+                conn = get_target_plex_connection(s_id)
+                if conn:
+                    status = "connected"
+                else:
+                    status = "offline"
+                    error_msg = "Could not establish connection to remote server."
+            except Exception as ex:
+                status = "offline"
+                error_msg = str(ex)
+
+        results.append({
             **s,
-            "enabled": s.get("server_id") in enabled_ids or not enabled_ids,
-        }
-        for s in servers
-    ]
+            "enabled": is_enabled,
+            "status": status,
+            "error": error_msg,
+        })
+
+    return results
 
 
 @router.post("/libraries")

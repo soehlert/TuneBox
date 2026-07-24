@@ -1,4 +1,6 @@
-fix: add /artists route in App.tsx and implement 3-tier remote server connection engine
+feat: add live connection status pills and Docker diagnostic logging for Plex servers
 
-- Add /artists route matching ArtistList in App.tsx to resolve missing route warning.
-- Implement 3-tier connection engine (MyPlex resource -> direct URL -> connection URI loop) in get_target_plex_connection for shared remote servers (cc-ls-plex01).
+- Add detailed stdout logger diagnostics in get_target_plex_connection in backend/services/plex.py.
+- Use unverified SSL requests session for direct URL and connection URI iterations to allow HTTPS connections to remote shared servers over dynamic .plex.direct domains.
+- Update GET /api/auth/libraries to return status and error metadata.
+- Render 🟢 Connected and 🔴 Offline status pills in General Settings checklist in App.tsx.

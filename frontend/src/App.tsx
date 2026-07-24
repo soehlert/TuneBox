@@ -848,18 +848,34 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                       <span style={{ color: "rgba(255, 255, 255, 0.5)", fontSize: "13px" }}>No servers found.</span>
                     ) : (
                       libraries.map((lib) => (
-                        <label key={lib.server_id || lib.name} style={{ display: "flex", alignItems: "center", gap: "10px", color: "#fff", fontSize: "13px", cursor: "pointer", userSelect: "none" }}>
-                          <input
-                            type="checkbox"
-                            checked={lib.enabled}
-                            onChange={(e) => {
-                              const updatedEnabled = e.target.checked;
-                              const nextLibs = libraries.map((l) => l.server_id === lib.server_id ? { ...l, enabled: updatedEnabled } : l);
-                              setLibraries(nextLibs);
-                              setIsFormDirty(true);
+                        <label key={lib.server_id || lib.name} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", color: "#fff", fontSize: "13px", cursor: "pointer", userSelect: "none", width: "100%" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                            <input
+                              type="checkbox"
+                              checked={lib.enabled}
+                              onChange={(e) => {
+                                const updatedEnabled = e.target.checked;
+                                const nextLibs = libraries.map((l) => l.server_id === lib.server_id ? { ...l, enabled: updatedEnabled } : l);
+                                setLibraries(nextLibs);
+                                setIsFormDirty(true);
+                              }}
+                            />
+                            <span>{lib.name} {lib.is_primary ? "(Home Server)" : ""}</span>
+                          </div>
+                          <span
+                            style={{
+                              fontSize: "10px",
+                              fontWeight: "bold",
+                              padding: "2px 8px",
+                              borderRadius: "12px",
+                              background: lib.status === "connected" ? "rgba(46, 204, 113, 0.15)" : "rgba(231, 76, 60, 0.15)",
+                              border: lib.status === "connected" ? "1px solid rgba(46, 204, 113, 0.4)" : "1px solid rgba(231, 76, 60, 0.4)",
+                              color: lib.status === "connected" ? "#2ecc71" : "#e74c3c",
                             }}
-                          />
-                          <span>{lib.name} {lib.is_primary ? "(Home Server)" : ""}</span>
+                            title={lib.error || (lib.status === "connected" ? "Successfully connected to server" : "Connection failed")}
+                          >
+                            {lib.status === "connected" ? "🟢 Connected" : "🔴 Offline"}
+                          </span>
                         </label>
                       ))
                     )}

@@ -1056,7 +1056,7 @@ _plex_connection_cache = {}  # { server_id: (plex_instance, timestamp) }
 
 
 def get_target_plex_connection(server_id: str | None = None):
-    """Connect to a target Plex server (local or remote shared server)."""
+    """Connect to a target Plex server (local or remote shared server) with detailed logging and SSL verification fallback."""
     if not server_id or settings.testing:
         return get_plex_connection()
 
@@ -1078,6 +1078,16 @@ def get_target_plex_connection(server_id: str | None = None):
     server_name = target_res.get("name", "") if target_res else str(server_id)
     token = target_res.get("access_token") if target_res else settings.plex_token
     conn = None
+    last_error = "Server unreachable"
+
+    logger.info("[Plex Connection] Initiating connection to remote server '%s' (ID: %s)...", server_name, server_id)
+
+    # Prepare an unverified SSL session for remote server connections
+    import requests
+    import urllib3
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+    unverified_session = requests.Session()
+    unverified_session.verify = False
 
     # Method 1: Connect via MyPlex Resource
     try:
@@ -1087,26 +1097,33 @@ def get_target_plex_connection(server_id: str | None = None):
             None
         )
         if res:
+            logger.info("[Plex Connection] Found MyPlex resource for '%s'. Testing %d connection endpoints...", server_name, len(res.connections) if res.connections else 0)
             try:
                 conn = res.connect(timeout=4)
+                logger.info("[Plex Connection] Standard MyPlex connect SUCCESS for '%s' at %s", server_name, getattr(conn, "_baseurl", ""))
             except Exception as ssl_ex:
-                logger.debug("Primary connect failed for %s, retrying ssl=False: %s", server_name, ssl_ex)
+                logger.debug("[Plex Connection] Standard MyPlex connect failed for '%s': %s. Retrying ssl=False...", server_name, ssl_ex)
                 try:
                     conn = res.connect(timeout=4, ssl=False)
+                    logger.info("[Plex Connection] MyPlex connect (ssl=False) SUCCESS for '%s' at %s", server_name, getattr(conn, "_baseurl", ""))
                 except Exception as ex2:
-                    logger.debug("Failed MyPlex connect for %s: %s", server_name, ex2)
+                    last_error = str(ex2)
+                    logger.warning("[Plex Connection] MyPlex connect (ssl=False) FAILED for '%s': %s", server_name, ex2)
     except Exception as ex:
-        logger.debug("Failed to locate resource %s (%s) on MyPlex: %s", server_name, server_id, ex)
+        last_error = str(ex)
+        logger.warning("[Plex Connection] Failed MyPlex resource lookup for '%s': %s", server_name, ex)
 
-    # Method 2: Direct connection via server_url
+    # Method 2: Direct connection via server_url with unverified session
     if not conn and target_res and target_res.get("server_url"):
         try:
             from plexapi.server import PlexServer
-            conn = PlexServer(target_res["server_url"], token or settings.plex_token, timeout=5)
+            conn = PlexServer(target_res["server_url"], token or settings.plex_token, session=unverified_session, timeout=5)
+            logger.info("[Plex Connection] Direct URL connect SUCCESS for '%s' at %s", server_name, target_res["server_url"])
         except Exception as ex:
-            logger.debug("Failed direct URL connect for %s: %s", server_name, ex)
+            last_error = str(ex)
+            logger.warning("[Plex Connection] Direct URL connect FAILED for '%s' (%s): %s", server_name, target_res.get("server_url"), ex)
 
-    # Method 3: Fallback iterate connections on MyPlex resource
+    # Method 3: Iterate all endpoints on MyPlex resource using unverified session
     if not conn:
         try:
             account = get_myplex_account()
@@ -1114,23 +1131,27 @@ def get_target_plex_connection(server_id: str | None = None):
                 if r.clientIdentifier == server_id or r.name.lower() == server_name.lower():
                     r_token = r.accessToken or token or settings.plex_token
                     for c in r.connections:
+                        logger.info("[Plex Connection] Testing endpoint %s for '%s'...", c.uri, server_name)
                         try:
                             from plexapi.server import PlexServer
-                            conn = PlexServer(c.uri, r_token, timeout=3)
+                            conn = PlexServer(c.uri, r_token, session=unverified_session, timeout=4)
                             if conn:
+                                logger.info("[Plex Connection] Endpoint connect SUCCESS for '%s' at %s", server_name, c.uri)
                                 break
-                        except Exception:
-                            continue
+                        except Exception as end_ex:
+                            last_error = str(end_ex)
+                            logger.debug("[Plex Connection] Endpoint %s FAILED for '%s': %s", c.uri, server_name, end_ex)
                 if conn:
                     break
         except Exception as ex:
-            logger.warning("Final connection fallback failed for %s: %s", server_name, ex)
+            last_error = str(ex)
+            logger.warning("[Plex Connection] Endpoint iteration FAILED for '%s': %s", server_name, ex)
 
     if conn:
         _plex_connection_cache[server_id] = (conn, now)
         return conn
 
-    logger.warning("Could not connect to target server %s (%s). Returning None.", server_name, server_id)
+    logger.error("[Plex Connection ERROR] All connection methods FAILED for server '%s' (ID: %s). Last error: %s", server_name, server_id, last_error)
     return None
 
 
