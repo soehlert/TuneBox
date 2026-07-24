@@ -198,12 +198,14 @@
 }
 
 .queue-item.dragging {
-  opacity: 0.4;
-  border: 1px dashed var(--color-primary);
+  opacity: 0.35;
+  outline: 1px dashed var(--color-primary);
 }
 
 .queue-item.drag-over {
-  background-color: rgba(245, 166, 35, 0.12) !important;
-  border-top: 2px solid var(--color-primary);
+  background-color: transparent !important;
+  border-top: 3px solid var(--color-primary) !important;
+  box-shadow: 0 -4px 12px rgba(245, 166, 35, 0.4) !important;
+  position: relative;
 }
 

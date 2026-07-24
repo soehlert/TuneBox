@@ -1,0 +1,5 @@
+fix: resolve playback orchestrator int conversion error and refine drag-and-drop UI
+
+- Remove unsafe int() casts in get_track, play_queue_on_device, and playback_orchestrator to prevent ValueError crashes when handling non-numeric or string track rating keys.
+- Update queue drag-over styling in Queue.css to render a clean top insertion line indicator instead of highlighting the entire track card background.
+- Attach HTML5 draggable property and handleDragStart specifically to the drag handle icon so clicking row text or buttons does not trigger ghost container dragging.

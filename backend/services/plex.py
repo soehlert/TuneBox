@@ -275,7 +275,7 @@ def get_track(item_id):
         found_track = None
         for album_id, tracks in MOCK_TRACKS.items():
             for t in tracks:
-                if t["track_id"] == int(item_id):
+                if str(t["track_id"]) == str(item_id):
                     found_track = t
                     break
             if found_track:
@@ -379,7 +379,8 @@ async def play_queue_on_device():
             try:
                 from plexapi.server import PlexServer
                 t_plex = PlexServer(s_url, s_token, timeout=5)
-                song_obj = await asyncio.to_thread(t_plex.fetchItem, top_item["item_id"])
+                item_id_val = int(top_item["item_id"]) if str(top_item["item_id"]).isdigit() else top_item["item_id"]
+                song_obj = await asyncio.to_thread(t_plex.fetchItem, item_id_val)
                 song_obj.server_name = top_item.get("server_name")
                 await asyncio.to_thread(play_song, player, song_obj, s_token, s_url)
             except Exception as ex:
@@ -562,7 +563,8 @@ async def playback_orchestrator():
 
                             if s_id and not settings.testing:
                                 t_plex = await asyncio.to_thread(get_target_plex_connection, s_id)
-                                track = await asyncio.to_thread(t_plex.fetchItem, int(next_song["item_id"]))
+                                item_id_val = int(next_song["item_id"]) if str(next_song["item_id"]).isdigit() else next_song["item_id"]
+                                track = await asyncio.to_thread(t_plex.fetchItem, item_id_val)
                                 track.server_name = next_song.get("server_name")
                             else:
                                 track = await asyncio.to_thread(get_track, next_song["item_id"])

@@ -71,6 +71,10 @@ const QueueComponent = () => {
     setDraggedIndex(index);
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData("text/plain", index.toString());
+    const rowEl = (e.currentTarget as HTMLElement).closest(".queue-item");
+    if (rowEl && e.dataTransfer.setDragImage) {
+      e.dataTransfer.setDragImage(rowEl as HTMLElement, 20, 20);
+    }
   };
 
   const handleDragOver = (e: React.DragEvent, index: number) => {
@@ -258,8 +262,6 @@ const QueueComponent = () => {
             <li
               key={index}
               data-index={index}
-              draggable={!isActive && !!adminToken}
-              onDragStart={(e) => handleDragStart(e, index)}
               onDragOver={(e) => handleDragOver(e, index)}
               onDrop={(e) => handleDrop(e, index)}
               onDragEnd={handleDragEnd}
@@ -269,6 +271,8 @@ const QueueComponent = () => {
                 {adminToken && !isActive && (
                   <span
                     className="material-symbols-outlined queue-drag-handle"
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, index)}
                     onTouchStart={(e) => handleTouchStart(e, index)}
                     onTouchMove={handleTouchMove}
                     onTouchEnd={handleTouchEnd}
