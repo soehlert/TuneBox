@@ -1075,29 +1075,42 @@ def get_target_plex_connection(server_id: str | None = None):
     if not target_res or target_res.get("is_primary"):
         return primary_plex
 
-    server_name = target_res.get("name")
+    server_name = target_res.get("name", "")
     conn = None
-    if server_name:
-        try:
-            account = get_myplex_account()
-            res = account.resource(server_name)
-            conn = res.connect(timeout=5)
-        except Exception as ex:
-            logger.debug("Failed MyPlex connect for %s: %s", server_name, ex)
+
+    try:
+        account = get_myplex_account()
+        # Match resource by clientIdentifier or name
+        res = next(
+            (r for r in account.resources() if r.clientIdentifier == server_id or (server_name and r.name.lower() == server_name.lower())),
+            None
+        )
+        if res:
+            try:
+                conn = res.connect(timeout=8)
+            except Exception as ssl_ex:
+                logger.debug("Primary connect failed for %s, retrying ssl=False: %s", server_name, ssl_ex)
+                try:
+                    conn = res.connect(timeout=8, ssl=False)
+                except Exception as ex2:
+                    logger.warning("Failed MyPlex connect for %s: %s", server_name, ex2)
+    except Exception as ex:
+        logger.warning("Failed to locate resource %s (%s) on MyPlex: %s", server_name, server_id, ex)
 
     if not conn and target_res.get("server_url"):
         try:
             from plexapi.server import PlexServer
             t_token = target_res.get("access_token") or settings.plex_token
-            conn = PlexServer(target_res["server_url"], t_token, timeout=5)
+            conn = PlexServer(target_res["server_url"], t_token, timeout=8)
         except Exception as ex:
-            logger.debug("Failed direct URL connect for %s: %s", server_name, ex)
+            logger.warning("Failed direct URL connect for %s: %s", server_name, ex)
 
     if conn:
         _plex_connection_cache[server_id] = (conn, now)
         return conn
 
-    return primary_plex
+    logger.warning("Could not connect to target server %s (%s). Returning None.", server_name, server_id)
+    return None
 
 
 def fetch_albums_for_artist(artist_id: int, server_id: str | None = None):
@@ -1540,6 +1553,9 @@ def search_music_on_server(server_res: dict, query: str):
     try:
         server_id = server_res.get("server_id")
         target_plex = get_target_plex_connection(server_id)
+        if not target_plex:
+            logger.warning("Could not connect to server %s (%s) for search.", server_res.get("name"), server_id)
+            return []
 
         # Locate all music sections dynamically (by type 'artist' or 'music' or section names)
         music_libs = []

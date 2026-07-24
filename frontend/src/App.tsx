@@ -593,6 +593,9 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
 
       setIsFormDirty(false);
       setMsg("✓ Settings saved!");
+      setTimeout(() => {
+        onClose();
+      }, 400);
     } catch {
       setMsg("✗ Failed to save settings.");
     } finally {
