@@ -1,5 +1,6 @@
-fix: mobile queue drawer z-index and add rename toast feedback
+fix: restore layout CSS, fix Plex artwork cache key mismatch, and add fanart/poster fallbacks
 
-- Set z-index: 90 on mobile-queue-overlay in App.css to prevent alphabet rail overlap.
-- Set margin-left: 42px on main-content on mobile for proper card spacing.
-- Add setMsg toast feedback on user rename in SettingsModal in App.tsx.
+- Revert previous flexbox overhaul to restore exact classic layout CSS.
+- Fix Redis cache key format mismatch in fetch_art in backend/services/plex.py.
+- Add artwork resolution fallbacks (art, poster, album, artist) for Plex items without standard thumb attributes.
+- Fix scroll target ID lookup in ArtistList.tsx.

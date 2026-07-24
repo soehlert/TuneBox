@@ -105,8 +105,9 @@ function ArtistList({
         setVisibleCount(targetIndex + 36);
       }
       const targetArtist = filteredArtists[targetIndex];
+      const targetId = targetArtist.artist_id || (targetArtist as any).id;
       setTimeout(() => {
-        const el = document.getElementById(`artist-${targetArtist.artist_id}`);
+        const el = document.getElementById(`artist-${targetId}`);
         if (el) {
           el.scrollIntoView({ behavior: "smooth", block: "start" });
         }

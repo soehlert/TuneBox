@@ -1231,20 +1231,33 @@ def fetch_art(item_id: int, item_type: str, server_id: str | None = None):
                 detail="Invalid item type. Must be 'artist', 'album', or 'track'.",
             )
 
+        def _get_str(obj, attr):
+            val = getattr(obj, attr, None)
+            return val if isinstance(val, str) and val else None
+
         cache_key = f"thumb_path:{server_id or 'primary'}:{item_type}:{item_id}"
-        thumb_path = get_cached_data(cache_key)
+        thumb_path = get_cached_data(cache_key) or get_cached_data(f"thumb_path:{item_type}:{item_id}")
         if not thumb_path:
             item = plex.fetchItem(item_id)
             thumb_path = (
-                getattr(item, "thumb", None)
-                or getattr(item, "parentThumb", None)
-                or getattr(item, "grandparentThumb", None)
+                _get_str(item, "thumb")
+                or _get_str(item, "art")
+                or _get_str(item, "parentThumb")
+                or _get_str(item, "grandparentThumb")
+                or _get_str(item, "poster")
             )
             if not thumb_path and hasattr(item, "album"):
                 try:
                     alb = item.album()
                     if alb:
-                        thumb_path = getattr(alb, "thumb", None)
+                        thumb_path = _get_str(alb, "thumb") or _get_str(alb, "art")
+                except Exception:
+                    pass
+            if not thumb_path and hasattr(item, "artist"):
+                try:
+                    art_obj = item.artist()
+                    if art_obj:
+                        thumb_path = _get_str(art_obj, "thumb") or _get_str(art_obj, "art")
                 except Exception:
                     pass
 
