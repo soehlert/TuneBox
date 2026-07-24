@@ -1,5 +1,4 @@
-fix: robust album server_name resolution and flush stale Redis catalog keys
+fix: align album library resolution with artists and revert automatic Redis cache flush
 
-- Build case-insensitive server mapping (s_map) in fetch_albums_for_artist to guarantee server_name resolution.
-- Fallback album server_name to settings.plex_server_name (plex-so) to eliminate 'Unknown Library'.
-- Flush catalog keys from Redis in set_enabled_server_ids to purge stale audiobook and unmapped entries.
+- Revert automatic total Redis flushing in set_enabled_server_ids to standard targeted cache clearing.
+- Update fetch_albums_for_artist to use identical all_servers lookup logic as fetch_all_artists.

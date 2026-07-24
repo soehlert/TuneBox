@@ -1236,23 +1236,12 @@ def fetch_albums_for_artist(artist_id: int, server_id: str | None = None):
     import re
 
     all_servers = fetch_accessible_plex_servers()
-    s_map = {}
-    for s in all_servers:
-        if s.get("server_id"):
-            s_map[str(s["server_id"]).lower()] = s.get("name")
-        if s.get("name"):
-            s_map[str(s["name"]).lower()] = s.get("name")
 
     def _fetch_server_albums(src):
         s_id = src.get("server_id")
         a_id = src.get("artist_id")
-        raw_s_name = src.get("server_name")
-        resolved_name = (
-            raw_s_name
-            or (s_map.get(str(s_id).lower()) if s_id else None)
-            or settings.plex_server_name
-            or "plex-so"
-        )
+        s_info = next((s for s in all_servers if str(s.get("server_id", "")).lower() == str(s_id or "").lower()), None)
+        resolved_name = (s_info.get("name") if s_info else None) or src.get("server_name") or settings.plex_server_name or "plex-so"
         try:
             plex = get_target_plex_connection(s_id)
             artist_item = plex.fetchItem(int(a_id))
@@ -1291,12 +1280,9 @@ def fetch_albums_for_artist(artist_id: int, server_id: str | None = None):
         if not norm_title:
             norm_title = item["title"].lower()
 
-        resolved_item_sname = (
-            item.get("server_name")
-            or (s_map.get(str(item.get("server_id")).lower()) if item.get("server_id") else None)
-            or settings.plex_server_name
-            or "plex-so"
-        )
+        s_id = item.get("server_id")
+        s_info = next((s for s in all_servers if str(s.get("server_id", "")).lower() == str(s_id or "").lower()), None)
+        resolved_item_sname = (s_info.get("name") if s_info else None) or item.get("server_name") or settings.plex_server_name or "plex-so"
 
         if norm_title not in merged_albums:
             merged_albums[norm_title] = {
@@ -1314,7 +1300,7 @@ def fetch_albums_for_artist(artist_id: int, server_id: str | None = None):
             }
         else:
             existing = merged_albums[norm_title]
-            if not any(str(s.get("server_id")).lower() == str(item.get("server_id")).lower() for s in existing["sources"] if s.get("server_id")):
+            if not any(str(s.get("server_id", "")).lower() == str(item.get("server_id", "")).lower() for s in existing["sources"] if s.get("server_id")):
                 existing["sources"].append({
                     "server_id": item["server_id"],
                     "server_name": resolved_item_sname,
@@ -1691,20 +1677,16 @@ def get_enabled_server_ids() -> list[str]:
 
 
 def set_enabled_server_ids(server_ids: list[str]):
-    """Set list of server_ids enabled for the unified music catalog and flush stale caches."""
+    """Set list of server_ids enabled for the unified music catalog."""
     import json
     try:
-        from backend.services.redis import get_redis_cache_client
-        client = get_redis_cache_client()
-        client.set("enabled_server_ids", json.dumps(server_ids))
-        keys_to_clear = client.keys("*")
-        for k in keys_to_clear:
-            key_str = k.decode("utf-8") if isinstance(k, bytes) else str(k)
-            if key_str not in ("playback_queue", "playback_history", "enabled_server_ids"):
-                client.delete(k)
-        logger.info("[Redis Cache] Flushed stale catalog keys for server settings update.")
+        from backend.services.redis import get_redis_cache_client, clear_cache
+        get_redis_cache_client().set("enabled_server_ids", json.dumps(server_ids))
+        clear_cache("all_artists")
+        clear_cache("artists")
+        clear_cache("accessible_plex_servers")
     except Exception as e:
-        logger.warning("Failed to save enabled_server_ids / clear cache: %s", e)
+        logger.warning("Failed to save enabled_server_ids: %s", e)
 
 
 def search_music_on_server(server_res: dict, query: str):
