@@ -33,16 +33,29 @@ def compute_similarity(str1: str, str2: str) -> float:
     return SequenceMatcher(None, s1, s2).ratio()
 
 
-def fetch_raw_server_catalogs() -> dict[str, list[dict[str, Any]]]:
-    """Fetch raw artist lists from each enabled Plex server without TuneBox merging."""
-    enabled_ids = get_enabled_server_ids()
+def fetch_raw_server_catalogs(
+    server_filters: list[str] | None = None,
+    audit_all: bool = False,
+) -> dict[str, list[dict[str, Any]]]:
+    """Fetch raw artist lists from target Plex servers without TuneBox merging."""
     all_servers = fetch_accessible_plex_servers()
-    enabled_set = {str(x).lower() for x in enabled_ids}
 
-    target_servers = [
-        s for s in all_servers
-        if str(s.get("server_id", "")).lower() in enabled_set
-    ]
+    if audit_all:
+        target_servers = all_servers
+    elif server_filters:
+        filters_lower = {f.lower() for f in server_filters}
+        target_servers = [
+            s for s in all_servers
+            if str(s.get("server_id", "")).lower() in filters_lower
+            or str(s.get("name", "")).lower() in filters_lower
+        ]
+    else:
+        enabled_ids = get_enabled_server_ids()
+        enabled_set = {str(x).lower() for x in enabled_ids}
+        target_servers = [
+            s for s in all_servers
+            if str(s.get("server_id", "")).lower() in enabled_set
+        ]
 
     if not target_servers and all_servers:
         target_servers = all_servers[:1]
@@ -240,9 +253,27 @@ def generate_report(summary: dict[str, Any]) -> str:
 
 def main():
     """Run audit and print report."""
+    import argparse
+
+    parser = argparse.ArgumentParser(description="TuneBox Live Multi-Server Deduplication Audit Tool")
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help="Audit ALL accessible Plex servers, regardless of TuneBox enabled status",
+    )
+    parser.add_argument(
+        "--servers",
+        nargs="+",
+        metavar="SERVER",
+        help="Specific server names or server IDs to audit (e.g. --servers 'Server Alpha' 'Server Beta')",
+    )
+
+    args = parser.parse_args()
+
     print("Starting TuneBox Multi-Server Deduplication Audit...")
     try:
-        summary = audit_deduplication()
+        raw_catalogs = fetch_raw_server_catalogs(server_filters=args.servers, audit_all=args.all)
+        summary = audit_deduplication(raw_catalogs=raw_catalogs)
         report = generate_report(summary)
         print(report)
     except Exception as ex:
@@ -251,3 +282,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
