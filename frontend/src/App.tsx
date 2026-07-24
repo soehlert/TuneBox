@@ -348,8 +348,8 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
   const [sectionsOpen, setSectionsOpen] = useState({
     general: false,
     queue: false,
-    devices: true,
-    guests: true,
+    devices: false,
+    guests: false,
   });
 
   const [autoplayEnabled, setAutoplayEnabled] = useState(false);

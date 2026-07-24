@@ -1,6 +1,3 @@
-fix: collapse General Settings by default and auto-discover device names from User-Agent
+fix: collapse all settings accordion sections by default in App.tsx
 
-- Set general: false in sectionsOpen initial state in App.tsx.
-- Remove automatic handleRefreshResources call on settings load.
-- Add parse_device_from_user_agent helper in backend/websockets.py.
-- Combine username and auto-discovered device type into solid device_name in Connected Devices & Kiosks.
+- Set general, queue, devices, guests to false in sectionsOpen initial state in App.tsx.
