@@ -1415,24 +1415,33 @@ def search_music(query: str):
                 logger.warning("Error searching music on finished thread: %s", ex)
 
     # Deduplicate search results
-    seen_items = set()
-    deduped_results = []
+    # Deduplicate search results with robust title & artist matching
+    seen_items = {}
     for item in all_raw_results:
         itype = item.get("type")
+        norm_title = re.sub(r'[^a-z0-9]', '', (item.get("name") or item.get("title") or "").lower())
+        norm_artist = re.sub(r'[^a-z0-9]', '', item.get("artist", "").lower())
+
         if itype == "artist":
-            key = f"artist:{re.sub(r'[^a-z0-9]', '', item.get('name', '').lower())}"
+            key = f"artist:{norm_title}"
         elif itype == "album":
-            key = f"album:{re.sub(r'[^a-z0-9]', '', item.get('title', '').lower())}:{re.sub(r'[^a-z0-9]', '', item.get('artist', '').lower())}"
+            key = f"album:{norm_title}"
         elif itype == "track":
-            key = f"track:{re.sub(r'[^a-z0-9]', '', item.get('title', '').lower())}:{re.sub(r'[^a-z0-9]', '', item.get('artist', '').lower())}"
+            key = f"track:{norm_title}:{norm_artist}" if norm_artist else f"track:{norm_title}"
         else:
             key = str(id(item))
 
         if key not in seen_items:
-            seen_items.add(key)
-            deduped_results.append(item)
+            seen_items[key] = item
+        else:
+            # Upgrade existing item if new item has richer metadata
+            existing = seen_items[key]
+            if not existing.get("artist") and item.get("artist"):
+                existing["artist"] = item.get("artist")
+            if not existing.get("thumb") and item.get("thumb"):
+                existing["thumb"] = item.get("thumb")
 
-    return deduped_results
+    return list(seen_items.values())
 
 
 def fetch_art(item_id: int, item_type: str, server_id: str | None = None):
@@ -1690,24 +1699,38 @@ def search_music_on_server(server_res: dict, query: str):
                         "server_name": server_res.get("name"),
                     })
                 for item in album_results:
+                    alb_artist = (
+                        getattr(item, "parentTitle", None)
+                        or getattr(item, "artist", None)
+                        or getattr(item, "originalTitle", None)
+                        or ""
+                    )
                     formatted.append({
                         "title": item.title,
                         "type": "album",
                         "album_id": item.ratingKey,
-                        "artist": getattr(item, "parentTitle", ""),
+                        "artist": alb_artist,
                         "server_id": server_res.get("server_id"),
                         "server_name": server_res.get("name"),
                     })
                 for item in track_results:
                     if query_lower in item.title.lower():
+                        tr_artist = (
+                            getattr(item, "grandparentTitle", None)
+                            or getattr(item, "parentTitle", None)
+                            or getattr(item, "artist", None)
+                            or getattr(item, "originalTitle", None)
+                            or ""
+                        )
+                        tr_album = getattr(item, "parentTitle", "") or ""
                         formatted.append({
                             "title": item.title,
                             "type": "track",
                             "track_id": item.ratingKey,
                             "album_id": item.parentRatingKey,
                             "duration": milliseconds_to_seconds(item.duration) if item.duration else 0,
-                            "artist": getattr(item, "grandparentTitle", ""),
-                            "album": getattr(item, "parentTitle", ""),
+                            "artist": tr_artist,
+                            "album": tr_album,
                             "server_id": server_res.get("server_id"),
                             "server_name": server_res.get("name"),
                         })

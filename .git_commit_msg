@@ -1,5 +1,5 @@
-fix: fast return GET /api/auth/libraries and enforce strict enabled server search filtering
+fix: robust album/track deduplication and restrict background cache warming
 
-- Make GET /api/auth/libraries return in 0.5ms using cached state to prevent Settings modal open delays.
-- Add _failed_connection_cache (3 min TTL) so unreachable remote servers return fail-fast during search.
-- Enforce strict matching by server_id and name in search_music and fetch_all_artists so unchecked servers are never searched.
+- Improve artist/album attribute extraction in search_music_on_server using parentTitle, grandparentTitle, and artist fallbacks.
+- Merge duplicate albums and tracks cleanly by normalized title and artist keys in search_music.
+- Preserve enabled_server_ids across cache reinitializations so background tasks only query checked libraries.
