@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { Card, Typography, Button, Snackbar, Alert } from "@mui/material"; // MUI components
 import { FallbackImage } from "./FallbackImage";
+import { TuneBoxDialog } from "./TuneBoxDialog";
 import axios from "axios";
 import { getLocalUsername } from "../utils";
 import "../App.css";
@@ -34,6 +35,12 @@ function ArtistList({
   const navigate = useNavigate();
   const isDev = window.location.port === "5173";
   const apiBase = isDev ? `http://${window.location.hostname}:8000` : window.location.origin;
+
+  const [dialogState, setDialogState] = useState<{ open: boolean; title: string; message: string }>({
+    open: false,
+    title: "",
+    message: "",
+  });
 
   const [visibleCount, setVisibleCount] = useState(() => {
     const saved = sessionStorage.getItem("tunebox_artist_visible_count");
@@ -254,7 +261,11 @@ function ArtistList({
                               onClick={(e) => {
                                 e.stopPropagation();
                                 const listStr = sources.map((s: any) => `• ${s.server_name || "Unknown Library"}`).join("\n");
-                                alert(`"${artist.name}" is available on ${sources.length} libraries:\n\n${listStr}`);
+                                setDialogState({
+                                  open: true,
+                                  title: `Multi-Library Artist`,
+                                  message: `"${artist.name}" is available across ${sources.length} connected libraries:\n\n${listStr}`,
+                                });
                               }}
                             >
                               🌐 {sources.length} libraries
@@ -373,7 +384,11 @@ function ArtistList({
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   const listStr = sources.map((s: any) => `• ${s.server_name || "Unknown Library"}`).join("\n");
-                                  alert(`"${album.title}" is available on ${sources.length} libraries:\n\n${listStr}`);
+                                  setDialogState({
+                                    open: true,
+                                    title: `Multi-Library Album`,
+                                    message: `"${album.title}" is available across ${sources.length} connected libraries:\n\n${listStr}`,
+                                  });
                                 }}
                               >
                                 🌐 {sources.length} libraries
@@ -461,7 +476,11 @@ function ArtistList({
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   const listStr = sources.map((s: any) => `• ${s.server_name || "Unknown Library"}`).join("\n");
-                                  alert(`"${track.title}" is available on ${sources.length} libraries:\n\n${listStr}`);
+                                  setDialogState({
+                                    open: true,
+                                    title: `Multi-Library Track`,
+                                    message: `"${track.title}" is available across ${sources.length} connected libraries:\n\n${listStr}`,
+                                  });
                                 }}
                               >
                                 🌐 {sources.length} libraries
@@ -605,6 +624,16 @@ function ArtistList({
         </Snackbar>,
         document.body
       )}
+
+      <TuneBoxDialog
+        open={dialogState.open}
+        title={dialogState.title}
+        message={dialogState.message}
+        type="info"
+        icon="dns"
+        confirmText="Got It"
+        onConfirm={() => setDialogState({ ...dialogState, open: false })}
+      />
     </div>
   );
 }

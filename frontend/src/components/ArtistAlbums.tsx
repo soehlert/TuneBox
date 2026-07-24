@@ -3,6 +3,7 @@ import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import axios from "axios";
 import { Card, Typography } from "@mui/material";
 import { FallbackImage } from "./FallbackImage";
+import { TuneBoxDialog } from "./TuneBoxDialog";
 import "../App.css";
 import "./ArtistAlbums.css";
 
@@ -20,6 +21,11 @@ function ArtistAlbums() {
   const serverId = searchParams.get("server_id");
   const [albums, setAlbums] = useState<Album[]>([]);
   const [loading, setLoading] = useState(true);
+  const [dialogState, setDialogState] = useState<{ open: boolean; title: string; message: string }>({
+    open: false,
+    title: "",
+    message: "",
+  });
   const navigate = useNavigate();
   const isDev = window.location.port === "5173";
   const apiBase = isDev ? `http://${window.location.hostname}:8000` : window.location.origin;
@@ -94,7 +100,11 @@ function ArtistAlbums() {
                         onClick={(e) => {
                           e.stopPropagation();
                           const listStr = sources.map((s: any) => `• ${s.server_name || "Unknown Library"}`).join("\n");
-                          alert(`"${album.title}" is available on ${sources.length} libraries:\n\n${listStr}`);
+                          setDialogState({
+                            open: true,
+                            title: `Multi-Library Album`,
+                            message: `"${album.title}" is available across ${sources.length} connected libraries:\n\n${listStr}`,
+                          });
                         }}
                       >
                         🌐 {sources.length} libraries
@@ -108,6 +118,16 @@ function ArtistAlbums() {
           ))}
         </div>
       )}
+
+      <TuneBoxDialog
+        open={dialogState.open}
+        title={dialogState.title}
+        message={dialogState.message}
+        type="info"
+        icon="dns"
+        confirmText="Got It"
+        onConfirm={() => setDialogState({ ...dialogState, open: false })}
+      />
     </div>
   );
 }

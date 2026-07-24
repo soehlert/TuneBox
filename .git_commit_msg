@@ -1,6 +1,4 @@
-fix: resolve queue text overflow, add title hover tooltips, and use server name settings
+fix: style multi-library popups with TuneBoxDialog and move queue server pill below artist name
 
-- Wrap track titles in flex-bounded nodes with text-overflow ellipsis in Queue.tsx so long titles do not overlap timestamps.
-- Add flexShrink: 0 to server badges so they never get cut off.
-- Add title hover tooltip for full track names in the queue.
-- Use settings.plex_server_name (plex-so) instead of 'Home Server' fallback in backend loggers and payloads.
+- Replace native browser alerts with TuneBoxDialog component in ArtistList.tsx and ArtistAlbums.tsx for multi-library badges.
+- Move server pill badge in Queue.tsx to line 2 alongside artist name below track title.

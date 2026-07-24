@@ -295,13 +295,20 @@ const QueueComponent = () => {
                 ) : null}
                 <Box className="queue-item-art-placeholder" style={{ display: track.item_id ? "none" : "flex" }}>🎵</Box>
                 <Box className="queue-item-meta">
-                  <Box style={{ display: "flex", alignItems: "center", gap: "6px", minWidth: 0, width: "100%" }}>
+                  <Typography
+                    className="queue-item-title"
+                    title={track.title}
+                    style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "100%" }}
+                  >
+                    {track.title}
+                  </Typography>
+                  <Box style={{ display: "flex", alignItems: "center", gap: "6px", minWidth: 0, width: "100%", marginTop: "2px" }}>
                     <Typography
-                      className="queue-item-title"
-                      title={track.title}
+                      className="queue-item-artist"
+                      title={track.artist}
                       style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0, flex: 1 }}
                     >
-                      {track.title}
+                      {track.artist}
                     </Typography>
                     {track.server_name && (
                       <span
@@ -322,13 +329,6 @@ const QueueComponent = () => {
                       </span>
                     )}
                   </Box>
-                  <Typography
-                    className="queue-item-artist"
-                    title={track.artist}
-                    style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-                  >
-                    {track.artist}
-                  </Typography>
                 </Box>
               </Box>
               <Box style={{ display: "flex", alignItems: "center", gap: "6px" }}>
