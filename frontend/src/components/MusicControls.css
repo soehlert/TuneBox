@@ -189,44 +189,53 @@
 /* Responsive Overrides for Mobile */
 @media (max-width: 900px) {
   .player-inner-container {
-    padding: 0 16px;
+    padding: 0 12px;
   }
 
   .player-left-section {
-    width: auto;
-    max-width: 45%;
-    min-width: 90px;
+    flex: 1 1 auto;
+    min-width: 80px;
+    max-width: 38%;
   }
 
   .player-album-art {
-    width: 38px;
-    height: 38px;
-    margin-right: 8px;
+    width: 36px;
+    height: 36px;
+    margin-right: 6px;
   }
 
   .player-album-art-placeholder {
-    width: 38px;
-    height: 38px;
-    margin-right: 8px;
-    font-size: 1rem;
+    width: 36px;
+    height: 36px;
+    margin-right: 6px;
+    font-size: 0.9rem;
   }
 
   .player-song-title {
-    font-size: 0.82rem !important;
+    font-size: 0.8rem !important;
   }
 
   .player-song-artist {
-    font-size: 0.72rem !important;
+    font-size: 0.7rem !important;
   }
 
   .player-center-section {
-    width: auto;
+    flex: 0 0 auto;
+  }
+
+  .player-controls-buttons {
+    gap: 4px;
   }
 
   .player-right-section {
-    width: auto;
-    min-width: 0;
-    gap: 4px;
+    flex: 0 0 auto;
+    min-width: max-content;
+    gap: 2px;
+  }
+
+  .player-queue-btn {
+    display: flex !important;
+    flex-shrink: 0 !important;
   }
 
   .player-device-group {
@@ -234,7 +243,7 @@
   }
 
   .player-progress-row {
-    padding-top: 8px;
+    padding-top: 6px;
   }
 }
 

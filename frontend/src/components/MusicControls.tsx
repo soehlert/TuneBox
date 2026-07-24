@@ -11,8 +11,8 @@ import "./MusicControls.css";
 const MusicControlsComponent = ({
   instanceName,
   onOpenMobileQueue,
-  primaryServerName,
-  onOpenServerModal,
+  primaryServerName: _primaryServerName,
+  onOpenServerModal: _onOpenServerModal,
 }: {
   instanceName?: string;
   onOpenMobileQueue?: () => void;
@@ -332,37 +332,7 @@ const MusicControlsComponent = ({
         </Box>
 
         {/* Right Section: Device indicators & Settings / Queue */}
-        <Box className="player-right-section" style={{ justifyContent: "flex-end", alignItems: "center" }}>
-          {primaryServerName && onOpenServerModal && (
-            <div
-              className="server-indicator-badge"
-              onClick={onOpenServerModal}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "6px",
-                padding: "4px 10px",
-                background: "rgba(255, 255, 255, 0.07)",
-                border: "1px solid rgba(255, 255, 255, 0.15)",
-                borderRadius: "16px",
-                fontSize: "11px",
-                fontWeight: 600,
-                color: "rgba(255, 255, 255, 0.75)",
-                whiteSpace: "nowrap",
-                cursor: "pointer",
-                marginRight: "8px",
-                maxWidth: "140px",
-                overflow: "hidden",
-                flexShrink: 1
-              }}
-              title="Click to view connected Plex server details"
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: "14px", color: "#5cdd5c", flexShrink: 0 }}>dns</span>
-              <span className="server-name-text" style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
-                {primaryServerName}
-              </span>
-            </div>
-          )}
+        <Box className="player-right-section">
           <Box className="player-device-group">
             <DevicesIcon className="player-utility-icon" />
             <Typography className="player-device-text">{instanceName || "TuneBox"}</Typography>

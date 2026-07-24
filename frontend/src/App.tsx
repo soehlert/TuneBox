@@ -634,7 +634,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
         }}
       >
         {/* Sticky Header */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
           <h2 style={{ margin: 0, color: "#f5a623", fontSize: "20px", display: "flex", alignItems: "center", gap: "8px" }}>
             <span className="material-symbols-outlined">settings</span> TuneBox Settings
           </h2>
@@ -645,6 +645,29 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
             ✕
           </button>
         </div>
+
+        {/* Connected Plex Server Pill */}
+        {selectedServer && (
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              padding: "4px 12px",
+              background: "rgba(92, 221, 92, 0.1)",
+              border: "1px solid rgba(92, 221, 92, 0.3)",
+              borderRadius: "14px",
+              fontSize: "12px",
+              fontWeight: 600,
+              color: "#5cdd5c",
+              marginBottom: "14px",
+              alignSelf: "flex-start"
+            }}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: "15px", color: "#5cdd5c" }}>dns</span>
+            <span>Connected Server: <strong>{selectedServer}</strong></span>
+          </div>
+        )}
 
         {/* Sticky Alert Message Banner - High Contrast Translucent Fill */}
         {msg && (

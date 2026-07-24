@@ -1,4 +1,5 @@
-fix: update Force Skip button to blue info pill style and prevent player bar badge collision
+fix: relocate server badge to SettingsModal and protect mobile Queue button from overflow
 
-- Update Force Skip button styling in MusicControls.tsx to use the blue info pill theme (rgba(51, 117, 173, 0.15) background, #3376ad border, #9bd0ff text).
-- Update flex layout rules in MusicControls.css and add max-width text truncation to server-indicator-badge to prevent overlapping between center player controls and right section badges on narrower viewports.
+- Remove server indicator badge from MusicControls.tsx to eliminate player bar layout crowding.
+- Render green connected server pill near top of SettingsModal in App.tsx right below the header.
+- Update MusicControls.css mobile overrides to flex-protect .player-right-section and .player-queue-btn so the mobile Queue button is always visible on screen.
