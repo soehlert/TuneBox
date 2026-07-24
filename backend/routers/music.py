@@ -249,11 +249,31 @@ async def clear_the_queue(background_tasks: BackgroundTasks):
 
 @router.post("/play-queue")
 async def play_queue(background_tasks: BackgroundTasks):
-    """Start playing the entire queue on the active player.
+    """Start playing the entire queue on the active player."""
+    try:
+        player = get_active_player()
+        if not player:
+            raise HTTPException(
+                status_code=400,
+                detail="No Plex playback player selected. Please select an active player in Settings.",
+            )
+    except PlexApiException as pae:
+        raise HTTPException(
+            status_code=400,
+            detail="No Plex playback player selected or reachable. Please select an active player in Settings.",
+        ) from pae
+    except HTTPException:
+        raise
+    except Exception as e:
+        if "Playback control is disabled" in str(e):
+            raise HTTPException(
+                status_code=400,
+                detail="No Plex playback player selected. Please select an active player in Settings.",
+            ) from e
+        raise HTTPException(
+            status_code=500, detail=f"Error checking active player: {e}"
+        ) from e
 
-    Returns:
-        A message where we have started the queue.
-    """
     background_tasks.add_task(play_queue_on_device)
     return {"message": "Playback started in the background."}
 

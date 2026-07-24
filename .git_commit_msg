@@ -1,4 +1,4 @@
-fix: handle unconfigured player in orchestrator without dropping queue, and refine drag insertion line styling
+fix: display explicit warning alert when playback is started without a selected Plex player
 
-- Catch PlexApiException in playback_orchestrator when no active player is configured or reachable, setting playback_active to False to preserve all songs in the queue.
-- Remove box-shadow and outline blurs on .queue-item.drag-over in Queue.css to render a crisp 3px solid top insertion line indicator between tracks.
+- Update POST /api/music/play-queue in backend/routers/music.py to check for an active player and raise an HTTP 400 with a descriptive error message if no player is selected.
+- Update handleStartQueue in MusicControls.tsx to display an alert informing the user to select an active player in Settings.

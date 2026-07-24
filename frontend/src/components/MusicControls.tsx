@@ -150,6 +150,9 @@ const MusicControlsComponent = ({
 
       if (response.ok) {
         setIsPlaying(true);
+      } else {
+        const errorData = await response.json();
+        alert(errorData.detail || "No Plex player selected. Please select an active player in Settings.");
       }
     } catch (error) {
       console.error('Error starting queue playback:', error);
