@@ -1,5 +1,4 @@
-fix: replace single server dropdown with multi-selector checklist in General Settings and default strictly to Home server
+fix: defer active libraries API update until clicking Save Settings in App.tsx
 
-- Update get_enabled_server_ids to default strictly to Home server only.
-- Replace single dropdown with interactive multi-selector checklist under General Settings in App.tsx.
-- Save active server selection live via POST /api/auth/libraries.
+- Move /api/auth/libraries POST request to handleSave in App.tsx.
+- Remove instant API call and toast from server checkbox onChange handler.

@@ -583,6 +583,14 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
         },
         { headers: { "x-admin-token": adminToken } }
       );
+
+      const enabledIds = libraries.filter((l) => l.enabled).map((l) => l.server_id);
+      await axios.post(
+        getApiUrl("/api/auth/libraries"),
+        { enabled_server_ids: enabledIds },
+        { headers: { "x-admin-token": adminToken } }
+      );
+
       setIsFormDirty(false);
       setMsg("✓ Settings saved!");
     } catch {
@@ -841,21 +849,11 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                           <input
                             type="checkbox"
                             checked={lib.enabled}
-                            onChange={async (e) => {
+                            onChange={(e) => {
                               const updatedEnabled = e.target.checked;
                               const nextLibs = libraries.map((l) => l.server_id === lib.server_id ? { ...l, enabled: updatedEnabled } : l);
                               setLibraries(nextLibs);
-                              const enabledIds = nextLibs.filter((l) => l.enabled).map((l) => l.server_id);
-                              try {
-                                await axios.post(
-                                  getApiUrl("/api/auth/libraries"),
-                                  { enabled_server_ids: enabledIds },
-                                  { headers: { "x-admin-token": adminToken } }
-                                );
-                                setMsg("✓ Active libraries updated!");
-                              } catch (err) {
-                                console.error("Failed to update libraries:", err);
-                              }
+                              setIsFormDirty(true);
                             }}
                           />
                           <span>{lib.name} {lib.is_primary ? "(Home Server)" : ""}</span>
