@@ -154,13 +154,56 @@ async def update_websocket_clients():
         await asyncio.sleep(1)
 
 
-def _register_client(client_id: str, name: str, role: str, is_display: bool = False):
-    """Upsert a client entry in the registry."""
+def parse_device_from_user_agent(user_agent: str) -> str:
+    """Parse User-Agent string into a clean, human-readable device name."""
+    if not user_agent:
+        return "Web Browser"
+
+    ua = user_agent.lower()
+
+    # Device / OS detection
+    if "iphone" in ua:
+        os_name = "iPhone"
+    elif "ipad" in ua:
+        os_name = "iPad"
+    elif "android" in ua:
+        os_name = "Android"
+    elif "macintosh" in ua or "mac os" in ua:
+        os_name = "macOS"
+    elif "windows" in ua:
+        os_name = "Windows"
+    elif "linux" in ua:
+        os_name = "Linux"
+    else:
+        os_name = "Device"
+
+    # Browser detection
+    if "edg" in ua:
+        browser = "Edge"
+    elif "chrome" in ua or "crios" in ua:
+        browser = "Chrome"
+    elif "firefox" in ua or "fxios" in ua:
+        browser = "Firefox"
+    elif "safari" in ua:
+        browser = "Safari"
+    else:
+        browser = "Browser"
+
+    return f"{browser} on {os_name}"
+
+
+def _register_client(client_id: str, name: str, role: str, is_display: bool = False, user_agent: str = ""):
+    """Upsert a client entry in the registry with auto-discovered device name."""
     existing = client_registry.get(client_id, {})
+    device_type = parse_device_from_user_agent(user_agent or existing.get("user_agent", ""))
+    device_name = f"{name} ({device_type})" if name else device_type
+
     client_registry[client_id] = {
         "name": name,
         "role": role,
-        "is_display": is_display or existing.get("is_display", False),
+        "device_name": device_name,
+        "user_agent": user_agent or existing.get("user_agent", ""),
+        "is_display": is_display,
         "connected_at": existing.get("connected_at", datetime.now(UTC).isoformat()),
     }
     try:
@@ -177,6 +220,9 @@ async def websocket_handler(websocket: WebSocket):
     logger.debug("websocket_handler: Starting handler")
     await websocket.accept()
     logger.debug("websocket_handler: Connection accepted")
+
+    # Extract HTTP headers for User-Agent auto-discovery
+    header_user_agent = websocket.headers.get("user-agent", "")
 
     # Wait for the first message from the client to get the type
     message = await websocket.receive_text()
@@ -202,7 +248,8 @@ async def websocket_handler(websocket: WebSocket):
         name = data.get("name", "Unknown")
         role = data.get("role", "guest")
         is_display = data.get("is_display", False)
-        _register_client(client_id, name, role, is_display)
+        user_agent = data.get("user_agent", header_user_agent)
+        _register_client(client_id, name, role, is_display, user_agent=user_agent)
         active_connections["client_control"][client_id] = websocket
         session_id = client_id
         await broadcast_skip_status()
@@ -262,7 +309,8 @@ async def websocket_handler(websocket: WebSocket):
                 name = data.get("name", "Unknown")
                 role = data.get("role", "guest")
                 is_display = data.get("is_display", False)
-                _register_client(client_id, name, role, is_display)
+                user_agent = data.get("user_agent", header_user_agent)
+                _register_client(client_id, name, role, is_display, user_agent=user_agent)
                 active_connections["client_control"][client_id] = websocket
                 await broadcast_skip_status()
 

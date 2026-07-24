@@ -1,4 +1,6 @@
-fix: default open General Settings section and auto-refresh Plex devices on settings load
+fix: collapse General Settings by default and auto-discover device names from User-Agent
 
-- Set general: true, devices: true, guests: true in sectionsOpen default state in App.tsx.
-- Automatically invoke handleRefreshResources() when loading settings to trigger Plex device auto-discovery.
+- Set general: false in sectionsOpen initial state in App.tsx.
+- Remove automatic handleRefreshResources call on settings load.
+- Add parse_device_from_user_agent helper in backend/websockets.py.
+- Combine username and auto-discovered device type into solid device_name in Connected Devices & Kiosks.

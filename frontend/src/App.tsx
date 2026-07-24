@@ -30,6 +30,8 @@ interface GuestProfile {
 interface ClientSession {
   client_id: string;
   name: string;
+  device_name?: string;
+  user_agent?: string;
   role: string;
   is_display: boolean;
   connected_at: string;
@@ -344,7 +346,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
   const [selectedPlaylistId, setSelectedPlaylistId] = useState("");
   const [seeding, setSeeding] = useState(false);
   const [sectionsOpen, setSectionsOpen] = useState({
-    general: true,
+    general: false,
     queue: false,
     devices: true,
     guests: true,
@@ -1027,7 +1029,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                       >
                         <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
                           <span style={{ color: "#fff", fontSize: "14px", fontWeight: "bold" }}>
-                            {c.name}
+                            {c.device_name || c.name}
                           </span>
                           <span style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "11px" }}>
                             {c.is_display ? "Kiosk Display Screen" : `Device Session (${c.role})`}
