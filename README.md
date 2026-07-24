@@ -10,15 +10,12 @@
 
 - 🎧 **Multi-Server Unified Music Library**: Streams, indexes, and merges music across your primary home Plex server and shared remote servers simultaneously
 - 🏆 **Smart Quality-Based Track Prioritization**: When identical albums or tracks are found on multiple servers, TuneBox automatically selects and streams the highest audio quality (Lossless FLAC/ALAC > High Bitrate MP3)
-- 🌐 **Multi-Library Badges & Modals**: Visual badges (`🌐 X libraries`) indicate items hosted across multiple servers. Tapping a badge opens a custom glassmorphism modal detailing all hosting libraries
 - 📱 **Guest Access via QR Code**: Guests scan a QR code at your party to browse music and queue tracks instantly—no app installation or accounts required
 - ⚡ **Real-Time Queue Synchronization**: Everyone's device stays in sync. Queue changes, track progress, and playback state update instantly across all connected clients
 - 🗳️ **Collaborative Skip Voting**: Party guests vote in real-time to skip songs. When the threshold is reached, TuneBox skips to the next track
-- ⏹️ **Admin Stop & Queue Drain Control**: Admin capability to stop active speaker playback, clear now-playing state, and wipe the entire queue immediately
 - 📋 **Playlist Pre-Seeding**: Host can seed TuneBox from Plex playlists. Guest selections automatically leapfrog ahead of pre-seeded tracks
 - 📻 **Smart Autoplay Mode**: Keeps music playing when the guest queue runs low by dynamically seeding related tracks. Guest selections automatically leapfrog fallback tracks
 - 🏆 **Party Stats & Leaderboards**: Track party stats (top queue contributors, skip voters, most skipped tracks) to see who is driving the vibe
-- ⚙️ **Refined Settings Modal**: Clean, auto-collapsing accordions with scrollbar-free design, non-closing save confirmations, and primary server defaults
 
 ---
 
