@@ -250,7 +250,7 @@ def clear_cache(key: str):
 
 
 def add_to_history(track: dict | int | str):
-    """Add a track object to playback history list in Redis (capped at 20 items)."""
+    """Add a track object to playback history list in Redis (capped at 20 items, deduplicated)."""
     try:
         client = get_redis_queue_client()
         if isinstance(track, (int, str)):
@@ -258,12 +258,29 @@ def add_to_history(track: dict | int | str):
         else:
             track_obj = track
 
+        item_id = track_obj.get("item_id")
+
+        # Deduplicate existing items with matching item_id
+        if item_id:
+            try:
+                raw_history = client.lrange("playback_history_v2", 0, -1)
+                for item in raw_history:
+                    item_str = item.decode("utf-8") if isinstance(item, bytes) else item
+                    if isinstance(item_str, str):
+                        try:
+                            parsed = json.loads(item_str)
+                            if parsed.get("item_id") == item_id:
+                                client.lrem("playback_history_v2", 0, item_str)
+                        except Exception:
+                            pass
+                client.lrem("playback_history", 0, str(item_id))
+            except Exception as d_ex:
+                logger.debug("Failed to remove old duplicate from history: %s", d_ex)
+
         track_json = json.dumps(track_obj)
         client.lpush("playback_history_v2", track_json)
         client.ltrim("playback_history_v2", 0, 19)
 
-        # Also push item_id to legacy playback_history for autoplay backwards compatibility
-        item_id = track_obj.get("item_id")
         if item_id:
             client.lpush("playback_history", str(item_id))
             client.ltrim("playback_history", 0, 19)
@@ -274,20 +291,32 @@ def add_to_history(track: dict | int | str):
 
 
 def get_playback_history() -> list[dict]:
-    """Retrieve recent playback history track objects from Redis."""
+    """Retrieve recent playback history track objects from Redis (deduplicated by item_id)."""
     try:
         client = get_redis_queue_client()
         raw_history = client.lrange("playback_history_v2", 0, -1)
         res = []
+        seen_ids = set()
         for item in raw_history:
             if isinstance(item, bytes):
                 item = item.decode("utf-8")
             if isinstance(item, str):
                 try:
-                    res.append(json.loads(item))
+                    parsed = json.loads(item)
+                    tid = parsed.get("item_id")
+                    if tid and tid in seen_ids:
+                        continue
+                    if tid:
+                        seen_ids.add(tid)
+                    res.append(parsed)
                 except Exception:
                     pass
             elif isinstance(item, dict):
+                tid = item.get("item_id")
+                if tid and tid in seen_ids:
+                    continue
+                if tid:
+                    seen_ids.add(tid)
                 res.append(item)
         return res
     except Exception as e:
