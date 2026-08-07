@@ -29,6 +29,7 @@ from backend.services.plex import (
     search_music,
     search_music_on_server,
     stop_playback,
+    pause_playback,
     skip_current_track,
     fetch_playlists,
     seed_queue_from_playlist,
@@ -342,15 +343,10 @@ async def play_queue(background_tasks: BackgroundTasks):
     return {"message": "Playback started in the background."}
 
 
-@router.post("/stop-queue")
-async def stop_queue(background_tasks: BackgroundTasks):
-    """Stop playback on the active player.
-
-    Returns:
-        The stopping of the playback.
-    """
-    result = stop_playback()
-    background_tasks.add_task(send_queue)
+@router.post("/pause")
+async def pause_queue(background_tasks: BackgroundTasks):
+    """Pause or resume playback on active player without clearing queue or now_playing track."""
+    result = pause_playback()
     background_tasks.add_task(send_current_playing)
     return result
 

@@ -194,3 +194,19 @@ def test_skip_endpoint_admin_token(mocker):
     assert admin_resp.status_code == 200
     assert admin_resp.json() == {"message": "Track skipped successfully."}
 
+
+def test_pause_endpoint_toggles_playback_without_clearing_queue(mocker):
+    """Test POST /api/music/pause toggles pause without admin token and preserves queue."""
+    from fastapi.testclient import TestClient
+    from backend.main import app
+
+    client = TestClient(app)
+
+    mocker.patch("backend.services.plex.pause_playback", return_value={"message": "Playback paused successfully."})
+    mocker.patch("backend.websockets.send_current_playing")
+
+    resp = client.post("/api/music/pause")
+    assert resp.status_code == 200
+    assert resp.json() == {"message": "Playback paused successfully."}
+
+

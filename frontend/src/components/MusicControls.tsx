@@ -123,7 +123,7 @@ const MusicControlsComponent = ({
 
   const handlePlayStop = async () => {
     try {
-      const endpoint = isPlaying ? "/api/music/stop-queue" : "/api/music/play-queue";
+      const endpoint = "/api/music/pause";
       const response = await fetch(`${apiBase}${endpoint}`, {
         method: 'POST',
         headers: {
@@ -133,10 +133,6 @@ const MusicControlsComponent = ({
 
       if (response.ok) {
         setIsPlaying(!isPlaying);
-        if (isPlaying) {
-          setProgress(0);
-          setElapsedTime('0:00');
-        }
       }
     } catch (error) {
       console.error('Error toggling playback:', error);

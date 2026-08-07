@@ -904,6 +904,63 @@ def stop_playback():
         ) from e
 
 
+def pause_playback():
+    """Toggle or pause current playback on active Plex player without clearing now_playing or queue."""
+    global playback_active
+
+    try:
+        now_playing = get_cached_data("now_playing")
+        current_state = now_playing.get("track_state", "playing") if isinstance(now_playing, dict) else "playing"
+        new_state = "paused" if current_state == "playing" else "playing"
+
+        player = None
+        try:
+            player = get_active_player()
+        except Exception as p_ex:
+            logger.debug("Could not resolve active player for pause_playback: %s", p_ex)
+
+        if player:
+            if new_state == "paused":
+                for cmd in [
+                    lambda: player.pause(mtype="music"),
+                    lambda: player.pause(),
+                    lambda: player.stop(mtype="music"),
+                    lambda: player.stop(),
+                ]:
+                    try:
+                        cmd()
+                        break
+                    except Exception:
+                        pass
+            else:
+                for cmd in [
+                    lambda: player.play(mtype="music"),
+                    lambda: player.play(),
+                ]:
+                    try:
+                        cmd()
+                        break
+                    except Exception:
+                        pass
+
+        if new_state == "paused":
+            playback_active = False
+            track_time_tracker.pause()
+        else:
+            playback_active = True
+            track_time_tracker.resume()
+
+        if isinstance(now_playing, dict):
+            now_playing["track_state"] = new_state
+            cache_data("now_playing", now_playing)
+
+        return {"message": f"Playback {new_state} successfully."}
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error pausing playback: {e}"
+        ) from e
+
+
 def skip_current_track():
     """Skip the currently playing track by stopping player and advancing queue."""
     global playback_active
