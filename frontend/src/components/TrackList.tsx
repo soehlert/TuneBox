@@ -12,6 +12,7 @@ interface Track {
   title: string;
   duration: string;
   track_number?: number;
+  disc_number?: number;
 }
 
 interface AlbumData {
@@ -103,6 +104,17 @@ function TrackList() {
     }
   };
 
+  const hasMultipleDiscs = albumData?.tracks.some((t, idx, arr) => {
+    if (idx === 0) return false;
+    const prev = arr[idx - 1];
+    return (
+      (t.disc_number && prev.disc_number && t.disc_number !== prev.disc_number) ||
+      (t.track_number === 1 && prev.track_number && prev.track_number > 1)
+    );
+  });
+
+  let runningDisc = 1;
+
   return (
     <div className="track-list-page">
       <div className="track-list-container">
@@ -159,27 +171,68 @@ function TrackList() {
               )}
 
               <div className="track-list">
-                {albumData.tracks.map((track, idx) => (
-                  <Card className="track-card" key={track.track_id}>
-                    <div className="track-card-left" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                      <Typography className="track-number" style={{ opacity: 0.6, fontWeight: "bold", minWidth: "24px" }}>
-                        {track.track_number ?? (idx + 1)}.
-                      </Typography>
-                      <Typography className="album-track-title">{track.title}</Typography>
+                {albumData.tracks.map((track, idx, tracks) => {
+                  let showDiscHeader = false;
+                  if (idx === 0) {
+                    if (hasMultipleDiscs) {
+                      runningDisc = track.disc_number || 1;
+                      showDiscHeader = true;
+                    }
+                  } else {
+                    const prev = tracks[idx - 1];
+                    if (track.disc_number && prev.disc_number && track.disc_number !== prev.disc_number) {
+                      runningDisc = track.disc_number;
+                      showDiscHeader = true;
+                    } else if (track.track_number === 1 && prev.track_number && prev.track_number > 1) {
+                      runningDisc = (runningDisc || 1) + 1;
+                      showDiscHeader = true;
+                    }
+                  }
+
+                  return (
+                    <div key={track.track_id} style={{ display: "contents" }}>
+                      {showDiscHeader && (
+                        <div
+                          className="disc-header"
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "10px",
+                            marginTop: idx === 0 ? "16px" : "32px",
+                            marginBottom: "12px",
+                            paddingBottom: "8px",
+                            borderBottom: "1px solid rgba(255, 255, 255, 0.15)",
+                            width: "100%",
+                          }}
+                        >
+                          <span className="material-symbols-outlined" style={{ color: "#f5a623", fontSize: "20px" }}>album</span>
+                          <Typography variant="h6" style={{ fontWeight: 800, color: "#f5a623", letterSpacing: "0.5px" }}>
+                            Disc {runningDisc}
+                          </Typography>
+                        </div>
+                      )}
+                      <Card className="track-card">
+                        <div className="track-card-left" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                          <Typography className="track-number" style={{ opacity: 0.6, fontWeight: "bold", minWidth: "24px" }}>
+                            {track.track_number ?? (idx + 1)}.
+                          </Typography>
+                          <Typography className="album-track-title">{track.title}</Typography>
+                        </div>
+                        <div className="track-card-right">
+                          <Typography className="track-duration">
+                            {formatDuration(track.duration)}
+                          </Typography>
+                          <Button
+                            variant="contained"
+                            onClick={() => addToQueue(track.track_id)}
+                          >
+                            Add to Queue
+                          </Button>
+                        </div>
+                      </Card>
                     </div>
-                    <div className="track-card-right">
-                      <Typography className="track-duration">
-                        {formatDuration(track.duration)}
-                      </Typography>
-                      <Button
-                        variant="contained"
-                        onClick={() => addToQueue(track.track_id)}
-                      >
-                        Add to Queue
-                      </Button>
-                    </div>
-                  </Card>
-                ))}
+                  );
+                })}
               </div>
             </>
           ) : (

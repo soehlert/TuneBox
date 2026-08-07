@@ -1336,6 +1336,7 @@ def fetch_tracks_for_album(album_id: int, server_id: str | None = None):
                     "title": t["title"],
                     "duration": t["duration"],
                     "track_number": idx + 1,
+                    "disc_number": t.get("disc_number", 1),
                 }
                 for idx, t in enumerate(tracks)
             ],
@@ -1350,6 +1351,8 @@ def fetch_tracks_for_album(album_id: int, server_id: str | None = None):
             for idx, trk in enumerate(cached_tracks["tracks"]):
                 if "track_number" not in trk:
                     trk["track_number"] = idx + 1
+                if "disc_number" not in trk:
+                    trk["disc_number"] = trk.get("disc_number", 1)
         return cached_tracks
 
     plex = get_target_plex_connection(server_id)
@@ -1379,6 +1382,7 @@ def fetch_tracks_for_album(album_id: int, server_id: str | None = None):
         quality_score = 1000000 if is_lossless else (bitrate or 256)
 
         track_number = getattr(track, "index", None) or getattr(track, "trackNumber", None) or (idx + 1)
+        disc_number = getattr(track, "discIndex", None) or getattr(track, "parentIndex", None) or 1
 
         track_list.append({
             "track_id": track.ratingKey,
@@ -1389,6 +1393,7 @@ def fetch_tracks_for_album(album_id: int, server_id: str | None = None):
             "bitrate": bitrate,
             "quality_score": quality_score,
             "track_number": track_number,
+            "disc_number": int(disc_number),
         })
 
     result = {
