@@ -44,47 +44,16 @@ export const BrowseTabs: React.FC<BrowseTabsProps> = ({ currentMode, onModeChang
   ];
 
   return (
-    <div
-      className="browse-tabs-container"
-      style={{
-        display: "flex",
-        gap: "6px",
-        marginBottom: "24px",
-        background: "rgba(255, 255, 255, 0.04)",
-        padding: "4px",
-        borderRadius: "30px",
-        maxWidth: "100%",
-        overflowX: "auto",
-        WebkitOverflowScrolling: "touch",
-        boxSizing: "border-box",
-        border: "1px solid rgba(255, 255, 255, 0.08)",
-      }}
-    >
+    <div className="browse-tabs-container">
       {tabs.map((tab) => {
         const isActive = currentMode === tab.id;
         return (
           <button
             key={tab.id}
             onClick={() => onModeChange(tab.id)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              background: isActive ? "linear-gradient(135deg, #0077b6 0%, #bf095e 100%)" : "transparent",
-              color: isActive ? "#fff" : "rgba(255, 255, 255, 0.6)",
-              border: "none",
-              padding: "8px 16px",
-              borderRadius: "20px",
-              fontSize: "13px",
-              fontWeight: 700,
-              cursor: "pointer",
-              whiteSpace: "nowrap",
-              flexShrink: 0,
-              transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
-              boxShadow: isActive ? "0 4px 15px rgba(0, 119, 182, 0.4)" : "none",
-            }}
+            className={`browse-tab-btn ${isActive ? "active" : ""}`}
           >
-            <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>{tab.icon}</span>
+            <span className="material-symbols-outlined">{tab.icon}</span>
             {tab.label}
           </button>
         );

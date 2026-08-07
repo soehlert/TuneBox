@@ -461,6 +461,69 @@
   margin-left: 0 !important;
 }
 
+/* Browse Tabs Container */
+.browse-tabs-container {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 6px;
+  border-radius: 24px;
+  width: fit-content;
+  max-width: 100%;
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.browse-tab-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  border: none;
+  padding: 8px 18px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.browse-tab-btn span {
+  font-size: 18px;
+}
+
+.browse-tab-btn.active {
+  background: linear-gradient(135deg, #0077b6 0%, #bf095e 100%);
+  color: #fff;
+  box-shadow: 0 4px 15px rgba(0, 119, 182, 0.4);
+}
+
+@media (max-width: 600px) {
+  .browse-tabs-container {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    width: 100%;
+    border-radius: 16px;
+    gap: 6px;
+    padding: 6px;
+  }
+
+  .browse-tab-btn {
+    padding: 10px 12px;
+    font-size: 13px;
+    border-radius: 12px;
+    width: 100%;
+  }
+
+  .browse-tab-btn span {
+    font-size: 16px;
+  }
+}
+
 
 /* Server Search Dropdown Menu (Desktop default: aligned with search bar) */
 .server-dropdown-menu {
