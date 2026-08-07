@@ -212,11 +212,11 @@
 .queue-tabs-container {
   display: flex;
   gap: 8px;
-  background: rgba(0, 0, 0, 0.3);
-  padding: 4px;
-  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 6px;
+  border-radius: 24px;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 
 .queue-tab-btn {
@@ -228,24 +228,25 @@
   background: transparent;
   border: none;
   color: rgba(255, 255, 255, 0.6);
-  padding: 8px 12px;
-  border-radius: 8px;
+  padding: 8px 14px;
+  border-radius: 20px;
   font-family: var(--font-body);
-  font-size: 0.8rem;
-  font-weight: 600;
+  font-size: 0.85rem;
+  font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s ease;
+  white-space: nowrap;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.queue-tab-btn:hover {
+.queue-tab-btn:hover:not(.active) {
   color: #ffffff;
   background: rgba(255, 255, 255, 0.05);
 }
 
 .queue-tab-btn.active {
-  background: rgba(245, 166, 35, 0.15);
-  color: #f5a623;
-  border: 1px solid rgba(245, 166, 35, 0.3);
+  background: linear-gradient(135deg, #0077b6 0%, #bf095e 100%);
+  color: #ffffff;
+  box-shadow: 0 4px 15px rgba(0, 119, 182, 0.4);
 }
 
 .requeue-btn {
