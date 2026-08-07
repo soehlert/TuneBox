@@ -2235,31 +2235,33 @@ function App() {
             </div>
           </div>
 
-          {/* Persistent Alphabet Fast-Scroll Sidebar on Left */}
-          <aside className="left-sidebar">
-            <div className="alphabet-filter">
-              <button
-                onClick={() => handleAlphabetClick("0-9")}
-                className={selectedLetter === "0-9" ? "active" : ""}
-              >
-                #
-              </button>
-              {"ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map((letter) => (
+          {/* Persistent Alphabet Fast-Scroll Sidebar on Left (Only in Artists View) */}
+          {(location.pathname === "/" || location.pathname === "/artists") && viewMode === "artists" && (
+            <aside className="left-sidebar">
+              <div className="alphabet-filter">
                 <button
-                  key={letter}
-                  onClick={() => handleAlphabetClick(letter)}
-                  className={selectedLetter === letter ? "active" : ""}
+                  onClick={() => handleAlphabetClick("0-9")}
+                  className={selectedLetter === "0-9" ? "active" : ""}
                 >
-                  {letter}
+                  #
                 </button>
-              ))}
-            </div>
-          </aside>
+                {"ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map((letter) => (
+                  <button
+                    key={letter}
+                    onClick={() => handleAlphabetClick(letter)}
+                    className={selectedLetter === letter ? "active" : ""}
+                  >
+                    {letter}
+                  </button>
+                ))}
+              </div>
+            </aside>
+          )}
 
           {/* Main Grid Wrapper */}
           <div className="main-wrapper">
             {/* Subpage content */}
-            <div className="main-content">
+            <div className={`main-content ${(location.pathname === "/" || location.pathname === "/artists") && viewMode !== "artists" ? "no-sidebar" : ""}`}>
               <div className="header-gradient"></div>
               {(location.pathname === "/" || location.pathname === "/artists") && (
                 <BrowseTabs currentMode={viewMode} onModeChange={setViewMode} />
