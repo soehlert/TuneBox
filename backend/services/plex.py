@@ -353,7 +353,6 @@ def play_song(player, song, server_token=None, server_url=None):
         "server_name": getattr(song, "server_name", None),
     }
     cache_data("now_playing", song_data)
-    add_to_history(song_data)
 
     track_time_tracker.start(song.title)
     logger.info("Song %s started playing on player: %s", song.title, player.title)
@@ -630,6 +629,7 @@ async def playback_orchestrator():
                                 "Track %s finished. Advancing queue.",
                                 cached_track["title"],
                             )
+                            add_to_history(cached_track)
                             # Stop current tracking
                             track_time_tracker.stop()
                             # Remove finished track
@@ -984,6 +984,7 @@ def skip_current_track():
 
     cached_track = get_cached_data("now_playing")
     if cached_track:
+        add_to_history(cached_track)
         remove_from_redis_queue(cached_track["item_id"])
 
     track_time_tracker.stop()
