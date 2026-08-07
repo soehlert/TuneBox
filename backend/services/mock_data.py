@@ -100,6 +100,8 @@ MOCK_ARTISTS = []
 MOCK_ALBUMS = {}
 MOCK_TRACKS = {}
 
+GENRES = ["Electronic", "Rock", "Pop", "Classic Rock", "Alternative", "Soul", "Disco"]
+
 for idx, artist_name in enumerate(ARTIST_NAMES):
     artist_id = 1001 + idx
     MOCK_ARTISTS.append({"artist_id": artist_id, "name": artist_name})
@@ -109,11 +111,17 @@ for idx, artist_name in enumerate(ARTIST_NAMES):
 
     for a_idx, album_title in enumerate(albums):
         album_id = 2000 + (idx * 6) + (a_idx + 1)
+        year = 1970 + ((idx * 5 + a_idx * 4) % 54)
+        genre = GENRES[(idx + a_idx) % len(GENRES)]
         MOCK_ALBUMS[artist_id].append(
             {
                 "album_id": album_id,
                 "artist": artist_name,
+                "artist_id": artist_id,
                 "title": album_title,
+                "year": year,
+                "genre": genre,
+                "thumb": f"/api/music/album-art/{album_id}",
             }
         )
 

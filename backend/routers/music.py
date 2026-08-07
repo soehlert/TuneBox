@@ -13,6 +13,11 @@ from backend.services.plex import (
     fetch_accessible_plex_servers,
     fetch_albums_for_artist,
     fetch_all_artists,
+    fetch_all_albums,
+    fetch_all_genres,
+    fetch_albums_by_genre,
+    fetch_all_decades,
+    fetch_albums_by_decade,
     fetch_art,
     fetch_tracks_for_album,
     get_active_player,
@@ -401,6 +406,56 @@ def get_albums_for_artist(artist_id: int, server_id: str | None = None):
         raise HTTPException(
             status_code=500, detail=f"Error fetching albums for artist {artist_id}: {e}"
         ) from e
+
+
+# Fetch all unique albums across music library
+@router.get("/all-albums")
+def get_all_albums_endpoint():
+    """Fetch all unique albums across the music library."""
+    try:
+        return fetch_all_albums()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching all albums: {e}") from e
+
+
+# Fetch music genres with album counts
+@router.get("/genres")
+def get_genres_endpoint():
+    """Fetch all music genres with album counts."""
+    try:
+        return fetch_all_genres()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching genres: {e}") from e
+
+
+# Fetch albums by genre
+@router.get("/genres/{genre_name}/albums")
+def get_albums_by_genre_endpoint(genre_name: str):
+    """Fetch all albums matching a specific genre."""
+    try:
+        return fetch_albums_by_genre(genre_name)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching albums for genre {genre_name}: {e}") from e
+
+
+# Fetch decade breakdown with album counts
+@router.get("/decades")
+def get_decades_endpoint():
+    """Fetch decade breakdown with album counts."""
+    try:
+        return fetch_all_decades()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching decades: {e}") from e
+
+
+# Fetch albums by decade range
+@router.get("/decades/{year_start}/{year_end}/albums")
+def get_albums_by_decade_endpoint(year_start: int, year_end: int):
+    """Fetch all albums released within a specific decade year range."""
+    try:
+        return fetch_albums_by_decade(year_start, year_end)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching albums for decade {year_start}-{year_end}: {e}") from e
 
 
 # Fetch tracks for a specific album

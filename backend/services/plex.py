@@ -1318,6 +1318,117 @@ def fetch_albums_for_artist(artist_id: int, server_id: str | None = None):
     return album_list
 
 
+def fetch_all_albums(target_server_ids: list[str] | None = None) -> list[dict]:
+    """Fetch all unique albums across enabled servers with deduplication & caching."""
+    if settings.testing:
+        all_albums = []
+        for _a_id, albums in MOCK_ALBUMS.items():
+            all_albums.extend(albums)
+        all_albums.sort(key=lambda a: a["title"].lower())
+        return all_albums
+
+    cache_key = "all_albums_unified"
+    cached = get_cached_data(cache_key)
+    if cached:
+        return cached
+
+    all_artists = fetch_all_artists(target_server_ids)
+    merged_albums = {}
+
+    for artist in all_artists:
+        a_id = artist.get("artist_id")
+        s_id = artist.get("server_id")
+        if not a_id:
+            continue
+        try:
+            albums = fetch_albums_for_artist(a_id, server_id=s_id)
+            for alb in albums:
+                dedup_key = f"{alb.get('title', '').strip().lower()}::{artist.get('name', '').strip().lower()}"
+                if dedup_key not in merged_albums:
+                    merged_albums[dedup_key] = {
+                        "album_id": alb["album_id"],
+                        "title": alb["title"],
+                        "artist": artist.get("name"),
+                        "artist_id": a_id,
+                        "year": alb.get("year"),
+                        "genre": alb.get("genre"),
+                        "thumb": alb.get("thumb"),
+                        "server_id": alb.get("server_id", s_id),
+                    }
+        except Exception as ex:
+            logger.warning("Error getting albums for artist %s: %s", a_id, ex)
+
+    album_list = list(merged_albums.values())
+    album_list.sort(key=lambda x: x["title"].lower())
+    cache_data(cache_key, album_list)
+    return album_list
+
+
+def fetch_all_genres() -> list[dict]:
+    """Fetch all music genres with album counts."""
+    albums = fetch_all_albums()
+    counts = {}
+    for alb in albums:
+        g = alb.get("genre") or "Uncategorized"
+        counts[g] = counts.get(g, 0) + 1
+
+    genres_list = [
+        {"genre": genre, "album_count": count}
+        for genre, count in sorted(counts.items(), key=lambda x: (-x[1], x[0]))
+    ]
+    return genres_list
+
+
+def fetch_albums_by_genre(genre_name: str) -> list[dict]:
+    """Fetch all albums matching a specific genre."""
+    albums = fetch_all_albums()
+    g_lower = genre_name.lower()
+    return [
+        alb for alb in albums
+        if (alb.get("genre") or "uncategorized").lower() == g_lower
+    ]
+
+
+def fetch_all_decades() -> list[dict]:
+    """Fetch decade breakdown (e.g. 1960s, 1970s, 1980s...) with album counts."""
+    albums = fetch_all_albums()
+    decade_counts = {}
+
+    for alb in albums:
+        year = alb.get("year")
+        if not year or not isinstance(year, int) or year < 1920 or year > 2030:
+            decade_key = (0, 0, "Unknown Era")
+        else:
+            start = (year // 10) * 10
+            end = start + 9
+            decade_key = (start, end, f"{start}s")
+        decade_counts[decade_key] = decade_counts.get(decade_key, 0) + 1
+
+    result = []
+    sorted_keys = sorted(decade_counts.keys(), key=lambda k: k[0])
+    for start, end, label in sorted_keys:
+        result.append({
+            "decade": label,
+            "year_start": start,
+            "year_end": end,
+            "album_count": decade_counts[(start, end, label)],
+        })
+
+    return result
+
+
+def fetch_albums_by_decade(year_start: int, year_end: int) -> list[dict]:
+    """Fetch all albums released within a specific decade/year range."""
+    albums = fetch_all_albums()
+    if year_start == 0 and year_end == 0:
+        return [alb for alb in albums if not alb.get("year") or not isinstance(alb.get("year"), int)]
+
+    return [
+        alb for alb in albums
+        if alb.get("year") and isinstance(alb.get("year"), int) and year_start <= alb["year"] <= year_end
+    ]
+
+
 def fetch_tracks_for_album(album_id: int, server_id: str | None = None):
     """Fetch tracks for an album with audio quality ranking and failover sources."""
     if settings.testing:

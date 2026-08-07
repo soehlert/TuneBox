@@ -8,6 +8,7 @@ import ArtistAlbums from "./components/ArtistAlbums";
 import TrackList from "./components/TrackList";
 import MusicControls from "./components/MusicControls";
 import Queue from "./components/Queue";
+import { BrowseTabs, AlbumsGridView, GenresGridView, DecadesGridView, ViewMode } from "./components/BrowseViews";
 import theme from "./theme";
 import TuneBoxLogo from "../public/TuneBox.svg";
 import Stats from "./components/Stats";
@@ -1684,6 +1685,7 @@ function App() {
     }
   }, []);
 
+  const [viewMode, setViewMode] = useState<ViewMode>("artists");
   const [artists, setArtists] = useState<any[]>([]);
   const [loadingArtists, setLoadingArtists] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -2259,29 +2261,48 @@ function App() {
             {/* Subpage content */}
             <div className="main-content">
               <div className="header-gradient"></div>
+              {(location.pathname === "/" || location.pathname === "/artists") && (
+                <BrowseTabs currentMode={viewMode} onModeChange={setViewMode} />
+              )}
               <Routes>
                 <Route
                   path="/"
                   element={
-                    <ArtistList
-                      filteredArtists={filteredArtists}
-                      loading={loadingArtists}
-                      searchResults={searchResults}
-                      isSearching={Boolean(debouncedSearchTerm)}
-                      selectedLetter={selectedLetter}
-                    />
+                    viewMode === "albums" ? (
+                      <AlbumsGridView apiBase={getApiUrl("")} />
+                    ) : viewMode === "genres" ? (
+                      <GenresGridView apiBase={getApiUrl("")} />
+                    ) : viewMode === "decades" ? (
+                      <DecadesGridView apiBase={getApiUrl("")} />
+                    ) : (
+                      <ArtistList
+                        filteredArtists={filteredArtists}
+                        loading={loadingArtists}
+                        searchResults={searchResults}
+                        isSearching={Boolean(debouncedSearchTerm)}
+                        selectedLetter={selectedLetter}
+                      />
+                    )
                   }
                 />
                 <Route
                   path="/artists"
                   element={
-                    <ArtistList
-                      filteredArtists={filteredArtists}
-                      loading={loadingArtists}
-                      searchResults={searchResults}
-                      isSearching={Boolean(debouncedSearchTerm)}
-                      selectedLetter={selectedLetter}
-                    />
+                    viewMode === "albums" ? (
+                      <AlbumsGridView apiBase={getApiUrl("")} />
+                    ) : viewMode === "genres" ? (
+                      <GenresGridView apiBase={getApiUrl("")} />
+                    ) : viewMode === "decades" ? (
+                      <DecadesGridView apiBase={getApiUrl("")} />
+                    ) : (
+                      <ArtistList
+                        filteredArtists={filteredArtists}
+                        loading={loadingArtists}
+                        searchResults={searchResults}
+                        isSearching={Boolean(debouncedSearchTerm)}
+                        selectedLetter={selectedLetter}
+                      />
+                    )
                   }
                 />
                 <Route path="/artists/:artistId/albums" element={<ArtistAlbums />} />
