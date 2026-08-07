@@ -1348,6 +1348,10 @@ def fetch_tracks_for_album(album_id: int, server_id: str | None = None):
 
     if cached_tracks and isinstance(cached_tracks, dict) and "artist_id" in cached_tracks and cached_tracks["artist_id"] is not None:
         logger.info("Fetching tracks for album %s from cache.", album_id)
+        if "tracks" in cached_tracks:
+            for idx, trk in enumerate(cached_tracks["tracks"]):
+                if "track_number" not in trk:
+                    trk["track_number"] = idx + 1
         return cached_tracks
 
     plex = get_target_plex_connection(server_id)

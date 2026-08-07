@@ -85,11 +85,17 @@ function TrackList() {
 
   const addAlbumToQueue = async () => {
     try {
-      const sParam = serverId ? `?server_id=${serverId}` : "";
-      const queueUrl = `${apiBase}/api/music/albums/${albumId}/add-to-queue${sParam}`;
-      const response = await axios.post(queueUrl, null, {
-        params: { username: getLocalUsername() }
-      });
+      const queueUrl = `${apiBase}/api/music/albums/${albumId}/add-to-queue`;
+      const response = await axios.post(
+        queueUrl,
+        {},
+        {
+          params: {
+            server_id: serverId || undefined,
+            username: getLocalUsername() || undefined,
+          },
+        }
+      );
       showSnackbar(`Added ${response.data.added_count || 'all'} tracks from album to queue!`, "success");
     } catch (error: any) {
       console.error("Error adding album to queue:", error);
@@ -153,14 +159,12 @@ function TrackList() {
               )}
 
               <div className="track-list">
-                {albumData.tracks.map((track) => (
+                {albumData.tracks.map((track, idx) => (
                   <Card className="track-card" key={track.track_id}>
                     <div className="track-card-left" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                      {track.track_number && (
-                        <Typography className="track-number" style={{ opacity: 0.6, fontWeight: "bold", minWidth: "24px" }}>
-                          {track.track_number}.
-                        </Typography>
-                      )}
+                      <Typography className="track-number" style={{ opacity: 0.6, fontWeight: "bold", minWidth: "24px" }}>
+                        {track.track_number ?? (idx + 1)}.
+                      </Typography>
                       <Typography className="album-track-title">{track.title}</Typography>
                     </div>
                     <div className="track-card-right">
