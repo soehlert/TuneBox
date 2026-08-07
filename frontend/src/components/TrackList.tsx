@@ -11,6 +11,7 @@ interface Track {
   track_id: number;
   title: string;
   duration: string;
+  track_number?: number;
 }
 
 interface AlbumData {
@@ -82,10 +83,24 @@ function TrackList() {
     }
   };
 
+  const addAlbumToQueue = async () => {
+    try {
+      const sParam = serverId ? `?server_id=${serverId}` : "";
+      const queueUrl = `${apiBase}/api/music/albums/${albumId}/add-to-queue${sParam}`;
+      const response = await axios.post(queueUrl, null, {
+        params: { username: getLocalUsername() }
+      });
+      showSnackbar(`Added ${response.data.added_count || 'all'} tracks from album to queue!`, "success");
+    } catch (error: any) {
+      console.error("Error adding album to queue:", error);
+      showSnackbar("Failed to add album to queue.", "error");
+    }
+  };
+
   return (
     <div className="track-list-page">
       <div className="track-list-container">
-        <div style={{ display: "flex", gap: "12px", marginBottom: "16px", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: "12px", marginBottom: "16px", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center" }}>
           <button
             className="back-button"
             style={{ marginBottom: 0 }}
@@ -100,6 +115,25 @@ function TrackList() {
             <span className="material-symbols-outlined">library_music</span>
             Back to Albums
           </button>
+
+          {albumData && (
+            <Button
+              variant="contained"
+              className="add-album-btn"
+              onClick={addAlbumToQueue}
+              style={{
+                background: "linear-gradient(135deg, #0077b6 0%, #bf095e 100%)",
+                color: "#fff",
+                fontWeight: "bold",
+                borderRadius: "20px",
+                padding: "8px 20px",
+                textTransform: "none"
+              }}
+            >
+              <span className="material-symbols-outlined" style={{ marginRight: "6px", fontSize: "20px" }}>playlist_add</span>
+              Add Entire Album to Queue
+            </Button>
+          )}
         </div>
         {loading ? (
           <Typography variant="h6">Loading...</Typography>
@@ -121,7 +155,12 @@ function TrackList() {
               <div className="track-list">
                 {albumData.tracks.map((track) => (
                   <Card className="track-card" key={track.track_id}>
-                    <div className="track-card-left">
+                    <div className="track-card-left" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                      {track.track_number && (
+                        <Typography className="track-number" style={{ opacity: 0.6, fontWeight: "bold", minWidth: "24px" }}>
+                          {track.track_number}.
+                        </Typography>
+                      )}
                       <Typography className="album-track-title">{track.title}</Typography>
                     </div>
                     <div className="track-card-right">

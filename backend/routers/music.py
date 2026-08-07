@@ -419,6 +419,51 @@ def get_tracks_for_album(album_id: int, server_id: str | None = None):
         ) from e
 
 
+# Add entire album to queue
+@router.post("/albums/{album_id}/add-to-queue")
+async def add_album_to_queue_endpoint(
+    album_id: int,
+    background_tasks: BackgroundTasks,
+    server_id: str | None = None,
+    username: str | None = None,
+    x_client_id: str | None = Header(None),
+):
+    """Add all tracks of an album to the Redis queue in order."""
+    try:
+        album_data = fetch_tracks_for_album(album_id, server_id=server_id)
+        tracks = album_data.get("tracks", [])
+        if not tracks:
+            raise HTTPException(status_code=404, detail="No tracks found for album.")
+
+        added_count = 0
+        added_by = username or "Guest"
+
+        for t in tracks:
+            item_id = str(t.get("track_id"))
+            song = get_track(item_id)
+            add_to_queue_redis(song, server_id=server_id, added_by=added_by)
+            added_count += 1
+            if added_by and added_by != "Guest":
+                from backend.services.stats import increment_adds
+                increment_adds(added_by)
+
+        from backend.websockets import send_current_playing, send_queue
+        await send_queue()
+        await send_current_playing()
+
+        return {
+            "message": "Album added to queue successfully.",
+            "added_count": added_count,
+            "album_title": album_data.get("album_title"),
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error adding album {album_id} to queue: {e}"
+        ) from e
+
+
 # Search for artists, albums, or tracks
 @router.get("/search")
 def search_music_endpoint(query: str):

@@ -1337,8 +1337,9 @@ def fetch_tracks_for_album(album_id: int, server_id: str | None = None):
                     "track_id": t["track_id"],
                     "title": t["title"],
                     "duration": t["duration"],
+                    "track_number": idx + 1,
                 }
-                for t in tracks
+                for idx, t in enumerate(tracks)
             ],
         }
 
@@ -1363,7 +1364,7 @@ def fetch_tracks_for_album(album_id: int, server_id: str | None = None):
             pass
 
     track_list = []
-    for track in tracks:
+    for idx, track in enumerate(tracks):
         # Determine audio quality (codec / bitrate) for smart stream ranking
         codec = ""
         bitrate = 0
@@ -1375,6 +1376,8 @@ def fetch_tracks_for_album(album_id: int, server_id: str | None = None):
         is_lossless = bool(codec and ("flac" in codec.lower() or "alac" in codec.lower() or "wav" in codec.lower()))
         quality_score = 1000000 if is_lossless else (bitrate or 256)
 
+        track_number = getattr(track, "index", None) or getattr(track, "trackNumber", None) or (idx + 1)
+
         track_list.append({
             "track_id": track.ratingKey,
             "title": track.title,
@@ -1383,6 +1386,7 @@ def fetch_tracks_for_album(album_id: int, server_id: str | None = None):
             "codec": codec,
             "bitrate": bitrate,
             "quality_score": quality_score,
+            "track_number": track_number,
         })
 
     result = {
