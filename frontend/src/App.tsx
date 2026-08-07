@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Routes, Route, Link, useNavigate, useLocation } from "react-router-dom";
 import { ThemeProvider } from "@mui/material/styles";
+import Tooltip from "@mui/material/Tooltip";
 import axios from "axios";
 import { QRCodeSVG } from "qrcode.react";
 import ArtistList from "./components/ArtistList";
@@ -329,7 +330,6 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
   const [msg, setMsg] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
-  const [showKioskInfo, setShowKioskInfo] = useState(false);
   const [isFormDirty, setIsFormDirty] = useState(false);
 
   const handleAttemptClose = () => {
@@ -1106,17 +1106,19 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
             >
               <span style={{ color: "#f5a623", fontSize: "14px", fontWeight: "bold", display: "flex", alignItems: "center", gap: "6px" }}>
                 🖥️ Connected Devices & Kiosks
-                <span
-                  className="material-symbols-outlined"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowKioskInfo(true);
-                  }}
-                  style={{ fontSize: "16px", color: "#3375A8", cursor: "pointer" }}
-                  title="What is Kiosk Mode?"
+                <Tooltip
+                  title="Turning a connected device into a Kiosk converts it into a shared, central party display screen: displays a prominent QR code for guests to scan and join instantly."
+                  arrow
+                  placement="top"
                 >
-                  help_outline
-                </span>
+                  <span
+                    className="material-symbols-outlined"
+                    onClick={(e) => e.stopPropagation()}
+                    style={{ fontSize: "16px", color: "#3375A8", cursor: "pointer" }}
+                  >
+                    help_outline
+                  </span>
+                </Tooltip>
               </span>
               <span style={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "11px" }}>
                 {sectionsOpen.devices ? "▲" : "▼"}
@@ -1328,16 +1330,6 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
             onClose();
           }}
           onCancel={() => setShowUnsavedDialog(false)}
-        />
-        <TuneBoxDialog
-          open={showKioskInfo}
-          type="info"
-          icon="help_outline"
-          title="🖥️ Kiosk Mode"
-          message={`Turning a connected device into a Kiosk converts it into a shared, central party display screen.\n\n• Displays a prominent QR code for guests to scan and join instantly\n• Disables individual voting on the screen`}
-          confirmText="Got It"
-          onConfirm={() => setShowKioskInfo(false)}
-          onCancel={() => setShowKioskInfo(false)}
         />
         <ConfirmModal
           isOpen={confirmClearOpen}
