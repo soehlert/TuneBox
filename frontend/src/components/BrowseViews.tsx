@@ -62,7 +62,7 @@ export const BrowseTabs: React.FC<BrowseTabsProps> = ({ currentMode, onModeChang
   );
 };
 
-export const AlbumsGridView: React.FC<{ apiBase: string }> = ({ apiBase }) => {
+export const AlbumsGridView: React.FC<{ apiBase: string; selectedLetter?: string }> = ({ apiBase, selectedLetter }) => {
   const [albums, setAlbums] = useState<Album[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
@@ -74,6 +74,29 @@ export const AlbumsGridView: React.FC<{ apiBase: string }> = ({ apiBase }) => {
       .catch((err) => console.error("Error fetching all albums:", err))
       .finally(() => setLoading(false));
   }, [apiBase]);
+
+  useEffect(() => {
+    if (!selectedLetter || albums.length === 0) return;
+
+    const targetIndex = albums.findIndex((alb) => {
+      if (!alb.title) return false;
+      const firstChar = alb.title.trim()[0];
+      if (selectedLetter === "0-9") {
+        return /^\d/.test(firstChar);
+      }
+      return firstChar.toUpperCase() === selectedLetter.toUpperCase();
+    });
+
+    if (targetIndex !== -1) {
+      const targetAlb = albums[targetIndex];
+      setTimeout(() => {
+        const el = document.getElementById(`album-${targetAlb.album_id}`);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 50);
+    }
+  }, [selectedLetter, albums]);
 
   const handleAddAlbum = async (e: React.MouseEvent, albumId: number, serverId?: string) => {
     e.stopPropagation();
@@ -95,6 +118,7 @@ export const AlbumsGridView: React.FC<{ apiBase: string }> = ({ apiBase }) => {
       {albums.map((alb) => (
         <Card
           key={alb.album_id}
+          id={`album-${alb.album_id}`}
           onClick={() => navigate(`/albums/${alb.album_id}/tracks${alb.server_id ? `?server_id=${alb.server_id}` : ""}`)}
           style={{
             background: "rgba(255, 255, 255, 0.03)",

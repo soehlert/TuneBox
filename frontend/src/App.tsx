@@ -2235,8 +2235,8 @@ function App() {
             </div>
           </div>
 
-          {/* Persistent Alphabet Fast-Scroll Sidebar on Left (Only in Artists View) */}
-          {(location.pathname === "/" || location.pathname === "/artists") && viewMode === "artists" && (
+          {/* Persistent Alphabet Fast-Scroll Sidebar on Left (Artists & Albums View) */}
+          {(location.pathname === "/" || location.pathname === "/artists") && (viewMode === "artists" || viewMode === "albums") && (
             <aside className="left-sidebar">
               <div className="alphabet-filter">
                 <button
@@ -2261,7 +2261,7 @@ function App() {
           {/* Main Grid Wrapper */}
           <div className="main-wrapper">
             {/* Subpage content */}
-            <div className={`main-content ${(location.pathname === "/" || location.pathname === "/artists") && viewMode !== "artists" ? "no-sidebar" : ""}`}>
+            <div className={`main-content ${(location.pathname === "/" || location.pathname === "/artists") && viewMode !== "artists" && viewMode !== "albums" ? "no-sidebar" : ""}`}>
               <div className="header-gradient"></div>
               {(location.pathname === "/" || location.pathname === "/artists") && (
                 <BrowseTabs currentMode={viewMode} onModeChange={setViewMode} />
@@ -2271,7 +2271,7 @@ function App() {
                   path="/"
                   element={
                     viewMode === "albums" ? (
-                      <AlbumsGridView apiBase={getApiUrl("")} />
+                      <AlbumsGridView apiBase={getApiUrl("")} selectedLetter={selectedLetter} />
                     ) : viewMode === "genres" ? (
                       <GenresGridView apiBase={getApiUrl("")} />
                     ) : viewMode === "decades" ? (
@@ -2291,7 +2291,7 @@ function App() {
                   path="/artists"
                   element={
                     viewMode === "albums" ? (
-                      <AlbumsGridView apiBase={getApiUrl("")} />
+                      <AlbumsGridView apiBase={getApiUrl("")} selectedLetter={selectedLetter} />
                     ) : viewMode === "genres" ? (
                       <GenresGridView apiBase={getApiUrl("")} />
                     ) : viewMode === "decades" ? (

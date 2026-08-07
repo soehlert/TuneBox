@@ -25,6 +25,20 @@ def test_get_all_albums_endpoint():
         settings.testing = orig_testing
 
 
+def test_get_all_albums_alphabetically_sorted():
+    """Verify all-albums returns albums ordered by title for fast-scrolling letter lookup."""
+    orig_testing = settings.testing
+    settings.testing = True
+    try:
+        response = client.get("/api/music/all-albums")
+        assert response.status_code == 200
+        albums = response.json()
+        titles = [a["title"] for a in albums if "title" in a]
+        assert titles == sorted(titles, key=lambda x: x.lower())
+    finally:
+        settings.testing = orig_testing
+
+
 def test_get_genres_endpoint():
     """Verify GET /api/music/genres returns list of genres with album counts."""
     orig_testing = settings.testing
