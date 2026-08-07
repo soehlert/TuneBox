@@ -1921,14 +1921,16 @@ function App() {
           setStep(3);
           fetchResources();
         }
-      } else {
+      } else if (step === 4) {
         setStep(1);
       }
     } catch (err) {
       console.error("Status check failed:", err);
       setIsAuthenticated(false);
       setIsConfigured(false);
-      setStep(1);
+      if (step === 4) {
+        setStep(1);
+      }
     }
   };
 
