@@ -2078,13 +2078,7 @@ function App() {
     const isDev = window.location.port === "5173";
     const apiBase = isDev ? `http://${window.location.hostname}:8000` : window.location.origin;
 
-    if (location.pathname === "/stats") {
-      return (
-        <ThemeProvider theme={theme}>
-          <Stats apiBase={apiBase} />
-        </ThemeProvider>
-      );
-    }
+    const isStatsOpen = location.pathname === "/stats";
 
     return (
       <ThemeProvider theme={theme}>
@@ -2450,6 +2444,8 @@ function App() {
               </div>
             </div>
           )}
+
+          {isStatsOpen && <Stats apiBase={apiBase} />}
         </div>
       </ThemeProvider>
     );

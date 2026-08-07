@@ -607,10 +607,9 @@ async def playback_orchestrator():
                         except PlexApiException as pae:
                             logger.warning("Playback control disabled or no player active: %s. Pausing queue playback.", pae)
                             playback_active = False
-                        except Exception:
-                            logger.exception("Error playing next song from queue")
-                            # To prevent infinite looping on failure, we can remove the item
-                            remove_from_redis_queue(next_song["item_id"])
+                        except Exception as ex:
+                            logger.exception("Error playing next song from queue: %s. Pausing queue playback to preserve queue.", ex)
+                            playback_active = False
                             from backend.websockets import send_queue  # noqa: PLC0415
 
                             await send_queue()

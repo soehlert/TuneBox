@@ -65,6 +65,29 @@ async def test_orchestrator_starts_song(mocker):
 
 
 @pytest.mark.asyncio
+async def test_orchestrator_pauses_on_play_exception(mocker):
+    """Verify that when play_song raises an unexpected exception, playback pauses instead of popping queue items."""
+    import backend.services.plex  # noqa: PLC0415
+
+    backend.services.plex.playback_active = True
+
+    mock_queue = [{"item_id": "123", "title": "Queue Song"}]
+    mocker.patch("backend.services.plex.get_redis_queue", return_value=mock_queue)
+    mocker.patch("backend.services.plex.get_active_player", return_value=MagicMock())
+    mocker.patch("backend.services.plex.get_track", return_value=MagicMock())
+    mocker.patch("backend.services.plex.play_song", side_effect=Exception("Connection refused"))
+    mock_remove = mocker.patch("backend.services.plex.remove_from_redis_queue")
+    mocker.patch("backend.websockets.send_queue")
+
+    task = asyncio.create_task(playback_orchestrator())
+    await asyncio.sleep(0.1)
+    task.cancel()
+
+    assert backend.services.plex.playback_active is False
+    mock_remove.assert_not_called()
+
+
+@pytest.mark.asyncio
 async def test_resync_detects_drift(mocker):
     """Test that check_plexamp_resync detects drift and aligns the local tracker."""
     track_time_tracker.start("Sync Song")
