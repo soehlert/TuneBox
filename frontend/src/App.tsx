@@ -1921,11 +1921,14 @@ function App() {
           setStep(3);
           fetchResources();
         }
+      } else {
+        setStep(1);
       }
     } catch (err) {
       console.error("Status check failed:", err);
       setIsAuthenticated(false);
       setIsConfigured(false);
+      setStep(1);
     }
   };
 
@@ -2577,6 +2580,28 @@ function App() {
               <p style={{ color: "#aaa", fontSize: "14px", marginBottom: "30px" }}>Connecting to your TuneBox</p>
               <div style={{ display: "flex", justifyContent: "center", padding: "20px 0" }}>
                 <span className="spinner" style={{ display: "inline-block", width: "40px", height: "40px", border: "4px solid #333", borderTopColor: "#f5a623", borderRadius: "50%", animation: "spin 1s linear infinite" }}></span>
+              </div>
+              <div style={{ marginTop: "20px" }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    localStorage.clear();
+                    setStep(1);
+                    setIsAuthenticated(false);
+                    setIsConfigured(false);
+                  }}
+                  style={{
+                    background: "transparent",
+                    border: "1px solid rgba(255, 255, 255, 0.2)",
+                    color: "#aaa",
+                    fontSize: "12px",
+                    padding: "8px 16px",
+                    borderRadius: "20px",
+                    cursor: "pointer",
+                  }}
+                >
+                  Stuck? Restart Setup Wizard
+                </button>
               </div>
             </div>
           )}
