@@ -439,8 +439,8 @@ async def add_album_to_queue_endpoint(
         added_by = username or "Guest"
 
         for t in tracks:
-            item_id = str(t.get("track_id"))
-            song = get_track(item_id)
+            item_id = t.get("track_id")
+            song = get_track(item_id, server_id=server_id)
             add_to_queue_redis(song, server_id=server_id, added_by=added_by)
             added_count += 1
             if added_by and added_by != "Guest":

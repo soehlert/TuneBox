@@ -271,17 +271,15 @@ def get_active_player(client_name: str | None = None):
     raise PlexApiException("No active Plex players found or resolvable.")
 
 
-def get_track(item_id):
-    """Get track ID from plex based on song.
+def get_track(item_id, server_id: str | None = None):
+    """Get track object from Plex server based on item_id ratingKey."""
+    item_id_val = int(item_id) if str(item_id).isdigit() else item_id
 
-    Returns:
-        A track object from Plex.
-    """
     if settings.testing:
         found_track = None
         for album_id, tracks in MOCK_TRACKS.items():
             for t in tracks:
-                if str(t["track_id"]) == str(item_id):
+                if str(t["track_id"]) == str(item_id_val):
                     found_track = t
                     break
             if found_track:
@@ -299,10 +297,10 @@ def get_track(item_id):
             return MockTrack()
         raise HTTPException(status_code=404, detail="Track not found")
 
-    plex = get_plex_connection()
-    logger.debug("Fetching track: %s", item_id)
-    track = plex.fetchItem(item_id)
-    logger.debug("Fetched track: %s", track.title)
+    plex = get_target_plex_connection(server_id)
+    logger.debug("Fetching track: %s (server_id=%s)", item_id_val, server_id)
+    track = plex.fetchItem(item_id_val)
+    logger.debug("Fetched track: %s", getattr(track, "title", "Track"))
 
     return track
 
