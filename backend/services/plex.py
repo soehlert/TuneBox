@@ -353,7 +353,7 @@ def play_song(player, song, server_token=None, server_url=None):
         "server_name": getattr(song, "server_name", None),
     }
     cache_data("now_playing", song_data)
-    add_to_history(song.ratingKey)
+    add_to_history(song_data)
 
     track_time_tracker.start(song.title)
     logger.info("Song %s started playing on player: %s", song.title, player.title)

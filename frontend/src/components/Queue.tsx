@@ -4,12 +4,40 @@ import "./Queue.css";
 
 const QueueComponent = () => {
   const [queue, setQueue] = useState<any[]>([]);
+  const [history, setHistory] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<'queue' | 'history'>('queue');
   const [vibes, setVibes] = useState<string[]>([]);
   const adminToken = localStorage.getItem("tunebox_admin_token") || "";
 
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const touchDragRef = useRef<{ index: number; targetIndex: number | null } | null>(null);
+
+  const fetchHistory = async () => {
+    try {
+      const response = await fetch(`${apiBase}/api/music/queue/history`);
+      if (response.ok) {
+        const data = await response.json();
+        setHistory(data);
+      }
+    } catch (error) {
+      console.error("Error fetching playback history:", error);
+    }
+  };
+
+  const handleRequeue = async (track: any) => {
+    try {
+      const sParam = track.server_id ? `&server_id=${track.server_id}` : "";
+      const response = await fetch(`${apiBase}/api/music/add-track-to-queue?rating_key=${track.item_id}${sParam}`, {
+        method: "POST",
+      });
+      if (response.ok) {
+        setActiveTab("queue");
+      }
+    } catch (error) {
+      console.error("Error re-queueing track:", error);
+    }
+  };
 
   const handleDeleteTrack = async (itemId: number | string) => {
     try {
@@ -215,13 +243,33 @@ const QueueComponent = () => {
     };
   }, [wsHost]);
 
+  useEffect(() => {
+    fetchHistory();
+  }, []);
+
   return (
     <Box className="queue-wrapper">
-      <Box className="queue-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <Typography className="queue-title">Up Next</Typography>
+      <Box className="queue-tabs-container">
+        <button
+          className={`queue-tab-btn ${activeTab === 'queue' ? 'active' : ''}`}
+          onClick={() => setActiveTab('queue')}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>queue_music</span>
+          <span>Up Next ({queue.length})</span>
+        </button>
+        <button
+          className={`queue-tab-btn ${activeTab === 'history' ? 'active' : ''}`}
+          onClick={() => {
+            setActiveTab('history');
+            fetchHistory();
+          }}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>history</span>
+          <span>History ({history.length})</span>
+        </button>
       </Box>
-      
-      {vibes && vibes.length > 0 && (
+
+      {activeTab === 'queue' && vibes && vibes.length > 0 && (
         <Box 
           style={{
             display: "flex",
@@ -252,105 +300,135 @@ const QueueComponent = () => {
         </Box>
       )}
 
-      <ul className="queue-list">
-        {queue.map((track, index) => {
-          const isActive = index === 0;
-          const isDragging = draggedIndex === index;
-          const isDragOver = dragOverIndex === index;
+      {activeTab === 'queue' ? (
+        <ul className="queue-list">
+          {queue.map((track, index) => {
+            const isActive = index === 0;
+            const isDragging = draggedIndex === index;
+            const isDragOver = dragOverIndex === index;
 
-          return (
-            <li
-              key={index}
-              data-index={index}
-              onDragOver={(e) => handleDragOver(e, index)}
-              onDrop={(e) => handleDrop(e, index)}
-              onDragEnd={handleDragEnd}
-              className={`queue-item ${isActive ? 'active' : ''} ${isDragging ? 'dragging' : ''} ${isDragOver ? 'drag-over' : ''}`}
-            >
-              <Box className="queue-item-left">
-                {adminToken && !isActive && (
-                  <span
-                    className="material-symbols-outlined queue-drag-handle"
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, index)}
-                    onTouchStart={(e) => handleTouchStart(e, index)}
-                    onTouchMove={handleTouchMove}
-                    onTouchEnd={handleTouchEnd}
-                    title="Drag to reorder"
-                  >
-                    drag_indicator
-                  </span>
-                )}
-                {track.item_id ? (
-                  <img
-                    src={`${apiBase}/api/music/track-art/${track.item_id}${track.server_id ? '?server_id=' + track.server_id : ''}`}
-                    alt={track.title}
-                    className="queue-item-art"
-                    onError={(e) => {
-                      e.currentTarget.style.display = "none";
-                      const sibling = e.currentTarget.nextElementSibling as HTMLElement;
-                      if (sibling) sibling.style.display = "flex";
-                    }}
-                  />
-                ) : null}
-                <Box className="queue-item-art-placeholder" style={{ display: track.item_id ? "none" : "flex" }}>🎵</Box>
-                <Box className="queue-item-meta" style={{ display: "flex", flexDirection: "column", gap: "2px", minWidth: 0, width: "100%" }}>
-                  <Typography
-                    className="queue-item-title"
-                    title={track.title}
-                    style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "100%" }}
-                  >
-                    {track.title}
-                  </Typography>
-                  <Typography
-                    className="queue-item-artist"
-                    title={track.artist}
-                    style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "100%" }}
-                  >
-                    {track.artist}
-                  </Typography>
-                  {(() => {
-                    const sName = track.server_name;
-                    if (!sName) return null;
-                    const sLower = sName.toLowerCase();
-                    if (sLower === "plex-so" || sLower === "home server" || sLower === "primary server") return null;
+            return (
+              <li
+                key={index}
+                data-index={index}
+                onDragOver={(e) => handleDragOver(e, index)}
+                onDrop={(e) => handleDrop(e, index)}
+                onDragEnd={handleDragEnd}
+                className={`queue-item ${isActive ? 'active' : ''} ${isDragging ? 'dragging' : ''} ${isDragOver ? 'drag-over' : ''}`}
+              >
+                <Box className="queue-item-left">
+                  {adminToken && !isActive && (
+                    <span
+                      className="material-symbols-outlined queue-drag-handle"
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, index)}
+                      onTouchStart={(e) => handleTouchStart(e, index)}
+                      onTouchMove={handleTouchMove}
+                      onTouchEnd={handleTouchEnd}
+                      title="Drag to reorder"
+                    >
+                      drag_indicator
+                    </span>
+                  )}
+                  {track.item_id ? (
+                    <img
+                      src={`${apiBase}/api/music/track-art/${track.item_id}${track.server_id ? '?server_id=' + track.server_id : ''}`}
+                      alt={track.title}
+                      className="queue-item-art"
+                      onError={(e) => {
+                        e.currentTarget.style.display = "none";
+                        const sibling = e.currentTarget.nextElementSibling as HTMLElement;
+                        if (sibling) sibling.style.display = "flex";
+                      }}
+                    />
+                  ) : null}
+                  <Box className="queue-item-art-placeholder" style={{ display: track.item_id ? "none" : "flex" }}>🎵</Box>
+                  <Box className="queue-item-meta" style={{ display: "flex", flexDirection: "column", gap: "2px", minWidth: 0, width: "100%" }}>
+                    <Typography
+                      className="queue-item-title"
+                      title={track.title}
+                      style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "100%" }}
+                    >
+                      {track.title}
+                    </Typography>
+                    <Typography
+                      className="queue-item-artist"
+                      title={track.artist}
+                      style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "100%" }}
+                    >
+                      {track.artist}
+                    </Typography>
+                    {(() => {
+                      const sName = track.server_name;
+                      if (!sName) return null;
+                      const sLower = sName.toLowerCase();
+                      if (sLower === "plex-so" || sLower === "home server" || sLower === "primary server") return null;
 
-                    return (
-                      <Box style={{ display: "flex", marginTop: "2px" }}>
-                        <span
-                          style={{
-                            fontSize: "9px",
-                            background: isActive ? "rgba(0, 0, 0, 0.25)" : "rgba(245, 166, 35, 0.2)",
-                            border: isActive ? "1px solid rgba(0, 0, 0, 0.4)" : "1px solid rgba(245, 166, 35, 0.4)",
-                            color: isActive ? "#0e0e0f" : "#f5a623",
-                            padding: "1px 6px",
-                            borderRadius: "8px",
-                            fontWeight: 700,
-                            lineHeight: 1.2,
-                            display: "inline-block",
-                          }}
-                          title={`Source Library: ${sName}`}
-                        >
-                          {sName}
-                        </span>
-                      </Box>
-                    );
-                  })()}
+                      return (
+                        <Box style={{ display: "flex", marginTop: "2px" }}>
+                          <span
+                            style={{
+                              fontSize: "9px",
+                              background: isActive ? "rgba(0, 0, 0, 0.25)" : "rgba(245, 166, 35, 0.2)",
+                              border: isActive ? "1px solid rgba(0, 0, 0, 0.4)" : "1px solid rgba(245, 166, 35, 0.4)",
+                              color: isActive ? "#0e0e0f" : "#f5a623",
+                              padding: "1px 6px",
+                              borderRadius: "8px",
+                              fontWeight: 700,
+                              lineHeight: 1.2,
+                              display: "inline-block",
+                            }}
+                            title={`Source Library: ${sName}`}
+                          >
+                            {sName}
+                          </span>
+                        </Box>
+                      );
+                    })()}
+                  </Box>
                 </Box>
-              </Box>
-              <Box style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                {isActive ? (
-                  <span className="material-symbols-outlined queue-equalizer animate-pulse">equalizer</span>
-                ) : (
-                  <Typography className="queue-item-time">{formatDuration(track.duration)}</Typography>
-                )}
-                {adminToken && !isActive && (
-                  <>
-                    {index > 1 && (
+                <Box style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  {isActive ? (
+                    <span className="material-symbols-outlined queue-equalizer animate-pulse">equalizer</span>
+                  ) : (
+                    <Typography className="queue-item-time">{formatDuration(track.duration)}</Typography>
+                  )}
+                  {adminToken && !isActive && (
+                    <>
+                      {index > 1 && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleMoveTop(index);
+                          }}
+                          style={{
+                            background: "transparent",
+                            border: "none",
+                            color: "rgba(255, 255, 255, 0.4)",
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            padding: "4px",
+                            borderRadius: "4px",
+                            transition: "color 0.2s, background-color 0.2s",
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.color = "#f5a623";
+                            e.currentTarget.style.backgroundColor = "rgba(245, 166, 35, 0.1)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.color = "rgba(255, 255, 255, 0.4)";
+                            e.currentTarget.style.backgroundColor = "transparent";
+                          }}
+                          title="Move to Next (Up Next)"
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>vertical_align_top</span>
+                        </button>
+                      )}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleMoveTop(index);
+                          handleDeleteTrack(track.item_id);
                         }}
                         style={{
                           background: "transparent",
@@ -364,53 +442,82 @@ const QueueComponent = () => {
                           transition: "color 0.2s, background-color 0.2s",
                         }}
                         onMouseEnter={(e) => {
-                          e.currentTarget.style.color = "#f5a623";
-                          e.currentTarget.style.backgroundColor = "rgba(245, 166, 35, 0.1)";
+                          e.currentTarget.style.color = "#f44336";
+                          e.currentTarget.style.backgroundColor = "rgba(244, 67, 54, 0.1)";
                         }}
                         onMouseLeave={(e) => {
                           e.currentTarget.style.color = "rgba(255, 255, 255, 0.4)";
                           e.currentTarget.style.backgroundColor = "transparent";
                         }}
-                        title="Move to Next (Up Next)"
+                        title="Remove from queue"
                       >
-                        <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>vertical_align_top</span>
+                        <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>delete</span>
                       </button>
-                    )}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteTrack(track.item_id);
+                    </>
+                  )}
+                </Box>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <ul className="queue-list">
+          {history.length === 0 ? (
+            <Box style={{ textAlign: "center", color: "rgba(255, 255, 255, 0.4)", padding: "24px 12px", fontSize: "0.9rem" }}>
+              No playback history yet.
+            </Box>
+          ) : (
+            history.map((track, index) => (
+              <li key={index} className="queue-item">
+                <Box className="queue-item-left">
+                  {track.item_id ? (
+                    <img
+                      src={`${apiBase}/api/music/track-art/${track.item_id}${track.server_id ? '?server_id=' + track.server_id : ''}`}
+                      alt={track.title}
+                      className="queue-item-art"
+                      onError={(e) => {
+                        e.currentTarget.style.display = "none";
+                        const sibling = e.currentTarget.nextElementSibling as HTMLElement;
+                        if (sibling) sibling.style.display = "flex";
                       }}
-                      style={{
-                        background: "transparent",
-                        border: "none",
-                        color: "rgba(255, 255, 255, 0.4)",
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        padding: "4px",
-                        borderRadius: "4px",
-                        transition: "color 0.2s, background-color 0.2s",
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.color = "#f44336";
-                        e.currentTarget.style.backgroundColor = "rgba(244, 67, 54, 0.1)";
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.color = "rgba(255, 255, 255, 0.4)";
-                        e.currentTarget.style.backgroundColor = "transparent";
-                      }}
-                      title="Remove from queue"
+                    />
+                  ) : null}
+                  <Box className="queue-item-art-placeholder" style={{ display: track.item_id ? "none" : "flex" }}>🎵</Box>
+                  <Box className="queue-item-meta" style={{ display: "flex", flexDirection: "column", gap: "2px", minWidth: 0, width: "100%" }}>
+                    <Typography
+                      className="queue-item-title"
+                      title={track.title}
+                      style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "100%" }}
                     >
-                      <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>delete</span>
-                    </button>
-                  </>
-                )}
-              </Box>
-            </li>
-          );
-        })}
-      </ul>
+                      {track.title}
+                    </Typography>
+                    <Typography
+                      className="queue-item-artist"
+                      title={track.artist}
+                      style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", width: "100%" }}
+                    >
+                      {track.artist}
+                    </Typography>
+                  </Box>
+                </Box>
+                <Box style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  {track.duration ? (
+                    <Typography className="queue-item-time">{formatDuration(track.duration)}</Typography>
+                  ) : null}
+                  <button
+                    className="requeue-btn"
+                    onClick={() => handleRequeue(track)}
+                    title="Add back to queue"
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: "14px" }}>add</span>
+                    <span>Re-queue</span>
+                  </button>
+                </Box>
+              </li>
+            ))
+          )}
+        </ul>
+      )}
     </Box>
   );
 };

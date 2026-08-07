@@ -39,6 +39,7 @@ from backend.services.redis import (
     clear_cache,
     clear_redis_queue,
     get_redis_queue,
+    get_playback_history,
     move_to_top_redis_queue,
     remove_from_redis_queue,
     reorder_redis_queue,
@@ -250,6 +251,17 @@ def get_playback_queue():
             }
             for item in queue
         ]
+
+
+@router.get("/queue/history")
+def get_queue_history():
+    """Get recent playback history from Redis (up to 20 tracks)."""
+    try:
+        return get_playback_history()
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error fetching playback history: {e!s}"
+        ) from e
 
 
 @router.post("/clear-queue")

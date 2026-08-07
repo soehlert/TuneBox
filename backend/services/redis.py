@@ -249,28 +249,61 @@ def clear_cache(key: str):
     return {"message": f"Cache cleared for key: {key}"}
 
 
-def add_to_history(track_id: int):
-    """Add a track ID to the playback history list in Redis (capped at 10 items)."""
+def add_to_history(track: dict | int | str):
+    """Add a track object to playback history list in Redis (capped at 20 items)."""
     try:
         client = get_redis_queue_client()
-        # Push to the left (newest first)
-        client.lpush("playback_history", track_id)
-        # Trim to keep only the 10 most recent entries
-        client.ltrim("playback_history", 0, 9)
-        logger.info("Added track %s to playback history.", track_id)
+        if isinstance(track, (int, str)):
+            track_obj = {"item_id": int(track), "title": f"Track {track}"}
+        else:
+            track_obj = track
+
+        track_json = json.dumps(track_obj)
+        client.lpush("playback_history_v2", track_json)
+        client.ltrim("playback_history_v2", 0, 19)
+
+        # Also push item_id to legacy playback_history for autoplay backwards compatibility
+        item_id = track_obj.get("item_id")
+        if item_id:
+            client.lpush("playback_history", str(item_id))
+            client.ltrim("playback_history", 0, 19)
+
+        logger.info("Added track %s to playback history.", track_obj.get("title", track_obj.get("item_id")))
     except Exception as e:
         logger.warning("Failed to update playback history: %s", e)
 
 
-def get_playback_history():
-    """Retrieve the recent playback history track IDs from Redis."""
+def get_playback_history() -> list[dict]:
+    """Retrieve recent playback history track objects from Redis."""
     try:
         client = get_redis_queue_client()
-        history = client.lrange("playback_history", 0, -1)
-        return [int(tid) for tid in history]
+        raw_history = client.lrange("playback_history_v2", 0, -1)
+        res = []
+        for item in raw_history:
+            if isinstance(item, bytes):
+                item = item.decode("utf-8")
+            if isinstance(item, str):
+                try:
+                    res.append(json.loads(item))
+                except Exception:
+                    pass
+            elif isinstance(item, dict):
+                res.append(item)
+        return res
     except Exception as e:
         logger.warning("Failed to fetch playback history: %s", e)
         return []
+
+
+def get_playback_history_ids() -> list[int]:
+    """Retrieve recent playback history track IDs for autoplay generation."""
+    history = get_playback_history()
+    ids = []
+    for h in history:
+        tid = h.get("item_id")
+        if tid and str(tid).isdigit():
+            ids.append(int(tid))
+    return ids
 
 
 def is_autoplay_enabled() -> bool:
