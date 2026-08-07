@@ -1244,10 +1244,23 @@ def fetch_albums_for_artist(artist_id: int, server_id: str | None = None):
             res = []
             for album in albums:
                 guid_val = getattr(album, "guid", None) or getattr(album, "ratingKey", "")
+                year_val = getattr(album, "year", None)
+                if not year_val and getattr(album, "originallyAvailableAt", None):
+                    try:
+                        year_val = album.originallyAvailableAt.year
+                    except Exception:
+                        pass
+                genre_tags = [g.tag for g in getattr(album, "genres", []) if hasattr(g, "tag")]
+                if not genre_tags and hasattr(artist_item, "genres"):
+                    genre_tags = [g.tag for g in getattr(artist_item, "genres", []) if hasattr(g, "tag")]
+                genre_val = genre_tags[0] if genre_tags else "Uncategorized"
+
                 res.append({
                     "album_id": album.ratingKey,
                     "artist": artist_item.title,
                     "title": album.title,
+                    "year": year_val,
+                    "genre": genre_val,
                     "guid": str(guid_val),
                     "server_id": s_id,
                     "server_name": resolved_name,
@@ -1327,40 +1340,111 @@ def fetch_all_albums(target_server_ids: list[str] | None = None) -> list[dict]:
         all_albums.sort(key=lambda a: a["title"].lower())
         return all_albums
 
-    cache_key = "all_albums_unified"
-    cached = get_cached_data(cache_key)
-    if cached:
-        return cached
+    cache_key = "all_albums_unified_v3"
+    if not target_server_ids:
+        cached = get_cached_data(cache_key)
+        if cached:
+            return cached
 
-    all_artists = fetch_all_artists(target_server_ids)
+    enabled_ids = target_server_ids if target_server_ids is not None else get_enabled_server_ids()
+    all_accessible = fetch_accessible_plex_servers()
+    enabled_set = {str(x).lower() for x in enabled_ids}
+
+    target_servers = [
+        s for s in all_accessible
+        if str(s.get("server_id", "")).lower() in enabled_set
+        or str(s.get("name", "")).lower() in enabled_set
+    ]
+
+    if not target_servers:
+        target_servers = [s for s in all_accessible if s.get("is_primary")] or (all_accessible[:1] if all_accessible else [])
+
     merged_albums = {}
 
-    for artist in all_artists:
-        a_id = artist.get("artist_id")
-        s_id = artist.get("server_id")
-        if not a_id:
-            continue
+    def _fetch_server_albums(s_info):
+        s_id = s_info.get("server_id")
+        s_name = s_info.get("name", settings.plex_server_name or "plex-so")
         try:
-            albums = fetch_albums_for_artist(a_id, server_id=s_id)
-            for alb in albums:
-                dedup_key = f"{alb.get('title', '').strip().lower()}::{artist.get('name', '').strip().lower()}"
-                if dedup_key not in merged_albums:
-                    merged_albums[dedup_key] = {
-                        "album_id": alb["album_id"],
-                        "title": alb["title"],
-                        "artist": artist.get("name"),
-                        "artist_id": a_id,
-                        "year": alb.get("year"),
-                        "genre": alb.get("genre"),
-                        "thumb": alb.get("thumb"),
-                        "server_id": alb.get("server_id", s_id),
-                    }
+            plex = get_target_plex_connection(s_id)
+            music_libs = []
+            try:
+                for sec in plex.library.sections():
+                    if is_music_library_section(sec):
+                        music_libs.append(sec)
+            except Exception:
+                pass
+
+            if not music_libs:
+                try:
+                    music_libs = [plex.library.section("Music")]
+                except Exception:
+                    pass
+
+            if not music_libs:
+                return []
+
+            results = []
+            for music_lib in music_libs:
+                try:
+                    albums = music_lib.all(libtype="album")
+                    for album in albums:
+                        year_val = getattr(album, "year", None)
+                        if not year_val and getattr(album, "originallyAvailableAt", None):
+                            try:
+                                year_val = album.originallyAvailableAt.year
+                            except Exception:
+                                pass
+
+                        genre_tags = [g.tag for g in getattr(album, "genres", []) if hasattr(g, "tag")]
+                        genre_val = genre_tags[0] if genre_tags else "Uncategorized"
+
+                        artist_name = (
+                            getattr(album, "parentTitle", None)
+                            or getattr(album, "artistTitle", None)
+                            or getattr(album, "grandparentTitle", None)
+                            or "Various Artists"
+                        )
+                        artist_id = getattr(album, "parentRatingKey", None) or getattr(album, "grandparentRatingKey", None)
+
+                        results.append({
+                            "album_id": album.ratingKey,
+                            "title": album.title,
+                            "artist": artist_name,
+                            "artist_id": artist_id,
+                            "year": year_val,
+                            "genre": genre_val,
+                            "server_id": s_id,
+                            "server_name": s_name,
+                            "thumb": getattr(album, "thumb", None),
+                        })
+                        if getattr(album, "thumb", None):
+                            cache_data(f"thumb_path:album:{album.ratingKey}", album.thumb)
+                except Exception as lib_ex:
+                    logger.warning("Error fetching albums from section '%s' on server %s: %s", getattr(music_lib, "title", "Unknown"), s_name, lib_ex)
+            return results
         except Exception as ex:
-            logger.warning("Error getting albums for artist %s: %s", a_id, ex)
+            logger.warning("Failed to connect to server %s (%s): %s", s_name, s_id, ex)
+            return []
+
+    import concurrent.futures
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(target_servers) or 1, 5)) as executor:
+        futures = [executor.submit(_fetch_server_albums, s) for s in target_servers]
+        done, not_done = concurrent.futures.wait(futures, timeout=15.0)
+        for f in done:
+            try:
+                if not f.exception():
+                    server_results = f.result()
+                    for alb in server_results:
+                        dedup_key = f"{alb['title'].strip().lower()}::{alb['artist'].strip().lower()}"
+                        if dedup_key not in merged_albums:
+                            merged_albums[dedup_key] = alb
+            except Exception as ex:
+                logger.warning("Error processing server album results: %s", ex)
 
     album_list = list(merged_albums.values())
     album_list.sort(key=lambda x: x["title"].lower())
-    cache_data(cache_key, album_list)
+    if not target_server_ids:
+        cache_data(cache_key, album_list)
     return album_list
 
 
@@ -1369,7 +1453,11 @@ def fetch_all_genres() -> list[dict]:
     albums = fetch_all_albums()
     counts = {}
     for alb in albums:
-        g = alb.get("genre") or "Uncategorized"
+        g = alb.get("genre")
+        if not g or str(g).strip().lower() in ("", "none", "null"):
+            g = "Uncategorized"
+        else:
+            g = str(g).strip().title()
         counts[g] = counts.get(g, 0) + 1
 
     genres_list = [
@@ -1396,10 +1484,15 @@ def fetch_all_decades() -> list[dict]:
 
     for alb in albums:
         year = alb.get("year")
-        if not year or not isinstance(year, int) or year < 1920 or year > 2030:
+        try:
+            year_int = int(year) if year is not None else None
+        except (ValueError, TypeError):
+            year_int = None
+
+        if not year_int or year_int < 1920 or year_int > 2030:
             decade_key = (0, 0, "Unknown Era")
         else:
-            start = (year // 10) * 10
+            start = (year_int // 10) * 10
             end = start + 9
             decade_key = (start, end, f"{start}s")
         decade_counts[decade_key] = decade_counts.get(decade_key, 0) + 1
@@ -1423,10 +1516,15 @@ def fetch_albums_by_decade(year_start: int, year_end: int) -> list[dict]:
     if year_start == 0 and year_end == 0:
         return [alb for alb in albums if not alb.get("year") or not isinstance(alb.get("year"), int)]
 
-    return [
-        alb for alb in albums
-        if alb.get("year") and isinstance(alb.get("year"), int) and year_start <= alb["year"] <= year_end
-    ]
+    def _matches_year(alb):
+        y = alb.get("year")
+        try:
+            y_int = int(y) if y is not None else None
+            return bool(y_int and year_start <= y_int <= year_end)
+        except (ValueError, TypeError):
+            return False
+
+    return [alb for alb in albums if _matches_year(alb)]
 
 
 def fetch_tracks_for_album(album_id: int, server_id: str | None = None):
