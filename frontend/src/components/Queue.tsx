@@ -27,8 +27,8 @@ const QueueComponent = () => {
 
   const handleRequeue = async (track: any) => {
     try {
-      const sParam = track.server_id ? `&server_id=${track.server_id}` : "";
-      const response = await fetch(`${apiBase}/api/music/add-track-to-queue?rating_key=${track.item_id}${sParam}`, {
+      const sParam = track.server_id ? `?server_id=${track.server_id}` : "";
+      const response = await fetch(`${apiBase}/api/music/queue/${track.item_id}${sParam}`, {
         method: "POST",
       });
       if (response.ok) {
@@ -200,6 +200,14 @@ const QueueComponent = () => {
             if (data.message === "Queue update") {
               setQueue(data.queue);
               setVibes(data.vibes || []);
+              fetchHistory();
+            } else if (
+              data.message === "Track state update" ||
+              data.message === "Now playing update" ||
+              data.message === "Song finished" ||
+              data.type === "queue_update"
+            ) {
+              fetchHistory();
             } else if (data.message === "pong") {
               clearTimeout(pongTimeoutRef.current!);
             }
@@ -245,7 +253,9 @@ const QueueComponent = () => {
 
   useEffect(() => {
     fetchHistory();
-  }, []);
+    const interval = setInterval(fetchHistory, 5000);
+    return () => clearInterval(interval);
+  }, [activeTab]);
 
   return (
     <Box className="queue-wrapper">

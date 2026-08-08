@@ -75,3 +75,26 @@ def test_get_playback_history_endpoint(mock_redis):
         assert data[0]["title"] == "History Track"
     finally:
         settings.testing = orig_testing
+
+
+def test_requeue_history_track_endpoint(mock_redis, mocker):
+    """Verify POST /api/music/queue/{item_id} adds a track back to the queue."""
+    mock_song = mocker.MagicMock()
+    mock_song.ratingKey = 9999
+    mock_song.title = "History Track"
+    mock_song.grandparentTitle = "History Artist"
+    mock_song.parentTitle = "History Album"
+    mock_song.duration = 200000
+    mock_song.media = []
+
+    mocker.patch("backend.routers.music.get_target_plex_connection", return_value=mocker.MagicMock(fetchItem=mocker.MagicMock(return_value=mock_song)))
+    mocker.patch("backend.routers.music.add_to_queue_redis")
+
+    orig_testing = settings.testing
+    settings.testing = True
+    try:
+        response = client.post("/api/music/queue/9999")
+        assert response.status_code == 200
+        assert "Added" in response.json().get("message", "")
+    finally:
+        settings.testing = orig_testing
