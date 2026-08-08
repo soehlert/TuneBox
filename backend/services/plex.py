@@ -37,6 +37,8 @@ for _log_name in ("plexapi", "plexapi.myplex", "plexapi.server", "urllib3", "url
 
 logger = logging.getLogger(__name__)
 
+_SERVER_CREDENTIALS_CACHE: dict[str, tuple[str, str]] = {}
+
 
 track_time_tracker = TrackTimeTracker()
 # Declare the global variable to manage playback state
@@ -1310,6 +1312,18 @@ def get_target_plex_connection(server_id: str | None = None):
     if conn:
         _plex_connection_cache[server_id] = (conn, now)
         _failed_connection_cache.pop(server_id, None)
+        base_url = getattr(conn, "_baseurl", "")
+        tok = getattr(conn, "_token", "")
+        if base_url and tok:
+            _SERVER_CREDENTIALS_CACHE[str(server_id).lower()] = (base_url, tok)
+            try:
+                from backend.services.library import get_db_connection
+                sq_conn = get_db_connection()
+                sq_conn.execute("UPDATE servers SET server_url = ? WHERE server_id = ?", (base_url, server_id))
+                sq_conn.commit()
+                sq_conn.close()
+            except Exception:
+                pass
         return conn
 
     _failed_connection_cache[server_id] = now
@@ -1942,8 +1956,13 @@ def fetch_art(item_id: int, item_type: str, server_id: str | None = None):
                         detail="Invalid item type. Must be 'artist', 'album', or 'track'.",
                     )
 
-                # First, try resolving server_url and token directly from SQLite servers table
-                server_url, token = get_server_credentials(target_server_id)
+                # First, try resolving server_url and token directly from memory cache or SQLite
+                target_key = str(target_server_id or "").lower()
+                server_url, token = None, None
+                if target_key in _SERVER_CREDENTIALS_CACHE:
+                    server_url, token = _SERVER_CREDENTIALS_CACHE[target_key]
+                if not server_url or not token:
+                    server_url, token = get_server_credentials(target_server_id)
 
                 cache_key = f"thumb_path:{target_server_id or 'primary'}:{item_type}:{item_id}"
                 thumb_path = None
@@ -1955,12 +1974,15 @@ def fetch_art(item_id: int, item_type: str, server_id: str | None = None):
                 if not thumb_path or not server_url or not token or hasattr(get_target_plex_connection, "mock_calls"):
                     try:
                         plex = get_target_plex_connection(target_server_id)
-                        if not server_url or hasattr(get_target_plex_connection, "mock_calls"):
-                            server_url = getattr(plex, "_baseurl", "")
-                        if not token or hasattr(get_target_plex_connection, "mock_calls"):
-                            token = getattr(plex, "_token", "")
-                        if not thumb_path:
-                            item = plex.fetchItem(target_item_id)
+                        if plex:
+                            if not server_url or hasattr(get_target_plex_connection, "mock_calls"):
+                                server_url = getattr(plex, "_baseurl", "")
+                            if not token or hasattr(get_target_plex_connection, "mock_calls"):
+                                token = getattr(plex, "_token", "")
+                            if target_key and server_url and token:
+                                _SERVER_CREDENTIALS_CACHE[target_key] = (server_url, token)
+                            if not thumb_path:
+                                item = plex.fetchItem(target_item_id)
                             if item_type == "artist":
                                 thumb_path = getattr(item, "thumb", None)
                             elif item_type == "album":

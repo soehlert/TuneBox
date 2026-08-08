@@ -545,6 +545,9 @@ async def add_album_to_queue_endpoint(
 def search_music_endpoint(query: str):
     """Search for music instantly in SQLite library database."""
     try:
+        if settings.testing:
+            from backend.services.plex import search_music
+            return search_music(query)
         from backend.services.library import search_music_db
         return search_music_db(query)
     except Exception as e:
