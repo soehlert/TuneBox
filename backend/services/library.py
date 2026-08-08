@@ -473,7 +473,15 @@ def get_all_art_sources(item_id: int | str, item_type: str, db_path: str | None 
                 (resolved_id,),
             )
             for row in cursor.fetchall():
-                sources.append((row["thumb"], row["server_id"], row["rating_key"]))
+                thumb_val = row["thumb"]
+                if not thumb_val:
+                    album_row = conn.execute(
+                        "SELECT thumb FROM albums WHERE artist_id = ? AND thumb IS NOT NULL AND thumb != '' LIMIT 1",
+                        (resolved_id,),
+                    ).fetchone()
+                    if album_row:
+                        thumb_val = album_row["thumb"]
+                sources.append((thumb_val, row["server_id"], row["rating_key"]))
 
         elif item_type == "album":
             r_row = conn.execute(

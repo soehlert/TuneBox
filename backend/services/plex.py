@@ -1963,14 +1963,6 @@ def fetch_art(item_id: int, item_type: str, server_id: str | None = None):
                             item = plex.fetchItem(target_item_id)
                             if item_type == "artist":
                                 thumb_path = getattr(item, "thumb", None)
-                                if not thumb_path and hasattr(item, "albums"):
-                                    try:
-                                        for alb in item.albums():
-                                            if getattr(alb, "thumb", None):
-                                                thumb_path = alb.thumb
-                                                break
-                                    except Exception:
-                                        pass
                             elif item_type == "album":
                                 thumb_path = getattr(item, "thumb", None)
                             else:

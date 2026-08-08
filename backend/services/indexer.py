@@ -105,14 +105,7 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
                                 tracks = album.tracks()
                                 for track in tracks:
                                     duration_sec = milliseconds_to_seconds(track.duration) if getattr(track, "duration", None) else 0
-                                    trk_url = None
-                                    if hasattr(track, "getStreamUrl") and callable(track.getStreamUrl):
-                                        try:
-                                            trk_url = track.getStreamUrl()
-                                        except Exception:
-                                            pass
-                                    if not trk_url and getattr(track, "key", None):
-                                        trk_url = track.key
+                                    trk_url = getattr(track, "key", None)
 
                                     raw_user_rating = getattr(track, "userRating", 0.0) or 0.0
                                     user_rating_stars = float(raw_user_rating) / 2.0 if raw_user_rating else 0.0
