@@ -265,3 +265,53 @@ def search_music_db(query_str: str, db_path: str | None = None) -> list[dict]:
         return res
     finally:
         conn.close()
+
+
+def get_art_source_info(item_id: int | str, item_type: str, db_path: str | None = None) -> tuple[str | None, str | None, str | None]:
+    """Resolve stored thumb URL, server_id, and Plex server ratingKey from SQLite for a given SQLite item_id."""
+    conn = get_db_connection(db_path)
+    try:
+        if item_type == "artist":
+            cursor = conn.execute(
+                """
+                SELECT a.thumb, src.server_id, src.server_artist_id as rating_key
+                FROM artists a
+                LEFT JOIN artist_sources src ON a.artist_id = src.artist_id
+                WHERE a.artist_id = ? OR a.norm_name = ?
+                """,
+                (item_id, str(item_id).lower()),
+            )
+            row = cursor.fetchone()
+            if row:
+                return row["thumb"], row["server_id"], row["rating_key"]
+
+        elif item_type == "album":
+            cursor = conn.execute(
+                """
+                SELECT alb.thumb, src.server_id, src.server_album_id as rating_key
+                FROM albums alb
+                LEFT JOIN album_sources src ON alb.album_id = src.album_id
+                WHERE alb.album_id = ?
+                """,
+                (item_id,),
+            )
+            row = cursor.fetchone()
+            if row:
+                return row["thumb"], row["server_id"], row["rating_key"]
+
+        elif item_type == "track":
+            cursor = conn.execute(
+                """
+                SELECT t.thumb, t.server_id, t.server_track_id as rating_key
+                FROM tracks t
+                WHERE t.track_id = ?
+                """,
+                (item_id,),
+            )
+            row = cursor.fetchone()
+            if row:
+                return row["thumb"], row["server_id"], row["rating_key"]
+
+        return None, None, None
+    finally:
+        conn.close()

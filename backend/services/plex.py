@@ -1902,7 +1902,12 @@ def fetch_art(item_id: int, item_type: str, server_id: str | None = None):
         return MockResponse()
 
     try:
-        plex = get_target_plex_connection(server_id)
+        from backend.services.library import get_art_source_info
+        stored_thumb, db_server_id, rating_key = get_art_source_info(item_id, item_type)
+        effective_server_id = server_id or db_server_id
+        target_item_id = rating_key if rating_key else item_id
+
+        plex = get_target_plex_connection(effective_server_id)
 
         if item_type not in {"artist", "album", "track"}:
             raise HTTPException(
@@ -1910,10 +1915,14 @@ def fetch_art(item_id: int, item_type: str, server_id: str | None = None):
                 detail="Invalid item type. Must be 'artist', 'album', or 'track'.",
             )
 
-        cache_key = f"thumb_path:{server_id or 'primary'}:{item_type}:{item_id}"
-        thumb_path = get_cached_data(cache_key)
+        cache_key = f"thumb_path:{effective_server_id or 'primary'}:{item_type}:{item_id}"
+        thumb_path = None
+        if stored_thumb and (stored_thumb.startswith("/library/metadata/") or stored_thumb.startswith("http")):
+            thumb_path = stored_thumb
         if not thumb_path:
-            item = plex.fetchItem(item_id)
+            thumb_path = get_cached_data(cache_key)
+        if not thumb_path:
+            item = plex.fetchItem(target_item_id)
             if item_type == "artist":
                 thumb_path = getattr(item, "thumb", None)
                 if not thumb_path and hasattr(item, "albums"):
