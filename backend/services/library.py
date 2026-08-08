@@ -134,15 +134,33 @@ def upsert_track(album_id: int, server_id: str, server_track_id: str, artist_nam
     conn = get_db_connection(db_path)
     try:
         cursor = conn.cursor()
-        cursor.execute(
-            """
-            INSERT INTO tracks (album_id, server_id, server_track_id, artist_name, album_title, title, duration, url, thumb, play_count, user_rating, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (album_id, server_id, str(server_track_id), artist_name, album_title, title, duration, safe_url, thumb, play_count, float(user_rating or 0.0), now),
-        )
-        conn.commit()
-        return cursor.lastrowid
+        existing = cursor.execute(
+            "SELECT track_id FROM tracks WHERE server_id = ? AND server_track_id = ? LIMIT 1",
+            (server_id, str(server_track_id)),
+        ).fetchone()
+
+        if existing:
+            track_id = existing["track_id"]
+            cursor.execute(
+                """
+                UPDATE tracks
+                SET album_id = ?, artist_name = ?, album_title = ?, title = ?, duration = ?, url = ?, thumb = ?, play_count = ?, user_rating = CASE WHEN ? > 0 THEN ? ELSE user_rating END, updated_at = ?
+                WHERE track_id = ?
+                """,
+                (album_id, artist_name, album_title, title, duration, safe_url, thumb, play_count, float(user_rating or 0.0), float(user_rating or 0.0), now, track_id),
+            )
+            conn.commit()
+            return track_id
+        else:
+            cursor.execute(
+                """
+                INSERT INTO tracks (album_id, server_id, server_track_id, artist_name, album_title, title, duration, url, thumb, play_count, user_rating, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (album_id, server_id, str(server_track_id), artist_name, album_title, title, duration, safe_url, thumb, play_count, float(user_rating or 0.0), now),
+            )
+            conn.commit()
+            return cursor.lastrowid
     finally:
         conn.close()
 
@@ -156,6 +174,25 @@ def rate_track_db(track_id: int | str, rating: float, db_path: str | None = None
             (float(rating), track_id, str(track_id)),
         )
         conn.commit()
+    finally:
+        conn.close()
+
+
+def is_track_on_primary_server(track_id: int | str, db_path: str | None = None) -> bool:
+    """Check if a track is hosted on the user's primary Plex server."""
+    conn = get_db_connection(db_path)
+    try:
+        row = conn.execute(
+            """
+            SELECT srv.is_primary
+            FROM tracks t
+            JOIN servers srv ON t.server_id = srv.server_id
+            WHERE (t.track_id = ? OR t.server_track_id = ?) AND srv.enabled = 1
+            LIMIT 1
+            """,
+            (track_id, str(track_id)),
+        ).fetchone()
+        return bool(row and row["is_primary"])
     finally:
         conn.close()
 
@@ -291,6 +328,70 @@ def get_albums_by_genre_db(genre_name: str, db_path: str | None = None) -> list[
         return [dict(r) for r in cursor.fetchall()]
     finally:
         conn.close()
+def get_all_decades_db(db_path: str | None = None) -> list[dict]:
+    """Fetch decade breakdown (e.g. 1960s, 1970s...) with album counts from enabled servers in SQLite."""
+    conn = get_db_connection(db_path)
+    try:
+        cursor = conn.execute(
+            """
+            SELECT 
+                CASE 
+                    WHEN alb.year IS NULL OR alb.year < 1920 OR alb.year > 2030 THEN 0
+                    ELSE (alb.year / 10) * 10 
+                END as year_start,
+                CASE 
+                    WHEN alb.year IS NULL OR alb.year < 1920 OR alb.year > 2030 THEN 0
+                    ELSE ((alb.year / 10) * 10) + 9 
+                END as year_end,
+                CASE 
+                    WHEN alb.year IS NULL OR alb.year < 1920 OR alb.year > 2030 THEN 'Unknown Era'
+                    ELSE CAST((alb.year / 10) * 10 AS TEXT) || 's'
+                END as decade,
+                COUNT(DISTINCT alb.album_id) as album_count
+            FROM albums alb
+            JOIN album_sources src ON alb.album_id = src.album_id
+            JOIN servers srv ON src.server_id = srv.server_id
+            WHERE srv.enabled = 1 AND alb.title != '' AND alb.title IS NOT NULL
+            GROUP BY year_start, year_end, decade
+            ORDER BY year_start ASC
+            """
+        )
+        return [dict(r) for r in cursor.fetchall()]
+    finally:
+        conn.close()
+
+
+def get_albums_by_decade_db(year_start: int, year_end: int, db_path: str | None = None) -> list[dict]:
+    """Fetch all albums within a specific decade from enabled servers in SQLite."""
+    conn = get_db_connection(db_path)
+    try:
+        if year_start == 0 and year_end == 0:
+            query = """
+                SELECT DISTINCT alb.album_id, alb.artist_id, alb.artist_name as artist, alb.title, alb.year, alb.genre, alb.thumb, alb.play_count
+                FROM albums alb
+                JOIN album_sources src ON alb.album_id = src.album_id
+                JOIN servers srv ON src.server_id = srv.server_id
+                WHERE srv.enabled = 1 AND alb.title != '' AND alb.title IS NOT NULL
+                  AND (alb.year IS NULL OR alb.year < 1920 OR alb.year > 2030)
+                GROUP BY alb.album_id
+                ORDER BY alb.title COLLATE NOCASE ASC
+            """
+            cursor = conn.execute(query)
+        else:
+            query = """
+                SELECT DISTINCT alb.album_id, alb.artist_id, alb.artist_name as artist, alb.title, alb.year, alb.genre, alb.thumb, alb.play_count
+                FROM albums alb
+                JOIN album_sources src ON alb.album_id = src.album_id
+                JOIN servers srv ON src.server_id = srv.server_id
+                WHERE srv.enabled = 1 AND alb.title != '' AND alb.title IS NOT NULL
+                  AND alb.year >= ? AND alb.year <= ?
+                GROUP BY alb.album_id
+                ORDER BY alb.title COLLATE NOCASE ASC
+            """
+            cursor = conn.execute(query, (year_start, year_end))
+        return [dict(r) for r in cursor.fetchall()]
+    finally:
+        conn.close()
 
 
 def search_music_db(query_str: str, db_path: str | None = None) -> list[dict]:
@@ -372,7 +473,15 @@ def get_all_art_sources(item_id: int | str, item_type: str, db_path: str | None 
                 (resolved_id,),
             )
             for row in cursor.fetchall():
-                sources.append((row["thumb"], row["server_id"], row["rating_key"]))
+                thumb_val = row["thumb"]
+                if not thumb_val:
+                    album_row = conn.execute(
+                        "SELECT thumb FROM albums WHERE artist_id = ? AND thumb IS NOT NULL AND thumb != '' LIMIT 1",
+                        (resolved_id,),
+                    ).fetchone()
+                    if album_row:
+                        thumb_val = album_row["thumb"]
+                sources.append((thumb_val, row["server_id"], row["rating_key"]))
 
         elif item_type == "album":
             r_row = conn.execute(
@@ -468,7 +577,7 @@ def get_tracks_for_album_db(album_id: int | str, db_path: str | None = None) -> 
     try:
         cursor = conn.execute(
             """
-            SELECT alb.album_id, alb.title, alb.artist_name, alb.thumb, srv.name as server_name, src.server_id
+            SELECT alb.album_id, alb.artist_id, alb.title, alb.artist_name, alb.thumb, srv.name as server_name, src.server_id
             FROM albums alb
             LEFT JOIN album_sources src ON alb.album_id = src.album_id
             LEFT JOIN servers srv ON src.server_id = srv.server_id
@@ -521,6 +630,7 @@ def get_tracks_for_album_db(album_id: int | str, db_path: str | None = None) -> 
                 "url": r["url"],
                 "thumb": r["thumb"],
                 "user_rating": float(r["user_rating"] or 0.0),
+                "is_primary": bool(r["is_primary"]),
                 "server_name": r["server_name"],
             }
             for idx, r in enumerate(deduped_rows)
@@ -528,6 +638,7 @@ def get_tracks_for_album_db(album_id: int | str, db_path: str | None = None) -> 
 
         return {
             "album_title": alb_row["title"],
+            "artist_id": alb_row["artist_id"],
             "artist_name": alb_row["artist_name"],
             "thumb": alb_row["thumb"],
             "server_name": alb_row["server_name"],

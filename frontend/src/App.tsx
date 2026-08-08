@@ -1771,7 +1771,7 @@ function App() {
       setLoadingArtists(false);
       setArtists([]);
     }
-  }, [debouncedSearchTerm, isConfigured]);
+  }, [debouncedSearchTerm, isConfigured, viewMode]);
 
 
 

@@ -83,18 +83,7 @@ function ArtistList({
     if (letterIdx > 0) adjacentBucketLetters.add(alphabet[letterIdx - 1]);
     if (letterIdx >= 0 && letterIdx < alphabet.length - 1) adjacentBucketLetters.add(alphabet[letterIdx + 1]);
 
-    // Prefetch images for target and adjacent letters immediately
-    const prefetchArtists = filteredArtists.filter((artist) => {
-      if (!artist.name) return false;
-      const char = artist.name[0].toUpperCase();
-      if (selectedLetter === "0-9") return /^\d/.test(char);
-      return adjacentBucketLetters.has(char);
-    });
 
-    prefetchArtists.slice(0, 60).forEach((artist) => {
-      const img = new Image();
-      img.src = `${apiBase}/api/music/artist-image/${artist.artist_id}`;
-    });
 
     const targetIndex = filteredArtists.findIndex((artist) => {
       if (!artist.name) return false;
@@ -222,11 +211,13 @@ function ArtistList({
 
   return (
     <div className="artist-list-wrapper">
-      <header className="page-header">
-        <Typography variant="h1" className="gradient-text">
-          {isSearching ? "Search Results" : "Artists"}
-        </Typography>
-      </header>
+      {isSearching && (
+        <header className="page-header">
+          <Typography variant="h1" className="gradient-text">
+            Search Results
+          </Typography>
+        </header>
+      )}
 
       {!isSearching && (
         <div className="view-sort-bar">
