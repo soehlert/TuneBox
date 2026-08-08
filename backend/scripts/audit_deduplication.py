@@ -171,6 +171,20 @@ def audit_deduplication(
 
     possible_artist_dedupes = {k: items for k, items in artist_groups.items() if len({i["server_id"] for i in items}) > 1}
 
+    # Single-server norm collisions: 2+ raw entries on the SAME server that normalized to the same key
+    single_server_artist_merges = []
+    for key, items in artist_groups.items():
+        server_ids = {i["server_id"] for i in items}
+        if len(server_ids) == 1 and len(items) > 1:
+            titles = sorted({i["title"] for i in items})
+            single_server_artist_merges.append({
+                "norm_key": key,
+                "titles": titles,
+                "server": items[0]["server_name"],
+                "kept": titles[0],
+                "absorbed": titles[1:],
+            })
+
     matched_artist_dedupes = 0
     missed_artist_dedupes = []
 
@@ -243,6 +257,21 @@ def audit_deduplication(
     # Multi-server album candidate groups (present on 2+ servers)
     possible_album_dedupes = {k: items for k, items in album_groups.items() if len({i["server_id"] for i in items}) > 1}
 
+    # Single-server norm collisions: 2+ raw album entries on the SAME server that normalized to the same key
+    single_server_album_merges = []
+    for key, items in album_groups.items():
+        server_ids = {i["server_id"] for i in items}
+        if len(server_ids) == 1 and len(items) > 1:
+            titles = sorted({i["title"] for i in items})
+            single_server_album_merges.append({
+                "norm_key": key,
+                "titles": titles,
+                "artist": items[0].get("artist", "Unknown Artist"),
+                "server": items[0]["server_name"],
+                "kept": titles[0],
+                "absorbed": titles[1:],
+            })
+
     matched_album_dedupes = 0
     missed_album_dedupes = []
 
@@ -303,6 +332,7 @@ def audit_deduplication(
             "dedupe_success_pct": artist_dedupe_pct,
             "missed_details": missed_artist_dedupes[:10],
             "fuzzy_candidates": potential_missed_artists[:10],
+            "single_server_merges": single_server_artist_merges,
         },
         "album_summary": {
             "total_raw": total_raw_albums,
@@ -313,6 +343,7 @@ def audit_deduplication(
             "dedupe_success_pct": album_dedupe_pct,
             "missed_details": missed_album_dedupes[:10],
             "fuzzy_candidates": potential_missed_albums[:10],
+            "single_server_merges": single_server_album_merges,
         },
     }
 
@@ -376,6 +407,26 @@ def generate_report(summary: dict[str, Any]) -> str:
         report_lines.append("\n[CANDIDATE MISSED ALBUM DUPLICATES (>85% Fuzzy Match)]")
         for item in alb_sum["fuzzy_candidates"]:
             report_lines.append(f"  • '{item['album_1']}' by {item['artist']} ({item['sources_1']}) <--> '{item['album_2']}' ({item['sources_2']}) [{item['similarity'] * 100:.1f}% Match]")
+
+    if art_sum["single_server_merges"]:
+        report_lines.append(f"\n[SINGLE-SERVER ARTIST MERGES ({len(art_sum['single_server_merges'])} total)]")
+        report_lines.append("  These artists on the same server normalized to the same key and were merged:")
+        for item in art_sum["single_server_merges"]:
+            absorbed_str = ", ".join(f"'{t}'" for t in item["absorbed"])
+            report_lines.append(
+                f"  • Kept: '{item['kept']}'  ←  absorbed: {absorbed_str}"
+                f"  (norm key: '{item['norm_key']}', server: {item['server']})"
+            )
+
+    if alb_sum["single_server_merges"]:
+        report_lines.append(f"\n[SINGLE-SERVER ALBUM MERGES ({len(alb_sum['single_server_merges'])} total)]")
+        report_lines.append("  These albums on the same server normalized to the same key and were merged:")
+        for item in alb_sum["single_server_merges"]:
+            absorbed_str = ", ".join(f"'{t}'" for t in item["absorbed"])
+            report_lines.append(
+                f"  • Kept: '{item['kept']}'  ←  absorbed: {absorbed_str}"
+                f"  (by {item['artist']}, norm key: '{item['norm_key']}', server: {item['server']})"
+            )
 
     report_lines.append("\nAudit finished successfully.")
     return "\n".join(report_lines)
