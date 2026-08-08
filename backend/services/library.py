@@ -225,7 +225,7 @@ def search_music_db(query_str: str, db_path: str | None = None) -> list[dict]:
         # Search Artists
         cursor = conn.execute(
             """
-            SELECT DISTINCT a.artist_id as id, a.name as title, 'artist' as type, a.thumb
+            SELECT DISTINCT a.artist_id, a.artist_id as id, a.name, a.name as title, 'artist' as type, a.thumb
             FROM artists a
             JOIN artist_sources src ON a.artist_id = src.artist_id
             JOIN servers srv ON src.server_id = srv.server_id
@@ -239,7 +239,7 @@ def search_music_db(query_str: str, db_path: str | None = None) -> list[dict]:
         # Search Albums
         cursor = conn.execute(
             """
-            SELECT DISTINCT alb.album_id as id, alb.title, 'album' as type, alb.artist_name as artist, alb.thumb
+            SELECT DISTINCT alb.album_id, alb.album_id as id, alb.title, 'album' as type, alb.artist_name as artist, alb.artist_name, alb.thumb
             FROM albums alb
             JOIN album_sources src ON alb.album_id = src.album_id
             JOIN servers srv ON src.server_id = srv.server_id
@@ -253,7 +253,7 @@ def search_music_db(query_str: str, db_path: str | None = None) -> list[dict]:
         # Search Tracks
         cursor = conn.execute(
             """
-            SELECT DISTINCT t.track_id as item_id, t.title, 'track' as type, t.artist_name as artist, t.album_title as album, t.thumb, t.url
+            SELECT DISTINCT t.track_id as item_id, t.track_id, t.track_id as id, t.title, 'track' as type, t.artist_name as artist, t.album_title as album, t.duration, t.url, t.thumb
             FROM tracks t
             JOIN servers srv ON t.server_id = srv.server_id
             WHERE srv.enabled = 1 AND (LOWER(t.title) LIKE ? OR LOWER(t.artist_name) LIKE ? OR LOWER(t.album_title) LIKE ?)
