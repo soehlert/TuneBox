@@ -431,19 +431,21 @@ def get_all_albums_endpoint():
 # Fetch music genres with album counts
 @router.get("/genres")
 def get_genres_endpoint():
-    """Fetch all music genres with album counts."""
+    """Fetch all music genres with album counts from SQLite."""
     try:
-        return fetch_all_genres()
+        from backend.services.library import get_all_genres_db
+        return get_all_genres_db()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching genres: {e}") from e
 
 
 # Fetch albums by genre
-@router.get("/genres/{genre_name}/albums")
+@router.get("/genres/{genre_name:path}/albums")
 def get_albums_by_genre_endpoint(genre_name: str):
     """Fetch all albums matching a specific genre."""
     try:
-        return fetch_albums_by_genre(genre_name)
+        from backend.services.library import get_albums_by_genre_db
+        return get_albums_by_genre_db(genre_name)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching albums for genre {genre_name}: {e}") from e
 

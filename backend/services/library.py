@@ -216,6 +216,48 @@ def increment_album_play_count_db(album_title: str, db_path: str | None = None):
         conn.close()
 
 
+def get_all_genres_db(db_path: str | None = None) -> list[dict]:
+    """Fetch all music genres with album counts from SQLite."""
+    conn = get_db_connection(db_path)
+    try:
+        cursor = conn.execute(
+            """
+            SELECT COALESCE(NULLIF(TRIM(alb.genre), ''), 'Uncategorized') as genre, COUNT(DISTINCT alb.album_id) as album_count
+            FROM albums alb
+            JOIN album_sources src ON alb.album_id = src.album_id
+            JOIN servers srv ON src.server_id = srv.server_id
+            WHERE srv.enabled = 1 AND alb.title != '' AND alb.title IS NOT NULL
+            GROUP BY genre
+            ORDER BY album_count DESC, genre ASC
+            """
+        )
+        return [dict(r) for r in cursor.fetchall()]
+    finally:
+        conn.close()
+
+
+def get_albums_by_genre_db(genre_name: str, db_path: str | None = None) -> list[dict]:
+    """Fetch all albums matching a specific genre from SQLite."""
+    conn = get_db_connection(db_path)
+    try:
+        cursor = conn.execute(
+            """
+            SELECT DISTINCT alb.album_id, alb.artist_id, alb.artist_name as artist, alb.title, alb.year, alb.genre, alb.thumb, alb.play_count
+            FROM albums alb
+            JOIN album_sources src ON alb.album_id = src.album_id
+            JOIN servers srv ON src.server_id = srv.server_id
+            WHERE srv.enabled = 1 AND alb.title != '' AND alb.title IS NOT NULL
+              AND (LOWER(COALESCE(NULLIF(TRIM(alb.genre), ''), 'Uncategorized')) = LOWER(?))
+            GROUP BY alb.album_id
+            ORDER BY alb.title COLLATE NOCASE ASC
+            """,
+            (genre_name.strip(),),
+        )
+        return [dict(r) for r in cursor.fetchall()]
+    finally:
+        conn.close()
+
+
 def search_music_db(query_str: str, db_path: str | None = None) -> list[dict]:
     """Search artists, albums, and tracks in SQLite database instantly."""
     if not query_str:

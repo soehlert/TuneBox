@@ -267,7 +267,7 @@ export const GenresGridView: React.FC<{ apiBase: string }> = ({ apiBase }) => {
           Back to Genres
         </button>
         <Typography variant="h5" style={{ color: "#fff", fontWeight: 800, marginBottom: "20px" }}>
-          🎷 {selectedGenre} ({genreAlbums.length} Albums)
+          {selectedGenre} ({genreAlbums.length} {genreAlbums.length === 1 ? "Album" : "Albums"})
         </Typography>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "20px" }}>
           {genreAlbums.map((alb) => (
