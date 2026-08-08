@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { Card, Typography, Button, Snackbar, Alert } from "@mui/material"; // MUI components
@@ -70,20 +70,26 @@ function ArtistList({
   const [sortBy, setSortBy] = useState<"alphabetical" | "plays">("alphabetical");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
-  const sortedArtists = [...filteredArtists].sort((a, b) => {
-    if (sortBy === "plays") {
-      const playsA = (a as any).play_count || 0;
-      const playsB = (b as any).play_count || 0;
-      if (playsB !== playsA) return playsB - playsA;
-      return a.name.localeCompare(b.name);
-    }
-    const cmp = a.name.localeCompare(b.name);
-    return sortOrder === "asc" ? cmp : -cmp;
-  });
+  const sortedArtists = useMemo(() => {
+    return [...filteredArtists].sort((a, b) => {
+      if (sortBy === "plays") {
+        const playsA = (a as any).play_count || 0;
+        const playsB = (b as any).play_count || 0;
+        if (playsB !== playsA) return playsB - playsA;
+        return a.name.localeCompare(b.name);
+      }
+      const cmp = a.name.localeCompare(b.name);
+      return sortOrder === "asc" ? cmp : -cmp;
+    });
+  }, [filteredArtists, sortBy, sortOrder]);
+
+  const lastProcessedTargetRef = useRef<number | null>(null);
 
   // Fast-scroll to selected alphabet letter ONLY when a letter button on the rail is clicked
   useEffect(() => {
     if (!scrollTargetLetter || !scrollTargetLetter.letter || isSearching || sortedArtists.length === 0) return;
+    if (lastProcessedTargetRef.current === scrollTargetLetter.timestamp) return;
+    lastProcessedTargetRef.current = scrollTargetLetter.timestamp;
 
     const targetChar = scrollTargetLetter.letter;
     const targetIndex = sortedArtists.findIndex((artist) => {
@@ -125,6 +131,8 @@ function ArtistList({
       }
     }
   }, [scrollTargetLetter, sortedArtists, isSearching]);
+
+  // Snackbar alerts
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [severity, setSeverity] = useState<"success" | "warning" | "error">("success");
@@ -179,33 +187,39 @@ function ArtistList({
         const mainRect = mainContent.getBoundingClientRect();
         const sortBar = mainContent.querySelector(".view-sort-bar");
         const headerOffset = sortBar ? sortBar.getBoundingClientRect().height : 0;
-        const targetY = mainRect.top + headerOffset + 10;
+        const targetY = mainRect.top + headerOffset + 15;
 
         const cards = mainContent.querySelectorAll(".artist-card");
-        let topVisibleName: string | null = null;
+        const letterCounts: Record<string, number> = {};
+        let firstLetter: string | null = null;
 
         for (let i = 0; i < cards.length; i++) {
           const rect = cards[i].getBoundingClientRect();
-          if (rect.bottom >= targetY) {
+          if (rect.bottom >= targetY && rect.top <= targetY + 250) {
             const nameEl = cards[i].querySelector(".artist-card-name");
             if (nameEl && nameEl.textContent) {
-              topVisibleName = nameEl.textContent;
-              break;
+              const firstChar = nameEl.textContent.trim()[0];
+              if (firstChar) {
+                let letter = firstChar.toUpperCase();
+                if (/^\d/.test(letter)) letter = "0-9";
+                if (!firstLetter) firstLetter = letter;
+                letterCounts[letter] = (letterCounts[letter] || 0) + 1;
+              }
             }
           }
         }
 
-        if (topVisibleName && onSelectLetter) {
-          const firstChar = topVisibleName.trim()[0];
-          if (firstChar) {
-            let letter = firstChar.toUpperCase();
-            if (/^\d/.test(letter)) {
-              letter = "0-9";
-            }
-            if (letter !== selectedLetter) {
-              onSelectLetter(letter);
-            }
+        let bestLetter = firstLetter;
+        let maxCount = 0;
+        for (const [letter, count] of Object.entries(letterCounts)) {
+          if (count > maxCount) {
+            maxCount = count;
+            bestLetter = letter;
           }
+        }
+
+        if (bestLetter && bestLetter !== selectedLetter && onSelectLetter) {
+          onSelectLetter(bestLetter);
         }
       });
     };

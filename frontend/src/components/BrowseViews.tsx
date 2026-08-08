@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, Typography, Button } from "@mui/material";
 import axios from "axios";
@@ -82,20 +82,26 @@ export const AlbumsGridView: React.FC<{
       .finally(() => setLoading(false));
   }, [apiBase]);
 
-  const sortedAlbums = [...albums].sort((a, b) => {
-    if (sortBy === "plays") {
-      const playsA = (a as any).play_count || 0;
-      const playsB = (b as any).play_count || 0;
-      if (playsB !== playsA) return playsB - playsA;
-      return a.title.localeCompare(b.title);
-    }
-    const cmp = a.title.localeCompare(b.title);
-    return sortOrder === "asc" ? cmp : -cmp;
-  });
+  const sortedAlbums = useMemo(() => {
+    return [...albums].sort((a, b) => {
+      if (sortBy === "plays") {
+        const playsA = (a as any).play_count || 0;
+        const playsB = (b as any).play_count || 0;
+        if (playsB !== playsA) return playsB - playsA;
+        return a.title.localeCompare(b.title);
+      }
+      const cmp = a.title.localeCompare(b.title);
+      return sortOrder === "asc" ? cmp : -cmp;
+    });
+  }, [albums, sortBy, sortOrder]);
+
+  const lastProcessedTargetRef = useRef<number | null>(null);
 
   // Fast-scroll to target album ONLY when a letter button on the rail is clicked
   useEffect(() => {
     if (!scrollTargetLetter || !scrollTargetLetter.letter || sortedAlbums.length === 0) return;
+    if (lastProcessedTargetRef.current === scrollTargetLetter.timestamp) return;
+    lastProcessedTargetRef.current = scrollTargetLetter.timestamp;
 
     const targetChar = scrollTargetLetter.letter;
     const targetIndex = sortedAlbums.findIndex((alb) => {
@@ -113,9 +119,11 @@ export const AlbumsGridView: React.FC<{
         const el = document.getElementById(`album-${targetAlb.album_id}`);
         const mainContent = document.querySelector(".main-content");
         if (el && mainContent) {
+          const sortBar = mainContent.querySelector(".view-sort-bar");
+          const headerOffset = sortBar ? sortBar.getBoundingClientRect().height : 0;
           const containerRect = mainContent.getBoundingClientRect();
           const elRect = el.getBoundingClientRect();
-          const targetScrollTop = mainContent.scrollTop + (elRect.top - containerRect.top) - 65;
+          const targetScrollTop = mainContent.scrollTop + (elRect.top - containerRect.top) - headerOffset;
           mainContent.scrollTo({
             top: Math.max(0, targetScrollTop),
             behavior: "smooth",
@@ -154,35 +162,41 @@ export const AlbumsGridView: React.FC<{
         const mainRect = mainContent.getBoundingClientRect();
         const sortBar = mainContent.querySelector(".view-sort-bar");
         const headerOffset = sortBar ? sortBar.getBoundingClientRect().height : 0;
-        const targetY = mainRect.top + headerOffset + 10;
+        const targetY = mainRect.top + headerOffset + 15;
 
         const cards = mainContent.querySelectorAll("[id^='album-']");
-        let topVisibleTitle: string | null = null;
+        const letterCounts: Record<string, number> = {};
+        let firstLetter: string | null = null;
 
         for (let i = 0; i < cards.length; i++) {
           const rect = cards[i].getBoundingClientRect();
-          if (rect.bottom >= targetY) {
+          if (rect.bottom >= targetY && rect.top <= targetY + 250) {
             const albIdStr = cards[i].id.replace("album-", "");
             const albId = parseInt(albIdStr, 10);
             const foundAlb = sortedAlbums.find((a) => a.album_id === albId);
             if (foundAlb && foundAlb.title) {
-              topVisibleTitle = foundAlb.title;
-              break;
+              const firstChar = foundAlb.title.trim()[0];
+              if (firstChar) {
+                let letter = firstChar.toUpperCase();
+                if (/^\d/.test(letter)) letter = "0-9";
+                if (!firstLetter) firstLetter = letter;
+                letterCounts[letter] = (letterCounts[letter] || 0) + 1;
+              }
             }
           }
         }
 
-        if (topVisibleTitle && onSelectLetter) {
-          const firstChar = topVisibleTitle.trim()[0];
-          if (firstChar) {
-            let letter = firstChar.toUpperCase();
-            if (/^\d/.test(letter)) {
-              letter = "0-9";
-            }
-            if (letter !== selectedLetter) {
-              onSelectLetter(letter);
-            }
+        let bestLetter = firstLetter;
+        let maxCount = 0;
+        for (const [letter, count] of Object.entries(letterCounts)) {
+          if (count > maxCount) {
+            maxCount = count;
+            bestLetter = letter;
           }
+        }
+
+        if (bestLetter && bestLetter !== selectedLetter && onSelectLetter) {
+          onSelectLetter(bestLetter);
         }
       });
     };
