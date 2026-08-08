@@ -104,15 +104,19 @@ function ArtistList({
     });
 
     if (targetIndex !== -1) {
-      if (targetIndex >= visibleCount) {
-        setVisibleCount(targetIndex + 36);
-      }
-
       const targetArtist = sortedArtists[targetIndex];
       const attemptScroll = () => {
         const el = document.getElementById(`artist-${targetArtist.artist_id}`);
-        if (el) {
-          el.scrollIntoView({ behavior: "smooth", block: "start" });
+        const mainContent = document.querySelector(".main-content");
+        if (el && mainContent) {
+          const containerRect = mainContent.getBoundingClientRect();
+          const elRect = el.getBoundingClientRect();
+          // Offset 65px so card lands cleanly below the sort bar header
+          const targetScrollTop = mainContent.scrollTop + (elRect.top - containerRect.top) - 65;
+          mainContent.scrollTo({
+            top: Math.max(0, targetScrollTop),
+            behavior: "smooth",
+          });
           return true;
         }
         return false;
@@ -121,15 +125,13 @@ function ArtistList({
       if (!attemptScroll()) {
         const timer1 = setTimeout(attemptScroll, 50);
         const timer2 = setTimeout(attemptScroll, 150);
-        const timer3 = setTimeout(attemptScroll, 300);
         return () => {
           clearTimeout(timer1);
           clearTimeout(timer2);
-          clearTimeout(timer3);
         };
       }
     }
-  }, [scrollTargetLetter, sortedArtists, isSearching, visibleCount]);
+  }, [scrollTargetLetter, sortedArtists, isSearching]);
 
   // Snackbar alerts
   const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -227,7 +229,7 @@ function ArtistList({
       requestAnimationFrame(() => {
         ticking = false;
         const mainRect = mainContent.getBoundingClientRect();
-        const targetY = mainRect.top + 120;
+        const targetY = mainRect.top + 75;
 
         const cards = mainContent.querySelectorAll(".artist-card");
         let topVisibleName: string | null = null;
@@ -262,7 +264,7 @@ function ArtistList({
     return () => mainContent.removeEventListener("scroll", handleScroll);
   }, [isSearching, filteredArtists, sortBy, selectedLetter, onSelectLetter]);
 
-  const currentArtists = sortedArtists.slice(0, visibleCount);
+  const currentArtists = sortedArtists;
 
   // Group search results
   const searchArtists = searchResults.filter((item) => item.type === "artist");

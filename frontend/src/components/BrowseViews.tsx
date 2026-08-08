@@ -109,12 +109,30 @@ export const AlbumsGridView: React.FC<{
 
     if (targetIndex !== -1) {
       const targetAlb = sortedAlbums[targetIndex];
-      setTimeout(() => {
+      const attemptScroll = () => {
         const el = document.getElementById(`album-${targetAlb.album_id}`);
-        if (el) {
-          el.scrollIntoView({ behavior: "smooth", block: "start" });
+        const mainContent = document.querySelector(".main-content");
+        if (el && mainContent) {
+          const containerRect = mainContent.getBoundingClientRect();
+          const elRect = el.getBoundingClientRect();
+          const targetScrollTop = mainContent.scrollTop + (elRect.top - containerRect.top) - 65;
+          mainContent.scrollTo({
+            top: Math.max(0, targetScrollTop),
+            behavior: "smooth",
+          });
+          return true;
         }
-      }, 50);
+        return false;
+      };
+
+      if (!attemptScroll()) {
+        const timer1 = setTimeout(attemptScroll, 50);
+        const timer2 = setTimeout(attemptScroll, 150);
+        return () => {
+          clearTimeout(timer1);
+          clearTimeout(timer2);
+        };
+      }
     }
   }, [scrollTargetLetter, sortedAlbums]);
 
@@ -134,7 +152,7 @@ export const AlbumsGridView: React.FC<{
       requestAnimationFrame(() => {
         ticking = false;
         const mainRect = mainContent.getBoundingClientRect();
-        const targetY = mainRect.top + 120;
+        const targetY = mainRect.top + 75;
 
         const cards = mainContent.querySelectorAll("[id^='album-']");
         let topVisibleTitle: string | null = null;
