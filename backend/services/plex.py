@@ -1980,11 +1980,27 @@ def fetch_art(item_id: int, item_type: str, server_id: str | None = None):
         else:
             image_url = f"{server_url}{thumb_path}?X-Plex-Token={token}"
 
-        # ruff: noqa: S501
-        response = requests.get(image_url, stream=True, verify=False, timeout=12)
-        if not response.ok:
-            raise HTTPException(status_code=404, detail="Plex image request failed")
-        return response
+        try:
+            response = requests.get(image_url, stream=True, verify=False, timeout=8)
+            if response.ok:
+                return response
+        except Exception:
+            pass
+
+        # If stored server_url failed (e.g. unroutable .plex.direct WAN URI inside container), fallback to get_target_plex_connection
+        try:
+            plex = get_target_plex_connection(effective_server_id)
+            alt_url = getattr(plex, "_baseurl", "")
+            alt_token = getattr(plex, "_token", "")
+            if alt_url and alt_token and alt_url != server_url:
+                retry_url = f"{alt_url}{thumb_path}?X-Plex-Token={alt_token}"
+                response = requests.get(retry_url, stream=True, verify=False, timeout=8)
+                if response.ok:
+                    return response
+        except Exception:
+            pass
+
+        raise HTTPException(status_code=404, detail="Plex image request failed")
     except HTTPException:
         raise
     except Exception as e:
@@ -2027,11 +2043,8 @@ def fetch_accessible_plex_servers():
                 is_primary = bool(is_owned or (primary_name and primary_name in resource.name.lower()))
                 conn_url = None
                 if resource.connections:
-                    conn_url = resource.connections[0].uri
-                    for conn in resource.connections:
-                        if not conn.local:
-                            conn_url = conn.uri
-                            break
+                    local_conns = [c.uri for c in resource.connections if getattr(c, "local", False)]
+                    conn_url = local_conns[0] if local_conns else resource.connections[0].uri
 
                 servers.append({
                     "server_id": resource.clientIdentifier,
