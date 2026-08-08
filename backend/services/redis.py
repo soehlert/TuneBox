@@ -360,3 +360,33 @@ def set_autoplay_enabled(enabled: bool):
         logger.warning("Failed to set autoplay state: %s", e)
 
 
+def get_artist_play_counts() -> dict[str, int]:
+    """Retrieve artist play counts from Redis zset."""
+    try:
+        client = get_redis_queue_client()
+        plays = client.zrange("stats:artist_play_counts", 0, -1, withscores=True)
+        res = {}
+        for m, s in plays:
+            name = m.decode("utf-8") if isinstance(m, bytes) else m
+            res[str(name).lower()] = int(s)
+        return res
+    except Exception as e:
+        logger.warning("Failed to fetch artist play counts from Redis: %s", e)
+        return {}
+
+
+def get_album_play_counts() -> dict[str, int]:
+    """Retrieve album play counts from Redis zset."""
+    try:
+        client = get_redis_queue_client()
+        plays = client.zrange("stats:album_play_counts", 0, -1, withscores=True)
+        res = {}
+        for m, s in plays:
+            name = m.decode("utf-8") if isinstance(m, bytes) else m
+            res[str(name).lower()] = int(s)
+        return res
+    except Exception as e:
+        logger.warning("Failed to fetch album play counts from Redis: %s", e)
+        return {}
+
+

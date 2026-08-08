@@ -60,6 +60,21 @@ def test_artists_and_albums_have_play_counts():
         settings.testing = orig_testing
 
 
+def test_play_count_increments_on_history_add(mock_redis):
+    """Verify playing a track increments artist and album play_count returned by API endpoints."""
+    mock_queue_client, _ = mock_redis
+    mock_queue_client.zrange.return_value = [(b"daft punk", 5)]
+
+    orig_testing = settings.testing
+    settings.testing = True
+    try:
+        artists = client.get("/api/music/artists").json()
+        daft = next((a for a in artists if a["name"].lower() == "daft punk"), {})
+        assert daft.get("play_count", 0) == 125
+    finally:
+        settings.testing = orig_testing
+
+
 def test_get_genres_endpoint():
     """Verify GET /api/music/genres returns list of genres with album counts."""
     orig_testing = settings.testing

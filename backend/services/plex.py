@@ -1013,16 +1013,65 @@ def is_music_library_section(sec) -> bool:
     return True
 
 
+def _safe_int(val) -> int:
+    try:
+        if isinstance(val, (int, float)):
+            return int(val)
+        if isinstance(val, str) and val.isdigit():
+            return int(val)
+    except Exception:
+        pass
+    return 0
+
+
+def _overlay_artist_play_counts(artists_list: list[dict]) -> list[dict]:
+    try:
+        from backend.services.redis import get_artist_play_counts
+        redis_counts = get_artist_play_counts()
+        if not redis_counts:
+            return artists_list
+        res = []
+        for a in artists_list:
+            item = dict(a)
+            name_key = str(item.get("name", "")).lower()
+            base_count = _safe_int(item.get("play_count", 0))
+            item["play_count"] = base_count + redis_counts.get(name_key, 0)
+            res.append(item)
+        return res
+    except Exception as ex:
+        logger.warning("Failed to overlay artist play counts: %s", ex)
+        return artists_list
+
+
+def _overlay_album_play_counts(albums_list: list[dict]) -> list[dict]:
+    try:
+        from backend.services.redis import get_album_play_counts
+        redis_counts = get_album_play_counts()
+        if not redis_counts:
+            return albums_list
+        res = []
+        for alb in albums_list:
+            item = dict(alb)
+            title_key = str(item.get("title", "")).lower()
+            base_count = _safe_int(item.get("play_count", 0))
+            item["play_count"] = base_count + redis_counts.get(title_key, 0)
+            res.append(item)
+        return res
+    except Exception as ex:
+        logger.warning("Failed to overlay album play counts: %s", ex)
+        return albums_list
+
+
 def fetch_all_artists(target_server_ids: list[str] | None = None) -> list[dict]:
     """Fetch all artists across specified or enabled Plex servers, merging duplicates with quality ranking."""
     if settings.testing:
-        return MOCK_ARTISTS
+        return _overlay_artist_play_counts(MOCK_ARTISTS)
 
     cache_key = "all_artists"
     if not target_server_ids:
         cached = get_cached_data(cache_key)
         if cached:
-            return cached
+            return _overlay_artist_play_counts(cached)
 
     enabled_ids = target_server_ids if target_server_ids is not None else get_enabled_server_ids()
     all_accessible = fetch_accessible_plex_servers()
@@ -1126,7 +1175,9 @@ def fetch_all_artists(target_server_ids: list[str] | None = None) -> list[dict]:
             }
         else:
             existing = merged_map[dedup_key]
-            existing["play_count"] = max(existing.get("play_count", 0), item.get("play_count", 0))
+            p1 = _safe_int(existing.get("play_count", 0))
+            p2 = _safe_int(item.get("play_count", 0))
+            existing["play_count"] = max(p1, p2)
             if not any(s["server_id"] == item["server_id"] for s in existing["sources"]):
                 existing["sources"].append({
                     "server_id": item["server_id"],
@@ -1141,7 +1192,7 @@ def fetch_all_artists(target_server_ids: list[str] | None = None) -> list[dict]:
 
     cache_data(cache_key, artist_list)
 
-    return artist_list
+    return _overlay_artist_play_counts(artist_list)
 
 
 _plex_connection_cache: dict[str, tuple[any, float]] = {}
@@ -1379,7 +1430,9 @@ def fetch_albums_for_artist(artist_id: int, server_id: str | None = None):
             }
         else:
             existing = merged_albums[dedup_key]
-            existing["play_count"] = max(existing.get("play_count", 0), item.get("play_count", 0))
+            p1 = _safe_int(existing.get("play_count", 0))
+            p2 = _safe_int(item.get("play_count", 0))
+            existing["play_count"] = max(p1, p2)
             if not any(str(s.get("server_id", "")).lower() == str(item.get("server_id", "")).lower() for s in existing["sources"] if s.get("server_id")):
                 existing["sources"].append({
                     "server_id": item["server_id"],
@@ -1404,13 +1457,13 @@ def fetch_all_albums(target_server_ids: list[str] | None = None) -> list[dict]:
         for _a_id, albums in MOCK_ALBUMS.items():
             all_albums.extend(albums)
         all_albums.sort(key=lambda a: a["title"].lower())
-        return all_albums
+        return _overlay_album_play_counts(all_albums)
 
     cache_key = "all_albums_unified_v3"
     if not target_server_ids:
         cached = get_cached_data(cache_key)
         if cached:
-            return cached
+            return _overlay_album_play_counts(cached)
 
     enabled_ids = target_server_ids if target_server_ids is not None else get_enabled_server_ids()
     all_accessible = fetch_accessible_plex_servers()
@@ -1512,7 +1565,7 @@ def fetch_all_albums(target_server_ids: list[str] | None = None) -> list[dict]:
     album_list.sort(key=lambda x: x["title"].lower())
     if not target_server_ids:
         cache_data(cache_key, album_list)
-    return album_list
+    return _overlay_album_play_counts(album_list)
 
 
 def fetch_all_genres() -> list[dict]:
