@@ -58,8 +58,9 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
 
         for music_lib in music_libs:
             try:
-                # Fetch all artists
+                # 1. Fetch all artists in 1 fast bulk call
                 artists = music_lib.all(libtype="artist")
+                artist_map = {}
                 for artist in artists:
                     guid_val = getattr(artist, "guid", None) or getattr(artist, "ratingKey", "")
                     a_db_id = upsert_artist(
@@ -71,64 +72,76 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
                         server_artist_id=str(artist.ratingKey),
                         db_path=db_path,
                     )
+                    artist_map[str(artist.ratingKey)] = (a_db_id, artist.title)
+                    if artist.title:
+                        artist_map[artist.title.lower()] = (a_db_id, artist.title)
 
-                    # Fetch albums for this artist
-                    try:
-                        albums = artist.albums()
-                        for album in albums:
-                            year_val = getattr(album, "year", None)
-                            if not year_val and getattr(album, "originallyAvailableAt", None):
-                                try:
-                                    year_val = album.originallyAvailableAt.year
-                                except Exception:
-                                    pass
+                # 2. Fetch all albums in 1 fast bulk call
+                albums = music_lib.all(libtype="album")
+                album_map = {}
+                for album in albums:
+                    year_val = getattr(album, "year", None)
+                    if not year_val and getattr(album, "originallyAvailableAt", None):
+                        try:
+                            year_val = album.originallyAvailableAt.year
+                        except Exception:
+                            pass
 
-                            genre_tags = [g.tag for g in getattr(album, "genres", []) if hasattr(g, "tag")]
-                            genre_val = genre_tags[0] if genre_tags else "Uncategorized"
+                    genre_tags = [g.tag for g in getattr(album, "genres", []) if hasattr(g, "tag")]
+                    genre_val = genre_tags[0] if genre_tags else "Uncategorized"
 
-                            alb_db_id = upsert_album(
-                                title=album.title,
-                                artist_name=artist.title,
-                                artist_id=a_db_id,
-                                year=year_val,
-                                genre=genre_val,
-                                thumb=getattr(album, "thumb", None),
-                                play_count=getattr(album, "viewCount", 0) or 0,
-                                guid=str(getattr(album, "guid", None) or album.ratingKey),
-                                server_id=s_id,
-                                server_album_id=str(album.ratingKey),
-                                db_path=db_path,
-                            )
+                    parent_artist_key = str(getattr(album, "parentRatingKey", "") or getattr(album, "grandparentRatingKey", ""))
+                    parent_title = (getattr(album, "artistTitle", "") or getattr(album, "grandparentTitle", "") or getattr(album, "parentTitle", "") or "").lower()
+                    artist_info = artist_map.get(parent_artist_key) or artist_map.get(parent_title)
+                    a_db_id = artist_info[0] if artist_info else None
+                    artist_name = artist_info[1] if artist_info else (getattr(album, "artistTitle", None) or getattr(album, "grandparentTitle", None) or getattr(album, "parentTitle", None) or "Unknown Artist")
 
-                            # Fetch tracks for this album
-                            try:
-                                tracks = album.tracks()
-                                for track in tracks:
-                                    duration_sec = milliseconds_to_seconds(track.duration) if getattr(track, "duration", None) else 0
-                                    trk_url = getattr(track, "key", None)
+                    alb_db_id = upsert_album(
+                        title=album.title,
+                        artist_name=artist_name,
+                        artist_id=a_db_id,
+                        year=year_val,
+                        genre=genre_val,
+                        thumb=getattr(album, "thumb", None),
+                        play_count=getattr(album, "viewCount", 0) or 0,
+                        guid=str(getattr(album, "guid", None) or album.ratingKey),
+                        server_id=s_id,
+                        server_album_id=str(album.ratingKey),
+                        db_path=db_path,
+                    )
+                    album_map[str(album.ratingKey)] = (alb_db_id, album.title, artist_name, getattr(album, "thumb", None))
 
-                                    raw_user_rating = getattr(track, "userRating", 0.0) or 0.0
-                                    user_rating_stars = float(raw_user_rating) / 2.0 if raw_user_rating else 0.0
+                # 3. Fetch all tracks in 1 fast bulk call
+                tracks = music_lib.all(libtype="track")
+                for track in tracks:
+                    parent_album_key = str(getattr(track, "parentRatingKey", ""))
+                    alb_info = album_map.get(parent_album_key)
+                    alb_db_id = alb_info[0] if alb_info else None
+                    alb_title = alb_info[1] if alb_info else (getattr(track, "albumTitle", None) or getattr(track, "parentTitle", None) or "Unknown Album")
+                    art_name = alb_info[2] if alb_info else (getattr(track, "grandparentTitle", None) or getattr(track, "artistTitle", None) or "Unknown Artist")
+                    alb_thumb = alb_info[3] if alb_info else getattr(track, "thumb", None)
 
-                                    upsert_track(
-                                        album_id=alb_db_id,
-                                        server_id=s_id,
-                                        server_track_id=str(track.ratingKey),
-                                        artist_name=artist.title,
-                                        album_title=album.title,
-                                        title=track.title,
-                                        duration=duration_sec,
-                                        url=str(trk_url) if trk_url else None,
-                                        thumb=getattr(album, "thumb", None),
-                                        play_count=getattr(track, "viewCount", 0) or 0,
-                                        user_rating=user_rating_stars,
-                                        db_path=db_path,
-                                    )
-                                    items_indexed += 1
-                            except Exception as trk_ex:
-                                logger.debug("Failed to index tracks for album %s: %s", album.title, trk_ex)
-                    except Exception as alb_ex:
-                        logger.debug("Failed to index albums for artist %s: %s", artist.title, alb_ex)
+                    duration_sec = milliseconds_to_seconds(track.duration) if getattr(track, "duration", None) else 0
+                    trk_url = getattr(track, "key", None)
+
+                    raw_user_rating = getattr(track, "userRating", 0.0) or 0.0
+                    user_rating_stars = float(raw_user_rating) / 2.0 if raw_user_rating else 0.0
+
+                    upsert_track(
+                        album_id=alb_db_id,
+                        server_id=s_id,
+                        server_track_id=str(track.ratingKey),
+                        artist_name=art_name,
+                        album_title=alb_title,
+                        title=track.title,
+                        duration=duration_sec,
+                        url=str(trk_url) if trk_url else None,
+                        thumb=alb_thumb,
+                        play_count=getattr(track, "viewCount", 0) or 0,
+                        user_rating=user_rating_stars,
+                        db_path=db_path,
+                    )
+                    items_indexed += 1
 
             except Exception as lib_ex:
                 logger.warning("Error scanning section '%s' on server %s: %s", getattr(music_lib, "title", "Unknown"), s_name, lib_ex)
