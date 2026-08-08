@@ -115,7 +115,15 @@ def pre_warm_all_caches():
             from backend.routers.auth import fetch_and_cache_resources
             fetch_and_cache_resources(refresh=True)
 
-        # 2. Warm artists only for enabled servers
+        # 2. Sync SQLite library index for enabled servers
+        logger.info("Background syncing SQLite library index for enabled servers...")
+        try:
+            from backend.services.indexer import sync_all_servers
+            sync_all_servers()
+        except Exception as sync_ex:
+            logger.warning("Background SQLite sync warning: %s", sync_ex)
+
+        # 3. Warm artists only for enabled servers
         if settings.plex_token:
             logger.info("Background warming Plex artists cache for enabled servers...")
             fetch_all_artists()
