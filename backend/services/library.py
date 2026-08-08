@@ -130,6 +130,7 @@ def upsert_album(title: str, artist_name: str, artist_id: int | None = None, yea
 def upsert_track(album_id: int, server_id: str, server_track_id: str, artist_name: str, album_title: str, title: str, duration: int, url: str | None = None, thumb: str | None = None, play_count: int = 0, db_path: str | None = None) -> int:
     """Upsert a track into SQLite library."""
     now = int(time.time())
+    safe_url = str(url) if (url is not None and not callable(url)) else None
     conn = get_db_connection(db_path)
     try:
         cursor = conn.cursor()
@@ -138,7 +139,7 @@ def upsert_track(album_id: int, server_id: str, server_track_id: str, artist_nam
             INSERT INTO tracks (album_id, server_id, server_track_id, artist_name, album_title, title, duration, url, thumb, play_count, updated_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (album_id, server_id, str(server_track_id), artist_name, album_title, title, duration, url, thumb, play_count, now),
+            (album_id, server_id, str(server_track_id), artist_name, album_title, title, duration, safe_url, thumb, play_count, now),
         )
         conn.commit()
         return cursor.lastrowid
@@ -267,57 +268,64 @@ def search_music_db(query_str: str, db_path: str | None = None) -> list[dict]:
         conn.close()
 
 
-def get_art_source_info(item_id: int | str, item_type: str, db_path: str | None = None) -> tuple[str | None, str | None, str | None]:
-    """Resolve stored thumb URL, server_id, and Plex server ratingKey from SQLite for a given SQLite item_id or ratingKey."""
+def get_all_art_sources(item_id: int | str, item_type: str, db_path: str | None = None) -> list[tuple[str | None, str | None, str | None]]:
+    """Resolve all (stored_thumb, server_id, rating_key) sources for a given item, prioritizing primary server."""
     conn = get_db_connection(db_path)
+    sources = []
     try:
         if item_type == "artist":
             cursor = conn.execute(
                 """
-                SELECT a.thumb, src.server_id, src.server_artist_id as rating_key
+                SELECT a.thumb, src.server_id, src.server_artist_id as rating_key, COALESCE(srv.is_primary, 0) as is_primary
                 FROM artists a
                 LEFT JOIN artist_sources src ON a.artist_id = src.artist_id
+                LEFT JOIN servers srv ON src.server_id = srv.server_id
                 WHERE a.artist_id = ? OR src.server_artist_id = ? OR a.norm_name = ?
-                LIMIT 1
+                ORDER BY is_primary DESC
                 """,
                 (item_id, str(item_id), str(item_id).lower()),
             )
-            row = cursor.fetchone()
-            if row:
-                return row["thumb"], row["server_id"], row["rating_key"]
+            for row in cursor.fetchall():
+                sources.append((row["thumb"], row["server_id"], row["rating_key"]))
 
         elif item_type == "album":
             cursor = conn.execute(
                 """
-                SELECT alb.thumb, src.server_id, src.server_album_id as rating_key
+                SELECT alb.thumb, src.server_id, src.server_album_id as rating_key, COALESCE(srv.is_primary, 0) as is_primary
                 FROM albums alb
                 LEFT JOIN album_sources src ON alb.album_id = src.album_id
+                LEFT JOIN servers srv ON src.server_id = srv.server_id
                 WHERE alb.album_id = ? OR src.server_album_id = ?
-                LIMIT 1
+                ORDER BY is_primary DESC
                 """,
                 (item_id, str(item_id)),
             )
-            row = cursor.fetchone()
-            if row:
-                return row["thumb"], row["server_id"], row["rating_key"]
+            for row in cursor.fetchall():
+                sources.append((row["thumb"], row["server_id"], row["rating_key"]))
 
         elif item_type == "track":
             cursor = conn.execute(
                 """
-                SELECT t.thumb, t.server_id, t.server_track_id as rating_key
+                SELECT t.thumb, t.server_id, t.server_track_id as rating_key, COALESCE(srv.is_primary, 0) as is_primary
                 FROM tracks t
+                LEFT JOIN servers srv ON t.server_id = srv.server_id
                 WHERE t.track_id = ? OR t.server_track_id = ?
-                LIMIT 1
+                ORDER BY is_primary DESC
                 """,
                 (item_id, str(item_id)),
             )
-            row = cursor.fetchone()
-            if row:
-                return row["thumb"], row["server_id"], row["rating_key"]
+            for row in cursor.fetchall():
+                sources.append((row["thumb"], row["server_id"], row["rating_key"]))
 
-        return None, None, None
+        return sources if sources else [(None, None, None)]
     finally:
         conn.close()
+
+
+def get_art_source_info(item_id: int | str, item_type: str, db_path: str | None = None) -> tuple[str | None, str | None, str | None]:
+    """Resolve stored thumb URL, server_id, and Plex server ratingKey from SQLite for a given SQLite item_id or ratingKey."""
+    sources = get_all_art_sources(item_id, item_type, db_path=db_path)
+    return sources[0] if sources else (None, None, None)
 
 
 def get_albums_for_artist_db(artist_id: int | str, db_path: str | None = None) -> list[dict]:
