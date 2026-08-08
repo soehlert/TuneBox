@@ -293,9 +293,53 @@ def add_to_history(track: dict | int | str):
         if album_title:
             client.zincrby("stats:album_play_counts", 1, str(album_title).lower())
 
+        update_cached_play_counts(artist_name=artist_name, album_title=album_title)
+
         logger.info("Added track %s to playback history.", track_obj.get("title", track_obj.get("item_id")))
     except Exception as e:
         logger.warning("Failed to update playback history: %s", e)
+
+
+def update_cached_play_counts(artist_name: str | None = None, album_title: str | None = None):
+    """Mutate cached artist and album records directly in Redis when a track plays."""
+    try:
+        cache_client = get_redis_cache_client()
+
+        # Update cached all_artists
+        if artist_name:
+            norm_artist = str(artist_name).strip().lower()
+            cached_artists_raw = cache_client.get("all_artists")
+            if cached_artists_raw:
+                try:
+                    artists = json.loads(cached_artists_raw)
+                    updated = False
+                    for a in artists:
+                        if str(a.get("name", "")).strip().lower() == norm_artist:
+                            a["play_count"] = (a.get("play_count", 0) or 0) + 1
+                            updated = True
+                    if updated:
+                        cache_client.set("all_artists", json.dumps(artists), keepttl=True)
+                except Exception as ex:
+                    logger.warning("Failed to update cached all_artists play count: %s", ex)
+
+        # Update cached all_albums_unified_v3
+        if album_title:
+            norm_album = str(album_title).strip().lower()
+            cached_albums_raw = cache_client.get("all_albums_unified_v3")
+            if cached_albums_raw:
+                try:
+                    albums = json.loads(cached_albums_raw)
+                    updated = False
+                    for alb in albums:
+                        if str(alb.get("title", "")).strip().lower() == norm_album:
+                            alb["play_count"] = (alb.get("play_count", 0) or 0) + 1
+                            updated = True
+                    if updated:
+                        cache_client.set("all_albums_unified_v3", json.dumps(albums), keepttl=True)
+                except Exception as ex:
+                    logger.warning("Failed to update cached all_albums_unified_v3 play count: %s", ex)
+    except Exception as e:
+        logger.warning("Error updating cached play counts: %s", e)
 
 
 def get_playback_history() -> list[dict]:
