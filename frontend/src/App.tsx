@@ -1778,12 +1778,13 @@ function App() {
   const isProgrammaticScrollRef = useRef(false);
   const scrollTimeoutRef = useRef<any>(null);
 
-  const handleAlphabetClick = (character: string) => {
+  const handleAlphabetClick = (e: React.MouseEvent<HTMLButtonElement>, character: string) => {
+    (e.currentTarget as HTMLElement).blur();
     isProgrammaticScrollRef.current = true;
     if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
     scrollTimeoutRef.current = setTimeout(() => {
       isProgrammaticScrollRef.current = false;
-    }, 800);
+    }, 1000);
 
     setSelectedLetter(character);
     setSearchTerm(""); // Clear search term so the full artist list is visible
@@ -1801,6 +1802,31 @@ function App() {
     if (!isProgrammaticScrollRef.current) {
       setSelectedLetter(letter);
     }
+  }, []);
+
+  // Unlock programmatic scroll guard when user interacts with main content (wheel, touch, drag)
+  useEffect(() => {
+    const mainContent = document.querySelector(".main-content");
+    if (!mainContent) return;
+
+    const handleUserInteraction = () => {
+      if (isProgrammaticScrollRef.current) {
+        isProgrammaticScrollRef.current = false;
+        if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+      }
+    };
+
+    mainContent.addEventListener("wheel", handleUserInteraction, { passive: true });
+    mainContent.addEventListener("touchstart", handleUserInteraction, { passive: true });
+    mainContent.addEventListener("pointerdown", handleUserInteraction, { passive: true });
+    mainContent.addEventListener("keydown", handleUserInteraction, { passive: true });
+
+    return () => {
+      mainContent.removeEventListener("wheel", handleUserInteraction);
+      mainContent.removeEventListener("touchstart", handleUserInteraction);
+      mainContent.removeEventListener("pointerdown", handleUserInteraction);
+      mainContent.removeEventListener("keydown", handleUserInteraction);
+    };
   }, []);
 
   // Manage client_control WebSocket connection
@@ -2245,7 +2271,7 @@ function App() {
             <aside className="left-sidebar">
               <div className="alphabet-filter">
                 <button
-                  onClick={() => handleAlphabetClick("0-9")}
+                  onClick={(e) => handleAlphabetClick(e, "0-9")}
                   className={selectedLetter === "0-9" ? "active" : ""}
                 >
                   #
@@ -2253,7 +2279,7 @@ function App() {
                 {"ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map((letter) => (
                   <button
                     key={letter}
-                    onClick={() => handleAlphabetClick(letter)}
+                    onClick={(e) => handleAlphabetClick(e, letter)}
                     className={selectedLetter === letter ? "active" : ""}
                   >
                     {letter}
