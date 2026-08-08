@@ -268,13 +268,13 @@
   border: 1px solid #3376ad;
   color: #9bd0ff;
   border-radius: 8px;
-  padding: 4px 8px;
-  font-size: 0.7rem;
+  padding: 6px 10px;
+  font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
+  white-space: nowrap;
   transition: all 0.2s;
   flex-shrink: 0;
-  width: 88px;
 }
 
 .requeue-btn:hover {

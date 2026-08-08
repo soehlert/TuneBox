@@ -511,9 +511,6 @@ const QueueComponent = () => {
                   </Box>
                 </Box>
                 <Box className="queue-item-right">
-                  <Typography className="queue-item-time">
-                    {track.duration ? formatDuration(track.duration) : "0:00"}
-                  </Typography>
                   <button
                     className="requeue-btn"
                     onClick={() => handleRequeue(track)}
