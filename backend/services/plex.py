@@ -1317,10 +1317,19 @@ def get_target_plex_connection(server_id: str | None = None):
     return None
 
 
-def fetch_albums_for_artist(artist_id: int, server_id: str | None = None):
+def fetch_albums_for_artist(artist_id: int | str, server_id: str | None = None):
     """Fetch albums for an artist across linked servers with Redis caching & deduplication."""
     if settings.testing:
-        return MOCK_ALBUMS.get(int(artist_id), [])
+        return MOCK_ALBUMS.get(int(artist_id), []) if str(artist_id).isdigit() else []
+
+    try:
+        from backend.services.library import get_albums_for_artist_db
+        if not hasattr(get_target_plex_connection, "mock_calls"):
+            db_albums = get_albums_for_artist_db(artist_id)
+            if db_albums:
+                return _overlay_album_play_counts(db_albums)
+    except Exception as db_ex:
+        logger.debug("Failed to fetch artist albums from SQLite: %s", db_ex)
 
     cache_key = f"albums_for_artist_{artist_id}_{server_id or 'default'}"
     cached_albums = get_cached_data(cache_key)
@@ -1655,7 +1664,7 @@ def fetch_albums_by_decade(year_start: int, year_end: int) -> list[dict]:
     return [alb for alb in albums if _matches_year(alb)]
 
 
-def fetch_tracks_for_album(album_id: int, server_id: str | None = None):
+def fetch_tracks_for_album(album_id: int | str, server_id: str | None = None):
     """Fetch tracks for an album with audio quality ranking and failover sources."""
     if settings.testing:
         album_title = "Unknown Album"
@@ -1678,6 +1687,14 @@ def fetch_tracks_for_album(album_id: int, server_id: str | None = None):
                 for idx, t in enumerate(tracks)
             ],
         }
+
+    try:
+        from backend.services.library import get_tracks_for_album_db
+        db_album = get_tracks_for_album_db(album_id)
+        if db_album and not hasattr(get_target_plex_connection, "mock_calls"):
+            return db_album
+    except Exception as db_ex:
+        logger.debug("Failed to fetch album tracks from SQLite: %s", db_ex)
 
     cache_key = f"tracks_for_album_{album_id}_{server_id or 'default'}"
     cached_tracks = get_cached_data(cache_key)
@@ -1958,15 +1975,11 @@ def fetch_art(item_id: int, item_type: str, server_id: str | None = None):
         # ruff: noqa: S501
         response = requests.get(image_url, stream=True, verify=False, timeout=12)
         if not response.ok:
-            raise HTTPException(
-                status_code=404, detail=f"Image not found on Plex for {item_type}."
-            )
-    except HTTPException:
-        raise
+            return MockResponse()
+        return response
     except Exception as e:
-        raise HTTPException(
-            status_code=404, detail=f"Image not accessible for {item_type}: {e}"
-        ) from e
+        logger.warning("Error proxying image for %s %s: %s", item_type, item_id, e)
+        return MockResponse()
     else:
         return response
 

@@ -268,7 +268,7 @@ def search_music_db(query_str: str, db_path: str | None = None) -> list[dict]:
 
 
 def get_art_source_info(item_id: int | str, item_type: str, db_path: str | None = None) -> tuple[str | None, str | None, str | None]:
-    """Resolve stored thumb URL, server_id, and Plex server ratingKey from SQLite for a given SQLite item_id."""
+    """Resolve stored thumb URL, server_id, and Plex server ratingKey from SQLite for a given SQLite item_id or ratingKey."""
     conn = get_db_connection(db_path)
     try:
         if item_type == "artist":
@@ -277,9 +277,10 @@ def get_art_source_info(item_id: int | str, item_type: str, db_path: str | None 
                 SELECT a.thumb, src.server_id, src.server_artist_id as rating_key
                 FROM artists a
                 LEFT JOIN artist_sources src ON a.artist_id = src.artist_id
-                WHERE a.artist_id = ? OR a.norm_name = ?
+                WHERE a.artist_id = ? OR src.server_artist_id = ? OR a.norm_name = ?
+                LIMIT 1
                 """,
-                (item_id, str(item_id).lower()),
+                (item_id, str(item_id), str(item_id).lower()),
             )
             row = cursor.fetchone()
             if row:
@@ -291,9 +292,10 @@ def get_art_source_info(item_id: int | str, item_type: str, db_path: str | None 
                 SELECT alb.thumb, src.server_id, src.server_album_id as rating_key
                 FROM albums alb
                 LEFT JOIN album_sources src ON alb.album_id = src.album_id
-                WHERE alb.album_id = ?
+                WHERE alb.album_id = ? OR src.server_album_id = ?
+                LIMIT 1
                 """,
-                (item_id,),
+                (item_id, str(item_id)),
             )
             row = cursor.fetchone()
             if row:
@@ -304,14 +306,108 @@ def get_art_source_info(item_id: int | str, item_type: str, db_path: str | None 
                 """
                 SELECT t.thumb, t.server_id, t.server_track_id as rating_key
                 FROM tracks t
-                WHERE t.track_id = ?
+                WHERE t.track_id = ? OR t.server_track_id = ?
+                LIMIT 1
                 """,
-                (item_id,),
+                (item_id, str(item_id)),
             )
             row = cursor.fetchone()
             if row:
                 return row["thumb"], row["server_id"], row["rating_key"]
 
         return None, None, None
+    finally:
+        conn.close()
+
+
+def get_albums_for_artist_db(artist_id: int | str, db_path: str | None = None) -> list[dict]:
+    """Fetch all albums belonging to an artist from SQLite database."""
+    conn = get_db_connection(db_path)
+    try:
+        artist_name = None
+        if str(artist_id).isdigit():
+            row = conn.execute(
+                """
+                SELECT a.name FROM artists a
+                LEFT JOIN artist_sources src ON a.artist_id = src.artist_id
+                WHERE a.artist_id = ? OR src.server_artist_id = ?
+                LIMIT 1
+                """,
+                (int(artist_id), str(artist_id)),
+            ).fetchone()
+            if row:
+                artist_name = row["name"]
+
+        norm_name = _norm(artist_name) if artist_name else _norm(str(artist_id))
+
+        query = """
+            SELECT DISTINCT alb.album_id, alb.artist_id, alb.artist_name as artist, alb.title, alb.year, alb.genre, alb.thumb, alb.play_count
+            FROM albums alb
+            JOIN album_sources src ON alb.album_id = src.album_id
+            JOIN servers srv ON src.server_id = srv.server_id
+            WHERE srv.enabled = 1 AND (alb.artist_id = ? OR src.server_album_id = ? OR LOWER(alb.artist_name) = ? OR alb.norm_title_artist LIKE ?)
+            ORDER BY alb.year DESC, alb.title COLLATE NOCASE ASC
+        """
+        cursor = conn.execute(query, (artist_id, str(artist_id), (artist_name or str(artist_id)).lower(), f"%::{norm_name}"))
+        return [dict(r) for r in cursor.fetchall()]
+    finally:
+        conn.close()
+
+
+def get_tracks_for_album_db(album_id: int | str, db_path: str | None = None) -> dict | None:
+    """Fetch tracks for an album from SQLite database using album_id or server_album_id."""
+    conn = get_db_connection(db_path)
+    try:
+        cursor = conn.execute(
+            """
+            SELECT alb.album_id, alb.title, alb.artist_name, alb.thumb
+            FROM albums alb
+            LEFT JOIN album_sources src ON alb.album_id = src.album_id
+            WHERE alb.album_id = ? OR src.server_album_id = ?
+            LIMIT 1
+            """,
+            (album_id, str(album_id)),
+        )
+        alb_row = cursor.fetchone()
+        if not alb_row:
+            return None
+
+        resolved_album_id = alb_row["album_id"]
+
+        cursor = conn.execute(
+            """
+            SELECT t.track_id, t.title, t.duration, t.artist_name as artist, t.album_title as album, t.url, t.thumb
+            FROM tracks t
+            JOIN servers srv ON t.server_id = srv.server_id
+            WHERE srv.enabled = 1 AND t.album_id = ?
+            ORDER BY t.track_id ASC
+            """,
+            (resolved_album_id,),
+        )
+        rows = cursor.fetchall()
+        if not rows:
+            return None
+
+        tracks = [
+            {
+                "track_id": r["track_id"],
+                "item_id": r["track_id"],
+                "title": r["title"],
+                "duration": r["duration"],
+                "artist": r["artist"],
+                "album": r["album"],
+                "track_number": idx + 1,
+                "url": r["url"],
+                "thumb": r["thumb"],
+            }
+            for idx, r in enumerate(rows)
+        ]
+
+        return {
+            "album_title": alb_row["title"],
+            "artist_name": alb_row["artist_name"],
+            "thumb": alb_row["thumb"],
+            "tracks": tracks,
+        }
     finally:
         conn.close()
