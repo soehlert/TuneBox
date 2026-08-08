@@ -9,10 +9,20 @@ logger = logging.getLogger(__name__)
 
 
 def _norm(text: str) -> str:
-    """Normalize string for deduplication (strip special chars & lowercase)."""
+    """Normalize string for deduplication across Plex servers.
+
+    Rules applied in order:
+      1. Lowercase
+      2. Treat '&' as 'and'  — so 'Simon & Garfunkel' == 'Simon and Garfunkel'
+      3. Strip leading 'the ' — so 'The Beatles' == 'Beatles'
+      4. Strip all non-alphanumeric characters and collapse whitespace
+    """
     if not text:
         return ""
-    return re.sub(r"[^a-z0-9]", "", text.lower()) or text.lower()
+    t = text.lower().strip()
+    t = re.sub(r"\s*&\s*", " and ", t)   # & -> and
+    t = re.sub(r"^the\s+", "", t)        # strip leading "the "
+    return re.sub(r"[^a-z0-9]", "", t) or t
 
 
 def upsert_server(server_id: str, name: str, server_url: str | None = None, is_primary: bool = False, enabled: bool = True, db_path: str | None = None):
