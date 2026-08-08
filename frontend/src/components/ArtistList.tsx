@@ -199,7 +199,21 @@ function ArtistList({
     };
   }, [filteredArtists.length, isSearching]);
 
-  const currentArtists = filteredArtists.slice(0, visibleCount);
+  const [sortBy, setSortBy] = useState<"alphabetical" | "plays">("alphabetical");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+
+  const sortedArtists = [...filteredArtists].sort((a, b) => {
+    if (sortBy === "plays") {
+      const playsA = (a as any).play_count || 0;
+      const playsB = (b as any).play_count || 0;
+      if (playsB !== playsA) return playsB - playsA;
+      return a.name.localeCompare(b.name);
+    }
+    const cmp = a.name.localeCompare(b.name);
+    return sortOrder === "asc" ? cmp : -cmp;
+  });
+
+  const currentArtists = sortedArtists.slice(0, visibleCount);
 
   // Group search results
   const searchArtists = searchResults.filter((item) => item.type === "artist");
@@ -213,6 +227,39 @@ function ArtistList({
           {isSearching ? "Search Results" : "Artists"}
         </Typography>
       </header>
+
+      {!isSearching && (
+        <div className="view-sort-bar">
+          <span className="view-count-badge">
+            {filteredArtists.length} {filteredArtists.length === 1 ? "Artist" : "Artists"}
+          </span>
+          <div className="view-sort-actions">
+            <button
+              className={`sort-pill-btn ${sortBy === "alphabetical" ? "active" : ""}`}
+              onClick={() => {
+                if (sortBy === "alphabetical") {
+                  setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+                } else {
+                  setSortBy("alphabetical");
+                  setSortOrder("asc");
+                }
+              }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: "15px" }}>swap_vert</span>
+              <span>{sortBy === "alphabetical" ? (sortOrder === "asc" ? "A-Z" : "Z-A") : "A-Z"}</span>
+            </button>
+            <button
+              className={`sort-pill-btn ${sortBy === "plays" ? "active" : ""}`}
+              onClick={() => {
+                setSortBy((prev) => (prev === "plays" ? "alphabetical" : "plays"));
+              }}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: "15px" }}>local_fire_department</span>
+              <span>Most Played</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {loading ? (
         <Typography variant="h6">Loading...</Typography>

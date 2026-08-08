@@ -21,6 +21,7 @@ def test_get_all_albums_endpoint():
         assert "album_id" in first
         assert "title" in first
         assert "artist" in first
+        assert "play_count" in first
     finally:
         settings.testing = orig_testing
 

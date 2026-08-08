@@ -104,7 +104,7 @@ GENRES = ["Electronic", "Rock", "Pop", "Classic Rock", "Alternative", "Soul", "D
 
 for idx, artist_name in enumerate(ARTIST_NAMES):
     artist_id = 1001 + idx
-    MOCK_ARTISTS.append({"artist_id": artist_id, "name": artist_name})
+    MOCK_ARTISTS.append({"artist_id": artist_id, "name": artist_name, "play_count": (len(ARTIST_NAMES) - idx) * 12})
 
     albums = ALBUM_NAMES[artist_name]
     MOCK_ALBUMS[artist_id] = []
@@ -121,6 +121,7 @@ for idx, artist_name in enumerate(ARTIST_NAMES):
                 "title": album_title,
                 "year": year,
                 "genre": genre,
+                "play_count": (len(albums) - a_idx) * 8 + (idx * 3),
                 "thumb": f"/api/music/album-art/{album_id}",
             }
         )

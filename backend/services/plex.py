@@ -1073,6 +1073,7 @@ def fetch_all_artists(target_server_ids: list[str] | None = None) -> list[dict]:
                             "guid": str(guid_val),
                             "server_id": s_id,
                             "server_name": s_name,
+                            "play_count": getattr(artist, "viewCount", 0) or 0,
                             "thumb": getattr(artist, "thumb", None),
                         })
                         if getattr(artist, "thumb", None):
@@ -1476,6 +1477,7 @@ def fetch_all_albums(target_server_ids: list[str] | None = None) -> list[dict]:
                             "genre": genre_val,
                             "server_id": s_id,
                             "server_name": s_name,
+                            "play_count": getattr(album, "viewCount", 0) or 0,
                             "thumb": getattr(album, "thumb", None),
                         })
                         if getattr(album, "thumb", None):

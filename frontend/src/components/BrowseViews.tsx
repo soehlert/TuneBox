@@ -65,6 +65,8 @@ export const BrowseTabs: React.FC<BrowseTabsProps> = ({ currentMode, onModeChang
 export const AlbumsGridView: React.FC<{ apiBase: string; selectedLetter?: string }> = ({ apiBase, selectedLetter }) => {
   const [albums, setAlbums] = useState<Album[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sortBy, setSortBy] = useState<"alphabetical" | "plays">("alphabetical");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -75,10 +77,21 @@ export const AlbumsGridView: React.FC<{ apiBase: string; selectedLetter?: string
       .finally(() => setLoading(false));
   }, [apiBase]);
 
-  useEffect(() => {
-    if (!selectedLetter || albums.length === 0) return;
+  const sortedAlbums = [...albums].sort((a, b) => {
+    if (sortBy === "plays") {
+      const playsA = (a as any).play_count || 0;
+      const playsB = (b as any).play_count || 0;
+      if (playsB !== playsA) return playsB - playsA;
+      return a.title.localeCompare(b.title);
+    }
+    const cmp = a.title.localeCompare(b.title);
+    return sortOrder === "asc" ? cmp : -cmp;
+  });
 
-    const targetIndex = albums.findIndex((alb) => {
+  useEffect(() => {
+    if (!selectedLetter || sortedAlbums.length === 0) return;
+
+    const targetIndex = sortedAlbums.findIndex((alb) => {
       if (!alb.title) return false;
       const firstChar = alb.title.trim()[0];
       if (selectedLetter === "0-9") {
@@ -88,7 +101,7 @@ export const AlbumsGridView: React.FC<{ apiBase: string; selectedLetter?: string
     });
 
     if (targetIndex !== -1) {
-      const targetAlb = albums[targetIndex];
+      const targetAlb = sortedAlbums[targetIndex];
       setTimeout(() => {
         const el = document.getElementById(`album-${targetAlb.album_id}`);
         if (el) {
@@ -96,7 +109,7 @@ export const AlbumsGridView: React.FC<{ apiBase: string; selectedLetter?: string
         }
       }, 50);
     }
-  }, [selectedLetter, albums]);
+  }, [selectedLetter, sortedAlbums]);
 
   const handleAddAlbum = async (e: React.MouseEvent, albumId: number, serverId?: string) => {
     e.stopPropagation();
@@ -114,8 +127,40 @@ export const AlbumsGridView: React.FC<{ apiBase: string; selectedLetter?: string
   if (loading) return <div style={{ color: "#aaa", padding: "40px", textAlign: "center" }}>Loading Albums...</div>;
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "20px", width: "100%" }}>
-      {albums.map((alb) => (
+    <div style={{ width: "100%" }}>
+      <div className="view-sort-bar">
+        <span className="view-count-badge">
+          {albums.length} {albums.length === 1 ? "Album" : "Albums"}
+        </span>
+        <div className="view-sort-actions">
+          <button
+            className={`sort-pill-btn ${sortBy === "alphabetical" ? "active" : ""}`}
+            onClick={() => {
+              if (sortBy === "alphabetical") {
+                setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+              } else {
+                setSortBy("alphabetical");
+                setSortOrder("asc");
+              }
+            }}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: "15px" }}>swap_vert</span>
+            <span>{sortBy === "alphabetical" ? (sortOrder === "asc" ? "A-Z" : "Z-A") : "A-Z"}</span>
+          </button>
+          <button
+            className={`sort-pill-btn ${sortBy === "plays" ? "active" : ""}`}
+            onClick={() => {
+              setSortBy((prev) => (prev === "plays" ? "alphabetical" : "plays"));
+            }}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: "15px" }}>local_fire_department</span>
+            <span>Most Played</span>
+          </button>
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "20px", width: "100%" }}>
+        {sortedAlbums.map((alb) => (
         <Card
           key={alb.album_id}
           id={`album-${alb.album_id}`}
@@ -166,6 +211,7 @@ export const AlbumsGridView: React.FC<{ apiBase: string; selectedLetter?: string
           </Button>
         </Card>
       ))}
+      </div>
     </div>
   );
 };
