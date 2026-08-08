@@ -421,12 +421,12 @@ def generate_autoplay_tracks():
     """Analyze recent history, fetch related tracks from Plex, and seed the queue with fallback items."""
     import random
     import json
-    from backend.services.redis import get_playback_history, get_redis_cache_client, add_to_queue_redis
+    from backend.services.redis import get_playback_history_ids, get_redis_cache_client, add_to_queue_redis
 
     logger.info("Triggering Autoplay track generation.")
     
-    # 1. Fetch recent playback history
-    history = get_playback_history()
+    # 1. Fetch recent playback history IDs
+    history = get_playback_history_ids()
     
     # If in testing mode or history is empty, fall back
     if settings.testing or not history:
@@ -564,7 +564,10 @@ async def playback_orchestrator():
             if playback_active:
                 queue = get_redis_queue()
                 if len(queue) <= 5 and is_autoplay_enabled():
-                    await asyncio.to_thread(generate_autoplay_tracks)
+                    try:
+                        await asyncio.to_thread(generate_autoplay_tracks)
+                    except Exception as auto_ex:
+                        logger.warning("Autoplay track generation encountered an error: %s", auto_ex)
                     queue = get_redis_queue()
 
                 if (
