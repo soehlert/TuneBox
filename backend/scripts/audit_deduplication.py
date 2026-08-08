@@ -171,18 +171,22 @@ def audit_deduplication(
 
     possible_artist_dedupes = {k: items for k, items in artist_groups.items() if len({i["server_id"] for i in items}) > 1}
 
-    # Single-server norm collisions: 2+ raw entries on the SAME server that normalized to the same key
+    # Single-server merges: 2+ raw Plex entries that mapped to the same norm key on one server.
+    # Two sub-types:
+    #   - norm_collision: titles differ (e.g. 'The Beatles' vs 'Beatles')
+    #   - exact_duplicate: same title in multiple library sections on the same server
     single_server_artist_merges = []
     for key, items in artist_groups.items():
         server_ids = {i["server_id"] for i in items}
         if len(server_ids) == 1 and len(items) > 1:
-            titles = sorted({i["title"] for i in items})
+            unique_titles = sorted({i["title"] for i in items})
+            merge_type = "norm_collision" if len(unique_titles) > 1 else "exact_duplicate"
             single_server_artist_merges.append({
                 "norm_key": key,
-                "titles": titles,
+                "merge_type": merge_type,
+                "raw_titles": [i["title"] for i in items],  # all raw, including dupes
+                "unique_titles": unique_titles,
                 "server": items[0]["server_name"],
-                "kept": titles[0],
-                "absorbed": titles[1:],
             })
 
     matched_artist_dedupes = 0
@@ -257,19 +261,20 @@ def audit_deduplication(
     # Multi-server album candidate groups (present on 2+ servers)
     possible_album_dedupes = {k: items for k, items in album_groups.items() if len({i["server_id"] for i in items}) > 1}
 
-    # Single-server norm collisions: 2+ raw album entries on the SAME server that normalized to the same key
+    # Single-server album merges: 2+ raw Plex entries that mapped to the same norm key on one server.
     single_server_album_merges = []
     for key, items in album_groups.items():
         server_ids = {i["server_id"] for i in items}
         if len(server_ids) == 1 and len(items) > 1:
-            titles = sorted({i["title"] for i in items})
+            unique_titles = sorted({i["title"] for i in items})
+            merge_type = "norm_collision" if len(unique_titles) > 1 else "exact_duplicate"
             single_server_album_merges.append({
                 "norm_key": key,
-                "titles": titles,
+                "merge_type": merge_type,
+                "raw_titles": [i["title"] for i in items],  # all raw, including dupes
+                "unique_titles": unique_titles,
                 "artist": items[0].get("artist", "Unknown Artist"),
                 "server": items[0]["server_name"],
-                "kept": titles[0],
-                "absorbed": titles[1:],
             })
 
     matched_album_dedupes = 0
@@ -409,24 +414,41 @@ def generate_report(summary: dict[str, Any]) -> str:
             report_lines.append(f"  • '{item['album_1']}' by {item['artist']} ({item['sources_1']}) <--> '{item['album_2']}' ({item['sources_2']}) [{item['similarity'] * 100:.1f}% Match]")
 
     if art_sum["single_server_merges"]:
+        norm_collisions = [m for m in art_sum["single_server_merges"] if m["merge_type"] == "norm_collision"]
+        exact_dupes = [m for m in art_sum["single_server_merges"] if m["merge_type"] == "exact_duplicate"]
+
         report_lines.append(f"\n[SINGLE-SERVER ARTIST MERGES ({len(art_sum['single_server_merges'])} total)]")
-        report_lines.append("  These artists on the same server normalized to the same key and were merged:")
-        for item in art_sum["single_server_merges"]:
-            absorbed_str = ", ".join(f"'{t}'" for t in item["absorbed"])
-            report_lines.append(
-                f"  • Kept: '{item['kept']}'  ←  absorbed: {absorbed_str}"
-                f"  (norm key: '{item['norm_key']}', server: {item['server']})"
-            )
+
+        if norm_collisions:
+            report_lines.append(f"  Different names that normalized to the same key ({len(norm_collisions)}):")
+            for item in norm_collisions:
+                names_str = "  +  ".join(f"'{t}'" for t in item["unique_titles"])
+                report_lines.append(f"    • {names_str}  →  norm key: '{item['norm_key']}'  (server: {item['server']})")
+
+        if exact_dupes:
+            report_lines.append(f"  Same name in multiple library sections ({len(exact_dupes)}):")
+            for item in exact_dupes:
+                count = len(item["raw_titles"])
+                report_lines.append(f"    • '{item['unique_titles'][0]}'  ×{count}  (server: {item['server']})")
 
     if alb_sum["single_server_merges"]:
+        norm_collisions = [m for m in alb_sum["single_server_merges"] if m["merge_type"] == "norm_collision"]
+        exact_dupes = [m for m in alb_sum["single_server_merges"] if m["merge_type"] == "exact_duplicate"]
+
         report_lines.append(f"\n[SINGLE-SERVER ALBUM MERGES ({len(alb_sum['single_server_merges'])} total)]")
-        report_lines.append("  These albums on the same server normalized to the same key and were merged:")
-        for item in alb_sum["single_server_merges"]:
-            absorbed_str = ", ".join(f"'{t}'" for t in item["absorbed"])
-            report_lines.append(
-                f"  • Kept: '{item['kept']}'  ←  absorbed: {absorbed_str}"
-                f"  (by {item['artist']}, norm key: '{item['norm_key']}', server: {item['server']})"
-            )
+
+        if norm_collisions:
+            report_lines.append(f"  Different names that normalized to the same key ({len(norm_collisions)}):")
+            for item in norm_collisions:
+                names_str = "  +  ".join(f"'{t}'" for t in item["unique_titles"])
+                report_lines.append(f"    • {names_str}  →  norm key: '{item['norm_key']}'  (by {item['artist']}, server: {item['server']})")
+
+        if exact_dupes:
+            report_lines.append(f"  Same name in multiple library sections ({len(exact_dupes)}):")
+            for item in exact_dupes:
+                count = len(item["raw_titles"])
+                report_lines.append(f"    • '{item['unique_titles'][0]}'  ×{count}  by {item['artist']}  (server: {item['server']})")
+
 
     report_lines.append("\nAudit finished successfully.")
     return "\n".join(report_lines)
