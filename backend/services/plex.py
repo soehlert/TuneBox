@@ -2008,6 +2008,71 @@ def fetch_art(item_id: int, item_type: str, server_id: str | None = None):
         raise HTTPException(status_code=404, detail=f"Error proxying image: {e}") from e
 
 
+_MEMORY_ART_CACHE: dict[str, tuple[bytes, str]] = {}
+_MEMORY_ART_CACHE_MAX_SIZE = 1000
+
+
+def fetch_art_bytes(item_id: int | str, item_type: str, server_id: str | None = None) -> tuple[bytes, str]:
+    """Fetch image bytes from fast in-memory cache, Redis cache, or Plex server, returning (content_bytes, media_type)."""
+    if settings.testing:
+        transparent_png = (
+            b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06"
+            b"\x00\x00\x00\x1f\x15c4\x00\x00\x00\rIDATx\x9cc`\x00\x01\x00\x00\x05\x00\x01"
+            b"\xa5\xf9\xd0\xb1\x00\x00\x00\x00IEND\xaeB`\x82"
+        )
+        return transparent_png, "image/jpeg"
+
+    cache_bytes_key = f"art_bytes:{item_type}:{item_id}"
+
+    # 1. Check Python RAM cache (0.0001 ms)
+    if cache_bytes_key in _MEMORY_ART_CACHE:
+        return _MEMORY_ART_CACHE[cache_bytes_key]
+
+    # 2. Check Redis cache (~1 ms)
+    try:
+        from backend.services.redis import get_redis_cache_client
+        r = get_redis_cache_client()
+        cached = r.get(cache_bytes_key)
+        if cached:
+            res = (cached, "image/jpeg")
+            if len(_MEMORY_ART_CACHE) < _MEMORY_ART_CACHE_MAX_SIZE:
+                _MEMORY_ART_CACHE[cache_bytes_key] = res
+            return res
+    except Exception:
+        pass
+
+    try:
+        resp = fetch_art(item_id, item_type, server_id=server_id)
+        if hasattr(resp, "content"):
+            content_bytes = resp.content
+        elif hasattr(resp, "iter_content"):
+            content_bytes = b"".join(resp.iter_content(chunk_size=8192))
+        else:
+            content_bytes = b""
+    except Exception as ex:
+        logger.debug("Failed fetch_art for %s %s: %s", item_type, item_id, ex)
+        transparent_png = (
+            b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06"
+            b"\x00\x00\x00\x1f\x15c4\x00\x00\x00\rIDATx\x9cc`\x00\x01\x00\x00\x05\x00\x01"
+            b"\xa5\xf9\xd0\xb1\x00\x00\x00\x00IEND\xaeB`\x82"
+        )
+        return transparent_png, "image/png"
+
+    res = (content_bytes, "image/jpeg")
+    if content_bytes:
+        if len(_MEMORY_ART_CACHE) >= _MEMORY_ART_CACHE_MAX_SIZE:
+            _MEMORY_ART_CACHE.clear()
+        _MEMORY_ART_CACHE[cache_bytes_key] = res
+        try:
+            from backend.services.redis import get_redis_cache_client
+            r = get_redis_cache_client()
+            r.setex(cache_bytes_key, 86400 * 7, content_bytes)
+        except Exception:
+            pass
+
+    return res
+
+
 def fetch_accessible_plex_servers():
     """Discover all Plex Media Servers accessible to the account token."""
     if settings.testing:

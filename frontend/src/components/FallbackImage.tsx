@@ -45,6 +45,8 @@ export const FallbackImage = ({
     <img
       src={src}
       alt={alt}
+      loading="lazy"
+      decoding="async"
       className={className}
       style={style}
       onError={() => setError(true)}
