@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { Card, Typography, Button, Snackbar, Alert } from "@mui/material"; // MUI components
@@ -23,6 +23,8 @@ interface ArtistListProps {
   searchResults: any[];
   isSearching: boolean;
   selectedLetter?: string;
+  scrollTargetLetter?: { letter: string; timestamp: number } | null;
+  onSelectLetter?: (letter: string) => void;
 }
 
 function ArtistList({
@@ -31,6 +33,8 @@ function ArtistList({
   searchResults,
   isSearching,
   selectedLetter,
+  scrollTargetLetter,
+  onSelectLetter,
 }: ArtistListProps) {
   const navigate = useNavigate();
   const isDev = window.location.port === "5173";
@@ -42,15 +46,8 @@ function ArtistList({
     message: "",
   });
 
-  const [visibleCount, setVisibleCount] = useState(() => {
-    const saved = sessionStorage.getItem("tunebox_artist_visible_count");
-    return saved ? parseInt(saved, 10) : 48;
-  });
-  const loaderRef = useRef<HTMLDivElement | null>(null);
-
   const handleArtistClick = (artistId: number, serverId?: string) => {
     sessionStorage.setItem("tunebox_artist_scroll_top", String(window.scrollY || document.querySelector('.main-content')?.scrollTop || 0));
-    sessionStorage.setItem("tunebox_artist_visible_count", String(visibleCount));
     const sParam = serverId ? `?server_id=${serverId}` : "";
     navigate(`/artists/${artistId}/albums${sParam}`);
   };
@@ -60,7 +57,6 @@ function ArtistList({
     const savedScroll = sessionStorage.getItem("tunebox_artist_scroll_top");
     if (savedScroll) {
       sessionStorage.removeItem("tunebox_artist_scroll_top");
-      sessionStorage.removeItem("tunebox_artist_visible_count");
       const targetScroll = parseInt(savedScroll, 10);
       setTimeout(() => {
         const mainContent = document.querySelector(".main-content");
@@ -71,42 +67,70 @@ function ArtistList({
     }
   }, []);
 
-  // Fast-scroll to selected alphabet letter while maintaining full artist grid
-  // and pre-loading images for target + surrounding letters
+  const [sortBy, setSortBy] = useState<"alphabetical" | "plays">("alphabetical");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+
+  const sortedArtists = useMemo(() => {
+    return [...filteredArtists].sort((a, b) => {
+      if (sortBy === "plays") {
+        const playsA = (a as any).play_count || 0;
+        const playsB = (b as any).play_count || 0;
+        if (playsB !== playsA) return playsB - playsA;
+        return a.name.localeCompare(b.name);
+      }
+      const cmp = a.name.localeCompare(b.name);
+      return sortOrder === "asc" ? cmp : -cmp;
+    });
+  }, [filteredArtists, sortBy, sortOrder]);
+
+  const lastProcessedTargetRef = useRef<number | null>(null);
+
+  // Fast-scroll to selected alphabet letter ONLY when a letter button on the rail is clicked
   useEffect(() => {
-    if (!selectedLetter || isSearching || filteredArtists.length === 0) return;
+    if (!scrollTargetLetter || !scrollTargetLetter.letter || isSearching || sortedArtists.length === 0) return;
+    if (lastProcessedTargetRef.current === scrollTargetLetter.timestamp) return;
+    lastProcessedTargetRef.current = scrollTargetLetter.timestamp;
 
-    // Determine target letter and adjacent letters (e.g. L, M, N for M)
-    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    const letterIdx = alphabet.indexOf(selectedLetter.toUpperCase());
-    const adjacentBucketLetters = new Set<string>([selectedLetter.toUpperCase()]);
-    if (letterIdx > 0) adjacentBucketLetters.add(alphabet[letterIdx - 1]);
-    if (letterIdx >= 0 && letterIdx < alphabet.length - 1) adjacentBucketLetters.add(alphabet[letterIdx + 1]);
-
-
-
-    const targetIndex = filteredArtists.findIndex((artist) => {
+    const targetChar = scrollTargetLetter.letter;
+    const targetIndex = sortedArtists.findIndex((artist) => {
       if (!artist.name) return false;
       const firstChar = artist.name[0];
-      if (selectedLetter === "0-9") {
+      if (targetChar === "0-9") {
         return /^\d/.test(firstChar);
       }
-      return firstChar.toUpperCase() === selectedLetter.toUpperCase();
+      return firstChar.toUpperCase() === targetChar.toUpperCase();
     });
 
     if (targetIndex !== -1) {
-      if (targetIndex >= visibleCount) {
-        setVisibleCount(targetIndex + 36);
-      }
-      const targetArtist = filteredArtists[targetIndex];
-      setTimeout(() => {
+      const targetArtist = sortedArtists[targetIndex];
+      const attemptScroll = () => {
         const el = document.getElementById(`artist-${targetArtist.artist_id}`);
-        if (el) {
-          el.scrollIntoView({ behavior: "smooth", block: "start" });
+        const mainContent = document.querySelector(".main-content");
+        if (el && mainContent) {
+          const sortBar = mainContent.querySelector(".view-sort-bar");
+          const headerOffset = sortBar ? sortBar.getBoundingClientRect().height : 0;
+          const containerRect = mainContent.getBoundingClientRect();
+          const elRect = el.getBoundingClientRect();
+          const targetScrollTop = mainContent.scrollTop + (elRect.top - containerRect.top) - headerOffset;
+          mainContent.scrollTo({
+            top: Math.max(0, targetScrollTop),
+            behavior: "smooth",
+          });
+          return true;
         }
-      }, 100);
+        return false;
+      };
+
+      if (!attemptScroll()) {
+        const timer1 = setTimeout(attemptScroll, 50);
+        const timer2 = setTimeout(attemptScroll, 150);
+        return () => {
+          clearTimeout(timer1);
+          clearTimeout(timer2);
+        };
+      }
     }
-  }, [selectedLetter, filteredArtists, isSearching, apiBase]);
+  }, [scrollTargetLetter, sortedArtists, isSearching]);
 
   // Snackbar alerts
   const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -145,64 +169,66 @@ function ArtistList({
     }
   };
 
-  // Reset display count and scroll to top when list of filtered artists changes
+  // Scroll listener to update active letter rail highlight as user scrolls manually
   useEffect(() => {
-    const hasSavedScroll = sessionStorage.getItem("tunebox_artist_scroll_top");
-    if (!hasSavedScroll && !selectedLetter) {
-      setVisibleCount(48);
-      const mainContent = document.querySelector(".main-content");
-      if (mainContent) {
-        mainContent.scrollTop = 0;
-      }
-    }
-  }, [filteredArtists, searchResults, selectedLetter]);
+    if (isSearching || filteredArtists.length === 0 || sortBy !== "alphabetical") return;
 
-  // Set up intersection observer to detect when user scrolls to bottom
-  useEffect(() => {
-    if (isSearching) return; // Disable pagination for search results
+    const mainContent = document.querySelector(".main-content");
+    if (!mainContent) return;
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const first = entries[0];
-        if (first.isIntersecting) {
-          setVisibleCount((prev) => {
-            if (prev < filteredArtists.length) {
-              return Math.min(prev + 36, filteredArtists.length);
+    let ticking = false;
+
+    const handleScroll = () => {
+      if (ticking) return;
+      ticking = true;
+
+      requestAnimationFrame(() => {
+        ticking = false;
+        const mainRect = mainContent.getBoundingClientRect();
+        const sortBar = mainContent.querySelector(".view-sort-bar");
+        const headerOffset = sortBar ? sortBar.getBoundingClientRect().height : 0;
+        const targetY = mainRect.top + headerOffset + 15;
+
+        const cards = mainContent.querySelectorAll(".artist-card");
+        const letterCounts: Record<string, number> = {};
+        let firstLetter: string | null = null;
+
+        for (let i = 0; i < cards.length; i++) {
+          const rect = cards[i].getBoundingClientRect();
+          if (rect.bottom >= targetY && rect.top <= targetY + 250) {
+            const nameEl = cards[i].querySelector(".artist-card-name");
+            if (nameEl && nameEl.textContent) {
+              const firstChar = nameEl.textContent.trim()[0];
+              if (firstChar) {
+                let letter = firstChar.toUpperCase();
+                if (/^\d/.test(letter)) letter = "0-9";
+                if (!firstLetter) firstLetter = letter;
+                letterCounts[letter] = (letterCounts[letter] || 0) + 1;
+              }
             }
-            return prev;
-          });
+          }
         }
-      },
-      { threshold: 0.1, rootMargin: "100px" }
-    );
 
-    const currentLoader = loaderRef.current;
-    if (currentLoader) {
-      observer.observe(currentLoader);
-    }
+        let bestLetter = firstLetter;
+        let maxCount = 0;
+        for (const [letter, count] of Object.entries(letterCounts)) {
+          if (count > maxCount) {
+            maxCount = count;
+            bestLetter = letter;
+          }
+        }
 
-    return () => {
-      if (currentLoader) {
-        observer.unobserve(currentLoader);
-      }
+        if (bestLetter && bestLetter !== selectedLetter && onSelectLetter) {
+          onSelectLetter(bestLetter);
+        }
+      });
     };
-  }, [filteredArtists.length, isSearching]);
 
-  const [sortBy, setSortBy] = useState<"alphabetical" | "plays">("alphabetical");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+    mainContent.addEventListener("scroll", handleScroll, { passive: true });
+    return () => mainContent.removeEventListener("scroll", handleScroll);
+  }, [isSearching, filteredArtists, sortBy, selectedLetter, onSelectLetter]);
 
-  const sortedArtists = [...filteredArtists].sort((a, b) => {
-    if (sortBy === "plays") {
-      const playsA = (a as any).play_count || 0;
-      const playsB = (b as any).play_count || 0;
-      if (playsB !== playsA) return playsB - playsA;
-      return a.name.localeCompare(b.name);
-    }
-    const cmp = a.name.localeCompare(b.name);
-    return sortOrder === "asc" ? cmp : -cmp;
-  });
-
-  const currentArtists = sortedArtists.slice(0, visibleCount);
+  const currentArtists = sortedArtists;
 
   // Group search results
   const searchArtists = searchResults.filter((item) => item.type === "artist");
@@ -635,16 +661,6 @@ function ArtistList({
               </Card>
             ))}
           </div>
-
-          {/* Infinite Scroll Loader Target */}
-          {visibleCount < filteredArtists.length && (
-            <div ref={loaderRef} className="infinite-scroll-loader">
-              <div className="spinner-glass">
-                <span className="spinner-inner"></span>
-              </div>
-              <Typography className="loader-text">Loading more artists...</Typography>
-            </div>
-          )}
         </div>
       )}
 

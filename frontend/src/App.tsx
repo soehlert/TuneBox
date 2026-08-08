@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Routes, Route, Link, useNavigate, useLocation } from "react-router-dom";
 import { ThemeProvider } from "@mui/material/styles";
 import axios from "axios";
@@ -1775,18 +1775,24 @@ function App() {
 
 
 
-  const handleAlphabetClick = (character: string) => {
-    setSelectedLetter(character);
-    setSearchTerm(""); // Clear search term so the full artist list is visible
+  const [scrollTargetLetter, setScrollTargetLetter] = useState<{ letter: string; timestamp: number } | null>(null);
 
-    // Redirect to root if not on root
+  const handleAlphabetClick = (e: React.MouseEvent<HTMLButtonElement>, character: string) => {
+    (e.currentTarget as HTMLElement).blur();
+    setSelectedLetter(character);
+    setScrollTargetLetter({ letter: character, timestamp: Date.now() });
+    setSearchTerm("");
+
     if (location.pathname !== "/") {
       navigate("/");
     }
 
-    // Preserve full artist list so user can scroll up and down continuously
     setFilteredArtists(artists);
   };
+
+  const handleScrollLetterChange = useCallback((letter: string) => {
+    setSelectedLetter(letter);
+  }, []);
 
   // Manage client_control WebSocket connection
   useEffect(() => {
@@ -2230,7 +2236,7 @@ function App() {
             <aside className="left-sidebar">
               <div className="alphabet-filter">
                 <button
-                  onClick={() => handleAlphabetClick("0-9")}
+                  onClick={(e) => handleAlphabetClick(e, "0-9")}
                   className={selectedLetter === "0-9" ? "active" : ""}
                 >
                   #
@@ -2238,7 +2244,7 @@ function App() {
                 {"ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").map((letter) => (
                   <button
                     key={letter}
-                    onClick={() => handleAlphabetClick(letter)}
+                    onClick={(e) => handleAlphabetClick(e, letter)}
                     className={selectedLetter === letter ? "active" : ""}
                   >
                     {letter}
@@ -2261,7 +2267,7 @@ function App() {
                   path="/"
                   element={
                     viewMode === "albums" ? (
-                      <AlbumsGridView apiBase={getApiUrl("")} selectedLetter={selectedLetter} />
+                      <AlbumsGridView apiBase={getApiUrl("")} selectedLetter={selectedLetter} scrollTargetLetter={scrollTargetLetter} onSelectLetter={handleScrollLetterChange} />
                     ) : viewMode === "genres" ? (
                       <GenresGridView apiBase={getApiUrl("")} />
                     ) : viewMode === "decades" ? (
@@ -2273,6 +2279,8 @@ function App() {
                         searchResults={searchResults}
                         isSearching={Boolean(debouncedSearchTerm)}
                         selectedLetter={selectedLetter}
+                        scrollTargetLetter={scrollTargetLetter}
+                        onSelectLetter={handleScrollLetterChange}
                       />
                     )
                   }
@@ -2281,7 +2289,7 @@ function App() {
                   path="/artists"
                   element={
                     viewMode === "albums" ? (
-                      <AlbumsGridView apiBase={getApiUrl("")} selectedLetter={selectedLetter} />
+                      <AlbumsGridView apiBase={getApiUrl("")} selectedLetter={selectedLetter} scrollTargetLetter={scrollTargetLetter} onSelectLetter={handleScrollLetterChange} />
                     ) : viewMode === "genres" ? (
                       <GenresGridView apiBase={getApiUrl("")} />
                     ) : viewMode === "decades" ? (
@@ -2293,6 +2301,8 @@ function App() {
                         searchResults={searchResults}
                         isSearching={Boolean(debouncedSearchTerm)}
                         selectedLetter={selectedLetter}
+                        scrollTargetLetter={scrollTargetLetter}
+                        onSelectLetter={handleScrollLetterChange}
                       />
                     )
                   }

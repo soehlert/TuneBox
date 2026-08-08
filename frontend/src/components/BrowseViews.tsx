@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, Typography, Button } from "@mui/material";
 import axios from "axios";
@@ -62,7 +62,12 @@ export const BrowseTabs: React.FC<BrowseTabsProps> = ({ currentMode, onModeChang
   );
 };
 
-export const AlbumsGridView: React.FC<{ apiBase: string; selectedLetter?: string }> = ({ apiBase, selectedLetter }) => {
+export const AlbumsGridView: React.FC<{
+  apiBase: string;
+  selectedLetter?: string;
+  scrollTargetLetter?: { letter: string; timestamp: number } | null;
+  onSelectLetter?: (letter: string) => void;
+}> = ({ apiBase, selectedLetter, scrollTargetLetter, onSelectLetter }) => {
   const [albums, setAlbums] = useState<Album[]>([]);
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState<"alphabetical" | "plays">("alphabetical");
@@ -77,39 +82,128 @@ export const AlbumsGridView: React.FC<{ apiBase: string; selectedLetter?: string
       .finally(() => setLoading(false));
   }, [apiBase]);
 
-  const sortedAlbums = [...albums].sort((a, b) => {
-    if (sortBy === "plays") {
-      const playsA = (a as any).play_count || 0;
-      const playsB = (b as any).play_count || 0;
-      if (playsB !== playsA) return playsB - playsA;
-      return a.title.localeCompare(b.title);
-    }
-    const cmp = a.title.localeCompare(b.title);
-    return sortOrder === "asc" ? cmp : -cmp;
-  });
+  const sortedAlbums = useMemo(() => {
+    return [...albums].sort((a, b) => {
+      if (sortBy === "plays") {
+        const playsA = (a as any).play_count || 0;
+        const playsB = (b as any).play_count || 0;
+        if (playsB !== playsA) return playsB - playsA;
+        return a.title.localeCompare(b.title);
+      }
+      const cmp = a.title.localeCompare(b.title);
+      return sortOrder === "asc" ? cmp : -cmp;
+    });
+  }, [albums, sortBy, sortOrder]);
 
+  const lastProcessedTargetRef = useRef<number | null>(null);
+
+  // Fast-scroll to target album ONLY when a letter button on the rail is clicked
   useEffect(() => {
-    if (!selectedLetter || sortedAlbums.length === 0) return;
+    if (!scrollTargetLetter || !scrollTargetLetter.letter || sortedAlbums.length === 0) return;
+    if (lastProcessedTargetRef.current === scrollTargetLetter.timestamp) return;
+    lastProcessedTargetRef.current = scrollTargetLetter.timestamp;
 
+    const targetChar = scrollTargetLetter.letter;
     const targetIndex = sortedAlbums.findIndex((alb) => {
       if (!alb.title) return false;
       const firstChar = alb.title.trim()[0];
-      if (selectedLetter === "0-9") {
+      if (targetChar === "0-9") {
         return /^\d/.test(firstChar);
       }
-      return firstChar.toUpperCase() === selectedLetter.toUpperCase();
+      return firstChar.toUpperCase() === targetChar.toUpperCase();
     });
 
     if (targetIndex !== -1) {
       const targetAlb = sortedAlbums[targetIndex];
-      setTimeout(() => {
+      const attemptScroll = () => {
         const el = document.getElementById(`album-${targetAlb.album_id}`);
-        if (el) {
-          el.scrollIntoView({ behavior: "smooth", block: "start" });
+        const mainContent = document.querySelector(".main-content");
+        if (el && mainContent) {
+          const sortBar = mainContent.querySelector(".view-sort-bar");
+          const headerOffset = sortBar ? sortBar.getBoundingClientRect().height : 0;
+          const containerRect = mainContent.getBoundingClientRect();
+          const elRect = el.getBoundingClientRect();
+          const targetScrollTop = mainContent.scrollTop + (elRect.top - containerRect.top) - headerOffset;
+          mainContent.scrollTo({
+            top: Math.max(0, targetScrollTop),
+            behavior: "smooth",
+          });
+          return true;
         }
-      }, 50);
+        return false;
+      };
+
+      if (!attemptScroll()) {
+        const timer1 = setTimeout(attemptScroll, 50);
+        const timer2 = setTimeout(attemptScroll, 150);
+        return () => {
+          clearTimeout(timer1);
+          clearTimeout(timer2);
+        };
+      }
     }
-  }, [selectedLetter, sortedAlbums]);
+  }, [scrollTargetLetter, sortedAlbums]);
+
+  // Scroll listener to update active letter rail highlight as user scrolls manually through albums
+  useEffect(() => {
+    if (sortedAlbums.length === 0 || sortBy !== "alphabetical") return;
+
+    const mainContent = document.querySelector(".main-content");
+    if (!mainContent) return;
+
+    let ticking = false;
+
+    const handleScroll = () => {
+      if (ticking) return;
+      ticking = true;
+
+      requestAnimationFrame(() => {
+        ticking = false;
+        const mainRect = mainContent.getBoundingClientRect();
+        const sortBar = mainContent.querySelector(".view-sort-bar");
+        const headerOffset = sortBar ? sortBar.getBoundingClientRect().height : 0;
+        const targetY = mainRect.top + headerOffset + 15;
+
+        const cards = mainContent.querySelectorAll("[id^='album-']");
+        const letterCounts: Record<string, number> = {};
+        let firstLetter: string | null = null;
+
+        for (let i = 0; i < cards.length; i++) {
+          const rect = cards[i].getBoundingClientRect();
+          if (rect.bottom >= targetY && rect.top <= targetY + 250) {
+            const albIdStr = cards[i].id.replace("album-", "");
+            const albId = parseInt(albIdStr, 10);
+            const foundAlb = sortedAlbums.find((a) => a.album_id === albId);
+            if (foundAlb && foundAlb.title) {
+              const firstChar = foundAlb.title.trim()[0];
+              if (firstChar) {
+                let letter = firstChar.toUpperCase();
+                if (/^\d/.test(letter)) letter = "0-9";
+                if (!firstLetter) firstLetter = letter;
+                letterCounts[letter] = (letterCounts[letter] || 0) + 1;
+              }
+            }
+          }
+        }
+
+        let bestLetter = firstLetter;
+        let maxCount = 0;
+        for (const [letter, count] of Object.entries(letterCounts)) {
+          if (count > maxCount) {
+            maxCount = count;
+            bestLetter = letter;
+          }
+        }
+
+        if (bestLetter && bestLetter !== selectedLetter && onSelectLetter) {
+          onSelectLetter(bestLetter);
+        }
+      });
+    };
+
+    mainContent.addEventListener("scroll", handleScroll, { passive: true });
+    return () => mainContent.removeEventListener("scroll", handleScroll);
+  }, [sortedAlbums, sortBy, selectedLetter, onSelectLetter]);
 
   const handleAddAlbum = async (e: React.MouseEvent, albumId: number, serverId?: string) => {
     e.stopPropagation();

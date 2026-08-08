@@ -176,6 +176,13 @@
   background: transparent;
 }
 
+.alphabet-filter button:focus,
+.alphabet-filter button:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
 /* Wrapper for Main Area */
 .main-wrapper {
   display: flex;
