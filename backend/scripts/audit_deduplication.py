@@ -171,20 +171,23 @@ def audit_deduplication(
 
     possible_artist_dedupes = {k: items for k, items in artist_groups.items() if len({i["server_id"] for i in items}) > 1}
 
-    # Single-server merges: 2+ raw Plex entries that mapped to the same norm key on one server.
-    # Two sub-types:
-    #   - norm_collision: titles differ (e.g. 'The Beatles' vs 'Beatles')
-    #   - exact_duplicate: same title in multiple library sections on the same server
+    # Single-server norm collisions — group by norm key PER SERVER, ignoring GUIDs.
+    # GUIDs can't be used here: 'The Beatles' and 'Beatles' have different Plex GUIDs
+    # but _norm() treats them as the same name and merges them during indexing.
+    norm_artist_groups: dict[str, list[dict[str, Any]]] = {}
+    for item in all_raw_artists:
+        bucket = f"{item['server_id']}::{_norm(item['title'])}"
+        norm_artist_groups.setdefault(bucket, []).append(item)
+
     single_server_artist_merges = []
-    for key, items in artist_groups.items():
-        server_ids = {i["server_id"] for i in items}
-        if len(server_ids) == 1 and len(items) > 1:
+    for bucket, items in norm_artist_groups.items():
+        if len(items) > 1:
             unique_titles = sorted({i["title"] for i in items})
             merge_type = "norm_collision" if len(unique_titles) > 1 else "exact_duplicate"
             single_server_artist_merges.append({
-                "norm_key": key,
+                "norm_key": _norm(items[0]["title"]),
                 "merge_type": merge_type,
-                "raw_titles": [i["title"] for i in items],  # all raw, including dupes
+                "raw_titles": [i["title"] for i in items],
                 "unique_titles": unique_titles,
                 "server": items[0]["server_name"],
             })
@@ -261,17 +264,21 @@ def audit_deduplication(
     # Multi-server album candidate groups (present on 2+ servers)
     possible_album_dedupes = {k: items for k, items in album_groups.items() if len({i["server_id"] for i in items}) > 1}
 
-    # Single-server album merges: 2+ raw Plex entries that mapped to the same norm key on one server.
+    # Single-server album norm collisions — group by norm key PER SERVER, ignoring GUIDs.
+    norm_album_groups: dict[str, list[dict[str, Any]]] = {}
+    for item in all_raw_albums:
+        bucket = f"{item['server_id']}::{_norm(item.get('artist', ''))}::{_norm(item['title'])}"
+        norm_album_groups.setdefault(bucket, []).append(item)
+
     single_server_album_merges = []
-    for key, items in album_groups.items():
-        server_ids = {i["server_id"] for i in items}
-        if len(server_ids) == 1 and len(items) > 1:
+    for bucket, items in norm_album_groups.items():
+        if len(items) > 1:
             unique_titles = sorted({i["title"] for i in items})
             merge_type = "norm_collision" if len(unique_titles) > 1 else "exact_duplicate"
             single_server_album_merges.append({
-                "norm_key": key,
+                "norm_key": f"{_norm(items[0].get('artist', ''))}::{_norm(items[0]['title'])}",
                 "merge_type": merge_type,
-                "raw_titles": [i["title"] for i in items],  # all raw, including dupes
+                "raw_titles": [i["title"] for i in items],
                 "unique_titles": unique_titles,
                 "artist": items[0].get("artist", "Unknown Artist"),
                 "server": items[0]["server_name"],
