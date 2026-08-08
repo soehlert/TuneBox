@@ -180,7 +180,7 @@ def get_indexed_albums(sort_mode: str = "name_asc", db_path: str | None = None) 
             FROM albums alb
             JOIN album_sources src ON alb.album_id = src.album_id
             JOIN servers srv ON src.server_id = srv.server_id
-            WHERE srv.enabled = 1
+            WHERE srv.enabled = 1 AND alb.title != '' AND alb.title IS NOT NULL
             ORDER BY {order_clause}
         """
         cursor = conn.execute(query)
@@ -244,7 +244,7 @@ def search_music_db(query_str: str, db_path: str | None = None) -> list[dict]:
             FROM albums alb
             JOIN album_sources src ON alb.album_id = src.album_id
             JOIN servers srv ON src.server_id = srv.server_id
-            WHERE srv.enabled = 1 AND (LOWER(alb.title) LIKE ? OR LOWER(alb.artist_name) LIKE ?)
+            WHERE srv.enabled = 1 AND alb.title != '' AND alb.title IS NOT NULL AND (LOWER(alb.title) LIKE ? OR LOWER(alb.artist_name) LIKE ?)
             LIMIT 10
             """,
             (term, term),
@@ -353,7 +353,7 @@ def get_albums_for_artist_db(artist_id: int | str, db_path: str | None = None) -
             FROM albums alb
             JOIN album_sources src ON alb.album_id = src.album_id
             JOIN servers srv ON src.server_id = srv.server_id
-            WHERE srv.enabled = 1 AND (alb.artist_id = ? OR src.server_album_id = ? OR LOWER(alb.artist_name) = ? OR alb.norm_title_artist LIKE ?)
+            WHERE srv.enabled = 1 AND alb.title != '' AND alb.title IS NOT NULL AND (alb.artist_id = ? OR src.server_album_id = ? OR LOWER(alb.artist_name) = ? OR alb.norm_title_artist LIKE ?)
             ORDER BY alb.year DESC, alb.title COLLATE NOCASE ASC
         """
         cursor = conn.execute(query, (artist_id, str(artist_id), (artist_name or str(artist_id)).lower(), f"%::{norm_name}"))

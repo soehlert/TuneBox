@@ -158,13 +158,13 @@ function TrackList() {
         ) : albumData ? (
           <>
             <header className="page-header">
-              <Typography variant="h1" className="gradient-text">{albumData.album_title}</Typography>
+              <Typography variant="h1" className="gradient-text">{albumData.album_title || "Unknown Album"}</Typography>
               <Typography className="page-subtitle">Queue songs to TuneBox</Typography>
             </header>
               {(
                 <FallbackImage
                   src={`${apiBase}/api/music/album-art/${albumId}${serverId ? `?server_id=${serverId}` : ""}`}
-                  alt={albumData.album_title}
+                  alt={albumData.album_title || "Album Art"}
                   type="album"
                   className="album-banner"
                 />
@@ -216,7 +216,7 @@ function TrackList() {
                           <Typography className="track-number" style={{ opacity: 0.6, fontWeight: "bold", minWidth: "24px" }}>
                             {track.track_number ?? (idx + 1)}.
                           </Typography>
-                          <Typography className="album-track-title">{track.title}</Typography>
+                          <Typography className="album-track-title">{track.title || `Track ${track.track_number ?? (idx + 1)}`}</Typography>
                         </div>
                         <div className="track-card-right">
                           <Typography className="track-duration">

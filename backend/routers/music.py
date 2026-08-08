@@ -695,7 +695,7 @@ def get_album_art(album_id: int | str, request: Request, server_id: str | None =
     except Exception:
         rating_key = None
 
-    etag = f'"album-{album_id}-{rating_key or "default"}-{server_id or "primary"}"'
+    etag = f'"album-{album_id}-{rating_key or "default"}-{server_id or "primary"}-v4"'
     headers = {
         "Cache-Control": "public, max-age=31536000, immutable",
         "ETag": etag,
