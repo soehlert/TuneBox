@@ -227,14 +227,16 @@ function TrackList() {
             className="back-button"
             style={{ marginBottom: 0 }}
             onClick={() => {
-              if (albumData?.artist_id) {
+              if (window.history.state && window.history.state.idx > 0) {
+                navigate(-1);
+              } else if (albumData?.artist_id) {
                 navigate(`/artists/${albumData.artist_id}/albums${serverId ? `?server_id=${serverId}` : ""}`);
               } else {
-                navigate("/artists");
+                navigate("/all-albums");
               }
             }}
           >
-            <span className="material-symbols-outlined">library_music</span>
+            <span className="material-symbols-outlined">arrow_back</span>
             Back to Albums
           </button>
 

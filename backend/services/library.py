@@ -505,7 +505,7 @@ def get_tracks_for_album_db(album_id: int | str, db_path: str | None = None) -> 
     try:
         cursor = conn.execute(
             """
-            SELECT alb.album_id, alb.title, alb.artist_name, alb.thumb, srv.name as server_name, src.server_id
+            SELECT alb.album_id, alb.artist_id, alb.title, alb.artist_name, alb.thumb, srv.name as server_name, src.server_id
             FROM albums alb
             LEFT JOIN album_sources src ON alb.album_id = src.album_id
             LEFT JOIN servers srv ON src.server_id = srv.server_id
@@ -566,6 +566,7 @@ def get_tracks_for_album_db(album_id: int | str, db_path: str | None = None) -> 
 
         return {
             "album_title": alb_row["title"],
+            "artist_id": alb_row["artist_id"],
             "artist_name": alb_row["artist_name"],
             "thumb": alb_row["thumb"],
             "server_name": alb_row["server_name"],
