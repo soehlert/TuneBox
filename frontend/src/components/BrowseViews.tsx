@@ -62,7 +62,11 @@ export const BrowseTabs: React.FC<BrowseTabsProps> = ({ currentMode, onModeChang
   );
 };
 
-export const AlbumsGridView: React.FC<{ apiBase: string; selectedLetter?: string }> = ({ apiBase, selectedLetter }) => {
+export const AlbumsGridView: React.FC<{
+  apiBase: string;
+  selectedLetter?: string;
+  onSelectLetter?: (letter: string) => void;
+}> = ({ apiBase, selectedLetter, onSelectLetter }) => {
   const [albums, setAlbums] = useState<Album[]>([]);
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState<"alphabetical" | "plays">("alphabetical");
@@ -110,6 +114,59 @@ export const AlbumsGridView: React.FC<{ apiBase: string; selectedLetter?: string
       }, 50);
     }
   }, [selectedLetter, sortedAlbums]);
+
+  // Scroll listener to update active letter rail highlight as user scrolls manually through albums
+  useEffect(() => {
+    if (sortedAlbums.length === 0 || sortBy !== "alphabetical") return;
+
+    const mainContent = document.querySelector(".main-content");
+    if (!mainContent) return;
+
+    let ticking = false;
+
+    const handleScroll = () => {
+      if (ticking) return;
+      ticking = true;
+
+      requestAnimationFrame(() => {
+        ticking = false;
+        const mainRect = mainContent.getBoundingClientRect();
+        const targetY = mainRect.top + 120;
+
+        const cards = mainContent.querySelectorAll("[id^='album-']");
+        let topVisibleTitle: string | null = null;
+
+        for (let i = 0; i < cards.length; i++) {
+          const rect = cards[i].getBoundingClientRect();
+          if (rect.bottom >= targetY) {
+            const albIdStr = cards[i].id.replace("album-", "");
+            const albId = parseInt(albIdStr, 10);
+            const foundAlb = sortedAlbums.find((a) => a.album_id === albId);
+            if (foundAlb && foundAlb.title) {
+              topVisibleTitle = foundAlb.title;
+              break;
+            }
+          }
+        }
+
+        if (topVisibleTitle && onSelectLetter) {
+          const firstChar = topVisibleTitle.trim()[0];
+          if (firstChar) {
+            let letter = firstChar.toUpperCase();
+            if (/^\d/.test(letter)) {
+              letter = "0-9";
+            }
+            if (letter !== selectedLetter) {
+              onSelectLetter(letter);
+            }
+          }
+        }
+      });
+    };
+
+    mainContent.addEventListener("scroll", handleScroll, { passive: true });
+    return () => mainContent.removeEventListener("scroll", handleScroll);
+  }, [sortedAlbums, sortBy, selectedLetter, onSelectLetter]);
 
   const handleAddAlbum = async (e: React.MouseEvent, albumId: number, serverId?: string) => {
     e.stopPropagation();

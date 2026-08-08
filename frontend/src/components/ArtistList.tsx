@@ -23,6 +23,7 @@ interface ArtistListProps {
   searchResults: any[];
   isSearching: boolean;
   selectedLetter?: string;
+  onSelectLetter?: (letter: string) => void;
 }
 
 function ArtistList({
@@ -31,6 +32,7 @@ function ArtistList({
   searchResults,
   isSearching,
   selectedLetter,
+  onSelectLetter,
 }: ArtistListProps) {
   const navigate = useNavigate();
   const isDev = window.location.port === "5173";
@@ -190,6 +192,57 @@ function ArtistList({
 
   const [sortBy, setSortBy] = useState<"alphabetical" | "plays">("alphabetical");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+
+  // Scroll listener to update active letter rail highlight as user scrolls manually
+  useEffect(() => {
+    if (isSearching || filteredArtists.length === 0 || sortBy !== "alphabetical") return;
+
+    const mainContent = document.querySelector(".main-content");
+    if (!mainContent) return;
+
+    let ticking = false;
+
+    const handleScroll = () => {
+      if (ticking) return;
+      ticking = true;
+
+      requestAnimationFrame(() => {
+        ticking = false;
+        const mainRect = mainContent.getBoundingClientRect();
+        const targetY = mainRect.top + 120;
+
+        const cards = mainContent.querySelectorAll(".artist-card");
+        let topVisibleName: string | null = null;
+
+        for (let i = 0; i < cards.length; i++) {
+          const rect = cards[i].getBoundingClientRect();
+          if (rect.bottom >= targetY) {
+            const nameEl = cards[i].querySelector(".artist-card-name");
+            if (nameEl && nameEl.textContent) {
+              topVisibleName = nameEl.textContent;
+              break;
+            }
+          }
+        }
+
+        if (topVisibleName && onSelectLetter) {
+          const firstChar = topVisibleName.trim()[0];
+          if (firstChar) {
+            let letter = firstChar.toUpperCase();
+            if (/^\d/.test(letter)) {
+              letter = "0-9";
+            }
+            if (letter !== selectedLetter) {
+              onSelectLetter(letter);
+            }
+          }
+        }
+      });
+    };
+
+    mainContent.addEventListener("scroll", handleScroll, { passive: true });
+    return () => mainContent.removeEventListener("scroll", handleScroll);
+  }, [isSearching, filteredArtists, sortBy, selectedLetter, onSelectLetter]);
 
   const sortedArtists = [...filteredArtists].sort((a, b) => {
     if (sortBy === "plays") {

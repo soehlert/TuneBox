@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Routes, Route, Link, useNavigate, useLocation } from "react-router-dom";
 import { ThemeProvider } from "@mui/material/styles";
 import axios from "axios";
@@ -1775,7 +1775,16 @@ function App() {
 
 
 
+  const isProgrammaticScrollRef = useRef(false);
+  const scrollTimeoutRef = useRef<any>(null);
+
   const handleAlphabetClick = (character: string) => {
+    isProgrammaticScrollRef.current = true;
+    if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+    scrollTimeoutRef.current = setTimeout(() => {
+      isProgrammaticScrollRef.current = false;
+    }, 800);
+
     setSelectedLetter(character);
     setSearchTerm(""); // Clear search term so the full artist list is visible
 
@@ -1787,6 +1796,12 @@ function App() {
     // Preserve full artist list so user can scroll up and down continuously
     setFilteredArtists(artists);
   };
+
+  const handleScrollLetterChange = useCallback((letter: string) => {
+    if (!isProgrammaticScrollRef.current) {
+      setSelectedLetter(letter);
+    }
+  }, []);
 
   // Manage client_control WebSocket connection
   useEffect(() => {
@@ -2261,7 +2276,7 @@ function App() {
                   path="/"
                   element={
                     viewMode === "albums" ? (
-                      <AlbumsGridView apiBase={getApiUrl("")} selectedLetter={selectedLetter} />
+                      <AlbumsGridView apiBase={getApiUrl("")} selectedLetter={selectedLetter} onSelectLetter={handleScrollLetterChange} />
                     ) : viewMode === "genres" ? (
                       <GenresGridView apiBase={getApiUrl("")} />
                     ) : viewMode === "decades" ? (
@@ -2273,6 +2288,7 @@ function App() {
                         searchResults={searchResults}
                         isSearching={Boolean(debouncedSearchTerm)}
                         selectedLetter={selectedLetter}
+                        onSelectLetter={handleScrollLetterChange}
                       />
                     )
                   }
@@ -2281,7 +2297,7 @@ function App() {
                   path="/artists"
                   element={
                     viewMode === "albums" ? (
-                      <AlbumsGridView apiBase={getApiUrl("")} selectedLetter={selectedLetter} />
+                      <AlbumsGridView apiBase={getApiUrl("")} selectedLetter={selectedLetter} onSelectLetter={handleScrollLetterChange} />
                     ) : viewMode === "genres" ? (
                       <GenresGridView apiBase={getApiUrl("")} />
                     ) : viewMode === "decades" ? (
@@ -2293,6 +2309,7 @@ function App() {
                         searchResults={searchResults}
                         isSearching={Boolean(debouncedSearchTerm)}
                         selectedLetter={selectedLetter}
+                        onSelectLetter={handleScrollLetterChange}
                       />
                     )
                   }
