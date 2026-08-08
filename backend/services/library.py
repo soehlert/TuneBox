@@ -411,3 +411,27 @@ def get_tracks_for_album_db(album_id: int | str, db_path: str | None = None) -> 
         }
     finally:
         conn.close()
+
+
+def get_server_credentials(server_id: str | None = None, db_path: str | None = None) -> tuple[str | None, str | None]:
+    """Fetch Plex server base URL and token from SQLite servers table and settings."""
+    conn = get_db_connection(db_path)
+    try:
+        server_url = None
+        if server_id:
+            cursor = conn.execute("SELECT server_url FROM servers WHERE server_id = ?", (server_id,))
+            row = cursor.fetchone()
+            if row and row["server_url"]:
+                server_url = row["server_url"]
+
+        if not server_url:
+            cursor = conn.execute("SELECT server_url FROM servers WHERE enabled = 1 LIMIT 1")
+            row = cursor.fetchone()
+            if row and row["server_url"]:
+                server_url = row["server_url"]
+
+        from backend.config import settings
+        token = getattr(settings, "plex_token", None) or os.getenv("PLEX_TOKEN")
+        return server_url, token
+    finally:
+        conn.close()
