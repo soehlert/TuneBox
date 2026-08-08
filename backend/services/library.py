@@ -273,46 +273,68 @@ def get_all_art_sources(item_id: int | str, item_type: str, db_path: str | None 
     conn = get_db_connection(db_path)
     sources = []
     try:
+        resolved_id = item_id
         if item_type == "artist":
+            r_row = conn.execute(
+                "SELECT a.artist_id FROM artists a LEFT JOIN artist_sources src ON a.artist_id = src.artist_id WHERE a.artist_id = ? OR src.server_artist_id = ? OR a.norm_name = ? LIMIT 1",
+                (item_id, str(item_id), str(item_id).lower()),
+            ).fetchone()
+            if r_row:
+                resolved_id = r_row["artist_id"]
+
             cursor = conn.execute(
                 """
                 SELECT a.thumb, src.server_id, src.server_artist_id as rating_key, COALESCE(srv.is_primary, 0) as is_primary
                 FROM artists a
                 LEFT JOIN artist_sources src ON a.artist_id = src.artist_id
                 LEFT JOIN servers srv ON src.server_id = srv.server_id
-                WHERE a.artist_id = ? OR src.server_artist_id = ? OR a.norm_name = ?
+                WHERE a.artist_id = ?
                 ORDER BY is_primary DESC
                 """,
-                (item_id, str(item_id), str(item_id).lower()),
+                (resolved_id,),
             )
             for row in cursor.fetchall():
                 sources.append((row["thumb"], row["server_id"], row["rating_key"]))
 
         elif item_type == "album":
+            r_row = conn.execute(
+                "SELECT alb.album_id FROM albums alb LEFT JOIN album_sources src ON alb.album_id = src.album_id WHERE alb.album_id = ? OR src.server_album_id = ? LIMIT 1",
+                (item_id, str(item_id)),
+            ).fetchone()
+            if r_row:
+                resolved_id = r_row["album_id"]
+
             cursor = conn.execute(
                 """
                 SELECT alb.thumb, src.server_id, src.server_album_id as rating_key, COALESCE(srv.is_primary, 0) as is_primary
                 FROM albums alb
                 LEFT JOIN album_sources src ON alb.album_id = src.album_id
                 LEFT JOIN servers srv ON src.server_id = srv.server_id
-                WHERE alb.album_id = ? OR src.server_album_id = ?
+                WHERE alb.album_id = ?
                 ORDER BY is_primary DESC
                 """,
-                (item_id, str(item_id)),
+                (resolved_id,),
             )
             for row in cursor.fetchall():
                 sources.append((row["thumb"], row["server_id"], row["rating_key"]))
 
         elif item_type == "track":
+            r_row = conn.execute(
+                "SELECT t.track_id FROM tracks t WHERE t.track_id = ? OR t.server_track_id = ? LIMIT 1",
+                (item_id, str(item_id)),
+            ).fetchone()
+            if r_row:
+                resolved_id = r_row["track_id"]
+
             cursor = conn.execute(
                 """
                 SELECT t.thumb, t.server_id, t.server_track_id as rating_key, COALESCE(srv.is_primary, 0) as is_primary
                 FROM tracks t
                 LEFT JOIN servers srv ON t.server_id = srv.server_id
-                WHERE t.track_id = ? OR t.server_track_id = ?
+                WHERE t.track_id = ?
                 ORDER BY is_primary DESC
                 """,
-                (item_id, str(item_id)),
+                (resolved_id,),
             )
             for row in cursor.fetchall():
                 sources.append((row["thumb"], row["server_id"], row["rating_key"]))
@@ -387,17 +409,27 @@ def get_tracks_for_album_db(album_id: int | str, db_path: str | None = None) -> 
 
         cursor = conn.execute(
             """
-            SELECT t.track_id, t.title, t.duration, t.artist_name as artist, t.album_title as album, t.url, t.thumb, srv.name as server_name
+            SELECT t.track_id, t.title, t.duration, t.artist_name as artist, t.album_title as album, t.url, t.thumb, srv.name as server_name, COALESCE(srv.is_primary, 0) as is_primary
             FROM tracks t
             JOIN servers srv ON t.server_id = srv.server_id
             WHERE srv.enabled = 1 AND t.album_id = ?
-            ORDER BY t.track_id ASC
+            ORDER BY is_primary DESC, t.track_id ASC
             """,
             (resolved_album_id,),
         )
         rows = cursor.fetchall()
         if not rows:
             return None
+
+        seen_titles = set()
+        deduped_rows = []
+        for r in rows:
+            norm_t = (r["title"] or "").strip().lower()
+            if norm_t and norm_t in seen_titles:
+                continue
+            if norm_t:
+                seen_titles.add(norm_t)
+            deduped_rows.append(r)
 
         tracks = [
             {
@@ -412,7 +444,7 @@ def get_tracks_for_album_db(album_id: int | str, db_path: str | None = None) -> 
                 "thumb": r["thumb"],
                 "server_name": r["server_name"],
             }
-            for idx, r in enumerate(rows)
+            for idx, r in enumerate(deduped_rows)
         ]
 
         return {
