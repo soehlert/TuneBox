@@ -222,11 +222,13 @@ function ArtistList({
 
   return (
     <div className="artist-list-wrapper">
-      <header className="page-header">
-        <Typography variant="h1" className="gradient-text">
-          {isSearching ? "Search Results" : "Artists"}
-        </Typography>
-      </header>
+      {isSearching && (
+        <header className="page-header">
+          <Typography variant="h1" className="gradient-text">
+            Search Results
+          </Typography>
+        </header>
+      )}
 
       {!isSearching && (
         <div className="view-sort-bar">
