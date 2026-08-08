@@ -12,6 +12,7 @@ from difflib import SequenceMatcher
 from typing import Any
 
 from backend.config import settings
+from backend.services.library import _norm
 from backend.services.plex import (
     fetch_accessible_plex_servers,
     fetch_albums_for_artist,
@@ -165,8 +166,7 @@ def audit_deduplication(
     artist_groups: dict[str, list[dict[str, Any]]] = {}
     for item in all_raw_artists:
         guid = item.get("guid", "")
-        norm_name = re.sub(r"[^a-z0-9]", "", item["title"].lower()) or item["title"].lower()
-        key = guid if (guid and "plex://" in guid) else norm_name
+        key = guid if (guid and "plex://" in guid) else _norm(item["title"])
         artist_groups.setdefault(key, []).append(item)
 
     possible_artist_dedupes = {k: items for k, items in artist_groups.items() if len({i["server_id"] for i in items}) > 1}
@@ -229,9 +229,7 @@ def audit_deduplication(
 
     for item in all_raw_albums:
         guid = item.get("guid", "")
-        norm_album = re.sub(r"[^a-z0-9]", "", item["title"].lower()) or item["title"].lower()
-        norm_artist = re.sub(r"[^a-z0-9]", "", item.get("artist", "").lower())
-        fallback_key = f"{norm_artist}:{norm_album}"
+        fallback_key = f"{_norm(item.get('artist', ''))}:{_norm(item['title'])}"
 
         key = guid_to_album_key.get(guid, fallback_key) if (guid and "plex://" in guid) else fallback_key
         if guid and "plex://" in guid:
@@ -252,7 +250,7 @@ def audit_deduplication(
         distinct_servers = {i["server_id"] for i in items}
         # Check if items shared GUID or normalized title
         guids = {i["guid"] for i in items if i.get("guid") and "plex://" in i.get("guid", "")}
-        norm_titles = {re.sub(r"[^a-z0-9]", "", i["title"].lower()) for i in items}
+        norm_titles = {_norm(i["title"]) for i in items}
 
         if len(guids) <= 1 or len(norm_titles) <= 1:
             matched_album_dedupes += 1
