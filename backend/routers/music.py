@@ -664,9 +664,9 @@ def get_artist_image(artist_id: int | str, request: Request, server_id: str | No
     except Exception:
         rating_key = None
 
-    etag = f'"artist-{artist_id}-{rating_key or "default"}-{server_id or "primary"}"'
+    etag = f'"artist-{artist_id}-{rating_key or "default"}-{server_id or "primary"}-v5"'
     headers = {
-        "Cache-Control": "public, max-age=31536000, immutable",
+        "Cache-Control": "public, max-age=86400, must-revalidate",
         "ETag": etag,
     }
     if request.headers.get("if-none-match") == etag:
@@ -685,9 +685,9 @@ def get_album_art(album_id: int | str, request: Request, server_id: str | None =
     except Exception:
         rating_key = None
 
-    etag = f'"album-{album_id}-{rating_key or "default"}-{server_id or "primary"}-v4"'
+    etag = f'"album-{album_id}-{rating_key or "default"}-{server_id or "primary"}-v5"'
     headers = {
-        "Cache-Control": "public, max-age=31536000, immutable",
+        "Cache-Control": "public, max-age=86400, must-revalidate",
         "ETag": etag,
     }
     if request.headers.get("if-none-match") == etag:
@@ -706,9 +706,9 @@ def get_track_art(track_id: int | str, request: Request, server_id: str | None =
     except Exception:
         rating_key = None
 
-    etag = f'"track-{track_id}-{rating_key or "default"}-{server_id or "primary"}"'
+    etag = f'"track-{track_id}-{rating_key or "default"}-{server_id or "primary"}-v5"'
     headers = {
-        "Cache-Control": "public, max-age=31536000, immutable",
+        "Cache-Control": "public, max-age=86400, must-revalidate",
         "ETag": etag,
     }
     if request.headers.get("if-none-match") == etag:

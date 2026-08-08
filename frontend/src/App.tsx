@@ -2266,7 +2266,17 @@ function App() {
                 <Route
                   path="/"
                   element={
-                    viewMode === "albums" ? (
+                    Boolean(debouncedSearchTerm) ? (
+                      <ArtistList
+                        filteredArtists={filteredArtists}
+                        loading={loadingArtists}
+                        searchResults={searchResults}
+                        isSearching={true}
+                        selectedLetter={selectedLetter}
+                        scrollTargetLetter={scrollTargetLetter}
+                        onSelectLetter={handleScrollLetterChange}
+                      />
+                    ) : viewMode === "albums" ? (
                       <AlbumsGridView apiBase={getApiUrl("")} selectedLetter={selectedLetter} scrollTargetLetter={scrollTargetLetter} onSelectLetter={handleScrollLetterChange} />
                     ) : viewMode === "genres" ? (
                       <GenresGridView apiBase={getApiUrl("")} />
@@ -2277,7 +2287,7 @@ function App() {
                         filteredArtists={filteredArtists}
                         loading={loadingArtists}
                         searchResults={searchResults}
-                        isSearching={Boolean(debouncedSearchTerm)}
+                        isSearching={false}
                         selectedLetter={selectedLetter}
                         scrollTargetLetter={scrollTargetLetter}
                         onSelectLetter={handleScrollLetterChange}
@@ -2288,7 +2298,17 @@ function App() {
                 <Route
                   path="/artists"
                   element={
-                    viewMode === "albums" ? (
+                    Boolean(debouncedSearchTerm) ? (
+                      <ArtistList
+                        filteredArtists={filteredArtists}
+                        loading={loadingArtists}
+                        searchResults={searchResults}
+                        isSearching={true}
+                        selectedLetter={selectedLetter}
+                        scrollTargetLetter={scrollTargetLetter}
+                        onSelectLetter={handleScrollLetterChange}
+                      />
+                    ) : viewMode === "albums" ? (
                       <AlbumsGridView apiBase={getApiUrl("")} selectedLetter={selectedLetter} scrollTargetLetter={scrollTargetLetter} onSelectLetter={handleScrollLetterChange} />
                     ) : viewMode === "genres" ? (
                       <GenresGridView apiBase={getApiUrl("")} />
@@ -2299,7 +2319,7 @@ function App() {
                         filteredArtists={filteredArtists}
                         loading={loadingArtists}
                         searchResults={searchResults}
-                        isSearching={Boolean(debouncedSearchTerm)}
+                        isSearching={false}
                         selectedLetter={selectedLetter}
                         scrollTargetLetter={scrollTargetLetter}
                         onSelectLetter={handleScrollLetterChange}
