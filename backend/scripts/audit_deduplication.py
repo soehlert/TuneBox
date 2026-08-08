@@ -12,6 +12,7 @@ from difflib import SequenceMatcher
 from typing import Any
 
 from backend.config import settings
+from backend.services.library import _norm
 from backend.services.plex import (
     fetch_accessible_plex_servers,
     fetch_albums_for_artist,
@@ -165,11 +166,31 @@ def audit_deduplication(
     artist_groups: dict[str, list[dict[str, Any]]] = {}
     for item in all_raw_artists:
         guid = item.get("guid", "")
-        norm_name = re.sub(r"[^a-z0-9]", "", item["title"].lower()) or item["title"].lower()
-        key = guid if (guid and "plex://" in guid) else norm_name
+        key = guid if (guid and "plex://" in guid) else _norm(item["title"])
         artist_groups.setdefault(key, []).append(item)
 
     possible_artist_dedupes = {k: items for k, items in artist_groups.items() if len({i["server_id"] for i in items}) > 1}
+
+    # Single-server norm collisions — group by norm key PER SERVER, ignoring GUIDs.
+    # GUIDs can't be used here: 'The Beatles' and 'Beatles' have different Plex GUIDs
+    # but _norm() treats them as the same name and merges them during indexing.
+    norm_artist_groups: dict[str, list[dict[str, Any]]] = {}
+    for item in all_raw_artists:
+        bucket = f"{item['server_id']}::{_norm(item['title'])}"
+        norm_artist_groups.setdefault(bucket, []).append(item)
+
+    single_server_artist_merges = []
+    for bucket, items in norm_artist_groups.items():
+        if len(items) > 1:
+            unique_titles = sorted({i["title"] for i in items})
+            merge_type = "norm_collision" if len(unique_titles) > 1 else "exact_duplicate"
+            single_server_artist_merges.append({
+                "norm_key": _norm(items[0]["title"]),
+                "merge_type": merge_type,
+                "raw_titles": [i["title"] for i in items],
+                "unique_titles": unique_titles,
+                "server": items[0]["server_name"],
+            })
 
     matched_artist_dedupes = 0
     missed_artist_dedupes = []
@@ -229,9 +250,7 @@ def audit_deduplication(
 
     for item in all_raw_albums:
         guid = item.get("guid", "")
-        norm_album = re.sub(r"[^a-z0-9]", "", item["title"].lower()) or item["title"].lower()
-        norm_artist = re.sub(r"[^a-z0-9]", "", item.get("artist", "").lower())
-        fallback_key = f"{norm_artist}:{norm_album}"
+        fallback_key = f"{_norm(item.get('artist', ''))}:{_norm(item['title'])}"
 
         key = guid_to_album_key.get(guid, fallback_key) if (guid and "plex://" in guid) else fallback_key
         if guid and "plex://" in guid:
@@ -245,6 +264,26 @@ def audit_deduplication(
     # Multi-server album candidate groups (present on 2+ servers)
     possible_album_dedupes = {k: items for k, items in album_groups.items() if len({i["server_id"] for i in items}) > 1}
 
+    # Single-server album norm collisions — group by norm key PER SERVER, ignoring GUIDs.
+    norm_album_groups: dict[str, list[dict[str, Any]]] = {}
+    for item in all_raw_albums:
+        bucket = f"{item['server_id']}::{_norm(item.get('artist', ''))}::{_norm(item['title'])}"
+        norm_album_groups.setdefault(bucket, []).append(item)
+
+    single_server_album_merges = []
+    for bucket, items in norm_album_groups.items():
+        if len(items) > 1:
+            unique_titles = sorted({i["title"] for i in items})
+            merge_type = "norm_collision" if len(unique_titles) > 1 else "exact_duplicate"
+            single_server_album_merges.append({
+                "norm_key": f"{_norm(items[0].get('artist', ''))}::{_norm(items[0]['title'])}",
+                "merge_type": merge_type,
+                "raw_titles": [i["title"] for i in items],
+                "unique_titles": unique_titles,
+                "artist": items[0].get("artist", "Unknown Artist"),
+                "server": items[0]["server_name"],
+            })
+
     matched_album_dedupes = 0
     missed_album_dedupes = []
 
@@ -252,7 +291,7 @@ def audit_deduplication(
         distinct_servers = {i["server_id"] for i in items}
         # Check if items shared GUID or normalized title
         guids = {i["guid"] for i in items if i.get("guid") and "plex://" in i.get("guid", "")}
-        norm_titles = {re.sub(r"[^a-z0-9]", "", i["title"].lower()) for i in items}
+        norm_titles = {_norm(i["title"]) for i in items}
 
         if len(guids) <= 1 or len(norm_titles) <= 1:
             matched_album_dedupes += 1
@@ -305,6 +344,7 @@ def audit_deduplication(
             "dedupe_success_pct": artist_dedupe_pct,
             "missed_details": missed_artist_dedupes[:10],
             "fuzzy_candidates": potential_missed_artists[:10],
+            "single_server_merges": single_server_artist_merges,
         },
         "album_summary": {
             "total_raw": total_raw_albums,
@@ -315,6 +355,7 @@ def audit_deduplication(
             "dedupe_success_pct": album_dedupe_pct,
             "missed_details": missed_album_dedupes[:10],
             "fuzzy_candidates": potential_missed_albums[:10],
+            "single_server_merges": single_server_album_merges,
         },
     }
 
@@ -378,6 +419,43 @@ def generate_report(summary: dict[str, Any]) -> str:
         report_lines.append("\n[CANDIDATE MISSED ALBUM DUPLICATES (>85% Fuzzy Match)]")
         for item in alb_sum["fuzzy_candidates"]:
             report_lines.append(f"  • '{item['album_1']}' by {item['artist']} ({item['sources_1']}) <--> '{item['album_2']}' ({item['sources_2']}) [{item['similarity'] * 100:.1f}% Match]")
+
+    if art_sum["single_server_merges"]:
+        norm_collisions = [m for m in art_sum["single_server_merges"] if m["merge_type"] == "norm_collision"]
+        exact_dupes = [m for m in art_sum["single_server_merges"] if m["merge_type"] == "exact_duplicate"]
+
+        report_lines.append(f"\n[SINGLE-SERVER ARTIST MERGES ({len(art_sum['single_server_merges'])} total)]")
+
+        if norm_collisions:
+            report_lines.append(f"  Different names that normalized to the same key ({len(norm_collisions)}):")
+            for item in norm_collisions:
+                names_str = "  +  ".join(f"'{t}'" for t in item["unique_titles"])
+                report_lines.append(f"    • {names_str}  →  norm key: '{item['norm_key']}'  (server: {item['server']})")
+
+        if exact_dupes:
+            report_lines.append(f"  Same name in multiple library sections ({len(exact_dupes)}):")
+            for item in exact_dupes:
+                count = len(item["raw_titles"])
+                report_lines.append(f"    • '{item['unique_titles'][0]}'  ×{count}  (server: {item['server']})")
+
+    if alb_sum["single_server_merges"]:
+        norm_collisions = [m for m in alb_sum["single_server_merges"] if m["merge_type"] == "norm_collision"]
+        exact_dupes = [m for m in alb_sum["single_server_merges"] if m["merge_type"] == "exact_duplicate"]
+
+        report_lines.append(f"\n[SINGLE-SERVER ALBUM MERGES ({len(alb_sum['single_server_merges'])} total)]")
+
+        if norm_collisions:
+            report_lines.append(f"  Different names that normalized to the same key ({len(norm_collisions)}):")
+            for item in norm_collisions:
+                names_str = "  +  ".join(f"'{t}'" for t in item["unique_titles"])
+                report_lines.append(f"    • {names_str}  →  norm key: '{item['norm_key']}'  (by {item['artist']}, server: {item['server']})")
+
+        if exact_dupes:
+            report_lines.append(f"  Same name in multiple library sections ({len(exact_dupes)}):")
+            for item in exact_dupes:
+                count = len(item["raw_titles"])
+                report_lines.append(f"    • '{item['unique_titles'][0]}'  ×{count}  by {item['artist']}  (server: {item['server']})")
+
 
     report_lines.append("\nAudit finished successfully.")
     return "\n".join(report_lines)
