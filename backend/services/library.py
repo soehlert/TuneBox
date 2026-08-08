@@ -609,10 +609,12 @@ def search_music_db(query_str: str, db_path: str | None = None) -> list[dict]:
             FROM albums alb
             JOIN album_sources src ON alb.album_id = src.album_id
             JOIN servers srv ON src.server_id = srv.server_id
-            WHERE srv.enabled = 1 AND alb.title != '' AND alb.title IS NOT NULL AND (LOWER(alb.title) LIKE ? OR LOWER(alb.artist_name) LIKE ?)
-            LIMIT 10
+            WHERE srv.enabled = 1 AND alb.title != '' AND alb.title IS NOT NULL
+              AND (LOWER(alb.title) LIKE ? OR LOWER(alb.artist_name) LIKE ?)
+            ORDER BY (CASE WHEN LOWER(alb.title) LIKE ? THEN 0 ELSE 1 END), alb.title COLLATE NOCASE ASC
+            LIMIT 30
             """,
-            (term, term),
+            (term, term, term),
         )
         res.extend([dict(r) for r in cursor.fetchall()])
 
