@@ -1922,6 +1922,9 @@ def fetch_art(item_id: int, item_type: str, server_id: str | None = None):
         from backend.services.library import get_all_art_sources, get_server_credentials
         all_sources = get_all_art_sources(item_id, item_type)
 
+        if server_id:
+            all_sources = sorted(all_sources, key=lambda s: 0 if s[1] == server_id else 1)
+
         last_error = None
         for stored_thumb, db_server_id, rating_key in all_sources:
             try:

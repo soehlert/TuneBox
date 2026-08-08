@@ -368,23 +368,26 @@ def get_tracks_for_album_db(album_id: int | str, db_path: str | None = None) -> 
     try:
         cursor = conn.execute(
             """
-            SELECT alb.album_id, alb.title, alb.artist_name, alb.thumb
+            SELECT alb.album_id, alb.title, alb.artist_name, alb.thumb, srv.name as server_name, src.server_id
             FROM albums alb
             LEFT JOIN album_sources src ON alb.album_id = src.album_id
+            LEFT JOIN servers srv ON src.server_id = srv.server_id
             WHERE alb.album_id = ? OR src.server_album_id = ?
-            LIMIT 1
+            ORDER BY COALESCE(srv.is_primary, 0) DESC
             """,
             (album_id, str(album_id)),
         )
-        alb_row = cursor.fetchone()
-        if not alb_row:
+        alb_rows = cursor.fetchall()
+        if not alb_rows:
             return None
 
+        alb_row = alb_rows[0]
         resolved_album_id = alb_row["album_id"]
+        server_sources = [{"server_id": r["server_id"], "server_name": r["server_name"]} for r in alb_rows if r["server_id"]]
 
         cursor = conn.execute(
             """
-            SELECT t.track_id, t.title, t.duration, t.artist_name as artist, t.album_title as album, t.url, t.thumb
+            SELECT t.track_id, t.title, t.duration, t.artist_name as artist, t.album_title as album, t.url, t.thumb, srv.name as server_name
             FROM tracks t
             JOIN servers srv ON t.server_id = srv.server_id
             WHERE srv.enabled = 1 AND t.album_id = ?
@@ -407,6 +410,7 @@ def get_tracks_for_album_db(album_id: int | str, db_path: str | None = None) -> 
                 "track_number": idx + 1,
                 "url": r["url"],
                 "thumb": r["thumb"],
+                "server_name": r["server_name"],
             }
             for idx, r in enumerate(rows)
         ]
@@ -415,6 +419,8 @@ def get_tracks_for_album_db(album_id: int | str, db_path: str | None = None) -> 
             "album_title": alb_row["title"],
             "artist_name": alb_row["artist_name"],
             "thumb": alb_row["thumb"],
+            "server_name": alb_row["server_name"],
+            "sources": server_sources,
             "tracks": tracks,
         }
     finally:

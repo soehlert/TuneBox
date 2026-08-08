@@ -20,6 +20,8 @@ interface AlbumData {
   artist_id?: number;
   artist_name?: string;
   thumb: string | null;
+  server_name?: string;
+  sources?: { server_id: string; server_name: string }[];
   tracks: Track[];
 }
 
@@ -159,7 +161,49 @@ function TrackList() {
           <>
             <header className="page-header">
               <Typography variant="h1" className="gradient-text">{albumData.album_title || "Unknown Album"}</Typography>
-              <Typography className="page-subtitle">Queue songs to TuneBox</Typography>
+              <div style={{ display: "flex", gap: "8px", alignItems: "center", marginTop: "4px" }}>
+                <Typography className="page-subtitle" style={{ margin: 0 }}>Queue songs to TuneBox</Typography>
+                {(() => {
+                  const sources = albumData.sources || [];
+                  if (sources.length > 1) {
+                    const names = sources.map((s) => s.server_name).filter(Boolean).join(" • ");
+                    return (
+                      <span
+                        style={{
+                          fontSize: "11px",
+                          background: "rgba(46, 204, 113, 0.2)",
+                          border: "1px solid rgba(46, 204, 113, 0.5)",
+                          color: "#2ecc71",
+                          padding: "2px 8px",
+                          borderRadius: "12px",
+                          fontWeight: 700,
+                        }}
+                        title={`Available on: ${names}`}
+                      >
+                        🌐 {sources.length} Connected Libraries ({names})
+                      </span>
+                    );
+                  }
+                  if (albumData.server_name) {
+                    return (
+                      <span
+                        style={{
+                          fontSize: "11px",
+                          background: "rgba(245, 166, 35, 0.2)",
+                          border: "1px solid rgba(245, 166, 35, 0.4)",
+                          color: "#f5a623",
+                          padding: "2px 8px",
+                          borderRadius: "12px",
+                          fontWeight: 600,
+                        }}
+                      >
+                        📍 {albumData.server_name}
+                      </span>
+                    );
+                  }
+                  return null;
+                })()}
+              </div>
             </header>
               {(
                 <FallbackImage
