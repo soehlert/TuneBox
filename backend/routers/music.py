@@ -665,13 +665,15 @@ async def clear_redis_cache(key: str):
 
 
 @router.get("/artist-image/{artist_id}")
-def get_artist_image(artist_id: int, request: Request, server_id: str | None = None):
-    """Fetch and proxy the artist image from Plex.
+def get_artist_image(artist_id: int | str, request: Request, server_id: str | None = None):
+    """Fetch and proxy the artist photo from Plex."""
+    try:
+        from backend.services.library import get_art_source_info
+        _, _, rating_key = get_art_source_info(artist_id, "artist")
+    except Exception:
+        rating_key = None
 
-    Returns:
-        Artist image from Plex in streaming response format.
-    """
-    etag = f'"artist-{artist_id}-{server_id or "primary"}"'
+    etag = f'"artist-{artist_id}-{rating_key or "default"}-{server_id or "primary"}"'
     headers = {
         "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
         "ETag": etag,
@@ -695,12 +697,14 @@ def get_artist_image(artist_id: int, request: Request, server_id: str | None = N
 
 @router.get("/album-art/{album_id}")
 def get_album_art(album_id: int, request: Request, server_id: str | None = None):
-    """Fetch and proxy the album art from Plex.
+    """Fetch and proxy the album art from Plex."""
+    try:
+        from backend.services.library import get_art_source_info
+        _, _, rating_key = get_art_source_info(album_id, "album")
+    except Exception:
+        rating_key = None
 
-    Returns:
-        Album art from Plex in streaming response format.
-    """
-    etag = f'"album-{album_id}-{server_id or "primary"}"'
+    etag = f'"album-{album_id}-{rating_key or "default"}-{server_id or "primary"}"'
     headers = {
         "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
         "ETag": etag,
@@ -724,12 +728,14 @@ def get_album_art(album_id: int, request: Request, server_id: str | None = None)
 
 @router.get("/track-art/{track_id}")
 def get_track_art(track_id: int, request: Request, server_id: str | None = None):
-    """Fetch and proxy the track art from Plex.
+    """Fetch and proxy the track art from Plex."""
+    try:
+        from backend.services.library import get_art_source_info
+        _, _, rating_key = get_art_source_info(track_id, "track")
+    except Exception:
+        rating_key = None
 
-    Returns:
-        Track art from Plex in streaming response format.
-    """
-    etag = f'"track-{track_id}-{server_id or "primary"}"'
+    etag = f'"track-{track_id}-{rating_key or "default"}-{server_id or "primary"}"'
     headers = {
         "Cache-Control": "public, max-age=86400, stale-while-revalidate=604800",
         "ETag": etag,
