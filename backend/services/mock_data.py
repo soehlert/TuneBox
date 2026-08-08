@@ -143,7 +143,15 @@ for idx, artist_name in enumerate(ARTIST_NAMES):
 
 def seed_mock_library_db(db_path: str | None = None):
     """Seed the SQLite library database with mock server, artist, album, and track data."""
-    from backend.services.library import upsert_server, upsert_artist, upsert_album, upsert_track
+    from backend.services.library import get_db_connection, upsert_server, upsert_artist, upsert_album, upsert_track
+
+    conn = get_db_connection(db_path)
+    try:
+        real_server = conn.execute("SELECT 1 FROM servers WHERE server_id != 'mock-server-001' LIMIT 1").fetchone()
+        if real_server:
+            return
+    finally:
+        conn.close()
 
     mock_server_id = "mock-server-001"
     upsert_server(mock_server_id, "Mock Plex Server", "http://mock-server:32400", is_primary=True, enabled=True, db_path=db_path)
