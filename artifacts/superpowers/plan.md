@@ -1,55 +1,39 @@
 ## Goal
-1. Change the "Connecting" / "Enabled" status badge color in the Server Choice settings section to blue (`#3498db`, `rgba(52, 152, 219, 0.15)`, `1px solid rgba(52, 152, 219, 0.4)` and `🔵 Connecting` / `🔵 Enabled`).
-2. Make the number of tracks added during playlist pre-seeding configurable via UI input and backend API parameter `count` (defaulting to 10).
-3. Change the queue seeding button label back to "Preseed Queue" (and "Preseeding..." while active).
-4. Handle cases where the configured count exceeds playlist length gracefully by seeding the entire playlist (`sample_size = min(len(tracks), count)`) without throwing an error.
-5. Remove the "⏹️ Stop" button from the Queue header component, leaving the Stop Queue button exclusively in Host Settings next to "Clear Queue".
+Investigate and resolve why duplicate artists are displaying in the TuneBox library catalog when only a single Plex server is enabled.
 
 ## Assumptions
-- Host settings modal in `frontend/src/App.tsx` can maintain a local `preseedCount` state (default 10) with an input field in the Queue Management section.
-- `POST /api/music/playlists/{playlist_id}/seed` accepts an optional `count` query parameter (default 10).
-- In `backend/services/plex.py`, capping `sample_size = min(len(tracks), max(1, count))` ensures no index or sampling errors occur regardless of requested count.
-- In `frontend/src/components/Queue.tsx`, removing the header `<button>` preserves the "Up Next" title styling while leaving the stop action in Host Settings.
+1. Only one Plex server is enabled (`servers.enabled = 1`).
+2. The user is seeing multiple entries for the same artist in the artist list view (`/artists`).
+3. Potential root causes to investigate:
+   - SQL query join behavior in `get_indexed_artists` (`JOIN artist_sources src` returning duplicate rows per artist when multiple `artist_sources` entries exist without `GROUP BY a.artist_id`).
+   - Normalization or GUID differences during Plex indexer synchronization (e.g., `upsert_artist` failing to merge artist entries because of trailing whitespace, punctuation, or Plex GUID variants).
+   - Frontend state or request duplication when fetching `/api/music/artists`.
 
 ## Plan
 
-### Step 1: Backend Configurable Preseed Count & Safe Capping
-- **Files**: `backend/routers/music.py`, `backend/services/plex.py`
-- **Change**:
-  - Update `seed_queue_from_playlist(playlist_id: int, count: int = 10)` in `backend/services/plex.py` to sample `min(len(tracks), max(1, count))` items.
-  - Update `@router.post("/playlists/{playlist_id}/seed")` in `backend/routers/music.py` to accept `count: int = 10`.
-- **Verify**: `uv run python -m pytest backend/tests/test_mock_music.py`
+### Step 1: Inspect SQLite Database & Audit Single-Server Artist Rows
+- **Files**: `backend/scripts/audit_deduplication.py`, `backend/services/library.py`
+- **Change**: Run diagnostic SQL queries against `library.db` to compare raw `artists` table rows vs returned `get_indexed_artists()` results, identifying exact duplicate artist names and their source mappings.
+- **Verify**: Run `uv run python -c "from backend.services.library import get_db_connection; conn=get_db_connection(); print(conn.execute('SELECT name, COUNT(*) FROM artists GROUP BY norm_name HAVING COUNT(*) > 1').fetchall())"`
 
-### Step 2: Server Choice Status Badge Blue Styling
-- **Files**: `frontend/src/App.tsx`
-- **Change**:
-  - Update server status badge styling in the Server Choice section of `App.tsx` to use blue theme for `connecting` / `enabled` state (`#3498db`, `rgba(52, 152, 219, 0.15)`, `1px solid rgba(52, 152, 219, 0.4)`, badge label `🔵 Connecting` / `🔵 Enabled`).
-- **Verify**: Inspect `App.tsx` JSX styling and ensure clean compilation.
+### Step 2: Fix Query Duplication in `get_indexed_artists` & `get_indexed_albums`
+- **Files**: `backend/services/library.py`
+- **Change**: Ensure `GROUP BY a.artist_id` is applied to `get_indexed_artists()` (matching `get_indexed_albums()`) so `JOIN artist_sources` never produces multi-row duplicate returns per artist.
+- **Verify**: `uv run python -m pytest backend/tests/test_library_db.py`
 
-### Step 3: Frontend Configurable Preseed UI & Button Renaming
-- **Files**: `frontend/src/App.tsx`
-- **Change**:
-  - Add `preseedCount` state (default 10) to `App.tsx`.
-  - Add a "Preseed Track Count" number input field in the Queue Management section.
-  - Rename the action button from "Seed Queue" to "Preseed Queue" (and "Preseeding..." while loading).
-  - Update API call to `/api/music/playlists/${selectedPlaylistId}/seed?count=${preseedCount}`.
-- **Verify**: Build/test frontend component state and endpoints.
+### Step 3: Audit Indexer Normalization & Single-Server Deduplication Logic
+- **Files**: `backend/services/library.py`, `backend/services/indexer.py`
+- **Change**: Verify `_norm()` normalization behavior during `upsert_artist()` and `upsert_album()` to ensure single-server artist variants (e.g., trailing whitespace or case differences) collapse into the same `norm_name` primary key.
+- **Verify**: `uv run python -m pytest backend/tests/test_deduplication.py`
 
-### Step 4: Remove Stop Button from Queue Header Component
-- **Files**: `frontend/src/components/Queue.tsx`
-- **Change**:
-  - Remove the `<button>` element with `⏹️ Stop` from the Queue header bar (`Up Next`), leaving the Stop action exclusively in the Host Settings Queue Management modal next to Clear Queue.
-- **Verify**: Build frontend and verify Queue header JSX.
-
-### Step 5: Unit Test Updates for Preseed Count
-- **Files**: `backend/tests/test_mock_music.py`
-- **Change**:
-  - Add test case verifying custom `count` query parameter in `POST /api/music/playlists/{playlist_id}/seed` and verifying `count > playlist_len` handles entire playlist safely.
-- **Verify**: `uv run python -m pytest backend/tests`
+### Step 4: End-to-End Verification
+- **Files**: Backend test suite & Docker containers
+- **Change**: Verify `/api/music/artists` endpoint returns zero duplicates and all tests pass cleanly.
+- **Verify**: `uv run python -m pytest` and `npm run build`
 
 ## Risks & mitigations
-- **Risk**: User specifies a preseed count larger than playlist size.
-- **Mitigation**: Capping sample size via `min(len(tracks), max(1, count))` safely seeds all tracks in the playlist without raising ValueError or out-of-range sampling errors.
+- **Risk**: Adding `GROUP BY a.artist_id` might mask actual unmerged `artists` records stored in SQLite.
+- **Mitigation**: Perform a preliminary SQL audit (`SELECT norm_name, COUNT(*) FROM artists GROUP BY norm_name HAVING COUNT(*) > 1`) before modifying query logic.
 
 ## Rollback plan
-- Revert changes via `git checkout` on modified files (`App.tsx`, `Queue.tsx`, `music.py`, `plex.py`, `test_mock_music.py`).
+- Revert changes using `git checkout`.

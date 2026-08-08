@@ -229,6 +229,96 @@ def log_playback_event_db(track_id: int | str, username: str = "Admin", db_path:
         conn.close()
 
 
+def clean_library_deduplication(db_path: str | None = None) -> dict[str, int]:
+    """Consolidate duplicate artists and albums caused by norm_name variations in SQLite database."""
+    conn = get_db_connection(db_path)
+    removed_artists = 0
+    removed_albums = 0
+    try:
+        cursor = conn.cursor()
+
+        # 1. Consolidate Artists
+        artists = cursor.execute("SELECT artist_id, name, norm_name, play_count FROM artists ORDER BY artist_id ASC").fetchall()
+        norm_artist_groups: dict[str, list[dict]] = {}
+        for a in artists:
+            curr_norm = _norm(a["name"])
+            norm_artist_groups.setdefault(curr_norm, []).append(dict(a))
+
+        for norm_key, group in norm_artist_groups.items():
+            primary = group[0]
+            primary_id = primary["artist_id"]
+
+            for secondary in group[1:]:
+                sec_id = secondary["artist_id"]
+
+                # Move sources
+                cursor.execute(
+                    "UPDATE OR IGNORE artist_sources SET artist_id = ? WHERE artist_id = ?",
+                    (primary_id, sec_id),
+                )
+                cursor.execute("DELETE FROM artist_sources WHERE artist_id = ?", (sec_id,))
+
+                # Move albums
+                cursor.execute("UPDATE albums SET artist_id = ? WHERE artist_id = ?", (primary_id, sec_id))
+
+                # Combine play count
+                cursor.execute(
+                    "UPDATE artists SET play_count = MAX(play_count, ?) WHERE artist_id = ?",
+                    (secondary["play_count"], primary_id),
+                )
+
+                # Delete duplicate artist
+                cursor.execute("DELETE FROM artists WHERE artist_id = ?", (sec_id,))
+                removed_artists += 1
+
+            # Update norm_name AFTER removing duplicates
+            cursor.execute("UPDATE artists SET norm_name = ? WHERE artist_id = ?", (norm_key, primary_id))
+
+        # 2. Consolidate Albums
+        albums = cursor.execute("SELECT album_id, artist_name, title, norm_title_artist, play_count FROM albums ORDER BY album_id ASC").fetchall()
+        norm_album_groups: dict[str, list[dict]] = {}
+        for alb in albums:
+            curr_norm = f"{_norm(alb['title'])}::{_norm(alb['artist_name'])}"
+            norm_album_groups.setdefault(curr_norm, []).append(dict(alb))
+
+        for norm_key, group in norm_album_groups.items():
+            primary = group[0]
+            primary_id = primary["album_id"]
+
+            for secondary in group[1:]:
+                sec_id = secondary["album_id"]
+
+                # Move album sources
+                cursor.execute(
+                    "UPDATE OR IGNORE album_sources SET album_id = ? WHERE album_id = ?",
+                    (primary_id, sec_id),
+                )
+                cursor.execute("DELETE FROM album_sources WHERE album_id = ?", (sec_id,))
+
+                # Move tracks
+                cursor.execute("UPDATE tracks SET album_id = ? WHERE album_id = ?", (primary_id, sec_id))
+
+                # Combine play count
+                cursor.execute(
+                    "UPDATE albums SET play_count = MAX(play_count, ?) WHERE album_id = ?",
+                    (secondary["play_count"], primary_id),
+                )
+
+                # Delete duplicate album
+                cursor.execute("DELETE FROM albums WHERE album_id = ?", (sec_id,))
+                removed_albums += 1
+
+            # Update norm_title_artist AFTER removing duplicates
+            cursor.execute("UPDATE albums SET norm_title_artist = ? WHERE album_id = ?", (norm_key, primary_id))
+
+        conn.commit()
+        if removed_artists > 0 or removed_albums > 0:
+            logger.info("Cleaned library database: consolidated %d duplicate artists, %d duplicate albums", removed_artists, removed_albums)
+        return {"removed_artists": removed_artists, "removed_albums": removed_albums}
+    finally:
+        conn.close()
+
+
 def get_indexed_artists(sort_mode: str = "name_asc", db_path: str | None = None) -> list[dict]:
     """Fetch all unique artists linked to currently enabled servers."""
     conn = get_db_connection(db_path)
@@ -237,11 +327,12 @@ def get_indexed_artists(sort_mode: str = "name_asc", db_path: str | None = None)
             "a.name COLLATE NOCASE DESC" if sort_mode == "name_desc" else "a.name COLLATE NOCASE ASC"
         )
         query = f"""
-            SELECT DISTINCT a.artist_id, a.name, a.guid, a.thumb, a.play_count
+            SELECT a.artist_id, a.name, a.guid, a.thumb, a.play_count
             FROM artists a
             JOIN artist_sources src ON a.artist_id = src.artist_id
             JOIN servers srv ON src.server_id = srv.server_id
             WHERE srv.enabled = 1
+            GROUP BY a.artist_id
             ORDER BY {order_clause}
         """
         cursor = conn.execute(query)

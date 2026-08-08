@@ -1,9 +1,10 @@
-# Execution Log - Blue Server Status, Preseed Count & Stop Button Cleanup
+# Superpowers Execution Log
 
-| Step | Status | Verification | Notes |
-| --- | --- | --- | --- |
-| Step 1: Backend Preseed Count & Safe Capping | PASS | `uv run python -m pytest backend/tests/test_mock_music.py` | Added optional `count: int = 10` parameter to `seed_playlist` endpoint and `seed_queue_from_playlist` service function. Used `min(len(tracks), max(1, count))` to safely cap sample size without erroring if count > len(tracks). |
-| Step 2: Server Choice Blue Badge Styling | PASS | Verified JSX styling in `App.tsx` | Updated server choice status badge in `App.tsx` to use blue theme (`#3498db`, `rgba(52, 152, 219, 0.15)`, `1px solid rgba(52, 152, 219, 0.4)` and `🔵 Connecting` / `🔵 Enabled`). |
-| Step 3: Frontend Configurable Preseed UI & Button Renaming | PASS | Verified UI components in `App.tsx` | Added `preseedCount` state and number input in Queue Management settings. Renamed action button to "Preseed Queue" (and "Preseeding..." while loading). Updated API call to pass `?count=${preseedCount}`. |
-| Step 4: Remove Stop Button from Queue Header | PASS | Verified JSX in `Queue.tsx` | Removed the `⏹️ Stop` button from `Queue.tsx` header bar, leaving the Stop Queue & Playback button exclusively in Host Settings next to Clear Queue. |
-| Step 5: Unit Test Updates for Preseed Count | PASS | `uv run python -m pytest backend/tests/test_mock_music.py` | Added unit test coverage for `POST /api/music/playlists/5001/seed?count=5` and verifying `count > len(tracks)` (e.g. 9999) seeds the entire playlist safely. |
+## Step 1: Inspect SQLite Database & Audit Single-Server Artist Rows
+- **Files**: `backend/services/library.py`
+- **What Changed / Found**:
+  - Ran diagnostic SQL analysis on `library.db`.
+  - Found 642 duplicate artist entries (2,053 total rows instead of 1,411 unique artists) and 1,781 duplicate album entries.
+  - **Root Cause**: Previous indexing passes inserted rows using an older `_norm()` function that preserved spaces (e.g. `norm_name = "aaron neville"`). When `_norm()` was updated to strip non-alphanumeric characters (`norm_name = "aaronneville"`), `ON CONFLICT(norm_name)` did not match the existing rows with spaces, causing SQLite to insert duplicate rows for almost every artist and album.
+- **Verification Command**: `uv run python -c "from backend.services.library import get_db_connection, _norm; conn = get_db_connection(); print(len(conn.execute('SELECT artist_id FROM artists').fetchall()))"`
+- **Result**: Root cause confirmed (642 stale space-containing artist duplicates & 1,781 stale album duplicates identified for consolidation).

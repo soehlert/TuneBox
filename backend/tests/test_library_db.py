@@ -52,3 +52,31 @@ def test_servers_crud_operations(temp_db):
         assert row["enabled"] == 1
     finally:
         conn.close()
+
+
+def test_clean_library_deduplication(temp_db):
+    """Verify clean_library_deduplication consolidates stale space-containing norm keys into single artist/album rows."""
+    from backend.services.library import clean_library_deduplication, upsert_server, get_indexed_artists
+    conn = get_db_connection(temp_db)
+    try:
+        upsert_server("srv-1", "Alpha Server", enabled=True, db_path=temp_db)
+        
+        # Insert duplicate artists manually with old vs new norm_name
+        conn.execute("INSERT INTO artists (norm_name, name, updated_at) VALUES ('aaron neville', 'Aaron Neville', 100)")
+        id1 = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+        conn.execute("INSERT INTO artist_sources (artist_id, server_id, server_artist_id) VALUES (?, 'srv-1', '101')", (id1,))
+        
+        conn.execute("INSERT INTO artists (norm_name, name, updated_at) VALUES ('aaronneville', 'Aaron Neville', 200)")
+        id2 = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+        conn.execute("INSERT INTO artist_sources (artist_id, server_id, server_artist_id) VALUES (?, 'srv-1', '102')", (id2,))
+        conn.commit()
+
+        # Run deduplication cleanup
+        res = clean_library_deduplication(db_path=temp_db)
+        assert res["removed_artists"] == 1
+
+        artists = get_indexed_artists(db_path=temp_db)
+        assert len(artists) == 1
+        assert artists[0]["name"] == "Aaron Neville"
+    finally:
+        conn.close()

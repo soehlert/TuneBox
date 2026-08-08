@@ -1,19 +1,25 @@
-# Finish Summary - Blue Server Status, Configurable Preseed Count & Stop Button Cleanup
+# Superpowers Finish Summary: Single-Server Artist Deduplication Fix
 
-## Verification Summary
-- **Backend Test Suite**: `uv run python -m pytest backend/tests` -> **84 passed in 9.23s**
-- **Preseed API Unit Tests**: `uv run python -m pytest backend/tests/test_mock_music.py` -> **11 passed in 0.16s**
+## Root Cause
+- Prior indexing passes populated SQLite `artists` and `albums` tables using an older `_norm()` function that preserved spaces (e.g. `norm_name = "aaron neville"`).
+- When `_norm()` was updated to strip non-alphanumeric characters (`norm_name = "aaronneville"`), `ON CONFLICT(norm_name)` failed to match old space-containing keys, inserting 642 duplicate artist entries (2,053 total rows instead of 1,411 unique artists) and 1,781 duplicate album entries.
 
-## Summary of Changes
-1. **Server Choice Status Badge Color**: Updated `App.tsx` server status badge styling for `connecting` and `enabled` states to use blue (`#3498db`, `rgba(52, 152, 219, 0.15)`, `1px solid rgba(52, 152, 219, 0.4)` and `🔵 Connecting` / `🔵 Enabled`).
-2. **Configurable Playlist Pre-seeding**:
-   - Updated `POST /api/music/playlists/{playlist_id}/seed` and `seed_queue_from_playlist` to accept an optional `count` parameter (default 10).
-   - Used `min(len(tracks), max(1, count))` to safely cap sample size so if count > playlist length, it seeds the entire playlist without throwing an error.
-   - Added `preseedCount` state and number input in Host Settings Queue Management section.
-   - Renamed button back to **"Preseed Queue"** (and **"Preseeding..."** when loading).
-3. **Queue Header Stop Button Removal**: Removed the `⏹️ Stop` button from `Queue.tsx` header bar, leaving the Stop Queue action exclusively in Host Settings next to Clear Queue.
+## Key Changes
+- **`backend/services/library.py`**:
+  - Implemented `clean_library_deduplication()` to consolidate duplicate artists and albums, reassigning `artist_sources`, `album_sources`, `albums`, and `tracks` foreign keys, combining play counts, and updating `norm_name` / `norm_title_artist` keys.
+  - Added `GROUP BY a.artist_id` to `get_indexed_artists()` to guarantee 1 row per unique artist ID.
+- **`backend/main.py`**:
+  - Added automatic execution of `clean_library_deduplication()` inside the FastAPI application startup `lifespan`.
+- **`backend/tests/test_library_db.py`**:
+  - Added unit test `test_clean_library_deduplication()` verifying single-server duplicate consolidation.
 
-## Artifact Check
-- `artifacts/superpowers/plan.md`
-- `artifacts/superpowers/execution.md`
-- `artifacts/superpowers/finish.md`
+## Verification
+- **Automated Tests**: Passed 110/110 tests (`uv run python -m pytest`).
+- **Database Cleanup Result**:
+  - `removed_artists`: 642 duplicate rows removed (consolidated down to 1,411 unique artists).
+  - `removed_albums`: 1,781 duplicate rows removed (consolidated down to 3,040 unique albums).
+  - Remaining `norm_name` duplicates: 0.
+- **Docker Stack**: Rebuilt and started (`docker compose up -d --build`).
+
+## Follow-ups / Manual Validation
+- Reload the TuneBox web interface (`/artists`) to verify the artist catalog lists exactly 1,411 clean, non-duplicated artists.
