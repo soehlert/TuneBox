@@ -132,6 +132,7 @@ async def status():
             "instance_name": settings.instance_name,
             "is_configured": is_configured,
             "testing": settings.testing,
+            "admin_token": settings.admin_token,
         }
     except Exception:  # noqa: BLE001
         fallback_user = settings.plex_username or "Plex User"
@@ -143,6 +144,7 @@ async def status():
             "instance_name": settings.instance_name,
             "is_configured": is_configured,
             "testing": settings.testing,
+            "admin_token": settings.admin_token,
         }
 
 
