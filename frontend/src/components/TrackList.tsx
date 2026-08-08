@@ -14,6 +14,7 @@ interface Track {
   track_number?: number;
   disc_number?: number;
   user_rating?: number;
+  is_primary?: boolean;
 }
 
 interface AlbumData {
@@ -29,18 +30,24 @@ interface AlbumData {
 const StarRating = ({
   rating,
   onRate,
+  readOnly = false,
 }: {
   rating: number;
-  onRate: (newRating: number) => void;
+  onRate?: (newRating: number) => void;
+  readOnly?: boolean;
 }) => {
   const [hoverRating, setHoverRating] = useState<number | null>(null);
-  const activeRating = hoverRating !== null ? hoverRating : rating;
+  const activeRating = !readOnly && hoverRating !== null ? hoverRating : rating;
+
+  if (readOnly && !rating) {
+    return null;
+  }
 
   return (
     <div
-      style={{ display: "inline-flex", alignItems: "center", gap: "2px", cursor: "pointer" }}
-      onMouseLeave={() => setHoverRating(null)}
-      title={rating ? `Rating: ${rating} / 5 stars (Click to change)` : "Rate song (1-5 stars)"}
+      style={{ display: "inline-flex", alignItems: "center", gap: "2px", cursor: readOnly ? "default" : "pointer" }}
+      onMouseLeave={() => !readOnly && setHoverRating(null)}
+      title={rating ? `Rating: ${rating} / 5 stars` : "Rate song (1-5 stars)"}
     >
       {[1, 2, 3, 4, 5].map((starIdx) => {
         const fullStarValue = starIdx;
@@ -62,12 +69,14 @@ const StarRating = ({
               transition: "color 0.1s ease, transform 0.1s ease",
             }}
             onMouseMove={(e) => {
+              if (readOnly) return;
               const rect = e.currentTarget.getBoundingClientRect();
               const isLeftHalf = e.clientX - rect.left < rect.width / 2;
               setHoverRating(isLeftHalf ? halfStarValue : fullStarValue);
             }}
             onClick={(e) => {
               e.stopPropagation();
+              if (readOnly || !onRate) return;
               const rect = e.currentTarget.getBoundingClientRect();
               const isLeftHalf = e.clientX - rect.left < rect.width / 2;
               const selectedValue = isLeftHalf ? halfStarValue : fullStarValue;
@@ -96,6 +105,9 @@ function TrackList() {
   const isDev = window.location.port === "5173";
   const apiBase = isDev ? `http://${window.location.hostname}:8000` : window.location.origin;
 
+  const adminToken = localStorage.getItem("tunebox_admin_token") || "";
+  const isAdmin = Boolean(adminToken);
+
   useEffect(() => {
     const fetchTracks = async () => {
       try {
@@ -111,11 +123,13 @@ function TrackList() {
     };
 
     fetchTracks();
-  }, [albumId, serverId]);
+  }, [albumId, serverId, apiBase]);
 
-  // Utility function to convert seconds to mm:ss format
-  const formatDuration = (secondsStr: string) => {
-    const seconds = parseInt(secondsStr, 10);
+  const formatDuration = (duration: any) => {
+    if (!duration) return "0:00";
+    if (typeof duration === "string" && duration.includes(":")) return duration;
+    const seconds = parseInt(duration, 10);
+    if (isNaN(seconds)) return "0:00";
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
@@ -140,15 +154,20 @@ function TrackList() {
         };
       });
 
-      await axios.post(`${apiBase}/api/music/tracks/${trackId}/rate`, { rating });
+      await axios.post(
+        `${apiBase}/api/music/tracks/${trackId}/rate`,
+        { rating },
+        { headers: { "x-admin-token": adminToken } }
+      );
       if (rating > 0) {
         showSnackbar(`Rated ${rating} ${rating === 1 ? "Star" : "Stars"}!`, "success");
       } else {
         showSnackbar("Rating cleared.", "warning");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to update track rating:", err);
-      showSnackbar("Failed to update rating.", "error");
+      const errMsg = err?.response?.data?.detail || "Failed to update rating.";
+      showSnackbar(errMsg, "error");
     }
   };
 
@@ -348,6 +367,7 @@ function TrackList() {
                         <div className="track-card-right" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                           <StarRating
                             rating={track.user_rating || 0}
+                            readOnly={!isAdmin || !(track.is_primary ?? true)}
                             onRate={(newRating) => handleRateTrack(track.track_id, newRating)}
                           />
                           <Typography className="track-duration">

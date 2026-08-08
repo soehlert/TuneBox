@@ -160,6 +160,25 @@ def rate_track_db(track_id: int | str, rating: float, db_path: str | None = None
         conn.close()
 
 
+def is_track_on_primary_server(track_id: int | str, db_path: str | None = None) -> bool:
+    """Check if a track is hosted on the user's primary Plex server."""
+    conn = get_db_connection(db_path)
+    try:
+        row = conn.execute(
+            """
+            SELECT srv.is_primary
+            FROM tracks t
+            JOIN servers srv ON t.server_id = srv.server_id
+            WHERE (t.track_id = ? OR t.server_track_id = ?) AND srv.enabled = 1
+            LIMIT 1
+            """,
+            (track_id, str(track_id)),
+        ).fetchone()
+        return bool(row and row["is_primary"])
+    finally:
+        conn.close()
+
+
 def log_playback_event_db(track_id: int | str, username: str = "Admin", db_path: str | None = None):
     """Append a playback event to the historical playback_history log in SQLite."""
     now = int(time.time())
@@ -521,6 +540,7 @@ def get_tracks_for_album_db(album_id: int | str, db_path: str | None = None) -> 
                 "url": r["url"],
                 "thumb": r["thumb"],
                 "user_rating": float(r["user_rating"] or 0.0),
+                "is_primary": bool(r["is_primary"]),
                 "server_name": r["server_name"],
             }
             for idx, r in enumerate(deduped_rows)
