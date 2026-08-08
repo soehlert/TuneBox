@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Routes, Route, Link, useNavigate, useLocation } from "react-router-dom";
 import { ThemeProvider } from "@mui/material/styles";
-import Tooltip from "@mui/material/Tooltip";
 import axios from "axios";
 import { QRCodeSVG } from "qrcode.react";
 import ArtistList from "./components/ArtistList";
@@ -1106,19 +1105,18 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
             >
               <span style={{ color: "#f5a623", fontSize: "14px", fontWeight: "bold", display: "flex", alignItems: "center", gap: "6px" }}>
                 🖥️ Connected Devices & Kiosks
-                <Tooltip
-                  title="Turning a connected device into a Kiosk converts it into a shared, central party display screen: displays a prominent QR code for guests to scan and join instantly."
-                  arrow
-                  placement="top"
-                >
+                <span className="kiosk-help-container">
                   <span
                     className="material-symbols-outlined"
                     onClick={(e) => e.stopPropagation()}
-                    style={{ fontSize: "16px", color: "#3375A8", cursor: "pointer" }}
-                  >
+                    style={{ fontSize: "16px", color: "#3375A8", cursor: "help" }}
+                    title="TEST"                  >
                     help_outline
                   </span>
-                </Tooltip>
+                  <span className="kiosk-help-popover">
+                    Turning a connected device into a Kiosk converts it into a shared, central party display screen: displays a prominent QR code for guests to scan and join instantly.
+                  </span>
+                </span>
               </span>
               <span style={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "11px" }}>
                 {sectionsOpen.devices ? "▲" : "▼"}
