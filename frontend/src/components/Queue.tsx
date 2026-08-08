@@ -253,7 +253,7 @@ const QueueComponent = () => {
 
   useEffect(() => {
     fetchHistory();
-    const interval = setInterval(fetchHistory, 5000);
+    const interval = setInterval(fetchHistory, 15000);
     return () => clearInterval(interval);
   }, [activeTab]);
 
