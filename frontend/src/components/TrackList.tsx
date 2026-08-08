@@ -46,12 +46,9 @@ const StarRating = ({
         const fullStarValue = starIdx;
         const halfStarValue = starIdx - 0.5;
 
-        let iconName = "star_outline";
-        if (activeRating >= fullStarValue) {
-          iconName = "star";
-        } else if (activeRating >= halfStarValue) {
-          iconName = "star_half";
-        }
+        const isFilled = activeRating >= fullStarValue;
+        const isHalf = !isFilled && activeRating >= halfStarValue;
+        const iconName = isHalf ? "star_half" : "star";
 
         return (
           <span
@@ -59,7 +56,8 @@ const StarRating = ({
             className="material-symbols-outlined"
             style={{
               fontSize: "18px",
-              color: activeRating >= halfStarValue ? "#f5a623" : "rgba(255,255,255,0.25)",
+              color: (isFilled || isHalf) ? "#f5a623" : "rgba(255,255,255,0.25)",
+              fontVariationSettings: (isFilled || isHalf) ? "'FILL' 1" : "'FILL' 0",
               userSelect: "none",
               transition: "color 0.1s ease, transform 0.1s ease",
             }}
@@ -69,6 +67,7 @@ const StarRating = ({
               setHoverRating(isLeftHalf ? halfStarValue : fullStarValue);
             }}
             onClick={(e) => {
+              e.stopPropagation();
               const rect = e.currentTarget.getBoundingClientRect();
               const isLeftHalf = e.clientX - rect.left < rect.width / 2;
               const selectedValue = isLeftHalf ? halfStarValue : fullStarValue;
