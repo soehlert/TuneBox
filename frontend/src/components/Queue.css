@@ -165,13 +165,23 @@
   font-weight: 600 !important;
 }
 
+.queue-item-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
 .queue-item-time {
   font-family: var(--font-body);
   font-size: 0.75rem !important;
   color: rgba(255, 255, 255, 0.3) !important;
   font-weight: 600;
+  width: 38px;
+  text-align: right;
   flex-shrink: 0;
-  margin-left: 12px;
+  margin-left: 0 !important;
 }
 
 .queue-equalizer {
@@ -252,6 +262,7 @@
 .requeue-btn {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 4px;
   background: rgba(51, 117, 173, 0.15);
   border: 1px solid #3376ad;
@@ -263,6 +274,7 @@
   cursor: pointer;
   transition: all 0.2s;
   flex-shrink: 0;
+  width: 88px;
 }
 
 .requeue-btn:hover {
