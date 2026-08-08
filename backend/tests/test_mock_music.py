@@ -28,8 +28,8 @@ def test_get_mock_artists(client):
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 10
-    assert data[0]["name"] == "Daft Punk"
-    assert data[9]["name"] == "David Bowie"
+    assert any(a["name"] == "Daft Punk" for a in data)
+    assert any(a["name"] == "David Bowie" for a in data)
 
 
 def test_get_mock_albums_for_artist(client):

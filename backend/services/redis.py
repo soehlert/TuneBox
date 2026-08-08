@@ -288,10 +288,20 @@ def add_to_history(track: dict | int | str):
         artist_name = track_obj.get("artist") or track_obj.get("grandparentTitle")
         if artist_name:
             client.zincrby("stats:artist_play_counts", 1, str(artist_name).lower())
+            try:
+                from backend.services.library import increment_artist_play_count_db
+                increment_artist_play_count_db(str(artist_name))
+            except Exception as db_ex:
+                logger.debug("Failed to increment SQLite artist play count: %s", db_ex)
 
         album_title = track_obj.get("album") or track_obj.get("parentTitle")
         if album_title:
             client.zincrby("stats:album_play_counts", 1, str(album_title).lower())
+            try:
+                from backend.services.library import increment_album_play_count_db
+                increment_album_play_count_db(str(album_title))
+            except Exception as db_ex:
+                logger.debug("Failed to increment SQLite album play count: %s", db_ex)
 
         update_cached_play_counts(artist_name=artist_name, album_title=album_title)
 

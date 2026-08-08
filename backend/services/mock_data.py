@@ -139,3 +139,61 @@ for idx, artist_name in enumerate(ARTIST_NAMES):
                     "url": f"/api/music/stream/{track_id}",
                 }
             )
+
+
+def seed_mock_library_db(db_path: str | None = None):
+    """Seed the SQLite library database with mock server, artist, album, and track data."""
+    from backend.services.library import upsert_server, upsert_artist, upsert_album, upsert_track
+
+    mock_server_id = "mock-server-001"
+    upsert_server(mock_server_id, "Mock Plex Server", "http://mock-server:32400", is_primary=True, enabled=True, db_path=db_path)
+
+    for a in MOCK_ARTISTS:
+        a_db_id = upsert_artist(
+            name=a["name"],
+            guid=f"mock://artist/{a['artist_id']}",
+            thumb=f"/api/music/artist-image/{a['artist_id']}",
+            play_count=a["play_count"],
+            server_id=mock_server_id,
+            server_artist_id=str(a["artist_id"]),
+            db_path=db_path,
+        )
+
+        albums = MOCK_ALBUMS.get(a["artist_id"], [])
+        for alb in albums:
+            alb_db_id = upsert_album(
+                title=alb["title"],
+                artist_name=alb["artist"],
+                artist_id=a_db_id,
+                year=alb["year"],
+                genre=alb["genre"],
+                thumb=alb["thumb"],
+                play_count=alb["play_count"],
+                guid=f"mock://album/{alb['album_id']}",
+                server_id=mock_server_id,
+                server_album_id=str(alb["album_id"]),
+                db_path=db_path,
+            )
+
+            tracks = MOCK_TRACKS.get(alb["album_id"], [])
+            for trk in tracks:
+                upsert_track(
+                    album_id=alb_db_id,
+                    server_id=mock_server_id,
+                    server_track_id=str(trk["track_id"]),
+                    artist_name=trk["artist"],
+                    album_title=trk["album"],
+                    title=trk["title"],
+                    duration=trk["duration"],
+                    url=trk["url"],
+                    thumb=alb["thumb"],
+                    play_count=0,
+                    db_path=db_path,
+                )
+
+
+# Automatically seed SQLite library in mock environment
+try:
+    seed_mock_library_db()
+except Exception:
+    pass
