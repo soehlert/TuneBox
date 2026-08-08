@@ -328,6 +328,70 @@ def get_albums_by_genre_db(genre_name: str, db_path: str | None = None) -> list[
         return [dict(r) for r in cursor.fetchall()]
     finally:
         conn.close()
+def get_all_decades_db(db_path: str | None = None) -> list[dict]:
+    """Fetch decade breakdown (e.g. 1960s, 1970s...) with album counts from enabled servers in SQLite."""
+    conn = get_db_connection(db_path)
+    try:
+        cursor = conn.execute(
+            """
+            SELECT 
+                CASE 
+                    WHEN alb.year IS NULL OR alb.year < 1920 OR alb.year > 2030 THEN 0
+                    ELSE (alb.year / 10) * 10 
+                END as year_start,
+                CASE 
+                    WHEN alb.year IS NULL OR alb.year < 1920 OR alb.year > 2030 THEN 0
+                    ELSE ((alb.year / 10) * 10) + 9 
+                END as year_end,
+                CASE 
+                    WHEN alb.year IS NULL OR alb.year < 1920 OR alb.year > 2030 THEN 'Unknown Era'
+                    ELSE CAST((alb.year / 10) * 10 AS TEXT) || 's'
+                END as decade,
+                COUNT(DISTINCT alb.album_id) as album_count
+            FROM albums alb
+            JOIN album_sources src ON alb.album_id = src.album_id
+            JOIN servers srv ON src.server_id = srv.server_id
+            WHERE srv.enabled = 1 AND alb.title != '' AND alb.title IS NOT NULL
+            GROUP BY year_start, year_end, decade
+            ORDER BY year_start ASC
+            """
+        )
+        return [dict(r) for r in cursor.fetchall()]
+    finally:
+        conn.close()
+
+
+def get_albums_by_decade_db(year_start: int, year_end: int, db_path: str | None = None) -> list[dict]:
+    """Fetch all albums within a specific decade from enabled servers in SQLite."""
+    conn = get_db_connection(db_path)
+    try:
+        if year_start == 0 and year_end == 0:
+            query = """
+                SELECT DISTINCT alb.album_id, alb.artist_id, alb.artist_name as artist, alb.title, alb.year, alb.genre, alb.thumb, alb.play_count
+                FROM albums alb
+                JOIN album_sources src ON alb.album_id = src.album_id
+                JOIN servers srv ON src.server_id = srv.server_id
+                WHERE srv.enabled = 1 AND alb.title != '' AND alb.title IS NOT NULL
+                  AND (alb.year IS NULL OR alb.year < 1920 OR alb.year > 2030)
+                GROUP BY alb.album_id
+                ORDER BY alb.title COLLATE NOCASE ASC
+            """
+            cursor = conn.execute(query)
+        else:
+            query = """
+                SELECT DISTINCT alb.album_id, alb.artist_id, alb.artist_name as artist, alb.title, alb.year, alb.genre, alb.thumb, alb.play_count
+                FROM albums alb
+                JOIN album_sources src ON alb.album_id = src.album_id
+                JOIN servers srv ON src.server_id = srv.server_id
+                WHERE srv.enabled = 1 AND alb.title != '' AND alb.title IS NOT NULL
+                  AND alb.year >= ? AND alb.year <= ?
+                GROUP BY alb.album_id
+                ORDER BY alb.title COLLATE NOCASE ASC
+            """
+            cursor = conn.execute(query, (year_start, year_end))
+        return [dict(r) for r in cursor.fetchall()]
+    finally:
+        conn.close()
 
 
 def search_music_db(query_str: str, db_path: str | None = None) -> list[dict]:

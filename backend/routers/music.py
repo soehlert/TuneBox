@@ -388,13 +388,12 @@ async def skip_track(
 # Fetch all artists
 @router.get("/artists")
 def get_all_artists():
-    """Fetch a list of all artists.
-
-    Returns:
-        All artists.
-    """
+    """Fetch a list of all artists from enabled servers in SQLite."""
     try:
-        return fetch_all_artists()
+        if settings.testing:
+            return fetch_all_artists()
+        from backend.services.library import get_indexed_artists
+        return get_indexed_artists()
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Error fetching artists: {e}"
@@ -404,13 +403,12 @@ def get_all_artists():
 # Fetch albums for a specific artist
 @router.get("/artists/{artist_id}/albums")
 def get_albums_for_artist(artist_id: int, server_id: str | None = None):
-    """Fetch albums for a specific artist by ID.
-
-    Returns:
-        All the albums for a given artist.
-    """
+    """Fetch albums for a specific artist by ID from enabled servers in SQLite."""
     try:
-        return fetch_albums_for_artist(artist_id, server_id=server_id)
+        if settings.testing:
+            return fetch_albums_for_artist(artist_id, server_id=server_id)
+        from backend.services.library import get_albums_for_artist_db
+        return get_albums_for_artist_db(artist_id)
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Error fetching albums for artist {artist_id}: {e}"
@@ -453,9 +451,12 @@ def get_albums_by_genre_endpoint(genre_name: str):
 # Fetch decade breakdown with album counts
 @router.get("/decades")
 def get_decades_endpoint():
-    """Fetch decade breakdown with album counts."""
+    """Fetch decade breakdown with album counts from enabled servers in SQLite."""
     try:
-        return fetch_all_decades()
+        if settings.testing:
+            return fetch_all_decades()
+        from backend.services.library import get_all_decades_db
+        return get_all_decades_db()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching decades: {e}") from e
 
@@ -463,9 +464,12 @@ def get_decades_endpoint():
 # Fetch albums by decade range
 @router.get("/decades/{year_start}/{year_end}/albums")
 def get_albums_by_decade_endpoint(year_start: int, year_end: int):
-    """Fetch all albums released within a specific decade year range."""
+    """Fetch all albums released within a specific decade year range from enabled servers in SQLite."""
     try:
-        return fetch_albums_by_decade(year_start, year_end)
+        if settings.testing:
+            return fetch_albums_by_decade(year_start, year_end)
+        from backend.services.library import get_albums_by_decade_db
+        return get_albums_by_decade_db(year_start, year_end)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching albums for decade {year_start}-{year_end}: {e}") from e
 
@@ -473,17 +477,19 @@ def get_albums_by_decade_endpoint(year_start: int, year_end: int):
 # Fetch tracks for a specific album
 @router.get("/albums/{album_id}/tracks")
 def get_tracks_for_album(album_id: int, server_id: str | None = None):
-    """Fetch tracks for a specific album by ID.
-
-    Returns:
-        Tracks for a given album.
-    """
+    """Fetch tracks for a specific album by ID from enabled servers in SQLite."""
     try:
-        return fetch_tracks_for_album(album_id, server_id=server_id)
+        if settings.testing:
+            return fetch_tracks_for_album(album_id, server_id=server_id)
+        from backend.services.library import get_tracks_for_album_db
+        res = get_tracks_for_album_db(album_id)
+        if res is None:
+            raise HTTPException(status_code=404, detail="Album tracks not found")
+        return res
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Error fetching tracks for album {album_id}: {e}"
-        ) from e
+        raise HTTPException(status_code=500, detail=f"Error fetching tracks for album {album_id}: {e}") from e
 
 
 # Add entire album to queue
