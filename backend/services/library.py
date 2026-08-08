@@ -237,19 +237,38 @@ def clean_library_deduplication(db_path: str | None = None) -> dict[str, int]:
     try:
         cursor = conn.cursor()
 
+        # Helper to rank thumbs (real Plex metadata paths first, then http, then mock /api/ strings)
+        def _thumb_rank(thumb_val: str | None) -> int:
+            if not thumb_val:
+                return 3
+            if thumb_val.startswith("/library/metadata/") or thumb_val.startswith("http"):
+                return 0
+            if thumb_val.startswith("/api/music/"):
+                return 2
+            return 1
+
         # 1. Consolidate Artists
-        artists = cursor.execute("SELECT artist_id, name, norm_name, play_count FROM artists ORDER BY artist_id ASC").fetchall()
+        artists = cursor.execute("SELECT artist_id, name, norm_name, thumb, play_count FROM artists ORDER BY artist_id ASC").fetchall()
         norm_artist_groups: dict[str, list[dict]] = {}
         for a in artists:
             curr_norm = _norm(a["name"])
             norm_artist_groups.setdefault(curr_norm, []).append(dict(a))
 
         for norm_key, group in norm_artist_groups.items():
+            # Sort group so entries with real thumbs come first
+            group.sort(key=lambda item: _thumb_rank(item.get("thumb")))
             primary = group[0]
             primary_id = primary["artist_id"]
+            primary_thumb = primary.get("thumb")
 
             for secondary in group[1:]:
                 sec_id = secondary["artist_id"]
+                sec_thumb = secondary.get("thumb")
+
+                # If primary lacks a real thumb, adopt secondary's real thumb
+                if _thumb_rank(primary_thumb) > _thumb_rank(sec_thumb):
+                    primary_thumb = sec_thumb
+                    cursor.execute("UPDATE artists SET thumb = ? WHERE artist_id = ?", (primary_thumb, primary_id))
 
                 # Move sources
                 cursor.execute(
@@ -275,18 +294,27 @@ def clean_library_deduplication(db_path: str | None = None) -> dict[str, int]:
             cursor.execute("UPDATE artists SET norm_name = ? WHERE artist_id = ?", (norm_key, primary_id))
 
         # 2. Consolidate Albums
-        albums = cursor.execute("SELECT album_id, artist_name, title, norm_title_artist, play_count FROM albums ORDER BY album_id ASC").fetchall()
+        albums = cursor.execute("SELECT album_id, artist_name, title, norm_title_artist, thumb, play_count FROM albums ORDER BY album_id ASC").fetchall()
         norm_album_groups: dict[str, list[dict]] = {}
         for alb in albums:
             curr_norm = f"{_norm(alb['title'])}::{_norm(alb['artist_name'])}"
             norm_album_groups.setdefault(curr_norm, []).append(dict(alb))
 
         for norm_key, group in norm_album_groups.items():
+            # Sort group so entries with real thumbs come first
+            group.sort(key=lambda item: _thumb_rank(item.get("thumb")))
             primary = group[0]
             primary_id = primary["album_id"]
+            primary_thumb = primary.get("thumb")
 
             for secondary in group[1:]:
                 sec_id = secondary["album_id"]
+                sec_thumb = secondary.get("thumb")
+
+                # If primary lacks a real thumb, adopt secondary's real thumb
+                if _thumb_rank(primary_thumb) > _thumb_rank(sec_thumb):
+                    primary_thumb = sec_thumb
+                    cursor.execute("UPDATE albums SET thumb = ? WHERE album_id = ?", (primary_thumb, primary_id))
 
                 # Move album sources
                 cursor.execute(
@@ -311,9 +339,47 @@ def clean_library_deduplication(db_path: str | None = None) -> dict[str, int]:
             # Update norm_title_artist AFTER removing duplicates
             cursor.execute("UPDATE albums SET norm_title_artist = ? WHERE album_id = ?", (norm_key, primary_id))
 
+        # 3. Backfill album thumbs from tracks if album thumb is missing or mock
+        cursor.execute("""
+            UPDATE albums
+            SET thumb = (
+                SELECT thumb FROM tracks
+                WHERE tracks.album_id = albums.album_id AND (tracks.thumb LIKE '/library/metadata/%' OR tracks.thumb LIKE 'http%')
+                LIMIT 1
+            )
+            WHERE (thumb LIKE '/api/music/%' OR thumb IS NULL OR thumb = '')
+              AND EXISTS (
+                SELECT 1 FROM tracks
+                WHERE tracks.album_id = albums.album_id AND (tracks.thumb LIKE '/library/metadata/%' OR tracks.thumb LIKE 'http%')
+            )
+        """)
+
+        # 4. Backfill artist thumbs from albums if artist thumb is missing or mock
+        cursor.execute("""
+            UPDATE artists
+            SET thumb = (
+                SELECT thumb FROM albums
+                WHERE albums.artist_id = artists.artist_id AND (albums.thumb LIKE '/library/metadata/%' OR albums.thumb LIKE 'http%')
+                LIMIT 1
+            )
+            WHERE (thumb LIKE '/api/music/%' OR thumb IS NULL OR thumb = '')
+              AND EXISTS (
+                SELECT 1 FROM albums
+                WHERE albums.artist_id = artists.artist_id AND (albums.thumb LIKE '/library/metadata/%' OR albums.thumb LIKE 'http%')
+            )
+        """)
+
         conn.commit()
         if removed_artists > 0 or removed_albums > 0:
             logger.info("Cleaned library database: consolidated %d duplicate artists, %d duplicate albums", removed_artists, removed_albums)
+        
+        # Clear art RAM and Redis caches
+        try:
+            from backend.services.plex import clear_art_memory_cache
+            clear_art_memory_cache()
+        except Exception:
+            pass
+
         return {"removed_artists": removed_artists, "removed_albums": removed_albums}
     finally:
         conn.close()
@@ -575,9 +641,11 @@ def get_all_art_sources(item_id: int | str, item_type: str, db_path: str | None 
             )
             for row in cursor.fetchall():
                 thumb_val = row["thumb"]
+                if thumb_val and thumb_val.startswith("/api/music/"):
+                    thumb_val = None
                 if not thumb_val:
                     album_row = conn.execute(
-                        "SELECT thumb FROM albums WHERE artist_id = ? AND thumb IS NOT NULL AND thumb != '' LIMIT 1",
+                        "SELECT thumb FROM albums WHERE artist_id = ? AND thumb IS NOT NULL AND thumb != '' AND thumb NOT LIKE '/api/music/%' LIMIT 1",
                         (resolved_id,),
                     ).fetchone()
                     if album_row:
@@ -591,6 +659,13 @@ def get_all_art_sources(item_id: int | str, item_type: str, db_path: str | None 
             ).fetchone()
             if r_row:
                 resolved_id = r_row["album_id"]
+            else:
+                tr_row = conn.execute(
+                    "SELECT album_id FROM tracks WHERE track_id = ? OR server_track_id = ? LIMIT 1",
+                    (item_id, str(item_id)),
+                ).fetchone()
+                if tr_row:
+                    resolved_id = tr_row["album_id"]
 
             cursor = conn.execute(
                 """
@@ -604,7 +679,17 @@ def get_all_art_sources(item_id: int | str, item_type: str, db_path: str | None 
                 (resolved_id,),
             )
             for row in cursor.fetchall():
-                sources.append((row["thumb"], row["server_id"], row["rating_key"]))
+                thumb_val = row["thumb"]
+                if thumb_val and thumb_val.startswith("/api/music/"):
+                    thumb_val = None
+                if not thumb_val:
+                    tr_row = conn.execute(
+                        "SELECT thumb FROM tracks WHERE album_id = ? AND thumb IS NOT NULL AND thumb != '' AND thumb NOT LIKE '/api/music/%' LIMIT 1",
+                        (resolved_id,),
+                    ).fetchone()
+                    if tr_row:
+                        thumb_val = tr_row["thumb"]
+                sources.append((thumb_val, row["server_id"], row["rating_key"]))
 
         elif item_type == "track":
             r_row = conn.execute(
@@ -625,7 +710,10 @@ def get_all_art_sources(item_id: int | str, item_type: str, db_path: str | None 
                 (resolved_id,),
             )
             for row in cursor.fetchall():
-                sources.append((row["thumb"], row["server_id"], row["rating_key"]))
+                thumb_val = row["thumb"]
+                if thumb_val and thumb_val.startswith("/api/music/"):
+                    thumb_val = None
+                sources.append((thumb_val, row["server_id"], row["rating_key"]))
 
         return sources if sources else [(None, None, None)]
     finally:

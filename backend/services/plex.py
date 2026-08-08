@@ -2041,6 +2041,19 @@ _MEMORY_ART_CACHE: dict[str, tuple[bytes, str]] = {}
 _MEMORY_ART_CACHE_MAX_SIZE = 1000
 
 
+def clear_art_memory_cache():
+    """Clear RAM and Redis art image caches."""
+    _MEMORY_ART_CACHE.clear()
+    try:
+        from backend.services.redis import get_redis_cache_client
+        r = get_redis_cache_client()
+        keys = r.keys("art_bytes:*")
+        if keys:
+            r.delete(*keys)
+    except Exception:
+        pass
+
+
 def fetch_art_bytes(item_id: int | str, item_type: str, server_id: str | None = None) -> tuple[bytes, str]:
     """Fetch image bytes from fast in-memory cache, Redis cache, or Plex server, returning (content_bytes, media_type)."""
     if settings.testing:
