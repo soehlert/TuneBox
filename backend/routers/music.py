@@ -420,9 +420,10 @@ def get_albums_for_artist(artist_id: int, server_id: str | None = None):
 # Fetch all unique albums across music library
 @router.get("/all-albums")
 def get_all_albums_endpoint():
-    """Fetch all unique albums across the music library."""
+    """Fetch all unique albums from local SQLite index."""
     try:
-        return fetch_all_albums()
+        from backend.services.library import get_indexed_albums
+        return get_indexed_albums()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching all albums: {e}") from e
 

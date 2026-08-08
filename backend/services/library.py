@@ -176,11 +176,12 @@ def get_indexed_albums(sort_mode: str = "name_asc", db_path: str | None = None) 
             "alb.title COLLATE NOCASE DESC" if sort_mode == "name_desc" else "alb.title COLLATE NOCASE ASC"
         )
         query = f"""
-            SELECT DISTINCT alb.album_id, alb.artist_id, alb.artist_name as artist, alb.title, alb.year, alb.genre, alb.thumb, alb.play_count
+            SELECT alb.album_id, alb.artist_id, alb.artist_name as artist, alb.title, alb.year, alb.genre, alb.thumb, alb.play_count
             FROM albums alb
             JOIN album_sources src ON alb.album_id = src.album_id
             JOIN servers srv ON src.server_id = srv.server_id
             WHERE srv.enabled = 1 AND alb.title != '' AND alb.title IS NOT NULL
+            GROUP BY alb.album_id
             ORDER BY {order_clause}
         """
         cursor = conn.execute(query)
