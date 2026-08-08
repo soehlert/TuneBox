@@ -499,11 +499,14 @@ async def add_album_to_queue_endpoint(
     background_tasks: BackgroundTasks,
     server_id: str | None = None,
     username: str | None = None,
-    x_client_id: str | None = Header(None),
 ):
-    """Add all tracks of an album to the Redis queue in order."""
+    """Fetch tracks for album from SQLite index and add to playback queue."""
     try:
-        album_data = fetch_tracks_for_album(album_id, server_id=server_id)
+        if settings.testing:
+            album_data = fetch_tracks_for_album(album_id, server_id=server_id)
+        else:
+            from backend.services.library import get_tracks_for_album_db
+            album_data = get_tracks_for_album_db(album_id) or fetch_tracks_for_album(album_id, server_id=server_id)
         tracks = album_data.get("tracks", [])
         if not tracks:
             raise HTTPException(status_code=404, detail="No tracks found for album.")
