@@ -2400,3 +2400,28 @@ def seed_queue_from_playlist(playlist_id: int, count: int = 10):
             pass
             
     return {"message": f"Successfully seeded {added_count} tracks from playlist '{playlist.title}'."}
+
+
+def rate_track_in_plex(track_id: int | str, rating_stars: float) -> bool:
+    """Send user rating (0.0 to 5.0 stars -> converted to Plex 0-10 scale) to target Plex Media Server."""
+    try:
+        from backend.services.library import get_art_source_info
+        stored_thumb, server_id, rating_key = get_art_source_info(track_id, "track")
+
+        target_key = rating_key or track_id
+        if target_key and str(target_key).isdigit():
+            target_key = int(target_key)
+
+        plex = get_target_plex_connection(server_id)
+        if plex:
+            item = plex.fetchItem(target_key)
+            plex_rating = max(0.0, min(10.0, float(rating_stars) * 2.0))
+            if plex_rating == 0:
+                item.rate(0)
+            else:
+                item.rate(int(plex_rating) if plex_rating.is_integer() else plex_rating)
+            logger.info("Successfully set Plex userRating = %s for track %s on server %s", plex_rating, track_id, server_id)
+            return True
+    except Exception as e:
+        logger.warning("Failed to update rating in Plex for track %s: %s", track_id, e)
+    return False

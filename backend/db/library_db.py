@@ -118,8 +118,31 @@ def init_library_db(db_path: str | None = None):
                 url TEXT,
                 thumb TEXT,
                 play_count INTEGER DEFAULT 0,
+                user_rating REAL DEFAULT 0.0,
                 updated_at INTEGER NOT NULL,
                 FOREIGN KEY (album_id) REFERENCES albums(album_id) ON DELETE CASCADE
+            )
+            """
+        )
+
+        # Migration for existing database schemas missing user_rating
+        try:
+            cursor.execute("ALTER TABLE tracks ADD COLUMN user_rating REAL DEFAULT 0.0;")
+        except Exception:
+            pass
+
+        # 5. Playback History Event Log (Append-only)
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS playback_history (
+                event_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                track_id INTEGER NOT NULL,
+                artist_name TEXT NOT NULL,
+                album_title TEXT NOT NULL,
+                track_title TEXT NOT NULL,
+                username TEXT NOT NULL,
+                played_at INTEGER NOT NULL,
+                FOREIGN KEY (track_id) REFERENCES tracks(track_id) ON DELETE CASCADE
             )
             """
         )
@@ -133,6 +156,7 @@ def init_library_db(db_path: str | None = None):
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_albums_year ON albums (year);")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_albums_play_count ON albums (play_count DESC);")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_tracks_album ON tracks (album_id);")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_playback_history_played_at ON playback_history (played_at DESC);")
 
         conn.commit()
         logger.info("Library SQLite schema initialized successfully.")

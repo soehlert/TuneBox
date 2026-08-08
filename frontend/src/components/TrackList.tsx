@@ -13,6 +13,7 @@ interface Track {
   duration: string;
   track_number?: number;
   disc_number?: number;
+  user_rating?: number;
 }
 
 interface AlbumData {
@@ -24,6 +25,64 @@ interface AlbumData {
   sources?: { server_id: string; server_name: string }[];
   tracks: Track[];
 }
+
+const StarRating = ({
+  rating,
+  onRate,
+}: {
+  rating: number;
+  onRate: (newRating: number) => void;
+}) => {
+  const [hoverRating, setHoverRating] = useState<number | null>(null);
+  const activeRating = hoverRating !== null ? hoverRating : rating;
+
+  return (
+    <div
+      style={{ display: "inline-flex", alignItems: "center", gap: "2px", cursor: "pointer" }}
+      onMouseLeave={() => setHoverRating(null)}
+      title={rating ? `Rating: ${rating} / 5 stars (Click to change)` : "Rate song (1-5 stars)"}
+    >
+      {[1, 2, 3, 4, 5].map((starIdx) => {
+        const fullStarValue = starIdx;
+        const halfStarValue = starIdx - 0.5;
+
+        let iconName = "star_outline";
+        if (activeRating >= fullStarValue) {
+          iconName = "star";
+        } else if (activeRating >= halfStarValue) {
+          iconName = "star_half";
+        }
+
+        return (
+          <span
+            key={starIdx}
+            className="material-symbols-outlined"
+            style={{
+              fontSize: "18px",
+              color: activeRating >= halfStarValue ? "#f5a623" : "rgba(255,255,255,0.25)",
+              userSelect: "none",
+              transition: "color 0.1s ease, transform 0.1s ease",
+            }}
+            onMouseMove={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect();
+              const isLeftHalf = e.clientX - rect.left < rect.width / 2;
+              setHoverRating(isLeftHalf ? halfStarValue : fullStarValue);
+            }}
+            onClick={(e) => {
+              const rect = e.currentTarget.getBoundingClientRect();
+              const isLeftHalf = e.clientX - rect.left < rect.width / 2;
+              const selectedValue = isLeftHalf ? halfStarValue : fullStarValue;
+              const newRating = rating === selectedValue ? 0 : selectedValue;
+              onRate(newRating);
+            }}
+          >
+            {iconName}
+          </span>
+        );
+      })}
+    </div>
+  );
+};
 
 function TrackList() {
   const { albumId } = useParams();
@@ -67,6 +126,31 @@ function TrackList() {
     setSnackbarMessage(message);
     setSeverity(severity);
     setSnackbarOpen(true);
+  };
+
+  const handleRateTrack = async (trackId: number, rating: number) => {
+    try {
+      // Optimistically update state
+      setAlbumData((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          tracks: prev.tracks.map((t) =>
+            t.track_id === trackId ? { ...t, user_rating: rating } : t
+          ),
+        };
+      });
+
+      await axios.post(`${apiBase}/api/music/tracks/${trackId}/rate`, { rating });
+      if (rating > 0) {
+        showSnackbar(`Rated ${rating} ${rating === 1 ? "Star" : "Stars"}!`, "success");
+      } else {
+        showSnackbar("Rating cleared.", "warning");
+      }
+    } catch (err) {
+      console.error("Failed to update track rating:", err);
+      showSnackbar("Failed to update rating.", "error");
+    }
   };
 
   const addToQueue = async (trackId: number) => {
@@ -262,7 +346,11 @@ function TrackList() {
                           </Typography>
                           <Typography className="album-track-title">{track.title || `Track ${track.track_number ?? (idx + 1)}`}</Typography>
                         </div>
-                        <div className="track-card-right">
+                        <div className="track-card-right" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                          <StarRating
+                            rating={track.user_rating || 0}
+                            onRate={(newRating) => handleRateTrack(track.track_id, newRating)}
+                          />
                           <Typography className="track-duration">
                             {formatDuration(track.duration)}
                           </Typography>

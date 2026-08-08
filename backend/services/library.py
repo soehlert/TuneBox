@@ -127,7 +127,7 @@ def upsert_album(title: str, artist_name: str, artist_id: int | None = None, yea
         conn.close()
 
 
-def upsert_track(album_id: int, server_id: str, server_track_id: str, artist_name: str, album_title: str, title: str, duration: int, url: str | None = None, thumb: str | None = None, play_count: int = 0, db_path: str | None = None) -> int:
+def upsert_track(album_id: int, server_id: str, server_track_id: str, artist_name: str, album_title: str, title: str, duration: int, url: str | None = None, thumb: str | None = None, play_count: int = 0, user_rating: float = 0.0, db_path: str | None = None) -> int:
     """Upsert a track into SQLite library."""
     now = int(time.time())
     safe_url = str(url) if (url is not None and not callable(url)) else None
@@ -136,13 +136,48 @@ def upsert_track(album_id: int, server_id: str, server_track_id: str, artist_nam
         cursor = conn.cursor()
         cursor.execute(
             """
-            INSERT INTO tracks (album_id, server_id, server_track_id, artist_name, album_title, title, duration, url, thumb, play_count, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO tracks (album_id, server_id, server_track_id, artist_name, album_title, title, duration, url, thumb, play_count, user_rating, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (album_id, server_id, str(server_track_id), artist_name, album_title, title, duration, safe_url, thumb, play_count, now),
+            (album_id, server_id, str(server_track_id), artist_name, album_title, title, duration, safe_url, thumb, play_count, float(user_rating or 0.0), now),
         )
         conn.commit()
         return cursor.lastrowid
+    finally:
+        conn.close()
+
+
+def rate_track_db(track_id: int | str, rating: float, db_path: str | None = None):
+    """Update user_rating (0.0 - 5.0) for a track in SQLite."""
+    conn = get_db_connection(db_path)
+    try:
+        conn.execute(
+            "UPDATE tracks SET user_rating = ? WHERE track_id = ? OR server_track_id = ?",
+            (float(rating), track_id, str(track_id)),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def log_playback_event_db(track_id: int | str, username: str = "Admin", db_path: str | None = None):
+    """Append a playback event to the historical playback_history log in SQLite."""
+    now = int(time.time())
+    conn = get_db_connection(db_path)
+    try:
+        row = conn.execute(
+            "SELECT track_id, artist_name, album_title, title FROM tracks WHERE track_id = ? OR server_track_id = ? LIMIT 1",
+            (track_id, str(track_id)),
+        ).fetchone()
+        if row:
+            conn.execute(
+                """
+                INSERT INTO playback_history (track_id, artist_name, album_title, track_title, username, played_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (row["track_id"], row["artist_name"], row["album_title"], row["title"], username, now),
+            )
+            conn.commit()
     finally:
         conn.close()
 
@@ -452,7 +487,7 @@ def get_tracks_for_album_db(album_id: int | str, db_path: str | None = None) -> 
 
         cursor = conn.execute(
             """
-            SELECT t.track_id, t.title, t.duration, t.artist_name as artist, t.album_title as album, t.url, t.thumb, srv.name as server_name, COALESCE(srv.is_primary, 0) as is_primary
+            SELECT t.track_id, t.title, t.duration, t.artist_name as artist, t.album_title as album, t.url, t.thumb, t.user_rating, srv.name as server_name, COALESCE(srv.is_primary, 0) as is_primary
             FROM tracks t
             JOIN servers srv ON t.server_id = srv.server_id
             WHERE srv.enabled = 1 AND t.album_id = ?
@@ -485,6 +520,7 @@ def get_tracks_for_album_db(album_id: int | str, db_path: str | None = None) -> 
                 "track_number": idx + 1,
                 "url": r["url"],
                 "thumb": r["thumb"],
+                "user_rating": float(r["user_rating"] or 0.0),
                 "server_name": r["server_name"],
             }
             for idx, r in enumerate(deduped_rows)

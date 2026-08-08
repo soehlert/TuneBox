@@ -770,3 +770,22 @@ def set_autoplay_state(req: AutoplayToggleRequest, x_admin_token: str | None = H
     return {"autoplay_enabled": is_autoplay_enabled()}
 
 
+class RateTrackRequest(BaseModel):
+    rating: float
+
+
+@router.post("/tracks/{track_id}/rate")
+def rate_track_endpoint(track_id: int, payload: RateTrackRequest):
+    """Rate a track (0.0 to 5.0 stars) in both SQLite database and Plex."""
+    try:
+        from backend.services.library import rate_track_db
+        from backend.services.plex import rate_track_in_plex
+
+        rating = max(0.0, min(5.0, float(payload.rating)))
+        rate_track_db(track_id, rating)
+        rate_track_in_plex(track_id, rating)
+        return {"status": "success", "track_id": track_id, "user_rating": rating}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error rating track: {e}") from e
+
+
