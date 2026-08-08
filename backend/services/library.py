@@ -134,15 +134,33 @@ def upsert_track(album_id: int, server_id: str, server_track_id: str, artist_nam
     conn = get_db_connection(db_path)
     try:
         cursor = conn.cursor()
-        cursor.execute(
-            """
-            INSERT INTO tracks (album_id, server_id, server_track_id, artist_name, album_title, title, duration, url, thumb, play_count, user_rating, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (album_id, server_id, str(server_track_id), artist_name, album_title, title, duration, safe_url, thumb, play_count, float(user_rating or 0.0), now),
-        )
-        conn.commit()
-        return cursor.lastrowid
+        existing = cursor.execute(
+            "SELECT track_id FROM tracks WHERE server_id = ? AND server_track_id = ? LIMIT 1",
+            (server_id, str(server_track_id)),
+        ).fetchone()
+
+        if existing:
+            track_id = existing["track_id"]
+            cursor.execute(
+                """
+                UPDATE tracks
+                SET album_id = ?, artist_name = ?, album_title = ?, title = ?, duration = ?, url = ?, thumb = ?, play_count = ?, user_rating = CASE WHEN ? > 0 THEN ? ELSE user_rating END, updated_at = ?
+                WHERE track_id = ?
+                """,
+                (album_id, artist_name, album_title, title, duration, safe_url, thumb, play_count, float(user_rating or 0.0), float(user_rating or 0.0), now, track_id),
+            )
+            conn.commit()
+            return track_id
+        else:
+            cursor.execute(
+                """
+                INSERT INTO tracks (album_id, server_id, server_track_id, artist_name, album_title, title, duration, url, thumb, play_count, user_rating, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (album_id, server_id, str(server_track_id), artist_name, album_title, title, duration, safe_url, thumb, play_count, float(user_rating or 0.0), now),
+            )
+            conn.commit()
+            return cursor.lastrowid
     finally:
         conn.close()
 

@@ -114,6 +114,9 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
                                     if not trk_url and getattr(track, "key", None):
                                         trk_url = track.key
 
+                                    raw_user_rating = getattr(track, "userRating", 0.0) or 0.0
+                                    user_rating_stars = float(raw_user_rating) / 2.0 if raw_user_rating else 0.0
+
                                     upsert_track(
                                         album_id=alb_db_id,
                                         server_id=s_id,
@@ -125,6 +128,7 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
                                         url=str(trk_url) if trk_url else None,
                                         thumb=getattr(album, "thumb", None),
                                         play_count=getattr(track, "viewCount", 0) or 0,
+                                        user_rating=user_rating_stars,
                                         db_path=db_path,
                                     )
                                     items_indexed += 1
