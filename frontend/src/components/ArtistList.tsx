@@ -73,21 +73,25 @@ function ArtistList({
     }
   }, []);
 
+  const [sortBy, setSortBy] = useState<"alphabetical" | "plays">("alphabetical");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+
+  const sortedArtists = [...filteredArtists].sort((a, b) => {
+    if (sortBy === "plays") {
+      const playsA = (a as any).play_count || 0;
+      const playsB = (b as any).play_count || 0;
+      if (playsB !== playsA) return playsB - playsA;
+      return a.name.localeCompare(b.name);
+    }
+    const cmp = a.name.localeCompare(b.name);
+    return sortOrder === "asc" ? cmp : -cmp;
+  });
+
   // Fast-scroll to selected alphabet letter while maintaining full artist grid
-  // and pre-loading images for target + surrounding letters
   useEffect(() => {
-    if (!selectedLetter || isSearching || filteredArtists.length === 0) return;
+    if (!selectedLetter || isSearching || sortedArtists.length === 0) return;
 
-    // Determine target letter and adjacent letters (e.g. L, M, N for M)
-    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    const letterIdx = alphabet.indexOf(selectedLetter.toUpperCase());
-    const adjacentBucketLetters = new Set<string>([selectedLetter.toUpperCase()]);
-    if (letterIdx > 0) adjacentBucketLetters.add(alphabet[letterIdx - 1]);
-    if (letterIdx >= 0 && letterIdx < alphabet.length - 1) adjacentBucketLetters.add(alphabet[letterIdx + 1]);
-
-
-
-    const targetIndex = filteredArtists.findIndex((artist) => {
+    const targetIndex = sortedArtists.findIndex((artist) => {
       if (!artist.name) return false;
       const firstChar = artist.name[0];
       if (selectedLetter === "0-9") {
@@ -100,15 +104,29 @@ function ArtistList({
       if (targetIndex >= visibleCount) {
         setVisibleCount(targetIndex + 36);
       }
-      const targetArtist = filteredArtists[targetIndex];
-      setTimeout(() => {
+
+      const targetArtist = sortedArtists[targetIndex];
+      const attemptScroll = () => {
         const el = document.getElementById(`artist-${targetArtist.artist_id}`);
         if (el) {
           el.scrollIntoView({ behavior: "smooth", block: "start" });
+          return true;
         }
-      }, 100);
+        return false;
+      };
+
+      if (!attemptScroll()) {
+        const timer1 = setTimeout(attemptScroll, 50);
+        const timer2 = setTimeout(attemptScroll, 150);
+        const timer3 = setTimeout(attemptScroll, 300);
+        return () => {
+          clearTimeout(timer1);
+          clearTimeout(timer2);
+          clearTimeout(timer3);
+        };
+      }
     }
-  }, [selectedLetter, filteredArtists, isSearching, apiBase]);
+  }, [selectedLetter, sortedArtists, isSearching, visibleCount]);
 
   // Snackbar alerts
   const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -190,9 +208,6 @@ function ArtistList({
     };
   }, [filteredArtists.length, isSearching]);
 
-  const [sortBy, setSortBy] = useState<"alphabetical" | "plays">("alphabetical");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
-
   // Scroll listener to update active letter rail highlight as user scrolls manually
   useEffect(() => {
     if (isSearching || filteredArtists.length === 0 || sortBy !== "alphabetical") return;
@@ -243,17 +258,6 @@ function ArtistList({
     mainContent.addEventListener("scroll", handleScroll, { passive: true });
     return () => mainContent.removeEventListener("scroll", handleScroll);
   }, [isSearching, filteredArtists, sortBy, selectedLetter, onSelectLetter]);
-
-  const sortedArtists = [...filteredArtists].sort((a, b) => {
-    if (sortBy === "plays") {
-      const playsA = (a as any).play_count || 0;
-      const playsB = (b as any).play_count || 0;
-      if (playsB !== playsA) return playsB - playsA;
-      return a.name.localeCompare(b.name);
-    }
-    const cmp = a.name.localeCompare(b.name);
-    return sortOrder === "asc" ? cmp : -cmp;
-  });
 
   const currentArtists = sortedArtists.slice(0, visibleCount);
 
