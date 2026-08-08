@@ -2162,7 +2162,7 @@ def get_enabled_server_ids() -> list[str]:
 
 
 def set_enabled_server_ids(server_ids: list[str]):
-    """Set list of server_ids enabled for the unified music catalog."""
+    """Set list of server_ids enabled for the unified music catalog in Redis and SQLite."""
     import json
     try:
         from backend.services.redis import get_redis_cache_client, clear_cache
@@ -2172,6 +2172,23 @@ def set_enabled_server_ids(server_ids: list[str]):
         clear_cache("accessible_plex_servers")
     except Exception as e:
         logger.warning("Failed to save enabled_server_ids: %s", e)
+
+    try:
+        from backend.services.library import get_db_connection
+        conn = get_db_connection()
+        try:
+            enabled_set = {str(s).lower() for s in server_ids}
+            cursor = conn.execute("SELECT server_id, name FROM servers")
+            for row in cursor.fetchall():
+                s_id = row["server_id"]
+                s_name = row["name"]
+                is_enabled = s_id.lower() in enabled_set or s_name.lower() in enabled_set
+                conn.execute("UPDATE servers SET enabled = ? WHERE server_id = ?", (1 if is_enabled else 0, s_id))
+            conn.commit()
+        finally:
+            conn.close()
+    except Exception as sq_ex:
+        logger.warning("Failed to sync server enabled status to SQLite: %s", sq_ex)
 
 
 def search_music_on_server(server_res: dict, query: str):
