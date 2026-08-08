@@ -65,8 +65,9 @@ export const BrowseTabs: React.FC<BrowseTabsProps> = ({ currentMode, onModeChang
 export const AlbumsGridView: React.FC<{
   apiBase: string;
   selectedLetter?: string;
+  scrollTargetLetter?: { letter: string; timestamp: number } | null;
   onSelectLetter?: (letter: string) => void;
-}> = ({ apiBase, selectedLetter, onSelectLetter }) => {
+}> = ({ apiBase, selectedLetter, scrollTargetLetter, onSelectLetter }) => {
   const [albums, setAlbums] = useState<Album[]>([]);
   const [loading, setLoading] = useState(true);
   const [sortBy, setSortBy] = useState<"alphabetical" | "plays">("alphabetical");
@@ -92,16 +93,18 @@ export const AlbumsGridView: React.FC<{
     return sortOrder === "asc" ? cmp : -cmp;
   });
 
+  // Fast-scroll to target album ONLY when a letter button on the rail is clicked
   useEffect(() => {
-    if (!selectedLetter || sortedAlbums.length === 0) return;
+    if (!scrollTargetLetter || !scrollTargetLetter.letter || sortedAlbums.length === 0) return;
 
+    const targetChar = scrollTargetLetter.letter;
     const targetIndex = sortedAlbums.findIndex((alb) => {
       if (!alb.title) return false;
       const firstChar = alb.title.trim()[0];
-      if (selectedLetter === "0-9") {
+      if (targetChar === "0-9") {
         return /^\d/.test(firstChar);
       }
-      return firstChar.toUpperCase() === selectedLetter.toUpperCase();
+      return firstChar.toUpperCase() === targetChar.toUpperCase();
     });
 
     if (targetIndex !== -1) {
@@ -113,7 +116,7 @@ export const AlbumsGridView: React.FC<{
         }
       }, 50);
     }
-  }, [selectedLetter, sortedAlbums]);
+  }, [scrollTargetLetter, sortedAlbums]);
 
   // Scroll listener to update active letter rail highlight as user scrolls manually through albums
   useEffect(() => {

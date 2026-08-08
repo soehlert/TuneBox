@@ -23,6 +23,7 @@ interface ArtistListProps {
   searchResults: any[];
   isSearching: boolean;
   selectedLetter?: string;
+  scrollTargetLetter?: { letter: string; timestamp: number } | null;
   onSelectLetter?: (letter: string) => void;
 }
 
@@ -32,6 +33,7 @@ function ArtistList({
   searchResults,
   isSearching,
   selectedLetter,
+  scrollTargetLetter,
   onSelectLetter,
 }: ArtistListProps) {
   const navigate = useNavigate();
@@ -87,17 +89,18 @@ function ArtistList({
     return sortOrder === "asc" ? cmp : -cmp;
   });
 
-  // Fast-scroll to selected alphabet letter while maintaining full artist grid
+  // Fast-scroll to selected alphabet letter ONLY when a letter button on the rail is clicked
   useEffect(() => {
-    if (!selectedLetter || isSearching || sortedArtists.length === 0) return;
+    if (!scrollTargetLetter || !scrollTargetLetter.letter || isSearching || sortedArtists.length === 0) return;
 
+    const targetChar = scrollTargetLetter.letter;
     const targetIndex = sortedArtists.findIndex((artist) => {
       if (!artist.name) return false;
       const firstChar = artist.name[0];
-      if (selectedLetter === "0-9") {
+      if (targetChar === "0-9") {
         return /^\d/.test(firstChar);
       }
-      return firstChar.toUpperCase() === selectedLetter.toUpperCase();
+      return firstChar.toUpperCase() === targetChar.toUpperCase();
     });
 
     if (targetIndex !== -1) {
@@ -126,7 +129,7 @@ function ArtistList({
         };
       }
     }
-  }, [selectedLetter, sortedArtists, isSearching, visibleCount]);
+  }, [scrollTargetLetter, sortedArtists, isSearching, visibleCount]);
 
   // Snackbar alerts
   const [snackbarOpen, setSnackbarOpen] = useState(false);

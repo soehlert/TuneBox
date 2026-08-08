@@ -1775,58 +1775,23 @@ function App() {
 
 
 
-  const isProgrammaticScrollRef = useRef(false);
-  const scrollTimeoutRef = useRef<any>(null);
+  const [scrollTargetLetter, setScrollTargetLetter] = useState<{ letter: string; timestamp: number } | null>(null);
 
   const handleAlphabetClick = (e: React.MouseEvent<HTMLButtonElement>, character: string) => {
     (e.currentTarget as HTMLElement).blur();
-    isProgrammaticScrollRef.current = true;
-    if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
-    scrollTimeoutRef.current = setTimeout(() => {
-      isProgrammaticScrollRef.current = false;
-    }, 1000);
-
     setSelectedLetter(character);
-    setSearchTerm(""); // Clear search term so the full artist list is visible
+    setScrollTargetLetter({ letter: character, timestamp: Date.now() });
+    setSearchTerm("");
 
-    // Redirect to root if not on root
     if (location.pathname !== "/") {
       navigate("/");
     }
 
-    // Preserve full artist list so user can scroll up and down continuously
     setFilteredArtists(artists);
   };
 
   const handleScrollLetterChange = useCallback((letter: string) => {
-    if (!isProgrammaticScrollRef.current) {
-      setSelectedLetter(letter);
-    }
-  }, []);
-
-  // Unlock programmatic scroll guard when user interacts with main content (wheel, touch, drag)
-  useEffect(() => {
-    const mainContent = document.querySelector(".main-content");
-    if (!mainContent) return;
-
-    const handleUserInteraction = () => {
-      if (isProgrammaticScrollRef.current) {
-        isProgrammaticScrollRef.current = false;
-        if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
-      }
-    };
-
-    mainContent.addEventListener("wheel", handleUserInteraction, { passive: true });
-    mainContent.addEventListener("touchstart", handleUserInteraction, { passive: true });
-    mainContent.addEventListener("pointerdown", handleUserInteraction, { passive: true });
-    mainContent.addEventListener("keydown", handleUserInteraction, { passive: true });
-
-    return () => {
-      mainContent.removeEventListener("wheel", handleUserInteraction);
-      mainContent.removeEventListener("touchstart", handleUserInteraction);
-      mainContent.removeEventListener("pointerdown", handleUserInteraction);
-      mainContent.removeEventListener("keydown", handleUserInteraction);
-    };
+    setSelectedLetter(letter);
   }, []);
 
   // Manage client_control WebSocket connection
@@ -2302,7 +2267,7 @@ function App() {
                   path="/"
                   element={
                     viewMode === "albums" ? (
-                      <AlbumsGridView apiBase={getApiUrl("")} selectedLetter={selectedLetter} onSelectLetter={handleScrollLetterChange} />
+                      <AlbumsGridView apiBase={getApiUrl("")} selectedLetter={selectedLetter} scrollTargetLetter={scrollTargetLetter} onSelectLetter={handleScrollLetterChange} />
                     ) : viewMode === "genres" ? (
                       <GenresGridView apiBase={getApiUrl("")} />
                     ) : viewMode === "decades" ? (
@@ -2314,6 +2279,7 @@ function App() {
                         searchResults={searchResults}
                         isSearching={Boolean(debouncedSearchTerm)}
                         selectedLetter={selectedLetter}
+                        scrollTargetLetter={scrollTargetLetter}
                         onSelectLetter={handleScrollLetterChange}
                       />
                     )
@@ -2323,7 +2289,7 @@ function App() {
                   path="/artists"
                   element={
                     viewMode === "albums" ? (
-                      <AlbumsGridView apiBase={getApiUrl("")} selectedLetter={selectedLetter} onSelectLetter={handleScrollLetterChange} />
+                      <AlbumsGridView apiBase={getApiUrl("")} selectedLetter={selectedLetter} scrollTargetLetter={scrollTargetLetter} onSelectLetter={handleScrollLetterChange} />
                     ) : viewMode === "genres" ? (
                       <GenresGridView apiBase={getApiUrl("")} />
                     ) : viewMode === "decades" ? (
@@ -2335,6 +2301,7 @@ function App() {
                         searchResults={searchResults}
                         isSearching={Boolean(debouncedSearchTerm)}
                         selectedLetter={selectedLetter}
+                        scrollTargetLetter={scrollTargetLetter}
                         onSelectLetter={handleScrollLetterChange}
                       />
                     )
