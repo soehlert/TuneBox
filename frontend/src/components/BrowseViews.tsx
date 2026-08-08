@@ -152,7 +152,9 @@ export const AlbumsGridView: React.FC<{
       requestAnimationFrame(() => {
         ticking = false;
         const mainRect = mainContent.getBoundingClientRect();
-        const targetY = mainRect.top + 75;
+        const sortBar = mainContent.querySelector(".view-sort-bar");
+        const headerOffset = sortBar ? sortBar.getBoundingClientRect().height : 0;
+        const targetY = mainRect.top + headerOffset + 10;
 
         const cards = mainContent.querySelectorAll("[id^='album-']");
         let topVisibleTitle: string | null = null;

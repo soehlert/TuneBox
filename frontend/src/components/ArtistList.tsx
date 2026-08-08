@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { Card, Typography, Button, Snackbar, Alert } from "@mui/material"; // MUI components
@@ -46,15 +46,8 @@ function ArtistList({
     message: "",
   });
 
-  const [visibleCount, setVisibleCount] = useState(() => {
-    const saved = sessionStorage.getItem("tunebox_artist_visible_count");
-    return saved ? parseInt(saved, 10) : 48;
-  });
-  const loaderRef = useRef<HTMLDivElement | null>(null);
-
   const handleArtistClick = (artistId: number, serverId?: string) => {
     sessionStorage.setItem("tunebox_artist_scroll_top", String(window.scrollY || document.querySelector('.main-content')?.scrollTop || 0));
-    sessionStorage.setItem("tunebox_artist_visible_count", String(visibleCount));
     const sParam = serverId ? `?server_id=${serverId}` : "";
     navigate(`/artists/${artistId}/albums${sParam}`);
   };
@@ -64,7 +57,6 @@ function ArtistList({
     const savedScroll = sessionStorage.getItem("tunebox_artist_scroll_top");
     if (savedScroll) {
       sessionStorage.removeItem("tunebox_artist_scroll_top");
-      sessionStorage.removeItem("tunebox_artist_visible_count");
       const targetScroll = parseInt(savedScroll, 10);
       setTimeout(() => {
         const mainContent = document.querySelector(".main-content");
@@ -109,10 +101,11 @@ function ArtistList({
         const el = document.getElementById(`artist-${targetArtist.artist_id}`);
         const mainContent = document.querySelector(".main-content");
         if (el && mainContent) {
+          const sortBar = mainContent.querySelector(".view-sort-bar");
+          const headerOffset = sortBar ? sortBar.getBoundingClientRect().height : 0;
           const containerRect = mainContent.getBoundingClientRect();
           const elRect = el.getBoundingClientRect();
-          // Offset 65px so card lands cleanly below the sort bar header
-          const targetScrollTop = mainContent.scrollTop + (elRect.top - containerRect.top) - 65;
+          const targetScrollTop = mainContent.scrollTop + (elRect.top - containerRect.top) - headerOffset;
           mainContent.scrollTo({
             top: Math.max(0, targetScrollTop),
             behavior: "smooth",
@@ -132,8 +125,6 @@ function ArtistList({
       }
     }
   }, [scrollTargetLetter, sortedArtists, isSearching]);
-
-  // Snackbar alerts
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [severity, setSeverity] = useState<"success" | "warning" | "error">("success");
@@ -170,49 +161,6 @@ function ArtistList({
     }
   };
 
-  // Reset display count and scroll to top when list of filtered artists changes
-  useEffect(() => {
-    const hasSavedScroll = sessionStorage.getItem("tunebox_artist_scroll_top");
-    if (!hasSavedScroll && !selectedLetter) {
-      setVisibleCount(48);
-      const mainContent = document.querySelector(".main-content");
-      if (mainContent) {
-        mainContent.scrollTop = 0;
-      }
-    }
-  }, [filteredArtists, searchResults, selectedLetter]);
-
-  // Set up intersection observer to detect when user scrolls to bottom
-  useEffect(() => {
-    if (isSearching) return; // Disable pagination for search results
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const first = entries[0];
-        if (first.isIntersecting) {
-          setVisibleCount((prev) => {
-            if (prev < filteredArtists.length) {
-              return Math.min(prev + 36, filteredArtists.length);
-            }
-            return prev;
-          });
-        }
-      },
-      { threshold: 0.1, rootMargin: "100px" }
-    );
-
-    const currentLoader = loaderRef.current;
-    if (currentLoader) {
-      observer.observe(currentLoader);
-    }
-
-    return () => {
-      if (currentLoader) {
-        observer.unobserve(currentLoader);
-      }
-    };
-  }, [filteredArtists.length, isSearching]);
-
   // Scroll listener to update active letter rail highlight as user scrolls manually
   useEffect(() => {
     if (isSearching || filteredArtists.length === 0 || sortBy !== "alphabetical") return;
@@ -229,7 +177,9 @@ function ArtistList({
       requestAnimationFrame(() => {
         ticking = false;
         const mainRect = mainContent.getBoundingClientRect();
-        const targetY = mainRect.top + 75;
+        const sortBar = mainContent.querySelector(".view-sort-bar");
+        const headerOffset = sortBar ? sortBar.getBoundingClientRect().height : 0;
+        const targetY = mainRect.top + headerOffset + 10;
 
         const cards = mainContent.querySelectorAll(".artist-card");
         let topVisibleName: string | null = null;
@@ -697,16 +647,6 @@ function ArtistList({
               </Card>
             ))}
           </div>
-
-          {/* Infinite Scroll Loader Target */}
-          {visibleCount < filteredArtists.length && (
-            <div ref={loaderRef} className="infinite-scroll-loader">
-              <div className="spinner-glass">
-                <span className="spinner-inner"></span>
-              </div>
-              <Typography className="loader-text">Loading more artists...</Typography>
-            </div>
-          )}
         </div>
       )}
 
