@@ -263,27 +263,22 @@ def add_to_history(track: dict | int | str):
         # Deduplicate existing items with matching item_id
         if item_id:
             try:
-                raw_history = client.lrange("playback_history_v2", 0, -1)
+                raw_history = client.lrange("playback_history", 0, -1)
                 for item in raw_history:
                     item_str = item.decode("utf-8") if isinstance(item, bytes) else item
                     if isinstance(item_str, str):
                         try:
                             parsed = json.loads(item_str)
                             if parsed.get("item_id") == item_id:
-                                client.lrem("playback_history_v2", 0, item_str)
+                                client.lrem("playback_history", 0, item_str)
                         except Exception:
                             pass
-                client.lrem("playback_history", 0, str(item_id))
             except Exception as d_ex:
                 logger.debug("Failed to remove old duplicate from history: %s", d_ex)
 
         track_json = json.dumps(track_obj)
-        client.lpush("playback_history_v2", track_json)
-        client.ltrim("playback_history_v2", 0, 19)
-
-        if item_id:
-            client.lpush("playback_history", str(item_id))
-            client.ltrim("playback_history", 0, 19)
+        client.lpush("playback_history", track_json)
+        client.ltrim("playback_history", 0, 19)
 
         artist_name = track_obj.get("artist") or track_obj.get("grandparentTitle")
         if artist_name:
@@ -332,10 +327,10 @@ def update_cached_play_counts(artist_name: str | None = None, album_title: str |
                 except Exception as ex:
                     logger.warning("Failed to update cached all_artists play count: %s", ex)
 
-        # Update cached all_albums_unified_v3
+        # Update cached all_albums
         if album_title:
             norm_album = str(album_title).strip().lower()
-            cached_albums_raw = cache_client.get("all_albums_unified_v3")
+            cached_albums_raw = cache_client.get("all_albums")
             if cached_albums_raw:
                 try:
                     albums = json.loads(cached_albums_raw)
@@ -345,9 +340,9 @@ def update_cached_play_counts(artist_name: str | None = None, album_title: str |
                             alb["play_count"] = (alb.get("play_count", 0) or 0) + 1
                             updated = True
                     if updated:
-                        cache_client.set("all_albums_unified_v3", json.dumps(albums), keepttl=True)
+                        cache_client.set("all_albums", json.dumps(albums), keepttl=True)
                 except Exception as ex:
-                    logger.warning("Failed to update cached all_albums_unified_v3 play count: %s", ex)
+                    logger.warning("Failed to update cached all_albums play count: %s", ex)
     except Exception as e:
         logger.warning("Error updating cached play counts: %s", e)
 
@@ -356,7 +351,7 @@ def get_playback_history() -> list[dict]:
     """Retrieve recent playback history track objects from Redis (deduplicated by item_id)."""
     try:
         client = get_redis_queue_client()
-        raw_history = client.lrange("playback_history_v2", 0, -1)
+        raw_history = client.lrange("playback_history", 0, -1)
         res = []
         seen_ids = set()
         for item in raw_history:

@@ -212,3 +212,56 @@ def increment_album_play_count_db(album_title: str, db_path: str | None = None):
         conn.commit()
     finally:
         conn.close()
+
+
+def search_music_db(query_str: str, db_path: str | None = None) -> list[dict]:
+    """Search artists, albums, and tracks in SQLite database instantly."""
+    if not query_str:
+        return []
+    term = f"%{query_str.strip().lower()}%"
+    conn = get_db_connection(db_path)
+    try:
+        res = []
+        # Search Artists
+        cursor = conn.execute(
+            """
+            SELECT DISTINCT a.artist_id as id, a.name as title, 'artist' as type, a.thumb
+            FROM artists a
+            JOIN artist_sources src ON a.artist_id = src.artist_id
+            JOIN servers srv ON src.server_id = srv.server_id
+            WHERE srv.enabled = 1 AND LOWER(a.name) LIKE ?
+            LIMIT 10
+            """,
+            (term,),
+        )
+        res.extend([dict(r) for r in cursor.fetchall()])
+
+        # Search Albums
+        cursor = conn.execute(
+            """
+            SELECT DISTINCT alb.album_id as id, alb.title, 'album' as type, alb.artist_name as artist, alb.thumb
+            FROM albums alb
+            JOIN album_sources src ON alb.album_id = src.album_id
+            JOIN servers srv ON src.server_id = srv.server_id
+            WHERE srv.enabled = 1 AND (LOWER(alb.title) LIKE ? OR LOWER(alb.artist_name) LIKE ?)
+            LIMIT 10
+            """,
+            (term, term),
+        )
+        res.extend([dict(r) for r in cursor.fetchall()])
+
+        # Search Tracks
+        cursor = conn.execute(
+            """
+            SELECT DISTINCT t.track_id as item_id, t.title, 'track' as type, t.artist_name as artist, t.album_title as album, t.thumb, t.url
+            FROM tracks t
+            JOIN servers srv ON t.server_id = srv.server_id
+            WHERE srv.enabled = 1 AND (LOWER(t.title) LIKE ? OR LOWER(t.artist_name) LIKE ? OR LOWER(t.album_title) LIKE ?)
+            LIMIT 15
+            """,
+            (term, term, term),
+        )
+        res.extend([dict(r) for r in cursor.fetchall()])
+        return res
+    finally:
+        conn.close()

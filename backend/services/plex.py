@@ -1073,13 +1073,6 @@ def _overlay_album_play_counts(albums_list: list[dict]) -> list[dict]:
 def fetch_all_artists(target_server_ids: list[str] | None = None) -> list[dict]:
     """Fetch all artists across specified or enabled Plex servers, merging duplicates with quality ranking."""
     if settings.testing:
-        try:
-            from backend.services.library import get_indexed_artists
-            db_artists = get_indexed_artists()
-            if db_artists:
-                return _overlay_artist_play_counts(db_artists)
-        except Exception as db_ex:
-            logger.debug("Failed to fetch indexed artists from SQLite: %s", db_ex)
         return _overlay_artist_play_counts(MOCK_ARTISTS)
 
     cache_key = "all_artists"
@@ -1468,20 +1461,13 @@ def fetch_albums_for_artist(artist_id: int, server_id: str | None = None):
 def fetch_all_albums(target_server_ids: list[str] | None = None) -> list[dict]:
     """Fetch all unique albums across enabled servers with deduplication & caching."""
     if settings.testing:
-        try:
-            from backend.services.library import get_indexed_albums
-            db_albums = get_indexed_albums()
-            if db_albums:
-                return _overlay_album_play_counts(db_albums)
-        except Exception as db_ex:
-            logger.debug("Failed to fetch indexed albums from SQLite: %s", db_ex)
         all_albums = []
         for _a_id, albums in MOCK_ALBUMS.items():
             all_albums.extend(albums)
         all_albums.sort(key=lambda a: a["title"].lower())
         return _overlay_album_play_counts(all_albums)
 
-    cache_key = "all_albums_unified_v3"
+    cache_key = "all_albums"
     if not target_server_ids:
         cached = get_cached_data(cache_key)
         if cached:
@@ -1762,6 +1748,14 @@ def fetch_tracks_for_album(album_id: int, server_id: str | None = None):
 
 def search_music(query: str):
     """Search across ALL enabled Plex servers with multi-server deduplication."""
+    try:
+        from backend.services.library import search_music_db
+        db_results = search_music_db(query)
+        if db_results:
+            return db_results
+    except Exception as db_ex:
+        logger.debug("Failed to search SQLite library database: %s", db_ex)
+
     if settings.testing:
         query_lower = query.lower()
         results = []
