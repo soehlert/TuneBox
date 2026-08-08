@@ -1928,7 +1928,7 @@ def fetch_art(item_id: int, item_type: str, server_id: str | None = None):
         last_error = None
         for stored_thumb, db_server_id, rating_key in all_sources:
             try:
-                effective_server_id = server_id or db_server_id
+                target_server_id = db_server_id or server_id
                 if rating_key and str(rating_key).isdigit():
                     target_item_id = int(rating_key)
                 elif str(item_id).isdigit():
@@ -1943,9 +1943,9 @@ def fetch_art(item_id: int, item_type: str, server_id: str | None = None):
                     )
 
                 # First, try resolving server_url and token directly from SQLite servers table
-                server_url, token = get_server_credentials(effective_server_id)
+                server_url, token = get_server_credentials(target_server_id)
 
-                cache_key = f"thumb_path:{effective_server_id or 'primary'}:{item_type}:{item_id}"
+                cache_key = f"thumb_path:{target_server_id or 'primary'}:{item_type}:{item_id}"
                 thumb_path = None
                 if stored_thumb and (stored_thumb.startswith("/library/metadata/") or stored_thumb.startswith("http")):
                     thumb_path = stored_thumb
@@ -1954,7 +1954,7 @@ def fetch_art(item_id: int, item_type: str, server_id: str | None = None):
 
                 if not thumb_path or not server_url or not token or hasattr(get_target_plex_connection, "mock_calls"):
                     try:
-                        plex = get_target_plex_connection(effective_server_id)
+                        plex = get_target_plex_connection(target_server_id)
                         if not server_url or hasattr(get_target_plex_connection, "mock_calls"):
                             server_url = getattr(plex, "_baseurl", "")
                         if not token or hasattr(get_target_plex_connection, "mock_calls"):
@@ -2001,7 +2001,7 @@ def fetch_art(item_id: int, item_type: str, server_id: str | None = None):
 
                 # Fallback to get_target_plex_connection
                 try:
-                    plex = get_target_plex_connection(effective_server_id)
+                    plex = get_target_plex_connection(target_server_id)
                     alt_url = getattr(plex, "_baseurl", "")
                     alt_token = getattr(plex, "_token", "")
                     if alt_url and alt_token and alt_url != server_url:

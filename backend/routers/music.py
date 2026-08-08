@@ -531,13 +531,10 @@ async def add_album_to_queue_endpoint(
 # Search for artists, albums, or tracks
 @router.get("/search")
 def search_music_endpoint(query: str):
-    """Search for music in the Plex library.
-
-    Returns:
-        Search results.
-    """
+    """Search for music instantly in SQLite library database."""
     try:
-        return search_music(query)
+        from backend.services.library import search_music_db
+        return search_music_db(query)
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Error searching music library: {e}"
