@@ -1115,6 +1115,7 @@ def fetch_all_artists(target_server_ids: list[str] | None = None) -> list[dict]:
             merged_map[dedup_key] = {
                 "artist_id": item["artist_id"],
                 "name": item["name"],
+                "play_count": item.get("play_count", 0),
                 "sources": [{
                     "server_id": item["server_id"],
                     "server_name": item["server_name"],
@@ -1125,6 +1126,7 @@ def fetch_all_artists(target_server_ids: list[str] | None = None) -> list[dict]:
             }
         else:
             existing = merged_map[dedup_key]
+            existing["play_count"] = max(existing.get("play_count", 0), item.get("play_count", 0))
             if not any(s["server_id"] == item["server_id"] for s in existing["sources"]):
                 existing["sources"].append({
                     "server_id": item["server_id"],
@@ -1365,6 +1367,7 @@ def fetch_albums_for_artist(artist_id: int, server_id: str | None = None):
                 "album_id": item["album_id"],
                 "artist": item["artist"],
                 "title": item["title"],
+                "play_count": item.get("play_count", 0),
                 "server_id": item["server_id"],
                 "server_name": resolved_item_sname,
                 "sources": [{
@@ -1376,6 +1379,7 @@ def fetch_albums_for_artist(artist_id: int, server_id: str | None = None):
             }
         else:
             existing = merged_albums[dedup_key]
+            existing["play_count"] = max(existing.get("play_count", 0), item.get("play_count", 0))
             if not any(str(s.get("server_id", "")).lower() == str(item.get("server_id", "")).lower() for s in existing["sources"] if s.get("server_id")):
                 existing["sources"].append({
                     "server_id": item["server_id"],

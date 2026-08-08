@@ -40,6 +40,26 @@ def test_get_all_albums_alphabetically_sorted():
         settings.testing = orig_testing
 
 
+def test_artists_and_albums_have_play_counts():
+    """Verify artist and album endpoints return play_count for Most Played sorting."""
+    orig_testing = settings.testing
+    settings.testing = True
+    try:
+        res_artists = client.get("/api/music/artists")
+        assert res_artists.status_code == 200
+        artists = res_artists.json()
+        assert len(artists) > 0
+        assert any(a.get("play_count", 0) > 0 for a in artists)
+
+        res_albums = client.get("/api/music/all-albums")
+        assert res_albums.status_code == 200
+        albums = res_albums.json()
+        assert len(albums) > 0
+        assert any(a.get("play_count", 0) > 0 for a in albums)
+    finally:
+        settings.testing = orig_testing
+
+
 def test_get_genres_endpoint():
     """Verify GET /api/music/genres returns list of genres with album counts."""
     orig_testing = settings.testing

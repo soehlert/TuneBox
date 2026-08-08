@@ -285,6 +285,14 @@ def add_to_history(track: dict | int | str):
             client.lpush("playback_history", str(item_id))
             client.ltrim("playback_history", 0, 19)
 
+        artist_name = track_obj.get("artist") or track_obj.get("grandparentTitle")
+        if artist_name:
+            client.zincrby("stats:artist_play_counts", 1, str(artist_name).lower())
+
+        album_title = track_obj.get("album") or track_obj.get("parentTitle")
+        if album_title:
+            client.zincrby("stats:album_play_counts", 1, str(album_title).lower())
+
         logger.info("Added track %s to playback history.", track_obj.get("title", track_obj.get("item_id")))
     except Exception as e:
         logger.warning("Failed to update playback history: %s", e)
