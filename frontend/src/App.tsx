@@ -317,9 +317,10 @@ interface SettingsModalProps {
   onClose: () => void;
   instanceName: string;
   setInstanceName: (val: string) => void;
+  indexingStatus?: { isIndexing: boolean; isInitial: boolean; serverName: string } | null;
 }
 
-function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: SettingsModalProps) {
+function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, indexingStatus }: SettingsModalProps) {
   const [plexUsername, setPlexUsername] = useState("");
   const [localInstanceName, setLocalInstanceName] = useState(instanceName);
   const [selectedServer, setSelectedServer] = useState("");
@@ -867,6 +868,30 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                 <div>
                   <label style={labelStyle}>Plex Media Servers (Unified Catalog)</label>
                   <div style={{ display: "flex", flexDirection: "column", gap: "8px", background: "rgba(255, 255, 255, 0.03)", padding: "10px 12px", borderRadius: "8px", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
+                    {indexingStatus?.isIndexing && (
+                      <div
+                        style={{
+                          background: "rgba(100, 200, 255, 0.12)",
+                          border: "1px solid rgba(100, 200, 255, 0.35)",
+                          color: "#64c8ff",
+                          padding: "8px 12px",
+                          borderRadius: "6px",
+                          fontSize: "12px",
+                          fontWeight: 600,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                          marginBottom: "4px",
+                        }}
+                      >
+                        <span className="material-symbols-outlined spin-animation" style={{ fontSize: "16px", color: "#64c8ff" }}>
+                          sync
+                        </span>
+                        {indexingStatus.isInitial
+                          ? `Indexing server ${indexingStatus.serverName}... Songs & artwork populating.`
+                          : `Updating library index for ${indexingStatus.serverName}...`}
+                      </div>
+                    )}
                     {libraries.length === 0 ? (
                       <span style={{ color: "rgba(255, 255, 255, 0.5)", fontSize: "13px" }}>No servers found.</span>
                     ) : (
@@ -2529,7 +2554,7 @@ function App() {
 
           {/* Settings Modal */}
           {showSettings && (
-            <SettingsModal adminToken={adminToken} onClose={() => setShowSettings(false)} instanceName={instanceName} setInstanceName={setInstanceName} />
+            <SettingsModal adminToken={adminToken} onClose={() => setShowSettings(false)} instanceName={instanceName} setInstanceName={setInstanceName} indexingStatus={indexingStatus} />
           )}
 
           {/* Guest Registration Modal — only for non-admin, non-display devices without a profile */}

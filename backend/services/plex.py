@@ -972,6 +972,12 @@ async def check_plexamp_resync(force_align: bool = False):
                 }
                 cache_data("now_playing", song_data)
 
+                # Ensure Redis queue index 0 aligns with now_playing track
+                from backend.services.redis import ensure_queue_synced_with_now_playing  # noqa: PLC0415
+                from backend.websockets import send_queue  # noqa: PLC0415
+                ensure_queue_synced_with_now_playing(song_data)
+                await send_queue()
+
                 # Update tracker to match Plexamp
                 track_time_tracker.stop()
                 track_time_tracker.start(session_title)

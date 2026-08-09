@@ -200,6 +200,56 @@ def reorder_redis_queue(from_index: int, to_index: int):
     return {"message": "Queue reordered successfully."}
 
 
+def ensure_queue_synced_with_now_playing(song_data: dict):
+    """Ensure that index 0 of the Redis playback queue matches the currently active now_playing track."""
+    if not isinstance(song_data, dict) or not song_data.get("title"):
+        return
+
+    try:
+        client = get_redis_queue_client()
+        raw_q = client.lrange("playback_queue", 0, -1)
+        target_id = str(song_data.get("item_id") or "")
+        target_title = str(song_data.get("title") or "")
+        target_artist = str(song_data.get("artist") or "")
+
+        if not raw_q:
+            client.rpush("playback_queue", json.dumps(song_data))
+            logger.info("Pushed active track '%s' to index 0 of empty Redis queue.", target_title)
+            return
+
+        first_item = json.loads(raw_q[0])
+        same_id = bool(target_id and str(first_item.get("item_id")) == target_id)
+        same_title = bool(first_item.get("title") == target_title and first_item.get("artist") == target_artist)
+
+        if same_id or same_title:
+            return
+
+        logger.info("Queue index 0 ('%s') mismatch with active track ('%s'). Syncing queue.", first_item.get("title"), target_title)
+
+        q_items = [json.loads(x) for x in raw_q]
+        match_idx = -1
+        for idx, item in enumerate(q_items):
+            if (target_id and str(item.get("item_id")) == target_id) or (item.get("title") == target_title and item.get("artist") == target_artist):
+                match_idx = idx
+                break
+
+        if match_idx > 0:
+            from backend.services.plex import add_to_history  # noqa: PLC0415
+            for _ in range(match_idx):
+                popped_raw = client.lpop("playback_queue")
+                if popped_raw:
+                    popped_track = json.loads(popped_raw)
+                    add_to_history(popped_track)
+        else:
+            q_items[0] = song_data
+            client.delete("playback_queue")
+            for item in q_items:
+                client.rpush("playback_queue", json.dumps(item))
+
+    except Exception as ex:
+        logger.warning("Failed to sync queue with now_playing: %s", ex)
+
+
 def move_to_top_redis_queue(from_index: int):
     """Move a track at from_index to position 1 (next track after current playing track).
 
