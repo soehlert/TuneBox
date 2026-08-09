@@ -1724,7 +1724,7 @@ function App() {
   const [accessibleServers, setAccessibleServers] = useState<any[]>([]);
   const [showServerModal, setShowServerModal] = useState(false);
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
-  const [indexingStatus, setIndexingStatus] = useState<{ isIndexing: boolean; isInitial: boolean; serverName: string } | null>(null);
+  const [indexingStatus, setIndexingStatus] = useState<{ isIndexing: boolean; isInitial: boolean; serverName: string; message?: string | null } | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Clear search query when clear_search parameter is present
@@ -1946,13 +1946,15 @@ function App() {
             const isInd = Boolean(data.is_indexing);
             const isInit = Boolean(data.is_initial);
             const sName = data.server_name || "Plex";
+            const msg = data.message || null;
             setIndexingStatus({
               isIndexing: isInd,
               isInitial: isInit,
               serverName: sName,
+              message: msg,
             });
             if (!isInd) {
-              setTimeout(() => setIndexingStatus(null), 4000);
+              setTimeout(() => setIndexingStatus(null), msg ? 6000 : 3000);
             }
           } else if (data.message === "pong") {
             window.clearTimeout(pongTimeout);
@@ -2363,10 +2365,12 @@ function App() {
           <div className="main-wrapper">
             {/* Subpage content */}
             <div className={`main-content ${(location.pathname === "/" || location.pathname === "/artists") && viewMode !== "artists" && viewMode !== "albums" ? "no-sidebar" : ""}`}>
-              {indexingStatus?.isIndexing && (
+              {indexingStatus && (
                 <div
                   style={{
-                    background: "linear-gradient(90deg, #1e3c72 0%, #2a5298 100%)",
+                    background: indexingStatus.message
+                      ? "linear-gradient(90deg, #d32f2f 0%, #b71c1c 100%)"
+                      : "linear-gradient(90deg, #1e3c72 0%, #2a5298 100%)",
                     borderBottom: "1px solid rgba(100, 200, 255, 0.4)",
                     color: "#ffffff",
                     padding: "12px 20px",
@@ -2382,11 +2386,13 @@ function App() {
                     zIndex: 10,
                   }}
                 >
-                  <span className="material-symbols-outlined spin-animation" style={{ fontSize: "20px", color: "#64c8ff" }}>
-                    sync
+                  <span className={`material-symbols-outlined ${indexingStatus.isIndexing ? "spin-animation" : ""}`} style={{ fontSize: "20px", color: indexingStatus.message ? "#ffcdd2" : "#64c8ff" }}>
+                    {indexingStatus.isIndexing ? "sync" : "info"}
                   </span>
                   <span>
-                    Indexing server <strong>{indexingStatus.serverName}</strong>... Songs and artwork are populating dynamically.
+                    {indexingStatus.message
+                      ? indexingStatus.message
+                      : <>Indexing server <strong>{indexingStatus.serverName}</strong>... Songs and artwork are populating dynamically.</>}
                   </span>
                 </div>
               )}
