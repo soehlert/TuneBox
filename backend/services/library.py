@@ -664,7 +664,7 @@ def get_all_art_sources(item_id: int | str, item_type: str, db_path: str | None 
                 FROM artists a
                 LEFT JOIN artist_sources src ON a.artist_id = src.artist_id
                 LEFT JOIN servers srv ON src.server_id = srv.server_id
-                WHERE a.artist_id = ?
+                WHERE a.artist_id = ? AND (srv.enabled = 1 OR srv.enabled IS NULL)
                 ORDER BY (CASE WHEN srv.server_id NOT LIKE 'mock%' THEN 0 ELSE 1 END), is_primary DESC
                 """,
                 (resolved_id,),
@@ -703,7 +703,7 @@ def get_all_art_sources(item_id: int | str, item_type: str, db_path: str | None 
                 FROM albums alb
                 LEFT JOIN album_sources src ON alb.album_id = src.album_id
                 LEFT JOIN servers srv ON src.server_id = srv.server_id
-                WHERE alb.album_id = ?
+                WHERE alb.album_id = ? AND (srv.enabled = 1 OR srv.enabled IS NULL)
                 ORDER BY (CASE WHEN srv.server_id NOT LIKE 'mock%' THEN 0 ELSE 1 END), is_primary DESC
                 """,
                 (resolved_id,),

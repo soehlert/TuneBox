@@ -2131,6 +2131,14 @@ def fetch_art(item_id: int, item_type: str, server_id: str | None = None):
         for stored_thumb, db_server_id, rating_key in all_sources:
             try:
                 target_server_id = db_server_id or server_id
+                if target_server_id:
+                    from backend.services.library import get_db_connection
+                    conn = get_db_connection()
+                    srv_row = conn.execute("SELECT enabled FROM servers WHERE LOWER(server_id) = ?", (str(target_server_id).lower(),)).fetchone()
+                    conn.close()
+                    if srv_row and srv_row[0] == 0:
+                        logger.debug("Skipping art fetch for disabled server %s", target_server_id)
+                        continue
                 if rating_key and str(rating_key).isdigit():
                     target_item_id = int(rating_key)
                 elif str(item_id).isdigit():
@@ -2396,8 +2404,9 @@ def get_enabled_server_ids() -> list[str]:
 
 
 def set_enabled_server_ids(server_ids: list[str]):
-    """Set list of server_ids enabled for the unified music catalog in Redis and SQLite."""
+    """Set list of server_ids enabled for the unified music catalog in Redis and SQLite with retry lock protection."""
     import json
+    import time
     try:
         from backend.services.redis import get_redis_cache_client, clear_cache
         get_redis_cache_client().set("enabled_server_ids", json.dumps(server_ids))
@@ -2407,18 +2416,22 @@ def set_enabled_server_ids(server_ids: list[str]):
     except Exception as e:
         logger.warning("Failed to save enabled_server_ids: %s", e)
 
-    try:
-        from backend.services.library import upsert_server
-        enabled_set = {str(s).lower() for s in server_ids}
-        all_accessible = fetch_accessible_plex_servers()
-        for s in all_accessible:
-            s_id = s.get("server_id")
-            s_name = s.get("name", "Plex")
-            if s_id:
-                is_enabled = str(s_id).lower() in enabled_set or str(s_name).lower() in enabled_set
-                upsert_server(s_id, s_name, server_url=s.get("server_url"), is_primary=s.get("is_primary", False), enabled=is_enabled)
-    except Exception as sq_ex:
-        logger.warning("Failed to sync server enabled status to SQLite: %s", sq_ex)
+    enabled_set = {str(s).lower() for s in server_ids}
+    all_accessible = fetch_accessible_plex_servers()
+
+    for attempt in range(5):
+        try:
+            from backend.services.library import upsert_server
+            for s in all_accessible:
+                s_id = s.get("server_id")
+                s_name = s.get("name", "Plex")
+                if s_id:
+                    is_enabled = str(s_id).lower() in enabled_set or str(s_name).lower() in enabled_set
+                    upsert_server(s_id, s_name, server_url=s.get("server_url"), is_primary=s.get("is_primary", False), enabled=is_enabled)
+            break
+        except Exception as sq_ex:
+            logger.warning("Attempt %d: Failed to sync server enabled status to SQLite: %s", attempt + 1, sq_ex)
+            time.sleep(0.5)
 
 
 def search_music_on_server(server_res: dict, query: str):
