@@ -1836,84 +1836,113 @@ function App() {
       return;
     }
 
-    const wsUrl = getWsUrl();
-    const ws = new WebSocket(wsUrl);
+    let ws: WebSocket | null = null;
     let pingInterval: number;
     let pongTimeout: number;
+    let reconnectTimeout: number;
+    let isDisposed = false;
 
-    const register = () => {
-      if (ws.readyState === WebSocket.OPEN) {
-        let name = "Unknown";
-        let role = "guest";
-        if (isAdmin) {
-          name = localStorage.getItem("tunebox_admin_name") || "Admin";
-          role = "admin";
-        } else if (isDisplay) {
-          name = localStorage.getItem("tunebox_display_name") || "Shared Display";
-          role = "display";
-        } else if (guestProfile) {
-          name = guestProfile.name;
-          role = guestProfile.role;
-        }
+    const connectWs = () => {
+      if (isDisposed) return;
+      const wsUrl = getWsUrl();
+      ws = new WebSocket(wsUrl);
 
-        ws.send(
-          JSON.stringify({
-            type: "client_control",
-            client_id: getClientId(),
-            name,
-            role,
-            is_display: isDisplay,
-          })
-        );
-      }
-    };
-
-    ws.onopen = () => {
-      console.log("Client control WS opened");
-      register();
-
-      // Start ping heartbeat
-      pingInterval = window.setInterval(() => {
-        if (ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ type: "heartbeat", message: "ping" }));
-          pongTimeout = window.setTimeout(() => {
-            console.warn("Client control WS ping timeout, closing");
-            ws.close();
-          }, 4000);
-        }
-      }, 10000);
-    };
-
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.type === "set_display_mode") {
-          console.log("Received set_display_mode WS push!");
-          localStorage.setItem("tunebox_display", "true");
-          setIsDisplay(true);
-          if (guestProfile) {
-            localStorage.setItem("tunebox_display_name", guestProfile.name);
+      const register = () => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          let name = "Unknown";
+          let role = "guest";
+          if (isAdmin) {
+            name = localStorage.getItem("tunebox_admin_name") || "Admin";
+            role = "admin";
+          } else if (isDisplay) {
+            name = localStorage.getItem("tunebox_display_name") || "Shared Display";
+            role = "display";
+          } else if (guestProfile) {
+            name = guestProfile.name;
+            role = guestProfile.role;
           }
-        } else if (data.type === "unset_display_mode") {
-          console.log("Received unset_display_mode WS push!");
-          localStorage.removeItem("tunebox_display");
-          setIsDisplay(false);
-        } else if (data.message === "pong") {
-          window.clearTimeout(pongTimeout);
+
+          ws.send(
+            JSON.stringify({
+              type: "client_control",
+              client_id: getClientId(),
+              name,
+              role,
+              is_display: isDisplay,
+            })
+          );
         }
-      } catch (err) {
-        console.error("Error parsing WS message:", err);
+      };
+
+      ws.onopen = () => {
+        console.log("Client control WS opened");
+        register();
+
+        pingInterval = window.setInterval(() => {
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: "heartbeat", message: "ping" }));
+            pongTimeout = window.setTimeout(() => {
+              console.warn("Client control WS ping timeout, closing");
+              ws?.close();
+            }, 4000);
+          }
+        }, 10000);
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === "set_display_mode") {
+            console.log("Received set_display_mode WS push!");
+            localStorage.setItem("tunebox_display", "true");
+            setIsDisplay(true);
+            if (guestProfile) {
+              localStorage.setItem("tunebox_display_name", guestProfile.name);
+            }
+          } else if (data.type === "unset_display_mode") {
+            console.log("Received unset_display_mode WS push!");
+            localStorage.removeItem("tunebox_display");
+            setIsDisplay(false);
+          } else if (data.message === "pong") {
+            window.clearTimeout(pongTimeout);
+          }
+        } catch (err) {
+          console.error("Error parsing WS message:", err);
+        }
+      };
+
+      ws.onclose = () => {
+        console.log("Client control WS closed");
+        window.clearInterval(pingInterval);
+        window.clearTimeout(pongTimeout);
+        if (!isDisposed) {
+          reconnectTimeout = window.setTimeout(connectWs, 3000);
+        }
+      };
+    };
+
+    connectWs();
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        if (!ws || ws.readyState !== WebSocket.OPEN) {
+          console.log("Tab became visible, reconnecting client_control WS...");
+          connectWs();
+        }
       }
     };
 
-    ws.onclose = () => {
-      console.log("Client control WS closed");
-      window.clearInterval(pingInterval);
-      window.clearTimeout(pongTimeout);
-    };
+    document.addEventListener("visibilitychange", handleVisibility);
 
     return () => {
-      ws.close();
+      isDisposed = true;
+      document.removeEventListener("visibilitychange", handleVisibility);
+      window.clearInterval(pingInterval);
+      window.clearTimeout(pongTimeout);
+      window.clearTimeout(reconnectTimeout);
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.close();
+      }
     };
   }, [isAdmin, isDisplay, guestProfile, instanceName]);
 

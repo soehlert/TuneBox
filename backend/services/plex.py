@@ -48,6 +48,20 @@ playback_active = False
 _queue_finished_track: str | None = None
 _cached_active_player = None
 _cached_active_player_name = None
+_resync_lock = asyncio.Lock()
+_last_resync_time = 0.0
+
+
+async def debounced_plexamp_resync(force_align: bool = False, min_interval: float = 2.0):
+    """Run check_plexamp_resync with a minimum time interval to prevent concurrent network spam."""
+    global _last_resync_time
+    async with _resync_lock:
+        now = time.time()
+        if now - _last_resync_time < min_interval:
+            logger.debug("Skipping PMS resync check (debounced within %.1fs)", min_interval)
+            return
+        _last_resync_time = now
+        await check_plexamp_resync(force_align=force_align)
 
 
 @lru_cache
@@ -85,6 +99,13 @@ def get_plex_connection():
         raise PlexConnectionError(original_error=e) from e
     else:
         return plex_server
+
+
+def invalidate_cached_player():
+    """Clear cached active player handle so next call forces fresh discovery."""
+    global _cached_active_player, _cached_active_player_name
+    _cached_active_player = None
+    _cached_active_player_name = None
 
 
 def reinitialize_plex():
@@ -233,7 +254,13 @@ def get_active_player(client_name: str | None = None):
         return MockPlayer()
 
     if _cached_active_player and _cached_active_player_name == client_name:
-        return _cached_active_player
+        try:
+            # Lightweight socket test: check machineIdentifier or timeline attribute
+            _ = getattr(_cached_active_player, "machineIdentifier", None)
+            return _cached_active_player
+        except Exception:
+            logger.info("Cached player '%s' connection is dead. Evicting cache.", client_name)
+            invalidate_cached_player()
 
     # 1. Try resolving via local Plex Media Server client list (GDM)
     try:
@@ -361,15 +388,32 @@ def play_song(player, song, server_token=None, server_url=None):
         except Exception as ex:
             logger.warning("Failed to connect to target server %s: %s", server_url, ex)
 
+    playback_succeeded = False
     if hasattr(player, "createPlayQueue"):
         try:
             player.createPlayQueue(target_plex, song)
             logger.info("Successfully started playback via createPlayQueue on %s", player.title)
+            playback_succeeded = True
         except Exception as e:
             logger.warning("Failed to play via createPlayQueue: %s. Falling back to playMedia.", e)
-            player.playMedia(song)
+            try:
+                player.playMedia(song)
+                playback_succeeded = True
+            except Exception as ex2:
+                logger.warning("Failed to play via playMedia on %s: %s", player.title, ex2)
+                invalidate_cached_player()
+                raise PlexApiException(f"Player '{player.title}' unreachable: {ex2}") from ex2
     else:
-        player.playMedia(song)
+        try:
+            player.playMedia(song)
+            playback_succeeded = True
+        except Exception as ex2:
+            logger.warning("Failed to play via playMedia on %s: %s", player.title, ex2)
+            invalidate_cached_player()
+            raise PlexApiException(f"Player '{player.title}' unreachable: {ex2}") from ex2
+
+    if not playback_succeeded:
+        return
 
     # Store track details in Redis under "now_playing"
     song_data = {
@@ -400,13 +444,31 @@ async def play_queue_on_device():
             player = await asyncio.to_thread(get_active_player)
             if player:
                 logger.info("Resuming playback on player: %s", player.title)
-                await asyncio.to_thread(player.play)
+                resumed = False
+                for cmd in [
+                    lambda: player.play(mtype="music"),
+                    lambda: player.play(),
+                ]:
+                    try:
+                        await asyncio.to_thread(cmd)
+                        resumed = True
+                        break
+                    except Exception:
+                        pass
+
+                if not resumed:
+                    invalidate_cached_player()
+                    player = await asyncio.to_thread(get_active_player)
+                    if player:
+                        await asyncio.to_thread(player.play)
+
                 track_time_tracker.resume()
                 from backend.websockets import send_current_playing  # noqa: PLC0415
                 await send_current_playing()
                 return
         except Exception as e:
-            logger.warning("Failed to resume player: %s", e)
+            logger.warning("Failed to resume player: %s. Invalidating player cache...", e)
+            invalidate_cached_player()
 
     try:
         from backend.services.redis import get_redis_queue
@@ -726,8 +788,15 @@ async def check_plexamp_resync(force_align: bool = False):
         try:
             player = await asyncio.to_thread(get_active_player)
         except Exception:  # noqa: BLE001
-
-            # No active player is reachable right now
+            # Active player is unreachable/disconnected — auto-pause tracker to preserve exact track position!
+            if track_time_tracker.is_playing:
+                logger.info("Active player disconnected during resync check. Auto-pausing tracker to preserve track spot.")
+                track_time_tracker.pause()
+                now_playing = get_cached_data("now_playing")
+                if isinstance(now_playing, dict):
+                    now_playing["track_state"] = "paused"
+                    cache_data("now_playing", now_playing)
+                await send_current_playing()
             return
 
         # Look for a session running on our active player
@@ -777,11 +846,19 @@ async def check_plexamp_resync(force_align: bool = False):
                         active_session = mock_sess
                         logger.debug("Successfully read direct player timeline for %s at %sms (state=%s)", mock_sess.title, mock_sess.viewOffset, timeline.state)
             except Exception as e:
-                logger.warning("Could not poll player timeline directly: %s. Falling back to PMS sessions.", e)
-                # Invalidate player cache on direct connection failure
+                logger.warning("Could not poll player timeline directly: %s. Player offline — auto-pausing local tracker.", e)
                 global _cached_active_player, _cached_active_player_name
                 _cached_active_player = None
                 _cached_active_player_name = None
+
+                if track_time_tracker.is_playing:
+                    track_time_tracker.pause()
+                    now_playing = get_cached_data("now_playing")
+                    if isinstance(now_playing, dict):
+                        now_playing["track_state"] = "paused"
+                        cache_data("now_playing", now_playing)
+                    await send_current_playing()
+                return
 
         if not active_session:
             sessions = await asyncio.to_thread(plex.sessions)
@@ -906,20 +983,16 @@ async def check_plexamp_resync(force_align: bool = False):
                     await send_current_playing()
 
         else:
-            # If we recently started or resumed a track locally, give Plex a chance to start up (e.g. 10s grace period)
-            is_recent = False
-            if track_time_tracker.state == "playing" and track_time_tracker.last_resume_time:
-                if time.time() - track_time_tracker.last_resume_time < 10.0:
-                    is_recent = True
-
-            if not is_recent:
+            # If no active Plex session is returned by PMS (e.g. Plexamp app closed, asleep, or network drop),
+            # DO NOT wipe now_playing or stop the queue! Auto-pause the local tracker to preserve track position.
+            if track_time_tracker.is_playing:
+                logger.info("No active Plexamp session detected. Auto-pausing local tracker to preserve track position.")
+                track_time_tracker.pause()
                 cached_track = get_cached_data("now_playing")
-                if cached_track or track_time_tracker.state != "stopped":
-                    logger.info("No active Plexamp session found. Resynced to stopped.")
-                    track_time_tracker.stop()
-                    clear_cache("now_playing")
-                    playback_active = False
-                    await send_current_playing()
+                if isinstance(cached_track, dict):
+                    cached_track["track_state"] = "paused"
+                    cache_data("now_playing", cached_track)
+                await send_current_playing()
 
     except Exception:
         logger.exception("Failed to execute Plexamp resync")
@@ -983,6 +1056,7 @@ def pause_playback():
             logger.debug("Could not resolve active player for pause_playback: %s", p_ex)
 
         if player:
+            success = False
             if new_state == "paused":
                 for cmd in [
                     lambda: player.pause(mtype="music"),
@@ -992,6 +1066,7 @@ def pause_playback():
                 ]:
                     try:
                         cmd()
+                        success = True
                         break
                     except Exception:
                         pass
@@ -1002,9 +1077,32 @@ def pause_playback():
                 ]:
                     try:
                         cmd()
+                        success = True
                         break
                     except Exception:
                         pass
+            if not success:
+                invalidate_cached_player()
+                # Auto-rediscover player & retry play/pause command immediately (1st click fix)
+                try:
+                    fresh_player = get_active_player()
+                    if fresh_player:
+                        if new_state == "paused":
+                            for cmd in [lambda: fresh_player.pause(mtype="music"), lambda: fresh_player.pause()]:
+                                try:
+                                    cmd()
+                                    break
+                                except Exception:
+                                    pass
+                        else:
+                            for cmd in [lambda: fresh_player.play(mtype="music"), lambda: fresh_player.play()]:
+                                try:
+                                    cmd()
+                                    break
+                                except Exception:
+                                    pass
+                except Exception as retry_ex:
+                    logger.warning("Retry player discovery in pause_playback failed: %s", retry_ex)
 
         if new_state == "paused":
             playback_active = False

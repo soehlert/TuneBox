@@ -235,9 +235,17 @@ async def websocket_handler(websocket: WebSocket):
     header_user_agent = websocket.headers.get("user-agent", "")
 
     # Wait for the first message from the client to get the type
-    message = await websocket.receive_text()
-    logger.debug("websocket_handler: Received message: %s", message)
-    data = json.loads(message)
+    try:
+        message = await websocket.receive_text()
+        logger.debug("websocket_handler: Received message: %s", message)
+        data = json.loads(message)
+    except (WebSocketDisconnect, Exception) as handshake_ex:
+        logger.warning("WebSocket initial handshake failed: %s", handshake_ex)
+        try:
+            await websocket.close()
+        except Exception:
+            pass
+        return
 
     # Extract the 'type' field to determine how to store the WebSocket connection
     message_type = data.get("type")
@@ -279,8 +287,8 @@ async def websocket_handler(websocket: WebSocket):
     # Send initial state update immediately to the new client
     try:
         if message_type == "music_control":
-            from backend.services.plex import check_plexamp_resync  # noqa: PLC0415
-            await check_plexamp_resync(force_align=True)
+            from backend.services.plex import debounced_plexamp_resync  # noqa: PLC0415
+            await debounced_plexamp_resync(force_align=True)
             await send_current_playing()
             status = get_skip_vote_status()
             await websocket.send_text(json.dumps({"type": "skip_vote_update", "status": status}))

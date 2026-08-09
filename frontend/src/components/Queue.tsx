@@ -251,11 +251,25 @@ const QueueComponent = () => {
 
     connectWebSocket();
 
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) {
+          console.log("Tab became visible, reconnecting Queue WS...");
+          connectWebSocket();
+        } else {
+          socketRef.current.send(JSON.stringify({ type: "queue_update", message: "get_current_queue" }));
+        }
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
+      if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
       if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
         socketRef.current.close();
-        clearInterval(pingIntervalRef.current as number);
-        clearTimeout(pongTimeoutRef.current as number);
       }
     };
   }, [wsHost]);

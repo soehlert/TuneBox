@@ -33,8 +33,9 @@ const MusicControlsComponent = ({
     message: '',
   });
   const socketRef = useRef<WebSocket | null>(null);
-  const timerRef = useRef<any>(null);
   const transitionTimeoutRef = useRef<number | null>(null);
+  const pingIntervalRef = useRef<number | null>(null);
+  const pongTimeoutRef = useRef<number | null>(null);
 
   const clearTransitionTimer = () => {
     if (transitionTimeoutRef.current) {
@@ -117,6 +118,11 @@ const MusicControlsComponent = ({
               setSkipVotes(0);
               setSkipTotal(data.status ? data.status.total : 0);
               setHasVoted(false);
+            } else if (data.message === "pong") {
+              if (pongTimeoutRef.current) {
+                clearTimeout(pongTimeoutRef.current);
+                pongTimeoutRef.current = null;
+              }
             }
           } catch (error) {
             console.error("Error parsing WebSocket message:", error);
@@ -129,20 +135,46 @@ const MusicControlsComponent = ({
 
         socketRef.current.onclose = () => {
           console.log("WebSocket closed in MusicControlsComponent");
-          setTimeout(connectWebSocket, 5000);
+          if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
+          if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
+          socketRef.current = null;
+          setTimeout(connectWebSocket, 3000);
         };
+
+        pingIntervalRef.current = window.setInterval(() => {
+          if (socketRef.current?.readyState === WebSocket.OPEN) {
+            socketRef.current.send(JSON.stringify({ type: "heartbeat", message: "ping" }));
+            pongTimeoutRef.current = window.setTimeout(() => {
+              console.warn("MusicControls WS ping timeout, closing and reconnecting");
+              socketRef.current?.close();
+            }, 4000);
+          }
+        }, 10000);
       }
     };
 
     connectWebSocket();
 
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) {
+          console.log("Tab became visible, reconnecting MusicControls WS...");
+          connectWebSocket();
+        } else {
+          socketRef.current.send(JSON.stringify({ type: "music_control", message: "get_current_track" }));
+        }
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
     return () => {
       clearTransitionTimer();
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      if (pingIntervalRef.current) clearInterval(pingIntervalRef.current);
+      if (pongTimeoutRef.current) clearTimeout(pongTimeoutRef.current);
       if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
         socketRef.current.close();
-        if (timerRef.current) {
-          clearInterval(timerRef.current);
-        }
       }
     };
   }, []);
