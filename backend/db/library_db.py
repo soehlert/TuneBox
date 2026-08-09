@@ -12,14 +12,35 @@ DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "library.db")
 def get_db_connection(db_path: str | None = None) -> sqlite3.Connection:
     """Connect to SQLite database with WAL mode enabled for high concurrency."""
     target_path = db_path or DB_PATH
-    conn = sqlite3.connect(target_path, timeout=30.0)
-    conn.row_factory = sqlite3.Row
     try:
+        conn = sqlite3.connect(target_path, timeout=30.0)
+        conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA journal_mode=WAL;")
         conn.execute("PRAGMA foreign_keys=ON;")
-    except Exception as ex:
-        logger.warning("Failed to set PRAGMA modes on SQLite connection: %s", ex)
-    return conn
+        return conn
+    except (sqlite3.DatabaseError, sqlite3.OperationalError) as ex:
+        if "malformed" in str(ex).lower() or "disk image" in str(ex).lower():
+            logger.warning("Corrupted SQLite database detected at %s (%s). Recreating clean database...", target_path, ex)
+            try:
+                if os.path.exists(target_path):
+                    os.remove(target_path)
+                wal_file = f"{target_path}-wal"
+                shm_file = f"{target_path}-shm"
+                if os.path.exists(wal_file):
+                    os.remove(wal_file)
+                if os.path.exists(shm_file):
+                    os.remove(shm_file)
+            except Exception as rm_ex:
+                logger.warning("Could not remove corrupted database files: %s", rm_ex)
+
+            conn = sqlite3.connect(target_path, timeout=30.0)
+            conn.row_factory = sqlite3.Row
+            conn.execute("PRAGMA journal_mode=WAL;")
+            conn.execute("PRAGMA foreign_keys=ON;")
+            init_library_db(db_path=target_path)
+            return conn
+        else:
+            raise ex
 
 
 def init_library_db(db_path: str | None = None):

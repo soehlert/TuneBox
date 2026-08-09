@@ -229,14 +229,18 @@ def log_playback_event_db(track_id: int | str, username: str = "Admin", db_path:
         conn.close()
 
 
-def clean_library_deduplication(db_path: str | None = None) -> dict[str, int]:
-    """Consolidate duplicate artists and albums caused by norm_name variations in SQLite database."""
-    conn = get_db_connection(db_path)
-    removed_artists = 0
-    removed_albums = 0
+def clean_library_deduplication(db_path: str | None = None) -> dict:
+    """Consolidate duplicate artists and albums into primary entries to clean unified library view."""
     try:
+        conn = get_db_connection(db_path)
         cursor = conn.cursor()
+        removed_artists = 0
+        removed_albums = 0
+    except Exception as ex:
+        logger.warning("Database error opening SQLite connection for deduplication: %s", ex)
+        return {"removed_artists": 0, "removed_albums": 0}
 
+    try:
         # Helper to rank thumbs (real Plex metadata paths first, then http, then mock /api/ strings)
         def _thumb_rank(thumb_val: str | None) -> int:
             if not thumb_val:
