@@ -1806,6 +1806,7 @@ function App() {
   }, [searchTerm]);
 
   const refreshLibraryData = useCallback(async () => {
+    window.dispatchEvent(new CustomEvent("tunebox_refresh_albums"));
     if (!isConfigured) return;
     setLoadingArtists(true);
     try {
@@ -1944,6 +1945,7 @@ function App() {
             setIndexingStatus(null);
           } else if (data.type === "indexing_status") {
             console.log("Received indexing_status WS push:", data);
+            window.dispatchEvent(new CustomEvent("tunebox_refresh_albums"));
             const isInd = Boolean(data.is_indexing);
             const isInit = Boolean(data.is_initial);
             const sName = data.server_name || "Plex";
@@ -2397,7 +2399,7 @@ function App() {
                   <span>
                     {indexingStatus.message
                       ? indexingStatus.message
-                      : <>Indexing server <strong>{indexingStatus.serverName}</strong>... Songs and artwork are populating dynamically.</>}
+                      : <>Indexing server <strong>{indexingStatus.serverName}</strong>...</>}
                   </span>
                 </div>
               )}

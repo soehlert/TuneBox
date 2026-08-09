@@ -52,9 +52,8 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
     is_initial = (server_track_count == 0)
 
     try:
-        if is_initial:
-            from backend.websockets import broadcast_indexing_status_threadsafe  # noqa: PLC0415
-            broadcast_indexing_status_threadsafe(is_indexing=True, is_initial=True, server_name=s_name)
+        from backend.websockets import broadcast_indexing_status_threadsafe  # noqa: PLC0415
+        broadcast_indexing_status_threadsafe(is_indexing=True, is_initial=is_initial, server_name=s_name, message=f"Indexing artists on {s_name}...")
     except Exception as ws_ex:
         logger.debug("Could not send indexing status start: %s", ws_ex)
 
@@ -118,7 +117,7 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
 
                 try:
                     from backend.websockets import broadcast_indexing_status_threadsafe  # noqa: PLC0415
-                    broadcast_indexing_status_threadsafe(is_indexing=True, is_initial=is_initial, server_name=s_name, message=f"Indexing artists on {s_name}...")
+                    broadcast_indexing_status_threadsafe(is_indexing=True, is_initial=is_initial, server_name=s_name, message=f"Indexing artists on {s_name}")
                 except Exception:
                     pass
 
@@ -159,7 +158,7 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
 
                 try:
                     from backend.websockets import broadcast_indexing_status_threadsafe  # noqa: PLC0415
-                    broadcast_indexing_status_threadsafe(is_indexing=True, is_initial=is_initial, server_name=s_name, message=f"Indexing albums on {s_name}...")
+                    broadcast_indexing_status_threadsafe(is_indexing=True, is_initial=is_initial, server_name=s_name, message=f"Indexing albums on {s_name}")
                 except Exception:
                     pass
 
@@ -214,7 +213,7 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
 
                 try:
                     from backend.websockets import broadcast_indexing_status_threadsafe  # noqa: PLC0415
-                    broadcast_indexing_status_threadsafe(is_indexing=True, is_initial=is_initial, server_name=s_name, message=f"Indexing tracks on {s_name}...")
+                    broadcast_indexing_status_threadsafe(is_indexing=True, is_initial=is_initial, server_name=s_name, message=f"Indexing tracks on {s_name}")
                 except Exception:
                     pass
 

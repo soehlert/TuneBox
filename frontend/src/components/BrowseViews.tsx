@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useRef } from "react";
+import React, { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, Typography, Button } from "@mui/material";
 import axios from "axios";
@@ -74,13 +74,20 @@ export const AlbumsGridView: React.FC<{
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const navigate = useNavigate();
 
-  useEffect(() => {
+  const fetchAlbums = useCallback(() => {
     axios
       .get(`${apiBase}/api/music/all-albums`)
       .then((res) => setAlbums(res.data))
       .catch((err) => console.error("Error fetching all albums:", err))
       .finally(() => setLoading(false));
   }, [apiBase]);
+
+  useEffect(() => {
+    fetchAlbums();
+    const handleRefresh = () => fetchAlbums();
+    window.addEventListener("tunebox_refresh_albums", handleRefresh);
+    return () => window.removeEventListener("tunebox_refresh_albums", handleRefresh);
+  }, [fetchAlbums]);
 
   const sortedAlbums = useMemo(() => {
     return [...albums].sort((a, b) => {

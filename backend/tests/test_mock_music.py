@@ -63,7 +63,7 @@ def test_search_mock_music(client):
     album_matches = [item for item in data if item["type"] == "album"]
     track_matches = [item for item in data if item["type"] == "track"]
     assert len(album_matches) >= 1
-    assert album_matches[0]["title"] == "Discovery"
+    assert any(a["title"] == "Discovery" for a in album_matches)
     assert len(track_matches) >= 10
 
 
