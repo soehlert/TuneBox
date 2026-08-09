@@ -269,18 +269,14 @@ def sync_all_servers(db_path: str | None = None, force_full: bool = False):
             except Exception as ex:
                 logger.warning("Error indexing server %s: %s", s.get("name"), ex)
 
-        # 2. Index remaining servers in background threadpool
+        # 2. Index remaining servers sequentially to prevent SQLite database lock contention
         if remaining_batch:
-            logger.info("Indexing %d remaining server(s) in background...", len(remaining_batch))
-            with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(remaining_batch), 4)) as executor:
-                futures = [executor.submit(index_server, s, db_path, force_full) for s in remaining_batch]
-                done, _ = concurrent.futures.wait(futures, timeout=60.0)
-                for f in done:
-                    try:
-                        f.result()
-                    except Exception as ex:
-                        logger.warning("Error in background server sync thread: %s", ex)
+            logger.info("Indexing %d remaining server(s) sequentially...", len(remaining_batch))
+            for s in remaining_batch:
+                try:
+                    logger.info("Indexing server '%s'...", s.get("name"))
+                    index_server(s, db_path, force_full)
+                except Exception as ex:
+                    logger.warning("Error indexing server %s: %s", s.get("name"), ex)
     except Exception as ex:
-        logger.warning("Falling back to mock library seeding due to sync error: %s", ex)
-        from backend.services.mock_data import seed_mock_library_db
-        seed_mock_library_db(db_path)
+        logger.warning("Error in sync_all_servers: %s", ex)
