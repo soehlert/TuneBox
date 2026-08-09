@@ -159,7 +159,7 @@ current_indexing_status: dict = {
 }
 
 
-async def send_indexing_status(is_indexing: bool, is_initial: bool, server_name: str, items_indexed: int = 0, message: str | None = None):
+async def send_indexing_status(is_indexing: bool, is_initial: bool, server_name: str, items_indexed: int = 0, message: str | None = None, is_error: bool = False):
     """Send library indexing status to all connected clients."""
     global current_indexing_status
     current_indexing_status = {
@@ -169,8 +169,9 @@ async def send_indexing_status(is_indexing: bool, is_initial: bool, server_name:
         "server_name": server_name,
         "items_indexed": items_indexed,
         "message": message,
+        "is_error": is_error,
     }
-    logger.info("Broadcasting indexing status: is_indexing=%s, is_initial=%s, server=%s, msg=%s", is_indexing, is_initial, server_name, message)
+    logger.info("Broadcasting indexing status: is_indexing=%s, is_initial=%s, server=%s, msg=%s, is_error=%s", is_indexing, is_initial, server_name, message, is_error)
     all_connections = []
     for category in active_connections.values():
         all_connections.extend(category.values())
@@ -183,7 +184,7 @@ async def send_indexing_status(is_indexing: bool, is_initial: bool, server_name:
             logger.debug("Failed to send indexing status to connection %s: %s", ws, e)
 
 
-def broadcast_indexing_status_threadsafe(is_indexing: bool, is_initial: bool, server_name: str, items_indexed: int = 0, message: str | None = None):
+def broadcast_indexing_status_threadsafe(is_indexing: bool, is_initial: bool, server_name: str, items_indexed: int = 0, message: str | None = None, is_error: bool = False):
     """Thread-safe helper to send indexing status from background threads to main loop WebSocket clients."""
     global main_loop
     if not main_loop:
@@ -194,12 +195,12 @@ def broadcast_indexing_status_threadsafe(is_indexing: bool, is_initial: bool, se
 
     if main_loop and main_loop.is_running():
         asyncio.run_coroutine_threadsafe(
-            send_indexing_status(is_indexing, is_initial, server_name, items_indexed, message),
+            send_indexing_status(is_indexing, is_initial, server_name, items_indexed, message, is_error),
             main_loop,
         )
     else:
         try:
-            asyncio.run(send_indexing_status(is_indexing, is_initial, server_name, items_indexed, message))
+            asyncio.run(send_indexing_status(is_indexing, is_initial, server_name, items_indexed, message, is_error))
         except Exception as ex:
             logger.debug("Failed threadsafe broadcast: %s", ex)
 

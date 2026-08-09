@@ -1724,7 +1724,7 @@ function App() {
   const [accessibleServers, setAccessibleServers] = useState<any[]>([]);
   const [showServerModal, setShowServerModal] = useState(false);
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
-  const [indexingStatus, setIndexingStatus] = useState<{ isIndexing: boolean; isInitial: boolean; serverName: string; message?: string | null } | null>(null);
+  const [indexingStatus, setIndexingStatus] = useState<{ isIndexing: boolean; isInitial: boolean; serverName: string; message?: string | null; isError?: boolean } | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Clear search query when clear_search parameter is present
@@ -1948,14 +1948,16 @@ function App() {
             const isInit = Boolean(data.is_initial);
             const sName = data.server_name || "Plex";
             const msg = data.message || null;
+            const isErr = Boolean(data.is_error);
             setIndexingStatus({
               isIndexing: isInd,
               isInitial: isInit,
               serverName: sName,
               message: msg,
+              isError: isErr,
             });
             if (!isInd) {
-              setTimeout(() => setIndexingStatus(null), msg ? 6000 : 3000);
+              setTimeout(() => setIndexingStatus(null), isErr ? 6000 : 3000);
             }
           } else if (data.message === "pong") {
             window.clearTimeout(pongTimeout);
@@ -2369,10 +2371,12 @@ function App() {
               {indexingStatus && (
                 <div
                   style={{
-                    background: indexingStatus.message
+                    background: indexingStatus.isError
                       ? "linear-gradient(90deg, #d32f2f 0%, #b71c1c 100%)"
                       : "linear-gradient(90deg, #1e3c72 0%, #2a5298 100%)",
-                    borderBottom: "1px solid rgba(100, 200, 255, 0.4)",
+                    borderBottom: indexingStatus.isError
+                      ? "1px solid rgba(255, 100, 100, 0.4)"
+                      : "1px solid rgba(100, 200, 255, 0.4)",
                     color: "#ffffff",
                     padding: "12px 20px",
                     display: "flex",
@@ -2387,8 +2391,8 @@ function App() {
                     zIndex: 10,
                   }}
                 >
-                  <span className={`material-symbols-outlined ${indexingStatus.isIndexing ? "spin-animation" : ""}`} style={{ fontSize: "20px", color: indexingStatus.message ? "#ffcdd2" : "#64c8ff" }}>
-                    {indexingStatus.isIndexing ? "sync" : "info"}
+                  <span className={`material-symbols-outlined ${indexingStatus.isIndexing ? "spin-animation" : ""}`} style={{ fontSize: "20px", color: indexingStatus.isError ? "#ffcdd2" : "#64c8ff" }}>
+                    {indexingStatus.isIndexing ? "sync" : indexingStatus.isError ? "warning" : "check_circle"}
                   </span>
                   <span>
                     {indexingStatus.message
