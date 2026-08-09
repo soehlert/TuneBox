@@ -165,7 +165,7 @@ def test_fetch_art_track_fallback(mock_get_target_conn):
         mock_resp.ok = True
         mock_req_get.return_value = mock_resp
 
-        res = fetch_art(123, "track", server_id="server-abc")
+        res = fetch_art(999999, "track", server_id="server-abc")
         assert res is not None
         mock_req_get.assert_called_once()
         assert "http://localhost:32400/library/metadata/10/thumb" in mock_req_get.call_args[0][0]

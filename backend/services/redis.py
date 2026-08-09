@@ -246,8 +246,41 @@ def ensure_queue_synced_with_now_playing(song_data: dict):
             for item in q_items:
                 client.rpush("playback_queue", json.dumps(item))
 
+        # Update 30-minute sliding idle TTL based on track_state (paused vs playing)
+        state_val = song_data.get("track_state", "playing") if isinstance(song_data, dict) else "playing"
+        update_queue_idle_ttl(state_val)
+
     except Exception as ex:
         logger.warning("Failed to sync queue with now_playing: %s", ex)
+
+
+IDLE_QUEUE_EXPIRATION_SECONDS = 1800  # 30 minutes
+
+
+def update_queue_idle_ttl(track_state: str, idle_seconds: int = IDLE_QUEUE_EXPIRATION_SECONDS):
+    """Manage 30-minute idle TTL on Redis queue and now_playing keys.
+
+    - When track_state is 'playing': Remove expiration so queue persists indefinitely during active music.
+    - When track_state is 'paused' or 'stopped': Apply a 30-minute sliding TTL so stale queues expire cleanly.
+    """
+    try:
+        q_client = get_redis_queue_client()
+        c_client = get_redis_cache_client()
+
+        if track_state == "playing":
+            if hasattr(q_client, "persist"):
+                q_client.persist("playback_queue")
+            if hasattr(c_client, "persist"):
+                c_client.persist("now_playing")
+            logger.debug("Active music playing: persisted Redis queue and now_playing keys.")
+        else:
+            if hasattr(q_client, "expire"):
+                q_client.expire("playback_queue", idle_seconds)
+            if hasattr(c_client, "expire"):
+                c_client.expire("now_playing", idle_seconds)
+            logger.info("Music state '%s': set 30-minute sliding idle TTL on Redis queue and now_playing.", track_state)
+    except Exception as ex:
+        logger.warning("Error updating queue idle TTL: %s", ex)
 
 
 def move_to_top_redis_queue(from_index: int):
@@ -264,6 +297,8 @@ def cache_data(key, data, ttl: int = CACHE_TTL):
     try:
         get_redis_cache_client().setex(key, ttl, json.dumps(data))
         logger.info("Cached data under key: %s (TTL: %d)", key, ttl)
+        if key == "now_playing" and isinstance(data, dict):
+            update_queue_idle_ttl(data.get("track_state", "playing"))
     except Exception as e:
         logger.warning("Redis cache write error for key %s: %s", key, e)
 
