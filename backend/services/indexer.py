@@ -122,32 +122,58 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
                     pass
 
                 logger.info("Bulk fetching artists for section '%s' on server %s...", getattr(music_lib, "title", "Music"), s_name)
-                artists = music_lib.all(libtype="artist")
                 artist_map: dict[str, int] = {}  # ratingKey -> artist_db_id
                 artist_name_map: dict[str, str] = {}  # ratingKey -> artist_name
 
-                # Perform fast DB transaction for artists
+                json_artists = fetch_section_json_batched(plex, music_lib, item_type=8)
                 conn = get_db_connection(db_path)
                 try:
-                    for artist in artists:
-                        try:
-                            guid_val = getattr(artist, "guid", None) or getattr(artist, "ratingKey", "")
-                            a_db_id = upsert_artist(
-                                name=artist.title,
-                                guid=str(guid_val),
-                                thumb=getattr(artist, "thumb", None),
-                                play_count=getattr(artist, "viewCount", 0) or 0,
-                                server_id=s_id,
-                                server_artist_id=str(artist.ratingKey),
-                                db_path=db_path,
-                                conn=conn,
-                            )
-                            r_key = str(artist.ratingKey)
-                            artist_map[r_key] = a_db_id
-                            artist_name_map[r_key] = artist.title
-                        except Exception as a_ex:
-                            logger.debug("Failed to upsert artist %s: %s", getattr(artist, "title", "Unknown"), a_ex)
-                    conn.commit()
+                    if json_artists is not None:
+                        logger.info("Fetched %d artists via fast JSON batching for %s.", len(json_artists), s_name)
+                        for idx, art in enumerate(json_artists):
+                            try:
+                                a_db_id = upsert_artist(
+                                    name=art.get("title") or "Unknown Artist",
+                                    guid=str(art.get("guid") or art.get("ratingKey")),
+                                    thumb=art.get("thumb"),
+                                    play_count=int(art.get("viewCount", 0) or 0),
+                                    server_id=s_id,
+                                    server_artist_id=str(art.get("ratingKey")),
+                                    db_path=db_path,
+                                    conn=conn,
+                                )
+                                r_key = str(art.get("ratingKey"))
+                                artist_map[r_key] = a_db_id
+                                artist_name_map[r_key] = art.get("title") or "Unknown Artist"
+                                if idx > 0 and idx % 500 == 0:
+                                    conn.commit()
+                            except Exception as a_ex:
+                                logger.debug("Failed to upsert JSON artist %s: %s", art.get("title"), a_ex)
+                        conn.commit()
+                    else:
+                        logger.info("Fallback: fetching artists via plexapi for section '%s' on %s...", getattr(music_lib, "title", "Music"), s_name)
+                        artists = music_lib.all(libtype="artist")
+                        for idx, artist in enumerate(artists):
+                            try:
+                                guid_val = getattr(artist, "guid", None) or getattr(artist, "ratingKey", "")
+                                a_db_id = upsert_artist(
+                                    name=artist.title,
+                                    guid=str(guid_val),
+                                    thumb=getattr(artist, "thumb", None),
+                                    play_count=getattr(artist, "viewCount", 0) or 0,
+                                    server_id=s_id,
+                                    server_artist_id=str(artist.ratingKey),
+                                    db_path=db_path,
+                                    conn=conn,
+                                )
+                                r_key = str(artist.ratingKey)
+                                artist_map[r_key] = a_db_id
+                                artist_name_map[r_key] = artist.title
+                                if idx > 0 and idx % 500 == 0:
+                                    conn.commit()
+                            except Exception as a_ex:
+                                logger.debug("Failed to upsert artist %s: %s", getattr(artist, "title", "Unknown"), a_ex)
+                        conn.commit()
                 finally:
                     conn.close()
                 logger.info("Bulk upserted %d artists for server %s.", len(artist_map), s_name)
@@ -158,51 +184,86 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
 
                 try:
                     from backend.websockets import broadcast_indexing_status_threadsafe  # noqa: PLC0415
-                    broadcast_indexing_status_threadsafe(is_indexing=True, is_initial=is_initial, server_name=s_name, message=f"Indexing albums on {s_name}")
+                    broadcast_indexing_status_threadsafe(is_indexing=True, is_initial=is_initial, server_name=s_name, message=f"Indexing albums on {s_name}...")
                 except Exception:
                     pass
 
                 logger.info("Bulk fetching albums for section '%s' on server %s...", getattr(music_lib, "title", "Music"), s_name)
-                albums = music_lib.all(libtype="album")
                 album_map: dict[str, int] = {}  # album ratingKey -> album_db_id
 
-                # Perform fast DB transaction for albums
+                json_albums = fetch_section_json_batched(plex, music_lib, item_type=9)
                 conn = get_db_connection(db_path)
                 try:
-                    for album in albums:
-                        try:
-                            year_val = getattr(album, "year", None)
-                            if not year_val and getattr(album, "originallyAvailableAt", None):
-                                try:
-                                    year_val = album.originallyAvailableAt.year
-                                except Exception:
-                                    pass
+                    if json_albums is not None:
+                        logger.info("Fetched %d albums via fast JSON batching for %s.", len(json_albums), s_name)
+                        for idx, alb in enumerate(json_albums):
+                            try:
+                                year_val = alb.get("year")
+                                genre_list = alb.get("Genre", [])
+                                genre_val = genre_list[0].get("tag") if genre_list and isinstance(genre_list, list) and isinstance(genre_list[0], dict) else "Uncategorized"
+                                p_key = str(alb.get("parentRatingKey", ""))
+                                a_db_id = artist_map.get(p_key)
+                                a_name = alb.get("parentTitle") or artist_name_map.get(p_key, "Unknown Artist")
 
-                            genre_tags = [g.tag for g in getattr(album, "genres", []) if hasattr(g, "tag")]
-                            genre_val = genre_tags[0] if genre_tags else "Uncategorized"
+                                alb_db_id = upsert_album(
+                                    title=alb.get("title") or "Unknown Album",
+                                    artist_name=a_name,
+                                    artist_id=a_db_id,
+                                    year=year_val,
+                                    genre=genre_val,
+                                    thumb=alb.get("thumb"),
+                                    play_count=int(alb.get("viewCount", 0) or 0),
+                                    guid=str(alb.get("guid") or alb.get("ratingKey")),
+                                    server_id=s_id,
+                                    server_album_id=str(alb.get("ratingKey")),
+                                    db_path=db_path,
+                                    conn=conn,
+                                )
+                                album_map[str(alb.get("ratingKey"))] = alb_db_id
+                                if idx > 0 and idx % 500 == 0:
+                                    conn.commit()
+                            except Exception as alb_ex:
+                                logger.debug("Failed to upsert JSON album %s: %s", alb.get("title"), alb_ex)
+                        conn.commit()
+                    else:
+                        logger.info("Fallback: fetching albums via plexapi for section '%s' on %s...", getattr(music_lib, "title", "Music"), s_name)
+                        albums = music_lib.all(libtype="album")
+                        for idx, album in enumerate(albums):
+                            try:
+                                year_val = getattr(album, "year", None)
+                                if not year_val and getattr(album, "originallyAvailableAt", None):
+                                    try:
+                                        year_val = album.originallyAvailableAt.year
+                                    except Exception:
+                                        pass
 
-                            p_key = str(getattr(album, "parentRatingKey", ""))
-                            a_db_id = artist_map.get(p_key)
-                            a_name = getattr(album, "parentTitle", None) or artist_name_map.get(p_key, "Unknown Artist")
+                                genre_tags = [g.tag for g in getattr(album, "genres", []) if hasattr(g, "tag")]
+                                genre_val = genre_tags[0] if genre_tags else "Uncategorized"
 
-                            alb_db_id = upsert_album(
-                                title=album.title,
-                                artist_name=a_name,
-                                artist_id=a_db_id,
-                                year=year_val,
-                                genre=genre_val,
-                                thumb=getattr(album, "thumb", None),
-                                play_count=getattr(album, "viewCount", 0) or 0,
-                                guid=str(getattr(album, "guid", None) or album.ratingKey),
-                                server_id=s_id,
-                                server_album_id=str(album.ratingKey),
-                                db_path=db_path,
-                                conn=conn,
-                            )
-                            album_map[str(album.ratingKey)] = alb_db_id
-                        except Exception as alb_ex:
-                            logger.debug("Failed to upsert album %s: %s", getattr(album, "title", "Unknown"), alb_ex)
-                    conn.commit()
+                                p_key = str(getattr(album, "parentRatingKey", ""))
+                                a_db_id = artist_map.get(p_key)
+                                a_name = getattr(album, "parentTitle", None) or artist_name_map.get(p_key, "Unknown Artist")
+
+                                alb_db_id = upsert_album(
+                                    title=album.title,
+                                    artist_name=a_name,
+                                    artist_id=a_db_id,
+                                    year=year_val,
+                                    genre=genre_val,
+                                    thumb=getattr(album, "thumb", None),
+                                    play_count=getattr(album, "viewCount", 0) or 0,
+                                    guid=str(getattr(album, "guid", None) or album.ratingKey),
+                                    server_id=s_id,
+                                    server_album_id=str(album.ratingKey),
+                                    db_path=db_path,
+                                    conn=conn,
+                                )
+                                album_map[str(album.ratingKey)] = alb_db_id
+                                if idx > 0 and idx % 500 == 0:
+                                    conn.commit()
+                            except Exception as alb_ex:
+                                logger.debug("Failed to upsert album %s: %s", getattr(album, "title", "Unknown"), alb_ex)
+                        conn.commit()
                 finally:
                     conn.close()
                 logger.info("Bulk upserted %d albums for server %s.", len(album_map), s_name)
