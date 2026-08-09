@@ -217,11 +217,6 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
 
 def sync_all_servers(db_path: str | None = None, force_full: bool = False):
     """Sync and perform incremental diff index across all accessible enabled Plex servers."""
-    if settings.testing:
-        from backend.services.mock_data import seed_mock_library_db
-        seed_mock_library_db(db_path)
-        return
-
     try:
         from backend.services.plex import fetch_accessible_plex_servers, get_enabled_server_ids
 
