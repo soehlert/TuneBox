@@ -441,11 +441,16 @@ async def update_libraries(
     req: LibrariesToggleRequest,
     x_admin_token: str | None = Header(None),
 ):
-    """Toggle enabled servers for the unified catalog."""
+    """Toggle enabled servers for the unified catalog and trigger indexing."""
     if not settings.admin_token or x_admin_token != settings.admin_token:
         raise HTTPException(status_code=401, detail="Unauthorized: Invalid admin token")
-    from backend.services.plex import set_enabled_server_ids
+    from backend.services.plex import set_enabled_server_ids  # noqa: PLC0415
     set_enabled_server_ids(req.enabled_server_ids)
+
+    # Trigger background indexing for newly enabled servers
+    from backend.services.indexer import sync_all_servers  # noqa: PLC0415
+    asyncio.create_task(asyncio.to_thread(sync_all_servers))
+
     return {"message": "Enabled libraries updated successfully", "enabled_server_ids": req.enabled_server_ids}
 
     return {"message": "Settings successfully updated!"}

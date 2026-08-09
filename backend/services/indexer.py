@@ -29,16 +29,21 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
 
     from backend.services.plex import get_target_plex_connection, is_music_library_section, milliseconds_to_seconds
 
-    # Check if this is an initial library index (0 artists in SQLite)
+    # Check if this server is being indexed for the first time (0 tracks for this server or 0 total artists)
     is_initial = False
     try:
         from backend.db.library_db import get_db_connection  # noqa: PLC0415
         conn = get_db_connection(db_path)
         cursor = conn.cursor()
-        cursor.execute("SELECT COUNT(*) FROM artists;")
-        artist_count = cursor.fetchone()[0]
+        cursor.execute("SELECT COUNT(*) FROM tracks WHERE server_id = ?;", (s_id,))
+        server_track_count = cursor.fetchone()[0]
+        if server_track_count == 0:
+            is_initial = True
+        else:
+            cursor.execute("SELECT COUNT(*) FROM artists;")
+            artist_count = cursor.fetchone()[0]
+            is_initial = (artist_count == 0)
         conn.close()
-        is_initial = (artist_count == 0)
     except Exception:
         pass
 
