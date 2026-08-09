@@ -268,27 +268,6 @@ def clean_library_deduplication(db_path: str | None = None) -> dict:
                 return 2
             return 1
 
-        # 0. Disable mock server priority if real Plex servers exist and are enabled
-        from backend.config import settings  # noqa: PLC0415
-        if not settings.testing:
-            real_server = cursor.execute("SELECT server_id FROM servers WHERE enabled = 1 AND server_id NOT LIKE 'mock%' LIMIT 1").fetchone()
-            if real_server:
-                cursor.execute("UPDATE servers SET enabled = 0, is_primary = 0 WHERE server_id LIKE 'mock%'")
-                cursor.execute(
-                    """
-                    DELETE FROM artist_sources
-                    WHERE server_id LIKE 'mock%'
-                      AND artist_id IN (SELECT artist_id FROM artist_sources WHERE server_id NOT LIKE 'mock%')
-                    """
-                )
-                cursor.execute(
-                    """
-                    DELETE FROM album_sources
-                    WHERE server_id LIKE 'mock%'
-                      AND album_id IN (SELECT album_id FROM album_sources WHERE server_id NOT LIKE 'mock%')
-                    """
-                )
-
         # 1. Consolidate Artists
         artists = cursor.execute("SELECT artist_id, name, norm_name, thumb, play_count FROM artists ORDER BY artist_id ASC").fetchall()
         norm_artist_groups: dict[str, list[dict]] = {}
@@ -451,22 +430,13 @@ def get_indexed_artists(sort_mode: str = "name_asc", db_path: str | None = None)
             ORDER BY {order_clause}
         """
         cursor = conn.execute(query)
-        res = [dict(r) for r in cursor.fetchall()]
-        if not res and settings.testing and conn.execute("SELECT COUNT(*) FROM servers;").fetchone()[0] == 0:
-            conn.execute("UPDATE servers SET enabled = 1 WHERE server_id LIKE 'mock%'")
-            conn.commit()
-            from backend.services.mock_data import seed_mock_library_db  # noqa: PLC0415
-            seed_mock_library_db(db_path)
-            cursor = conn.execute(query)
-            res = [dict(r) for r in cursor.fetchall()]
-        return res
+        return [dict(r) for r in cursor.fetchall()]
     finally:
         conn.close()
 
 
 def get_indexed_albums(sort_mode: str = "name_asc", db_path: str | None = None) -> list[dict]:
     """Fetch all unique albums linked to currently enabled servers."""
-    from backend.config import settings  # noqa: PLC0415
     conn = get_db_connection(db_path)
     try:
         order_clause = "alb.play_count DESC, alb.title COLLATE NOCASE ASC" if sort_mode == "plays_desc" else (
@@ -482,15 +452,7 @@ def get_indexed_albums(sort_mode: str = "name_asc", db_path: str | None = None) 
             ORDER BY {order_clause}
         """
         cursor = conn.execute(query)
-        res = [dict(r) for r in cursor.fetchall()]
-        if not res and settings.testing and conn.execute("SELECT COUNT(*) FROM servers;").fetchone()[0] == 0:
-            conn.execute("UPDATE servers SET enabled = 1 WHERE server_id LIKE 'mock%'")
-            conn.commit()
-            from backend.services.mock_data import seed_mock_library_db  # noqa: PLC0415
-            seed_mock_library_db(db_path)
-            cursor = conn.execute(query)
-            res = [dict(r) for r in cursor.fetchall()]
-        return res
+        return [dict(r) for r in cursor.fetchall()]
     finally:
         conn.close()
 

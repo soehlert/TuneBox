@@ -2365,10 +2365,7 @@ def get_enabled_server_ids() -> list[str]:
     try:
         from backend.services.library import get_db_connection  # noqa: PLC0415
         conn = get_db_connection()
-        if not settings.testing:
-            cursor = conn.execute("SELECT server_id FROM servers WHERE enabled = 1 AND server_id NOT LIKE 'mock%'")
-        else:
-            cursor = conn.execute("SELECT server_id FROM servers WHERE enabled = 1")
+        cursor = conn.execute("SELECT server_id FROM servers WHERE enabled = 1")
         rows = cursor.fetchall()
         conn.close()
         if rows:
