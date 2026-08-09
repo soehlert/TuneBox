@@ -3,7 +3,7 @@
 import asyncio
 import logging
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, Response, Header
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Request, Response, Header
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from plexapi.exceptions import PlexApiException
@@ -581,6 +581,42 @@ def get_indexing_status():
         raise HTTPException(
             status_code=500, detail=f"Error fetching indexing status: {e}"
         ) from e
+
+
+@router.post("/reindex")
+def trigger_reindex(server_id: str | None = Query(None)):
+    """Clear negative connection caches and trigger re-indexing for a specific server or all enabled servers."""
+    try:
+        from backend.services.plex import _failed_connection_cache  # noqa: PLC0415
+        _failed_connection_cache.clear()
+    except Exception:
+        pass
+
+    try:
+        from backend.services.library import _ART_SOURCE_MEM_CACHE  # noqa: PLC0415
+        _ART_SOURCE_MEM_CACHE.clear()
+    except Exception:
+        pass
+
+    def _bg_reindex():
+        try:
+            from backend.services.indexer import index_server, sync_all_servers  # noqa: PLC0415
+            from backend.services.plex import fetch_accessible_plex_servers  # noqa: PLC0415
+            if server_id:
+                servers = fetch_accessible_plex_servers()
+                srv = next((s for s in servers if s.get("server_id") == server_id or str(s.get("name")).lower() == str(server_id).lower()), None)
+                if srv:
+                    index_server(srv, force_full=True)
+                else:
+                    sync_all_servers(force_full=True)
+            else:
+                sync_all_servers(force_full=True)
+        except Exception as ex:
+            logger.exception("Error in background reindex task: %s", ex)
+
+    import threading
+    threading.Thread(target=_bg_reindex, daemon=True).start()
+    return {"status": "ok", "message": "Re-indexing started in background."}
 
 
 @router.get("/unified-search")
