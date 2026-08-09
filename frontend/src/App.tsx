@@ -1765,6 +1765,8 @@ function App() {
             isIndexing: Boolean(res.data.is_indexing),
             isInitial: Boolean(res.data.is_initial),
             serverName: res.data.server_name || "Plex",
+            message: res.data.message || null,
+            isError: Boolean(res.data.is_error),
           });
         }
       })
