@@ -2129,14 +2129,6 @@ def fetch_art(item_id: int, item_type: str, server_id: str | None = None):
         for stored_thumb, db_server_id, rating_key in all_sources:
             try:
                 target_server_id = db_server_id or server_id
-                if target_server_id:
-                    from backend.services.library import get_db_connection
-                    conn = get_db_connection()
-                    srv_row = conn.execute("SELECT enabled FROM servers WHERE LOWER(server_id) = ?", (str(target_server_id).lower(),)).fetchone()
-                    conn.close()
-                    if srv_row and srv_row[0] == 0:
-                        logger.debug("Skipping art fetch for disabled server %s", target_server_id)
-                        continue
                 if rating_key and str(rating_key).isdigit():
                     target_item_id = int(rating_key)
                 elif str(item_id).isdigit():
