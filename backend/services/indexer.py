@@ -228,7 +228,7 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
 
 def sync_all_servers(db_path: str | None = None, force_full: bool = False):
     """Sync and perform incremental diff index across all accessible enabled Plex servers."""
-    if not _sync_lock.acquire(blocking=False):
+    if not _sync_lock.acquire(blocking=True, timeout=10):
         logger.info("Library index sync is already in progress. Skipping redundant concurrent request.")
         return
 
