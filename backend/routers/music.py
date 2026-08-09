@@ -578,6 +578,18 @@ def get_accessible_servers():
         ) from e
 
 
+@router.get("/indexing-status")
+def get_indexing_status():
+    """Fetch live library indexing status."""
+    try:
+        from backend.websockets import current_indexing_status  # noqa: PLC0415
+        return current_indexing_status
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error fetching indexing status: {e}"
+        ) from e
+
+
 @router.get("/unified-search")
 async def unified_search_endpoint(query: str, server_ids: str | None = None):
     """Search for music instantly in local SQLite library database."""

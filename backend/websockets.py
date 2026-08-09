@@ -150,11 +150,19 @@ async def send_current_playing():
 
 
 main_loop: asyncio.AbstractEventLoop | None = None
+current_indexing_status: dict = {
+    "type": "indexing_status",
+    "is_indexing": False,
+    "is_initial": False,
+    "server_name": "",
+    "items_indexed": 0,
+}
 
 
 async def send_indexing_status(is_indexing: bool, is_initial: bool, server_name: str, items_indexed: int = 0):
     """Send library indexing status to all connected clients."""
-    message = {
+    global current_indexing_status
+    current_indexing_status = {
         "type": "indexing_status",
         "is_indexing": is_indexing,
         "is_initial": is_initial,
@@ -168,7 +176,7 @@ async def send_indexing_status(is_indexing: bool, is_initial: bool, server_name:
 
     for session_id in list(all_sessions):
         try:
-            await send_to_specific_client(session_id, message, "indexing_status")
+            await send_to_specific_client(session_id, current_indexing_status, "indexing_status")
         except Exception as e:
             logger.debug("Failed to send indexing status to session %s: %s", session_id, e)
 
@@ -331,6 +339,8 @@ async def websocket_handler(websocket: WebSocket):
 
     # Send initial state update immediately to the new client
     try:
+        if current_indexing_status.get("is_indexing"):
+            await send_to_specific_client(session_id, current_indexing_status, message_type)
         if message_type == "music_control":
             from backend.services.plex import debounced_plexamp_resync  # noqa: PLC0415
             await debounced_plexamp_resync(force_align=True)

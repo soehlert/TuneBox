@@ -1767,7 +1767,7 @@ function App() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // Fetch accessible Plex servers
+  // Fetch accessible Plex servers & active indexing status
   useEffect(() => {
     if (!isConfigured) return;
     axios
@@ -1778,6 +1778,19 @@ function App() {
         }
       })
       .catch((err) => console.error("Error fetching servers:", err));
+
+    axios
+      .get(getApiUrl("/api/music/indexing-status"))
+      .then((res) => {
+        if (res.data && res.data.is_indexing) {
+          setIndexingStatus({
+            isIndexing: Boolean(res.data.is_indexing),
+            isInitial: Boolean(res.data.is_initial),
+            serverName: res.data.server_name || "Plex",
+          });
+        }
+      })
+      .catch((err) => console.error("Error fetching indexing status:", err));
   }, [isConfigured]);
 
   // Debouncing hook logic
