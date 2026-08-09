@@ -22,6 +22,9 @@ async def lifespan(app: FastAPI):
     """Manage application startup and shutdown lifecycle."""
     from backend.services.plex import playback_orchestrator  # noqa: PLC0415
 
+    import backend.websockets  # noqa: PLC0415
+    backend.websockets.main_loop = asyncio.get_running_loop()
+
     # Start background tasks
     ws_task = asyncio.create_task(update_websocket_clients())
     orch_task = asyncio.create_task(playback_orchestrator())

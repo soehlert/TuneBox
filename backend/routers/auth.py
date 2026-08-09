@@ -447,13 +447,35 @@ async def update_libraries(
     from backend.services.plex import set_enabled_server_ids  # noqa: PLC0415
     set_enabled_server_ids(req.enabled_server_ids)
 
+    # Emit indexing status start for newly enabled servers right from the main event loop
+    try:
+        from backend.services.plex import fetch_accessible_plex_servers  # noqa: PLC0415
+        from backend.db.library_db import get_db_connection  # noqa: PLC0415
+        from backend.websockets import send_indexing_status  # noqa: PLC0415
+
+        all_servers = fetch_accessible_plex_servers()
+        enabled_set = {str(x).lower() for x in req.enabled_server_ids}
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        for s in all_servers:
+            s_id = s.get("server_id")
+            s_name = s.get("name", "Plex")
+            if s_id and str(s_id).lower() in enabled_set:
+                cursor.execute("SELECT COUNT(*) FROM tracks WHERE server_id = ?;", (s_id,))
+                count = cursor.fetchone()[0]
+                if count == 0:
+                    await send_indexing_status(is_indexing=True, is_initial=True, server_name=s_name)
+        conn.close()
+    except Exception as ex:
+        logger.debug("Failed emitting instant indexing status start: %s", ex)
+
     # Trigger background indexing for newly enabled servers
     from backend.services.indexer import sync_all_servers  # noqa: PLC0415
     asyncio.create_task(asyncio.to_thread(sync_all_servers))
 
     return {"message": "Enabled libraries updated successfully", "enabled_server_ids": req.enabled_server_ids}
-
-    return {"message": "Settings successfully updated!"}
 
 
 @router.get("/verify-username")

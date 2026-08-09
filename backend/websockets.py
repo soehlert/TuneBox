@@ -149,6 +149,9 @@ async def send_current_playing():
             active_connections["music_control"].pop(session_id, None)
 
 
+main_loop: asyncio.AbstractEventLoop | None = None
+
+
 async def send_indexing_status(is_indexing: bool, is_initial: bool, server_name: str, items_indexed: int = 0):
     """Send library indexing status to all connected clients."""
     message = {
@@ -168,6 +171,27 @@ async def send_indexing_status(is_indexing: bool, is_initial: bool, server_name:
             await send_to_specific_client(session_id, message, "indexing_status")
         except Exception as e:
             logger.debug("Failed to send indexing status to session %s: %s", session_id, e)
+
+
+def broadcast_indexing_status_threadsafe(is_indexing: bool, is_initial: bool, server_name: str, items_indexed: int = 0):
+    """Thread-safe helper to send indexing status from background threads to main loop WebSocket clients."""
+    global main_loop
+    if not main_loop:
+        try:
+            main_loop = asyncio.get_running_loop()
+        except RuntimeError:
+            pass
+
+    if main_loop and main_loop.is_running():
+        asyncio.run_coroutine_threadsafe(
+            send_indexing_status(is_indexing, is_initial, server_name, items_indexed),
+            main_loop,
+        )
+    else:
+        try:
+            asyncio.run(send_indexing_status(is_indexing, is_initial, server_name, items_indexed))
+        except Exception as ex:
+            logger.debug("Failed threadsafe broadcast: %s", ex)
 
 
 async def update_websocket_clients():

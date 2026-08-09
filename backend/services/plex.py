@@ -109,24 +109,20 @@ def invalidate_cached_player():
 
 
 def reinitialize_plex():
-    """Clear cached connection and force connection reload."""
-    global _cached_active_player, _cached_active_player_name, playback_active
+    """Clear cached connection and force connection reload without destroying active playback or queue."""
+    global _cached_active_player, _cached_active_player_name
     get_myplex_account.cache_clear()
     get_plex_connection.cache_clear()
     _cached_active_player = None
     _cached_active_player_name = None
-    playback_active = False
     try:
-        from backend.services.redis import clear_cache, clear_redis_queue
-        track_time_tracker.stop()
-        clear_redis_queue()
+        from backend.services.redis import clear_cache
         clear_cache("artists")
         clear_cache("all_artists")
-        clear_cache("now_playing")
-        clear_cache("queue")
+        clear_cache("accessible_plex_servers")
     except Exception as e:
         logger.debug("Failed to purge Redis cache on reinitialize: %s", e)
-    logger.info("Plex connection cache, playback state, and Redis keys cleared for reinitialization.")
+    logger.info("Plex connection cache cleared for reinitialization.")
 
 
 def pre_warm_all_caches():
