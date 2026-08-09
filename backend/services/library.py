@@ -763,10 +763,23 @@ def get_all_art_sources(item_id: int | str, item_type: str, db_path: str | None 
         conn.close()
 
 
+_ART_SOURCE_MEM_CACHE: dict[str, tuple[str | None, str | None, str | None]] = {}
+_ART_SOURCE_MEM_CACHE_MAX_SIZE = 5000
+
+
 def get_art_source_info(item_id: int | str, item_type: str, db_path: str | None = None) -> tuple[str | None, str | None, str | None]:
     """Resolve stored thumb URL, server_id, and Plex server ratingKey from SQLite for a given SQLite item_id or ratingKey."""
+    cache_key = f"{item_type}:{item_id}"
+    if cache_key in _ART_SOURCE_MEM_CACHE:
+        return _ART_SOURCE_MEM_CACHE[cache_key]
+
     sources = get_all_art_sources(item_id, item_type, db_path=db_path)
-    return sources[0] if sources else (None, None, None)
+    res = sources[0] if sources else (None, None, None)
+
+    if len(_ART_SOURCE_MEM_CACHE) >= _ART_SOURCE_MEM_CACHE_MAX_SIZE:
+        _ART_SOURCE_MEM_CACHE.clear()
+    _ART_SOURCE_MEM_CACHE[cache_key] = res
+    return res
 
 
 def get_albums_for_artist_db(artist_id: int | str, db_path: str | None = None) -> list[dict]:
@@ -809,11 +822,11 @@ def get_tracks_for_album_db(album_id: int | str, db_path: str | None = None) -> 
     try:
         cursor = conn.execute(
             """
-            SELECT alb.album_id, alb.artist_id, alb.title, alb.artist_name, alb.thumb, srv.name as server_name, src.server_id
+            SELECT alb.album_id, alb.artist_id, alb.title, alb.artist_name, alb.thumb, srv.name as server_name, src.server_id, srv.enabled
             FROM albums alb
             LEFT JOIN album_sources src ON alb.album_id = src.album_id
             LEFT JOIN servers srv ON src.server_id = srv.server_id
-            WHERE alb.album_id = ? OR src.server_album_id = ?
+            WHERE (alb.album_id = ? OR src.server_album_id = ?) AND (srv.enabled = 1 OR srv.enabled IS NULL)
             ORDER BY COALESCE(srv.is_primary, 0) DESC
             """,
             (album_id, str(album_id)),
@@ -824,7 +837,7 @@ def get_tracks_for_album_db(album_id: int | str, db_path: str | None = None) -> 
 
         alb_row = alb_rows[0]
         resolved_album_id = alb_row["album_id"]
-        server_sources = [{"server_id": r["server_id"], "server_name": r["server_name"]} for r in alb_rows if r["server_id"]]
+        server_sources = [{"server_id": r["server_id"], "server_name": r["server_name"]} for r in alb_rows if r["server_id"] and r["server_name"]]
 
         cursor = conn.execute(
             """
