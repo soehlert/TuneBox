@@ -444,21 +444,18 @@ def fetch_section_json_batched(plex_conn, music_lib, item_type: int = 10, batch_
 
 
 def _prewarm_art_in_background(server_id: str, artist_ids: list[int], album_ids: list[int]):
-    """Pre-warm top artist and album thumbnails into Redis in a low-priority background thread."""
+    """Pre-warm artist and album thumbnails into Redis in a parallel background thread pool."""
     def _worker():
         try:
             from backend.services.plex import fetch_art_bytes
-            logger.info("Pre-warming %d artist and %d album thumbnails into Redis for server %s...", min(len(artist_ids), 100), min(len(album_ids), 200), server_id)
-            for a_id in artist_ids[:100]:
-                try:
-                    fetch_art_bytes(a_id, "artist", server_id=server_id)
-                except Exception:
-                    pass
-            for alb_id in album_ids[:200]:
-                try:
-                    fetch_art_bytes(alb_id, "album", server_id=server_id)
-                except Exception:
-                    pass
+            logger.info("Pre-warming %d artist and %d album thumbnails into Redis for server %s...", len(artist_ids), len(album_ids), server_id)
+            
+            with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
+                for a_id in artist_ids:
+                    executor.submit(fetch_art_bytes, a_id, "artist", server_id)
+                for alb_id in album_ids:
+                    executor.submit(fetch_art_bytes, alb_id, "album", server_id)
+                    
             logger.info("Artwork pre-warming complete for server %s.", server_id)
         except Exception as ex:
             logger.debug("Art prewarming error for server %s: %s", server_id, ex)

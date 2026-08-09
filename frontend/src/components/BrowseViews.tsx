@@ -264,7 +264,14 @@ export const AlbumsGridView: React.FC<{
         {sortedAlbums.map((alb) => {
           const targetChar = scrollTargetLetter?.letter?.toUpperCase();
           const firstChar = alb.title ? alb.title.trim()[0].toUpperCase() : "";
-          const isTarget = Boolean(targetChar && (targetChar === "0-9" ? /^\d/.test(firstChar) : firstChar === targetChar));
+          const firstArtistChar = alb.artist ? alb.artist.trim()[0].toUpperCase() : "";
+          const isTarget = Boolean(
+            targetChar && (
+              targetChar === "0-9"
+                ? (/^\d/.test(firstChar) || /^\d/.test(firstArtistChar))
+                : (firstChar === targetChar || firstArtistChar === targetChar)
+            )
+          );
           return (
             <Card
               key={alb.album_id}
