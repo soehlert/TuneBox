@@ -135,7 +135,7 @@ def pre_warm_all_caches():
         if settings.plex_token:
             logger.info("Background warming Plex resources cache...")
             from backend.routers.auth import fetch_and_cache_resources
-            fetch_and_cache_resources(refresh=True)
+            fetch_and_cache_resources(refresh=False)
 
         # 2. Sync SQLite library index for enabled servers
         logger.info("Background syncing SQLite library index for enabled servers...")
@@ -2408,19 +2408,15 @@ def set_enabled_server_ids(server_ids: list[str]):
         logger.warning("Failed to save enabled_server_ids: %s", e)
 
     try:
-        from backend.services.library import get_db_connection
-        conn = get_db_connection()
-        try:
-            enabled_set = {str(s).lower() for s in server_ids}
-            cursor = conn.execute("SELECT server_id, name FROM servers")
-            for row in cursor.fetchall():
-                s_id = row["server_id"]
-                s_name = row["name"]
-                is_enabled = s_id.lower() in enabled_set or s_name.lower() in enabled_set
-                conn.execute("UPDATE servers SET enabled = ? WHERE server_id = ?", (1 if is_enabled else 0, s_id))
-            conn.commit()
-        finally:
-            conn.close()
+        from backend.services.library import upsert_server
+        enabled_set = {str(s).lower() for s in server_ids}
+        all_accessible = fetch_accessible_plex_servers()
+        for s in all_accessible:
+            s_id = s.get("server_id")
+            s_name = s.get("name", "Plex")
+            if s_id:
+                is_enabled = str(s_id).lower() in enabled_set or str(s_name).lower() in enabled_set
+                upsert_server(s_id, s_name, server_url=s.get("server_url"), is_primary=s.get("is_primary", False), enabled=is_enabled)
     except Exception as sq_ex:
         logger.warning("Failed to sync server enabled status to SQLite: %s", sq_ex)
 
