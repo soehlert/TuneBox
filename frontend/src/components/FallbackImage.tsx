@@ -4,6 +4,8 @@ interface FallbackImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   src: string;
   alt: string;
   type?: 'artist' | 'album' | 'track';
+  fetchPriority?: 'high' | 'low' | 'auto';
+  loading?: 'eager' | 'lazy';
 }
 
 export const FallbackImage = ({
@@ -12,6 +14,8 @@ export const FallbackImage = ({
   type = 'album',
   className = '',
   style,
+  loading = 'lazy',
+  fetchPriority = 'auto',
   ...props
 }: FallbackImageProps) => {
   const [error, setError] = useState(false);
@@ -45,7 +49,8 @@ export const FallbackImage = ({
     <img
       src={src}
       alt={alt}
-      loading="lazy"
+      loading={loading}
+      fetchPriority={fetchPriority}
       decoding="async"
       className={className}
       style={style}

@@ -268,10 +268,39 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
             broadcast_indexing_status_threadsafe(is_indexing=False, is_initial=is_initial, server_name=s_name, items_indexed=items_indexed, message=f"Indexing complete for {s_name}!")
         except Exception as ws_ex:
             logger.debug("Could not send indexing status complete: %s", ws_ex)
+
+        # Pre-warm top thumbnails into Redis in background
+        if artist_map or album_map:
+            _prewarm_art_in_background(s_id, list(artist_map.values()), list(album_map.values()))
+
         return items_indexed
     except Exception as ex:
         logger.exception("Error indexing server %s: %s", s_name, ex)
         return 0
+
+
+def _prewarm_art_in_background(server_id: str, artist_ids: list[int], album_ids: list[int]):
+    """Pre-warm top artist and album thumbnails into Redis in a low-priority background thread."""
+    def _worker():
+        try:
+            from backend.services.plex import fetch_art_bytes
+            logger.info("Pre-warming %d artist and %d album thumbnails into Redis for server %s...", min(len(artist_ids), 100), min(len(album_ids), 200), server_id)
+            for a_id in artist_ids[:100]:
+                try:
+                    fetch_art_bytes(a_id, "artist", server_id=server_id)
+                except Exception:
+                    pass
+            for alb_id in album_ids[:200]:
+                try:
+                    fetch_art_bytes(alb_id, "album", server_id=server_id)
+                except Exception:
+                    pass
+            logger.info("Artwork pre-warming complete for server %s.", server_id)
+        except Exception as ex:
+            logger.debug("Art prewarming error for server %s: %s", server_id, ex)
+
+    import threading
+    threading.Thread(target=_worker, daemon=True).start()
 
 
 def sync_all_servers(db_path: str | None = None, force_full: bool = False):

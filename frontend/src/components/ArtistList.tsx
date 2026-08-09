@@ -625,7 +625,11 @@ function ArtistList({
         <div style={{ display: "flex", flexDirection: "column", gap: "20px", width: "100%" }}>
           {/* Artist grid */}
           <div className="artist-grid">
-            {currentArtists.map((artist) => (
+            {currentArtists.map((artist: any) => {
+            const targetChar = scrollTargetLetter?.letter?.toUpperCase();
+            const firstChar = artist.name ? artist.name.trim()[0].toUpperCase() : "";
+            const isTarget = Boolean(targetChar && (targetChar === "0-9" ? /^\d/.test(firstChar) : firstChar === targetChar));
+            return (
               <Card
                 className="artist-card"
                 key={artist.artist_id}
@@ -636,6 +640,8 @@ function ArtistList({
                   src={`${apiBase}/api/music/artist-image/${artist.artist_id}`}
                   alt={artist.name}
                   type="artist"
+                  loading={isTarget ? "eager" : "lazy"}
+                  fetchPriority={isTarget ? "high" : "auto"}
                   className="artist-photo"
                 />
                 <div className="artist-card-overlay">
@@ -659,7 +665,8 @@ function ArtistList({
                   )}
                 </div>
               </Card>
-            ))}
+            );
+          })}
           </div>
         </div>
       )}

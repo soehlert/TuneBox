@@ -261,31 +261,37 @@ export const AlbumsGridView: React.FC<{
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "20px", width: "100%" }}>
-        {sortedAlbums.map((alb) => (
-        <Card
-          key={alb.album_id}
-          id={`album-${alb.album_id}`}
-          onClick={() => navigate(`/albums/${alb.album_id}/tracks${alb.server_id ? `?server_id=${alb.server_id}` : ""}`)}
-          style={{
-            background: "rgba(255, 255, 255, 0.03)",
-            border: "1px solid rgba(255, 255, 255, 0.08)",
-            borderRadius: "16px",
-            padding: "12px",
-            cursor: "pointer",
-            transition: "transform 0.2s ease, border-color 0.2s ease",
-            display: "flex",
-            flexDirection: "column",
-            gap: "10px",
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.borderColor = "rgba(0, 119, 182, 0.6)")}
-          onMouseLeave={(e) => (e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.08)")}
-        >
-          <FallbackImage
-            src={`${apiBase}/api/music/album-art/${alb.album_id}${alb.server_id ? `?server_id=${alb.server_id}` : ""}`}
-            alt={alb.title}
-            type="album"
-            style={{ width: "100%", aspectRatio: "1/1", borderRadius: "12px", objectFit: "cover" }}
-          />
+        {sortedAlbums.map((alb) => {
+          const targetChar = scrollTargetLetter?.letter?.toUpperCase();
+          const firstChar = alb.title ? alb.title.trim()[0].toUpperCase() : "";
+          const isTarget = Boolean(targetChar && (targetChar === "0-9" ? /^\d/.test(firstChar) : firstChar === targetChar));
+          return (
+            <Card
+              key={alb.album_id}
+              id={`album-${alb.album_id}`}
+              onClick={() => navigate(`/albums/${alb.album_id}/tracks${alb.server_id ? `?server_id=${alb.server_id}` : ""}`)}
+              style={{
+                background: "rgba(255, 255, 255, 0.03)",
+                border: "1px solid rgba(255, 255, 255, 0.08)",
+                borderRadius: "16px",
+                padding: "12px",
+                cursor: "pointer",
+                transition: "transform 0.2s ease, border-color 0.2s ease",
+                display: "flex",
+                flexDirection: "column",
+                gap: "10px",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.borderColor = "rgba(0, 119, 182, 0.6)")}
+              onMouseLeave={(e) => (e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.08)")}
+            >
+              <FallbackImage
+                src={`${apiBase}/api/music/album-art/${alb.album_id}${alb.server_id ? `?server_id=${alb.server_id}` : ""}`}
+                alt={alb.title}
+                type="album"
+                loading={isTarget ? "eager" : "lazy"}
+                fetchPriority={isTarget ? "high" : "auto"}
+                style={{ width: "100%", aspectRatio: "1/1", borderRadius: "12px", objectFit: "cover" }}
+              />
           <div>
             <Typography style={{ color: "#fff", fontWeight: 700, fontSize: "14px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {alb.title}
@@ -311,7 +317,8 @@ export const AlbumsGridView: React.FC<{
             + Add Album
           </Button>
         </Card>
-      ))}
+      );
+    })}
       </div>
     </div>
   );
