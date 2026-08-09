@@ -279,7 +279,7 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
                     pass
 
                 logger.info("Bulk fetching tracks for section '%s' on server %s...", getattr(music_lib, "title", "Music"), s_name)
-                json_tracks = fetch_tracks_json_batched(plex, music_lib)
+                json_tracks = fetch_section_json_batched(plex, music_lib, item_type=10)
                 conn = get_db_connection(db_path)
                 try:
                     if json_tracks is not None:
@@ -391,8 +391,8 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
         return 0
 
 
-def fetch_tracks_json_batched(plex_conn, music_lib, batch_size: int = 5000) -> list[dict] | None:
-    """Fetch all tracks for a music section using fast paginated JSON requests (5,000 items per batch)."""
+def fetch_section_json_batched(plex_conn, music_lib, item_type: int = 10, batch_size: int = 5000) -> list[dict] | None:
+    """Fetch all items from a music section using fast paginated JSON requests (5,000 items per batch)."""
     try:
         import json
         import urllib.request
@@ -413,7 +413,7 @@ def fetch_tracks_json_batched(plex_conn, music_lib, batch_size: int = 5000) -> l
         start = 0
 
         while True:
-            url = f"{server_url}/library/sections/{sec_key}/all?type=10&X-Plex-Token={token}&X-Plex-Container-Start={start}&X-Plex-Container-Size={batch_size}"
+            url = f"{server_url}/library/sections/{sec_key}/all?type={item_type}&X-Plex-Token={token}&X-Plex-Container-Start={start}&X-Plex-Container-Size={batch_size}"
             req = urllib.request.Request(url, headers={"Accept": "application/json"})
             with urllib.request.urlopen(req, timeout=30, context=ctx) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
@@ -427,7 +427,7 @@ def fetch_tracks_json_batched(plex_conn, music_lib, batch_size: int = 5000) -> l
                     break
         return all_items
     except Exception as ex:
-        logger.debug("Fast JSON track batching failed, falling back to plexapi: %s", ex)
+        logger.debug("Fast JSON batching failed for type %d, falling back to plexapi: %s", item_type, ex)
         return None
 
 
