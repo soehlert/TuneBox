@@ -43,6 +43,9 @@ _SERVER_CREDENTIALS_CACHE: dict[str, tuple[str, str]] = {}
 track_time_tracker = TrackTimeTracker()
 # Declare the global variable to manage playback state
 playback_active = False
+# Sentinel: title of the track the orchestrator just finished with an empty queue.
+# Prevents check_plexamp_resync from restarting it after Plex is slow to transition.
+_queue_finished_track: str | None = None
 _cached_active_player = None
 _cached_active_player_name = None
 
@@ -555,7 +558,7 @@ async def playback_orchestrator():
     2. Broadcasts Now Playing WebSocket events (elapsed time increments) every second.
     3. Runs a low-frequency resync check (every HEARTBEAT_INTERVAL seconds) against Plexamp.
     """
-    global playback_active
+    global playback_active, _queue_finished_track
     logger.info("Playback orchestrator background task started.")
 
     tick_count = 0
@@ -648,6 +651,17 @@ async def playback_orchestrator():
                             # Remove finished track
                             remove_from_redis_queue(cached_track["item_id"])
 
+                            # If the queue is now empty (and autoplay is off), set the
+                            # sentinel so resync doesn't bounce the progress bar back.
+                            remaining_queue = get_redis_queue()
+                            if not remaining_queue and not is_autoplay_enabled():
+                                _queue_finished_track = cached_track["title"]
+                                logger.info(
+                                    "Queue exhausted after '%s'. Sentinel set to prevent resync bounce.",
+                                    cached_track["title"],
+                                )
+                                await asyncio.to_thread(stop_playback)
+
                             from backend.websockets import (
                                 send_current_playing,
                                 send_queue,
@@ -672,7 +686,7 @@ async def playback_orchestrator():
 
 async def check_plexamp_resync(force_align: bool = False):
     """Align local playback state and timer with actual Plexamp sessions to catch drift and manual interactions."""
-    global playback_active
+    global playback_active, _queue_finished_track
 
     # In testing mode there is no real Plex connection, so skip the resync entirely.
     if settings.testing:
@@ -784,6 +798,26 @@ async def check_plexamp_resync(force_align: bool = False):
                 if getattr(active_session, "viewOffset", None)
                 else 0
             )
+
+            # Guard: if this session is the track we just finished with an empty queue,
+            # Plex hasn't transitioned yet — stop it rather than restarting our tracker.
+            if _queue_finished_track and session_title == _queue_finished_track:
+                logger.info(
+                    "Resync found finished track '%s' still active on Plex. Stopping playback.",
+                    session_title,
+                )
+                _queue_finished_track = None
+                try:
+                    await asyncio.to_thread(stop_playback)
+                except Exception as stop_ex:  # noqa: BLE001
+                    logger.debug("stop_playback during resync guard failed: %s", stop_ex)
+                await send_current_playing()
+                return
+
+            # Clear the sentinel whenever a genuinely different track is active
+            if _queue_finished_track and session_title != _queue_finished_track:
+                logger.debug("Clearing finished-track sentinel (new track '%s' detected).", session_title)
+                _queue_finished_track = None
 
             # 1. Check if track changed (manual skip/change on Plexamp)
             cached_track = get_cached_data("now_playing")
