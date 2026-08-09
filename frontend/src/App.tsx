@@ -317,9 +317,10 @@ interface SettingsModalProps {
   onClose: () => void;
   instanceName: string;
   setInstanceName: (val: string) => void;
+  onServerToggled?: () => void;
 }
 
-function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: SettingsModalProps) {
+function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onServerToggled }: SettingsModalProps) {
   const [plexUsername, setPlexUsername] = useState("");
   const [localInstanceName, setLocalInstanceName] = useState(instanceName);
   const [selectedServer, setSelectedServer] = useState("");
@@ -615,6 +616,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
 
       setIsFormDirty(false);
       setMsg("✓ Settings saved!");
+      onServerToggled?.();
     } catch {
       setMsg("✗ Failed to save settings.");
     } finally {
@@ -1803,49 +1805,43 @@ function App() {
     return () => clearTimeout(handler);
   }, [searchTerm]);
 
-  useEffect(() => {
-    // Only fetch if configured
+  const refreshLibraryData = useCallback(async () => {
     if (!isConfigured) return;
+    setLoadingArtists(true);
+    try {
+      const searchURL = getApiUrl(`/api/music/unified-search?query=${encodeURIComponent(debouncedSearchTerm)}`);
+      const artistListURL = getApiUrl("/api/music/artists");
+      const endpoint = debouncedSearchTerm ? searchURL : artistListURL;
 
-    const fetchArtists = async () => {
-      setLoadingArtists(true);
-      try {
-        const searchURL = getApiUrl(`/api/music/unified-search?query=${encodeURIComponent(debouncedSearchTerm)}`);
-        const artistListURL = getApiUrl("/api/music/artists");
-        const endpoint = debouncedSearchTerm ? searchURL : artistListURL;
+      const response = await axios.get(endpoint);
+      let data = response.data;
 
-        const response = await axios.get(endpoint);
-        let data = response.data;
-
-        if (debouncedSearchTerm) {
-          setSearchResults(data);
-        } else {
-          // Only keep artists (exclude albums, tracks, etc.)
-          data = data.filter((item: any) => item.name);
-
-          // Sort the fetched data alphabetically by artist name
-          const sortedArtists = data.sort((a: any, b: any) =>
-            a.name && b.name ? a.name.localeCompare(b.name) : -1
-          );
-
-          setArtists(sortedArtists);
-          setFilteredArtists(sortedArtists);
-          setSearchResults([]);
-        }
-      } catch (error) {
-        console.error("Error fetching data:", error);
-      } finally {
-        setLoadingArtists(false);
+      if (debouncedSearchTerm) {
+        setSearchResults(data);
+      } else {
+        data = data.filter((item: any) => item.name);
+        const sortedArtists = data.sort((a: any, b: any) =>
+          a.name && b.name ? a.name.localeCompare(b.name) : -1
+        );
+        setArtists(sortedArtists);
+        setFilteredArtists(sortedArtists);
+        setSearchResults([]);
       }
-    };
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setLoadingArtists(false);
+    }
+  }, [isConfigured, debouncedSearchTerm]);
 
+  useEffect(() => {
     if (debouncedSearchTerm === "" || debouncedSearchTerm) {
-      fetchArtists();
+      refreshLibraryData();
     } else {
       setLoadingArtists(false);
       setArtists([]);
     }
-  }, [debouncedSearchTerm, isConfigured, viewMode]);
+  }, [debouncedSearchTerm, isConfigured, viewMode, refreshLibraryData]);
 
 
 
@@ -1942,6 +1938,9 @@ function App() {
             console.log("Received unset_display_mode WS push!");
             localStorage.removeItem("tunebox_display");
             setIsDisplay(false);
+          } else if (data.type === "server_settings_updated") {
+            console.log("Received server_settings_updated WS push. Re-fetching library content...");
+            refreshLibraryData();
           } else if (data.type === "indexing_status") {
             console.log("Received indexing_status WS push:", data);
             const isInd = Boolean(data.is_indexing);
@@ -2535,7 +2534,15 @@ function App() {
 
           {/* Settings Modal */}
           {showSettings && (
-            <SettingsModal adminToken={adminToken} onClose={() => setShowSettings(false)} instanceName={instanceName} setInstanceName={setInstanceName} />
+            <SettingsModal
+              adminToken={adminToken}
+              onClose={() => setShowSettings(false)}
+              instanceName={instanceName}
+              setInstanceName={setInstanceName}
+              onServerToggled={() => {
+                refreshLibraryData();
+              }}
+            />
           )}
 
           {/* Guest Registration Modal — only for non-admin, non-display devices without a profile */}

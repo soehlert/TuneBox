@@ -475,6 +475,13 @@ async def update_libraries(
     from backend.services.indexer import sync_all_servers  # noqa: PLC0415
     asyncio.create_task(asyncio.to_thread(sync_all_servers))
 
+    # Broadcast WebSocket event to all connected UI clients to trigger live dynamic library re-fetch
+    try:
+        from backend.websockets import broadcast_json_threadsafe  # noqa: PLC0415
+        broadcast_json_threadsafe({"type": "server_settings_updated", "enabled_server_ids": req.enabled_server_ids})
+    except Exception as ws_ex:
+        logger.debug("Failed sending server_settings_updated WS broadcast: %s", ws_ex)
+
     return {"message": "Enabled libraries updated successfully", "enabled_server_ids": req.enabled_server_ids}
 
 

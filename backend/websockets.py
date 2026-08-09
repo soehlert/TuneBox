@@ -203,6 +203,38 @@ def broadcast_indexing_status_threadsafe(is_indexing: bool, is_initial: bool, se
             logger.debug("Failed threadsafe broadcast: %s", ex)
 
 
+async def send_json_to_all(data: dict):
+    """Send JSON payload to all active WebSocket clients."""
+    all_connections = []
+    for category in active_connections.values():
+        all_connections.extend(category.values())
+
+    payload = json.dumps(data)
+    for ws in set(all_connections):
+        try:
+            await ws.send_text(payload)
+        except Exception as e:
+            logger.debug("Failed to send WS message: %s", e)
+
+
+def broadcast_json_threadsafe(data: dict):
+    """Thread-safe helper to broadcast arbitrary JSON to main loop WebSocket clients."""
+    global main_loop
+    if not main_loop:
+        try:
+            main_loop = asyncio.get_running_loop()
+        except RuntimeError:
+            pass
+
+    if main_loop and main_loop.is_running():
+        asyncio.run_coroutine_threadsafe(send_json_to_all(data), main_loop)
+    else:
+        try:
+            asyncio.run(send_json_to_all(data))
+        except Exception as ex:
+            logger.debug("Failed threadsafe json broadcast: %s", ex)
+
+
 async def update_websocket_clients():
     """Periodically send updates to all connected WebSocket clients."""
     while True:
