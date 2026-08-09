@@ -100,7 +100,13 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
 
         for music_lib in music_libs:
             try:
-                # 1. Bulk fetch all artists for section over network (NO DB lock open)
+                # 1. Bulk fetch all artists for section over network
+                try:
+                    from backend.websockets import broadcast_indexing_status_threadsafe  # noqa: PLC0415
+                    broadcast_indexing_status_threadsafe(is_indexing=True, is_initial=is_initial, server_name=s_name, message=f"Indexing artists on {s_name}...")
+                except Exception:
+                    pass
+
                 logger.info("Bulk fetching artists for section '%s' on server %s...", getattr(music_lib, "title", "Music"), s_name)
                 artists = music_lib.all(libtype="artist")
                 artist_map: dict[str, int] = {}  # ratingKey -> artist_db_id
@@ -132,7 +138,13 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
                     conn.close()
                 logger.info("Bulk upserted %d artists for server %s.", len(artist_map), s_name)
 
-                # 2. Bulk fetch all albums for section over network (NO DB lock open)
+                # 2. Bulk fetch all albums for section over network
+                try:
+                    from backend.websockets import broadcast_indexing_status_threadsafe  # noqa: PLC0415
+                    broadcast_indexing_status_threadsafe(is_indexing=True, is_initial=is_initial, server_name=s_name, message=f"Indexing albums on {s_name}...")
+                except Exception:
+                    pass
+
                 logger.info("Bulk fetching albums for section '%s' on server %s...", getattr(music_lib, "title", "Music"), s_name)
                 albums = music_lib.all(libtype="album")
                 album_map: dict[str, int] = {}  # album ratingKey -> album_db_id
@@ -178,7 +190,13 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
                     conn.close()
                 logger.info("Bulk upserted %d albums for server %s.", len(album_map), s_name)
 
-                # 3. Bulk fetch all tracks for section over network (NO DB lock open)
+                # 3. Bulk fetch all tracks for section over network
+                try:
+                    from backend.websockets import broadcast_indexing_status_threadsafe  # noqa: PLC0415
+                    broadcast_indexing_status_threadsafe(is_indexing=True, is_initial=is_initial, server_name=s_name, message=f"Indexing tracks on {s_name}...")
+                except Exception:
+                    pass
+
                 logger.info("Bulk fetching tracks for section '%s' on server %s...", getattr(music_lib, "title", "Music"), s_name)
                 tracks = music_lib.all(libtype="track")
 
@@ -227,7 +245,7 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
         logger.info("Successfully indexed %d items from server %s (ID: %s)", items_indexed, s_name, s_id)
         try:
             from backend.websockets import broadcast_indexing_status_threadsafe  # noqa: PLC0415
-            broadcast_indexing_status_threadsafe(is_indexing=False, is_initial=is_initial, server_name=s_name, items_indexed=items_indexed)
+            broadcast_indexing_status_threadsafe(is_indexing=False, is_initial=is_initial, server_name=s_name, items_indexed=items_indexed, message=f"Indexing complete for {s_name}!")
         except Exception as ws_ex:
             logger.debug("Could not send indexing status complete: %s", ws_ex)
         return items_indexed
