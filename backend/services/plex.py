@@ -2340,8 +2340,13 @@ def fetch_accessible_plex_servers():
                         local_conns = [c.uri for c in resource.connections if getattr(c, "local", False)]
                         conn_url = local_conns[0] if local_conns else resource.connections[0].uri
                     else:
-                        remote_conns = [c.uri for c in resource.connections if not getattr(c, "local", False)]
-                        conn_url = remote_conns[0] if remote_conns else resource.connections[0].uri
+                        public_ipv4 = [
+                            c.uri for c in resource.connections
+                            if not getattr(c, "local", False)
+                            and "fdd0" not in c.uri
+                            and ".lan" not in c.uri
+                        ]
+                        conn_url = public_ipv4[0] if public_ipv4 else resource.connections[0].uri
 
                 servers.append({
                     "server_id": resource.clientIdentifier,
