@@ -167,8 +167,26 @@ def upsert_album(title: str, artist_name: str, artist_id: int | None = None, yea
             conn.close()
 
 
-def upsert_track(album_id: int, server_id: str, server_track_id: str, artist_name: str, album_title: str, title: str, duration: int, url: str | None = None, thumb: str | None = None, play_count: int = 0, user_rating: float = 0.0, db_path: str | None = None, conn: sqlite3.Connection | None = None) -> int:
-    """Upsert a track into SQLite library."""
+def upsert_track(
+    album_id: int,
+    server_id: str,
+    server_track_id: str,
+    artist_name: str,
+    album_title: str,
+    title: str,
+    duration: int,
+    url: str | None = None,
+    thumb: str | None = None,
+    play_count: int = 0,
+    user_rating: float = 0.0,
+    bitrate: int = 0,
+    codec: str | None = None,
+    sample_rate: int = 0,
+    bit_depth: int = 16,
+    db_path: str | None = None,
+    conn: sqlite3.Connection | None = None,
+) -> int:
+    """Upsert a track and its per-server track source into SQLite library."""
     now = int(time.time())
     safe_url = str(url) if (url is not None and not callable(url)) else None
     should_close = False
@@ -177,24 +195,40 @@ def upsert_track(album_id: int, server_id: str, server_track_id: str, artist_nam
         should_close = True
     try:
         cursor = conn.cursor()
-        existing = cursor.execute(
-            "SELECT track_id FROM tracks WHERE server_id = ? AND server_track_id = ? LIMIT 1",
+        # 1. Check if source already linked in track_sources
+        existing_src = cursor.execute(
+            "SELECT track_id FROM track_sources WHERE server_id = ? AND server_track_id = ? LIMIT 1",
             (server_id, str(server_track_id)),
         ).fetchone()
 
-        if existing:
-            track_id = existing["track_id"]
+        track_id = existing_src["track_id"] if existing_src else None
+
+        # 2. If not linked by source, check if track exists by album_id and title
+        if not track_id:
+            existing_track = cursor.execute(
+                "SELECT track_id FROM tracks WHERE album_id = ? AND title = ? LIMIT 1",
+                (album_id, title),
+            ).fetchone()
+            if existing_track:
+                track_id = existing_track["track_id"]
+            elif server_id:
+                # Legacy fallback match
+                existing_legacy = cursor.execute(
+                    "SELECT track_id FROM tracks WHERE server_id = ? AND server_track_id = ? LIMIT 1",
+                    (server_id, str(server_track_id)),
+                ).fetchone()
+                if existing_legacy:
+                    track_id = existing_legacy["track_id"]
+
+        if track_id:
             cursor.execute(
                 """
                 UPDATE tracks
-                SET album_id = ?, artist_name = ?, album_title = ?, title = ?, duration = ?, url = ?, thumb = ?, play_count = ?, user_rating = CASE WHEN ? > 0 THEN ? ELSE user_rating END, updated_at = ?
+                SET album_id = ?, artist_name = ?, album_title = ?, title = ?, duration = ?, url = COALESCE(?, url), thumb = COALESCE(?, thumb), play_count = MAX(play_count, ?), user_rating = CASE WHEN ? > 0 THEN ? ELSE user_rating END, updated_at = ?
                 WHERE track_id = ?
                 """,
                 (album_id, artist_name, album_title, title, duration, safe_url, thumb, play_count, float(user_rating or 0.0), float(user_rating or 0.0), now, track_id),
             )
-            if should_close:
-                conn.commit()
-            return track_id
         else:
             cursor.execute(
                 """
@@ -203,9 +237,28 @@ def upsert_track(album_id: int, server_id: str, server_track_id: str, artist_nam
                 """,
                 (album_id, server_id, str(server_track_id), artist_name, album_title, title, duration, safe_url, thumb, play_count, float(user_rating or 0.0), now),
             )
-            if should_close:
-                conn.commit()
-            return cursor.lastrowid
+            track_id = cursor.lastrowid
+
+        # 3. Upsert entry into track_sources table
+        cursor.execute(
+            """
+            INSERT INTO track_sources (track_id, server_id, server_track_id, bitrate, codec, sample_rate, bit_depth, thumb, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(track_id, server_id) DO UPDATE SET
+                server_track_id = excluded.server_track_id,
+                bitrate = CASE WHEN excluded.bitrate > 0 THEN excluded.bitrate ELSE track_sources.bitrate END,
+                codec = COALESCE(excluded.codec, track_sources.codec),
+                sample_rate = CASE WHEN excluded.sample_rate > 0 THEN excluded.sample_rate ELSE track_sources.sample_rate END,
+                bit_depth = CASE WHEN excluded.bit_depth > 0 THEN excluded.bit_depth ELSE track_sources.bit_depth END,
+                thumb = COALESCE(excluded.thumb, track_sources.thumb),
+                updated_at = excluded.updated_at
+            """,
+            (track_id, server_id, str(server_track_id), int(bitrate or 0), codec, int(sample_rate or 0), int(bit_depth or 16), thumb, now),
+        )
+
+        if should_close:
+            conn.commit()
+        return track_id
     finally:
         if should_close:
             conn.close()
@@ -216,8 +269,8 @@ def rate_track_db(track_id: int | str, rating: float, db_path: str | None = None
     conn = get_db_connection(db_path)
     try:
         conn.execute(
-            "UPDATE tracks SET user_rating = ? WHERE track_id = ? OR server_track_id = ?",
-            (float(rating), track_id, str(track_id)),
+            "UPDATE tracks SET user_rating = ? WHERE track_id = ?",
+            (float(rating), track_id),
         )
         conn.commit()
     finally:
@@ -225,19 +278,32 @@ def rate_track_db(track_id: int | str, rating: float, db_path: str | None = None
 
 
 def is_track_on_primary_server(track_id: int | str, db_path: str | None = None) -> bool:
-    """Check if a track is hosted on the user's primary Plex server."""
+    """Check if a track is hosted on an enabled primary Plex server."""
     conn = get_db_connection(db_path)
     try:
         row = conn.execute(
             """
             SELECT srv.is_primary
             FROM tracks t
-            JOIN servers srv ON t.server_id = srv.server_id
-            WHERE (t.track_id = ? OR t.server_track_id = ?) AND srv.enabled = 1
+            JOIN track_sources ts ON t.track_id = ts.track_id
+            JOIN servers srv ON ts.server_id = srv.server_id
+            WHERE t.track_id = ? AND srv.enabled = 1
+            ORDER BY (CASE WHEN srv.is_primary = 1 THEN 0 ELSE 1 END)
             LIMIT 1
             """,
-            (track_id, str(track_id)),
+            (track_id,),
         ).fetchone()
+        if not row:
+            row = conn.execute(
+                """
+                SELECT srv.is_primary
+                FROM tracks t
+                JOIN servers srv ON t.server_id = srv.server_id
+                WHERE t.track_id = ? AND srv.enabled = 1
+                LIMIT 1
+                """,
+                (track_id,),
+            ).fetchone()
         return bool(row and row["is_primary"])
     finally:
         conn.close()
@@ -249,8 +315,8 @@ def log_playback_event_db(track_id: int | str, username: str = "Admin", db_path:
     conn = get_db_connection(db_path)
     try:
         row = conn.execute(
-            "SELECT track_id, artist_name, album_title, title FROM tracks WHERE track_id = ? OR server_track_id = ? LIMIT 1",
-            (track_id, str(track_id)),
+            "SELECT track_id, artist_name, album_title, title FROM tracks WHERE track_id = ? LIMIT 1",
+            (track_id,),
         ).fetchone()
         if row:
             conn.execute(
@@ -703,15 +769,15 @@ def get_all_art_sources(item_id: int | str, item_type: str, db_path: str | None 
 
         elif item_type == "album":
             r_row = conn.execute(
-                "SELECT alb.album_id FROM albums alb LEFT JOIN album_sources src ON alb.album_id = src.album_id WHERE alb.album_id = ? OR src.server_album_id = ? LIMIT 1",
-                (item_id, str(item_id)),
+                "SELECT alb.album_id FROM albums alb LEFT JOIN album_sources src ON alb.album_id = src.album_id WHERE alb.album_id = ? LIMIT 1",
+                (item_id,),
             ).fetchone()
             if r_row:
                 resolved_id = r_row["album_id"]
             else:
                 tr_row = conn.execute(
-                    "SELECT album_id FROM tracks WHERE track_id = ? OR server_track_id = ? LIMIT 1",
-                    (item_id, str(item_id)),
+                    "SELECT album_id FROM tracks WHERE track_id = ? LIMIT 1",
+                    (item_id,),
                 ).fetchone()
                 if tr_row:
                     resolved_id = tr_row["album_id"]
@@ -742,19 +808,20 @@ def get_all_art_sources(item_id: int | str, item_type: str, db_path: str | None 
 
         elif item_type == "track":
             r_row = conn.execute(
-                "SELECT t.track_id FROM tracks t WHERE t.track_id = ? OR t.server_track_id = ? LIMIT 1",
-                (item_id, str(item_id)),
+                "SELECT t.track_id FROM tracks t WHERE t.track_id = ? LIMIT 1",
+                (item_id,),
             ).fetchone()
             if r_row:
                 resolved_id = r_row["track_id"]
 
             cursor = conn.execute(
                 """
-                SELECT t.thumb, t.server_id, t.server_track_id as rating_key, COALESCE(srv.is_primary, 0) as is_primary
+                SELECT COALESCE(ts.thumb, t.thumb) as thumb, ts.server_id, ts.server_track_id as rating_key, COALESCE(srv.is_primary, 0) as is_primary
                 FROM tracks t
-                LEFT JOIN servers srv ON t.server_id = srv.server_id
-                WHERE t.track_id = ?
-                ORDER BY (CASE WHEN srv.server_id NOT LIKE 'mock%' THEN 0 ELSE 1 END), is_primary DESC
+                JOIN track_sources ts ON t.track_id = ts.track_id
+                JOIN servers srv ON ts.server_id = srv.server_id
+                WHERE t.track_id = ? AND srv.enabled = 1
+                ORDER BY (CASE WHEN srv.is_primary = 1 THEN 0 ELSE 1 END), ts.bitrate DESC
                 """,
                 (resolved_id,),
             )
@@ -763,6 +830,23 @@ def get_all_art_sources(item_id: int | str, item_type: str, db_path: str | None 
                 if thumb_val and thumb_val.startswith("/api/music/"):
                     thumb_val = None
                 sources.append((thumb_val, row["server_id"], row["rating_key"]))
+
+            if not sources:
+                cursor_base = conn.execute(
+                    """
+                    SELECT t.thumb, t.server_id, t.server_track_id as rating_key, COALESCE(srv.is_primary, 0) as is_primary
+                    FROM tracks t
+                    LEFT JOIN servers srv ON t.server_id = srv.server_id
+                    WHERE t.track_id = ? AND (srv.enabled = 1 OR srv.enabled IS NULL)
+                    ORDER BY (CASE WHEN srv.is_primary = 1 THEN 0 ELSE 1 END)
+                    """,
+                    (resolved_id,),
+                )
+                for row in cursor_base.fetchall():
+                    thumb_val = row["thumb"]
+                    if thumb_val and thumb_val.startswith("/api/music/"):
+                        thumb_val = None
+                    sources.append((thumb_val, row["server_id"], row["rating_key"]))
 
         return sources if sources else [(None, None, None)]
     finally:

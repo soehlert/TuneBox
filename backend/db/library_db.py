@@ -168,6 +168,27 @@ def init_library_db(db_path: str | None = None):
         except Exception:
             pass
 
+        # 4b. Track Source Mapping (Per-server ratingKeys and audio quality metrics)
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS track_sources (
+                source_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                track_id INTEGER NOT NULL,
+                server_id TEXT NOT NULL,
+                server_track_id TEXT NOT NULL,
+                bitrate INTEGER DEFAULT 0,
+                codec TEXT,
+                sample_rate INTEGER DEFAULT 0,
+                bit_depth INTEGER DEFAULT 16,
+                thumb TEXT,
+                updated_at INTEGER NOT NULL,
+                FOREIGN KEY (track_id) REFERENCES tracks(track_id) ON DELETE CASCADE,
+                FOREIGN KEY (server_id) REFERENCES servers(server_id) ON DELETE CASCADE,
+                CONSTRAINT unq_track_server UNIQUE (track_id, server_id)
+            )
+            """
+        )
+
         # 5. Playback History Event Log (Append-only)
         cursor.execute(
             """
@@ -205,6 +226,8 @@ def init_library_db(db_path: str | None = None):
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_albums_year ON albums (year);")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_albums_play_count ON albums (play_count DESC);")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_tracks_album ON tracks (album_id);")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_track_sources_track ON track_sources (track_id);")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_track_sources_server ON track_sources (server_id);")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_playback_history_played_at ON playback_history (played_at DESC);")
 
         # 6. Preseed Playlist Tracks Table for persistent autoplay fallback

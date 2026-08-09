@@ -292,6 +292,10 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
                                 p_alb_key = str(trk.get("parentRatingKey", ""))
                                 alb_db_id = album_map.get(p_alb_key)
 
+                                media = trk.get("Media", [{}])[0] if trk.get("Media") else {}
+                                bitrate = int(media.get("bitrate", 0) or 0)
+                                codec = media.get("audioCodec") or media.get("container")
+
                                 upsert_track(
                                     album_id=alb_db_id,
                                     server_id=s_id,
@@ -304,6 +308,8 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
                                     thumb=trk.get("parentThumb") or trk.get("thumb"),
                                     play_count=int(trk.get("viewCount", 0) or 0),
                                     user_rating=raw_rating / 2.0 if raw_rating else 0.0,
+                                    bitrate=bitrate,
+                                    codec=codec,
                                     db_path=db_path,
                                     conn=conn,
                                 )
@@ -324,6 +330,9 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
                                 alb_db_id = album_map.get(p_alb_key)
                                 artist_name = getattr(track, "grandparentTitle", None) or "Unknown Artist"
                                 album_title = getattr(track, "parentTitle", None) or "Unknown Album"
+                                media = getattr(track, "media", [None])[0] if getattr(track, "media", None) else None
+                                bitrate = getattr(media, "bitrate", 0) if media else 0
+                                codec = getattr(media, "audioCodec", None) if media else None
 
                                 upsert_track(
                                     album_id=alb_db_id,
@@ -337,6 +346,8 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
                                     thumb=getattr(track, "parentThumb", None) or getattr(track, "thumb", None),
                                     play_count=getattr(track, "viewCount", 0) or 0,
                                     user_rating=user_rating_stars,
+                                    bitrate=int(bitrate or 0),
+                                    codec=str(codec) if codec else None,
                                     db_path=db_path,
                                     conn=conn,
                                 )
