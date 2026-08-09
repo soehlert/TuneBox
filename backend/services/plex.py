@@ -2336,8 +2336,12 @@ def fetch_accessible_plex_servers():
                 is_primary = bool(is_owned or (primary_name and primary_name in resource.name.lower()))
                 conn_url = None
                 if resource.connections:
-                    local_conns = [c.uri for c in resource.connections if getattr(c, "local", False)]
-                    conn_url = local_conns[0] if local_conns else resource.connections[0].uri
+                    try:
+                        conn_obj = resource.connect(timeout=3)
+                        conn_url = conn_obj._baseurl
+                    except Exception:
+                        local_conns = [c.uri for c in resource.connections if getattr(c, "local", False)]
+                        conn_url = local_conns[0] if local_conns else resource.connections[0].uri
 
                 servers.append({
                     "server_id": resource.clientIdentifier,
