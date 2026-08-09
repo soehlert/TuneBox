@@ -57,12 +57,17 @@ def init_library_db(db_path: str | None = None):
                 server_id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
                 server_url TEXT,
+                access_token TEXT,
                 is_primary INTEGER DEFAULT 0,
                 enabled INTEGER DEFAULT 1,
                 last_indexed_at INTEGER DEFAULT 0
             )
             """
         )
+        cursor.execute("PRAGMA table_info(servers)")
+        server_cols = [c[1] for c in cursor.fetchall()]
+        if "access_token" not in server_cols:
+            cursor.execute("ALTER TABLE servers ADD COLUMN access_token TEXT")
 
         # 2. Artists Table
         cursor.execute(
@@ -86,11 +91,16 @@ def init_library_db(db_path: str | None = None):
                 artist_id INTEGER NOT NULL,
                 server_id TEXT NOT NULL,
                 server_artist_id TEXT NOT NULL,
+                thumb TEXT,
                 PRIMARY KEY (artist_id, server_id),
                 FOREIGN KEY (artist_id) REFERENCES artists(artist_id) ON DELETE CASCADE
             )
             """
         )
+        cursor.execute("PRAGMA table_info(artist_sources)")
+        art_src_cols = [c[1] for c in cursor.fetchall()]
+        if "thumb" not in art_src_cols:
+            cursor.execute("ALTER TABLE artist_sources ADD COLUMN thumb TEXT")
 
         # 3. Albums Table
         cursor.execute(
@@ -119,11 +129,16 @@ def init_library_db(db_path: str | None = None):
                 album_id INTEGER NOT NULL,
                 server_id TEXT NOT NULL,
                 server_album_id TEXT NOT NULL,
+                thumb TEXT,
                 PRIMARY KEY (album_id, server_id),
                 FOREIGN KEY (album_id) REFERENCES albums(album_id) ON DELETE CASCADE
             )
             """
         )
+        cursor.execute("PRAGMA table_info(album_sources)")
+        alb_src_cols = [c[1] for c in cursor.fetchall()]
+        if "thumb" not in alb_src_cols:
+            cursor.execute("ALTER TABLE album_sources ADD COLUMN thumb TEXT")
 
         # 4. Tracks Table
         cursor.execute(

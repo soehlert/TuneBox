@@ -2354,6 +2354,13 @@ def fetch_accessible_plex_servers():
         if servers and not any(s.get("is_primary") for s in servers):
             servers[0]["is_primary"] = True
 
+        for s in servers:
+            try:
+                from backend.services.library import upsert_server  # noqa: PLC0415
+                upsert_server(s["server_id"], s["name"], server_url=s.get("server_url"), is_primary=s.get("is_primary", False), access_token=s.get("access_token"))
+            except Exception:
+                pass
+
         cache_data(cache_key, servers)
         return servers
     except Exception as e:

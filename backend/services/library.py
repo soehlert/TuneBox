@@ -26,34 +26,36 @@ def _norm(text: str) -> str:
     return re.sub(r"[^a-z0-9]", "", t) or t
 
 
-def upsert_server(server_id: str, name: str, server_url: str | None = None, is_primary: bool = False, enabled: bool | None = True, db_path: str | None = None):
+def upsert_server(server_id: str, name: str, server_url: str | None = None, is_primary: bool = False, enabled: bool | None = None, access_token: str | None = None, db_path: str | None = None):
     """Insert or update a target Plex server in the servers registry."""
     conn = get_db_connection(db_path)
     try:
         if enabled is None:
             conn.execute(
                 """
-                INSERT INTO servers (server_id, name, server_url, is_primary, enabled, last_indexed_at)
-                VALUES (?, ?, ?, ?, 1, 0)
+                INSERT INTO servers (server_id, name, server_url, access_token, is_primary, enabled, last_indexed_at)
+                VALUES (?, ?, ?, ?, ?, 1, 0)
                 ON CONFLICT(server_id) DO UPDATE SET
                     name = excluded.name,
                     server_url = COALESCE(excluded.server_url, servers.server_url),
+                    access_token = COALESCE(excluded.access_token, servers.access_token),
                     is_primary = excluded.is_primary
                 """,
-                (server_id, name, server_url, 1 if is_primary else 0),
+                (server_id, name, server_url, access_token, 1 if is_primary else 0),
             )
         else:
             conn.execute(
                 """
-                INSERT INTO servers (server_id, name, server_url, is_primary, enabled, last_indexed_at)
-                VALUES (?, ?, ?, ?, ?, 0)
+                INSERT INTO servers (server_id, name, server_url, access_token, is_primary, enabled, last_indexed_at)
+                VALUES (?, ?, ?, ?, ?, ?, 0)
                 ON CONFLICT(server_id) DO UPDATE SET
                     name = excluded.name,
                     server_url = COALESCE(excluded.server_url, servers.server_url),
+                    access_token = COALESCE(excluded.access_token, servers.access_token),
                     is_primary = excluded.is_primary,
                     enabled = excluded.enabled
                 """,
-                (server_id, name, server_url, 1 if is_primary else 0, 1 if enabled else 0),
+                (server_id, name, server_url, access_token, 1 if is_primary else 0, 1 if enabled else 0),
             )
         conn.commit()
     finally:
@@ -99,11 +101,13 @@ def upsert_artist(name: str, guid: str | None = None, thumb: str | None = None, 
         if server_id and server_artist_id:
             cursor.execute(
                 """
-                INSERT INTO artist_sources (artist_id, server_id, server_artist_id)
-                VALUES (?, ?, ?)
-                ON CONFLICT(artist_id, server_id) DO UPDATE SET server_artist_id = excluded.server_artist_id
+                INSERT INTO artist_sources (artist_id, server_id, server_artist_id, thumb)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(artist_id, server_id) DO UPDATE SET
+                    server_artist_id = excluded.server_artist_id,
+                    thumb = COALESCE(excluded.thumb, artist_sources.thumb)
                 """,
-                (artist_id, server_id, str(server_artist_id)),
+                (artist_id, server_id, str(server_artist_id), thumb),
             )
 
         if should_close:
@@ -146,11 +150,13 @@ def upsert_album(title: str, artist_name: str, artist_id: int | None = None, yea
         if server_id and server_album_id:
             cursor.execute(
                 """
-                INSERT INTO album_sources (album_id, server_id, server_album_id)
-                VALUES (?, ?, ?)
-                ON CONFLICT(album_id, server_id) DO UPDATE SET server_album_id = excluded.server_album_id
+                INSERT INTO album_sources (album_id, server_id, server_album_id, thumb)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(album_id, server_id) DO UPDATE SET
+                    server_album_id = excluded.server_album_id,
+                    thumb = COALESCE(excluded.thumb, album_sources.thumb)
                 """,
-                (album_id, server_id, str(server_album_id)),
+                (album_id, server_id, str(server_album_id), thumb),
             )
 
         if should_close:
@@ -673,7 +679,7 @@ def get_all_art_sources(item_id: int | str, item_type: str, db_path: str | None 
 
             cursor = conn.execute(
                 """
-                SELECT a.thumb, src.server_id, src.server_artist_id as rating_key, COALESCE(srv.is_primary, 0) as is_primary
+                SELECT COALESCE(src.thumb, a.thumb) as thumb, src.server_id, src.server_artist_id as rating_key, COALESCE(srv.is_primary, 0) as is_primary
                 FROM artists a
                 LEFT JOIN artist_sources src ON a.artist_id = src.artist_id
                 LEFT JOIN servers srv ON src.server_id = srv.server_id
@@ -712,7 +718,7 @@ def get_all_art_sources(item_id: int | str, item_type: str, db_path: str | None 
 
             cursor = conn.execute(
                 """
-                SELECT alb.thumb, src.server_id, src.server_album_id as rating_key, COALESCE(srv.is_primary, 0) as is_primary
+                SELECT COALESCE(src.thumb, alb.thumb) as thumb, src.server_id, src.server_album_id as rating_key, COALESCE(srv.is_primary, 0) as is_primary
                 FROM albums alb
                 LEFT JOIN album_sources src ON alb.album_id = src.album_id
                 LEFT JOIN servers srv ON src.server_id = srv.server_id
@@ -896,24 +902,29 @@ def get_tracks_for_album_db(album_id: int | str, db_path: str | None = None) -> 
 
 
 def get_server_credentials(server_id: str | None = None, db_path: str | None = None) -> tuple[str | None, str | None]:
-    """Fetch Plex server base URL and token from SQLite servers table and settings."""
+    """Fetch Plex server base URL and per-server access token from SQLite servers table and settings."""
     conn = get_db_connection(db_path)
     try:
         server_url = None
+        token = None
         if server_id:
-            cursor = conn.execute("SELECT server_url FROM servers WHERE server_id = ?", (server_id,))
+            cursor = conn.execute("SELECT server_url, access_token FROM servers WHERE server_id = ?", (server_id,))
             row = cursor.fetchone()
-            if row and row["server_url"]:
+            if row:
                 server_url = row["server_url"]
+                token = row["access_token"]
 
-        if not server_url:
-            cursor = conn.execute("SELECT server_url FROM servers WHERE enabled = 1 LIMIT 1")
+        if not server_url or not token:
+            cursor = conn.execute("SELECT server_url, access_token FROM servers WHERE (enabled = 1 OR enabled IS NULL) AND access_token IS NOT NULL LIMIT 1")
             row = cursor.fetchone()
-            if row and row["server_url"]:
-                server_url = row["server_url"]
+            if row:
+                server_url = server_url or row["server_url"]
+                token = token or row["access_token"]
 
-        from backend.config import settings
-        token = getattr(settings, "plex_token", None) or os.getenv("PLEX_TOKEN")
+        if not token:
+            from backend.config import settings
+            token = getattr(settings, "plex_token", None) or os.getenv("PLEX_TOKEN")
+
         return server_url, token
     finally:
         conn.close()

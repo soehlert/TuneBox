@@ -29,7 +29,8 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
     s_url = server_info.get("server_url")
     is_primary = bool(server_info.get("is_primary"))
 
-    upsert_server(s_id, s_name, server_url=s_url, is_primary=is_primary, enabled=None, db_path=db_path)
+    acc_token = server_info.get("access_token")
+    upsert_server(s_id, s_name, server_url=s_url, is_primary=is_primary, enabled=None, access_token=acc_token, db_path=db_path)
 
     from backend.services.plex import get_target_plex_connection, is_music_library_section, milliseconds_to_seconds
 
