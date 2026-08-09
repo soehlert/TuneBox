@@ -48,8 +48,9 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
         pass
 
     try:
-        from backend.websockets import broadcast_indexing_status_threadsafe  # noqa: PLC0415
-        broadcast_indexing_status_threadsafe(is_indexing=True, is_initial=is_initial, server_name=s_name)
+        if is_initial:
+            from backend.websockets import broadcast_indexing_status_threadsafe  # noqa: PLC0415
+            broadcast_indexing_status_threadsafe(is_indexing=True, is_initial=True, server_name=s_name)
     except Exception as ws_ex:
         logger.debug("Could not send indexing status start: %s", ws_ex)
 
@@ -159,8 +160,9 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
 
         logger.info("Successfully indexed %d items from server %s (ID: %s)", items_indexed, s_name, s_id)
         try:
-            from backend.websockets import broadcast_indexing_status_threadsafe  # noqa: PLC0415
-            broadcast_indexing_status_threadsafe(is_indexing=False, is_initial=is_initial, server_name=s_name, items_indexed=items_indexed)
+            if is_initial:
+                from backend.websockets import broadcast_indexing_status_threadsafe  # noqa: PLC0415
+                broadcast_indexing_status_threadsafe(is_indexing=False, is_initial=True, server_name=s_name, items_indexed=items_indexed)
         except Exception as ws_ex:
             logger.debug("Could not send indexing status complete: %s", ws_ex)
         return items_indexed

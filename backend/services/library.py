@@ -435,7 +435,9 @@ def get_indexed_artists(sort_mode: str = "name_asc", db_path: str | None = None)
         """
         cursor = conn.execute(query)
         res = [dict(r) for r in cursor.fetchall()]
-        if not res and settings.testing and conn.execute("SELECT COUNT(*) FROM artists;").fetchone()[0] == 0:
+        if not res and settings.testing and conn.execute("SELECT COUNT(*) FROM servers;").fetchone()[0] == 0:
+            conn.execute("UPDATE servers SET enabled = 1 WHERE server_id LIKE 'mock%'")
+            conn.commit()
             from backend.services.mock_data import seed_mock_library_db  # noqa: PLC0415
             seed_mock_library_db(db_path)
             cursor = conn.execute(query)
@@ -464,7 +466,9 @@ def get_indexed_albums(sort_mode: str = "name_asc", db_path: str | None = None) 
         """
         cursor = conn.execute(query)
         res = [dict(r) for r in cursor.fetchall()]
-        if not res and settings.testing and conn.execute("SELECT COUNT(*) FROM albums;").fetchone()[0] == 0:
+        if not res and settings.testing and conn.execute("SELECT COUNT(*) FROM servers;").fetchone()[0] == 0:
+            conn.execute("UPDATE servers SET enabled = 1 WHERE server_id LIKE 'mock%'")
+            conn.commit()
             from backend.services.mock_data import seed_mock_library_db  # noqa: PLC0415
             seed_mock_library_db(db_path)
             cursor = conn.execute(query)
