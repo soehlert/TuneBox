@@ -170,15 +170,16 @@ async def send_indexing_status(is_indexing: bool, is_initial: bool, server_name:
         "items_indexed": items_indexed,
     }
     logger.info("Broadcasting indexing status: is_indexing=%s, is_initial=%s, server=%s", is_indexing, is_initial, server_name)
-    all_sessions = set()
+    all_connections = []
     for category in active_connections.values():
-        all_sessions.update(category.keys())
+        all_connections.extend(category.values())
 
-    for session_id in list(all_sessions):
+    payload = json.dumps(current_indexing_status)
+    for ws in set(all_connections):
         try:
-            await send_to_specific_client(session_id, current_indexing_status, "indexing_status")
+            await ws.send_text(payload)
         except Exception as e:
-            logger.debug("Failed to send indexing status to session %s: %s", session_id, e)
+            logger.debug("Failed to send indexing status to connection %s: %s", ws, e)
 
 
 def broadcast_indexing_status_threadsafe(is_indexing: bool, is_initial: bool, server_name: str, items_indexed: int = 0):
@@ -340,7 +341,7 @@ async def websocket_handler(websocket: WebSocket):
     # Send initial state update immediately to the new client
     try:
         if current_indexing_status.get("is_indexing"):
-            await send_to_specific_client(session_id, current_indexing_status, message_type)
+            await websocket.send_text(json.dumps(current_indexing_status))
         if message_type == "music_control":
             from backend.services.plex import debounced_plexamp_resync  # noqa: PLC0415
             await debounced_plexamp_resync(force_align=True)
