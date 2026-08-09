@@ -1941,6 +1941,7 @@ function App() {
           } else if (data.type === "server_settings_updated") {
             console.log("Received server_settings_updated WS push. Re-fetching library content...");
             refreshLibraryData();
+            setIndexingStatus(null);
           } else if (data.type === "indexing_status") {
             console.log("Received indexing_status WS push:", data);
             const isInd = Boolean(data.is_indexing);

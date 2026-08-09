@@ -98,9 +98,24 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
         items_indexed = 0
         from backend.db.library_db import get_db_connection  # noqa: PLC0415
 
+        def _is_cancelled() -> bool:
+            from backend.services.plex import get_enabled_server_ids  # noqa: PLC0415
+            if s_id not in get_enabled_server_ids():
+                logger.info("Indexing for server %s (ID: %s) was cancelled because server was disabled by user.", s_name, s_id)
+                try:
+                    from backend.websockets import broadcast_indexing_status_threadsafe  # noqa: PLC0415
+                    broadcast_indexing_status_threadsafe(is_indexing=False, is_initial=is_initial, server_name=s_name, items_indexed=0, message=f"Indexing cancelled for {s_name}.")
+                except Exception:
+                    pass
+                return True
+            return False
+
         for music_lib in music_libs:
             try:
                 # 1. Bulk fetch all artists for section over network
+                if _is_cancelled():
+                    return 0
+
                 try:
                     from backend.websockets import broadcast_indexing_status_threadsafe  # noqa: PLC0415
                     broadcast_indexing_status_threadsafe(is_indexing=True, is_initial=is_initial, server_name=s_name, message=f"Indexing artists on {s_name}...")
@@ -139,6 +154,9 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
                 logger.info("Bulk upserted %d artists for server %s.", len(artist_map), s_name)
 
                 # 2. Bulk fetch all albums for section over network
+                if _is_cancelled():
+                    return 0
+
                 try:
                     from backend.websockets import broadcast_indexing_status_threadsafe  # noqa: PLC0415
                     broadcast_indexing_status_threadsafe(is_indexing=True, is_initial=is_initial, server_name=s_name, message=f"Indexing albums on {s_name}...")
@@ -191,6 +209,9 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
                 logger.info("Bulk upserted %d albums for server %s.", len(album_map), s_name)
 
                 # 3. Bulk fetch all tracks for section over network
+                if _is_cancelled():
+                    return 0
+
                 try:
                     from backend.websockets import broadcast_indexing_status_threadsafe  # noqa: PLC0415
                     broadcast_indexing_status_threadsafe(is_indexing=True, is_initial=is_initial, server_name=s_name, message=f"Indexing tracks on {s_name}...")
