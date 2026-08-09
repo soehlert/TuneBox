@@ -33,23 +33,23 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
 
     from backend.services.plex import get_target_plex_connection, is_music_library_section, milliseconds_to_seconds
 
-    # Check if this server is being indexed for the first time (0 tracks for this server or 0 total artists)
-    is_initial = False
+    # Check if this server is already indexed in SQLite
+    server_track_count = 0
     try:
         from backend.db.library_db import get_db_connection  # noqa: PLC0415
         conn = get_db_connection(db_path)
         cursor = conn.cursor()
         cursor.execute("SELECT COUNT(*) FROM tracks WHERE server_id = ?;", (s_id,))
         server_track_count = cursor.fetchone()[0]
-        if server_track_count == 0:
-            is_initial = True
-        else:
-            cursor.execute("SELECT COUNT(*) FROM artists;")
-            artist_count = cursor.fetchone()[0]
-            is_initial = (artist_count == 0)
         conn.close()
-    except Exception:
-        pass
+
+        if server_track_count > 0 and not force_full:
+            logger.info("Server '%s' (ID: %s) is already indexed in SQLite (%d tracks). Skipping network re-indexing.", s_name, s_id, server_track_count)
+            return server_track_count
+    except Exception as ex:
+        logger.debug("Failed checking existing track count for server %s: %s", s_name, ex)
+
+    is_initial = (server_track_count == 0)
 
     try:
         if is_initial:
