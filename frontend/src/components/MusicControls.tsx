@@ -34,6 +34,15 @@ const MusicControlsComponent = ({
   });
   const socketRef = useRef<WebSocket | null>(null);
   const timerRef = useRef<any>(null);
+  const transitionTimeoutRef = useRef<number | null>(null);
+
+  const clearTransitionTimer = () => {
+    if (transitionTimeoutRef.current) {
+      clearTimeout(transitionTimeoutRef.current);
+      transitionTimeoutRef.current = null;
+    }
+  };
+
   const isDev = window.location.port === "5173";
   const apiBase = isDev ? `http://${window.location.hostname}:8000` : window.location.origin;
   const wsHost = isDev ? `${window.location.hostname}:8000` : window.location.host;
@@ -58,8 +67,9 @@ const MusicControlsComponent = ({
             const data = JSON.parse(event.data);
             if (data.message === "Current track update") {
               const currentTrackData = data.current_track;
-              setCurrentTrack(currentTrackData);
               if (currentTrackData) {
+                clearTransitionTimer();
+                setCurrentTrack(currentTrackData);
                 setIsPlaying(currentTrackData.track_state === 'playing');
 
                 const remainingTime = currentTrackData.remaining_time;
@@ -76,11 +86,26 @@ const MusicControlsComponent = ({
                 setDuration(`${minutes}:${seconds < 10 ? '0' : ''}${seconds}`);
 
                 setProgress(100 - currentTrackData.remaining_percentage);
-              } else {
+              } else if (data.stopped || data.queue_empty) {
+                // Instant stop (0ms delay) when queue ends or stopped explicitly
+                clearTransitionTimer();
+                setCurrentTrack(null);
                 setIsPlaying(false);
                 setProgress(0);
                 setElapsedTime('00:00');
                 setDuration('00:00');
+              } else {
+                // Track transition hold: keep previous track metadata & timer intact during 2s grace period to prevent flash
+                if (!transitionTimeoutRef.current) {
+                  transitionTimeoutRef.current = window.setTimeout(() => {
+                    setCurrentTrack(null);
+                    setIsPlaying(false);
+                    setProgress(0);
+                    setElapsedTime('00:00');
+                    setDuration('00:00');
+                    transitionTimeoutRef.current = null;
+                  }, 2000);
+                }
               }
             } else if (data.type === "skip_vote_update") {
               const status = data.status;
@@ -112,6 +137,7 @@ const MusicControlsComponent = ({
     connectWebSocket();
 
     return () => {
+      clearTransitionTimer();
       if (socketRef.current && socketRef.current.readyState === WebSocket.OPEN) {
         socketRef.current.close();
         if (timerRef.current) {

@@ -1,13 +1,12 @@
-# Superpowers Execution Summary: Admin Username Identity & Navbar Clean-up
+# Superpowers Execution Summary: Prevent Player Bar Flash & Last Track Rubber-Banding
 
 ## Changes Summary
-- **Identity Utility (`frontend/src/utils.ts`)**:
-  - `getLocalUsername()` checks `tunebox_admin_name` for admin sessions and `guest.name` for party guest sessions. Removed `tunebox_instance_name` fallback.
-- **Plex PIN Auth Sync (`frontend/src/App.tsx`)**:
-  - Automatically caches the real authenticated Plex account username (`res.data.plex_username`) into `localStorage.setItem("tunebox_admin_name", username)`.
-- **Navbar & Setup Wizard Clean-up**:
-  - Removed `Admin (InstanceName)` string formatting from the Navbar admin badge; it now displays the user's clean Plex username (e.g. `soehlert`).
-  - Removed redundant manual "Plex Username" input field from the setup wizard and replaced the settings input with a read-only verified account label.
+- **Frontend Differentiated Reset (`frontend/src/components/MusicControls.tsx`)**:
+  - Differentiated between explicit queue stop/exhaustion (`stopped: true` / `queue_empty: true`) and track-to-track transitions.
+  - When the queue ends or playback is stopped, the player bar resets instantly (0ms delay) to "Start TuneBox" state.
+  - When transitioning between songs in an active queue, previous track metadata and timer remain intact during a 2-second grace period until the new track arrives, eliminating all visual flashing.
+- **Backend Status Payload (`backend/websockets.py`)**:
+  - Updated `send_current_playing()` to include `"stopped": not playback_active` and `"queue_empty": len(queue) == 0` when sending null track updates so the frontend immediately recognizes queue completion.
 
 ## Verification Results
 - `npm run build` in `frontend/`: Compiled cleanly.

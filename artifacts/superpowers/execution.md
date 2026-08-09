@@ -1,11 +1,11 @@
-- **Step 1: Fix `getLocalUsername()` Resolution in `utils.ts`**
-  - Files: `frontend/src/utils.ts`
-  - Changes: Removed `localStorage.getItem("tunebox_instance_name")` from username identity resolution. `getLocalUsername()` now prioritizes `tunebox_admin_name` > `guest.name` > `"Admin"`.
+- **Step 1: Differentiate Instant Stop vs Transition Hold in `MusicControls.tsx`**
+  - Files: `frontend/src/components/MusicControls.tsx`
+  - Changes: Added `stopped` and `queue_empty` check when handling `current_track: null` updates. When playback stops or queue finishes, reset state instantly (0ms delay). When transitioning between songs in an active queue, hold previous track metadata & timer for up to 2s to eliminate visual flashing.
   - Verification: `npm run build` in `frontend/` (succeeded).
   - Status: PASS
 
-- **Step 2: Sync Authenticated Plex Username & Clean Admin Navbar Badge**
-  - Files: `frontend/src/App.tsx`
-  - Changes: Automatically cached `res.data.plex_username` into `localStorage.setItem("tunebox_admin_name", username)` upon fetching settings. Removed `` `Admin (${instanceName})` `` string formatting from the Navbar admin badge and WebSocket registration so the clean Plex username is displayed.
-  - Verification: `npm run build` in `frontend/` (succeeded) and `uv run python -m pytest backend/tests/` (113/113 passed).
+- **Step 2: Include `stopped` and `queue_empty` status flags in `backend/websockets.py`**
+  - Files: `backend/websockets.py`
+  - Changes: Updated `send_current_playing()` to send `"stopped": not playback_active` and `"queue_empty": len(queue) == 0` when `current_track` is `None`. Safely wrapped Redis queue lookup to ensure unit tests and fallback states remain stable.
+  - Verification: `uv run python -m pytest backend/tests/` (113/113 passed).
   - Status: PASS

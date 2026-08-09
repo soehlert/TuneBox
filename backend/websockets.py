@@ -124,10 +124,20 @@ async def send_current_playing():
             "remaining_percentage": current_track["remaining_percentage"],
             "elapsed_time": current_track["elapsed_time"],
         }
+        message = {"message": "Current track update", "current_track": track_data}
     else:
-        track_data = None
-
-    message = {"message": "Current track update", "current_track": track_data}
+        try:
+            queue = get_redis_queue()
+            queue_empty = len(queue) == 0
+        except Exception:
+            queue_empty = True
+        from backend.services.plex import playback_active
+        message = {
+            "message": "Current track update",
+            "current_track": None,
+            "stopped": not playback_active,
+            "queue_empty": queue_empty,
+        }
 
     # Send the message to all active connections of message_type 'music_control'
     for session_id in list(active_connections["music_control"].keys()):

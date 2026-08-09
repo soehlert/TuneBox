@@ -1,35 +1,33 @@
 ## Goal
-Fix admin username resolution in `frontend/src/utils.ts` and `frontend/src/App.tsx` so the authenticated Plex username takes precedence over `instance_name` or default `"Admin"` strings when queuing tracks and displaying user stats.
+Fix last-track rubber-banding by cleanly stopping playback immediately when the queue ends, while preserving seamless transitions between songs when queued tracks remain.
 
 ## Assumptions
-1. The backend already resolves and returns the real Plex `username` in `GET /api/auth/settings` (`plex_username`).
-2. Storing `res.data.plex_username` in `localStorage.setItem("tunebox_admin_name", username)` upon fetching settings will make `getLocalUsername()` consistently return the user's real Plex username.
-3. `instance_name` is an application/jukebox instance label (e.g. "Living Room Jukebox") and must NEVER be used as a personal user's display name or stats username.
+1. When the last track in the queue finishes, `current_track: null` should immediately reset the player bar to stopped state ("Start TuneBox") with 0ms delay.
+2. Holding track metadata during `current_track: null` should only occur when transitioning between back-to-back songs in an active queue.
 
 ## Plan
-1. **Fix `getLocalUsername()` Resolution Logic in `utils.ts`**
-   - Files: `frontend/src/utils.ts`
+1. **Differentiate Between "Queue Ended" (Instant Stop) and "Track Transition" in `MusicControls.tsx`**
+   - Files: `frontend/src/components/MusicControls.tsx`
    - Change:
-     - Check `localStorage.getItem("tunebox_admin_name")`.
-     - Check `localStorage.getItem("tunebox_guest")`.
-     - Remove `localStorage.getItem("tunebox_instance_name")` from user identity fallback; fallback to `"Admin"` only if no specific username exists.
+     - When receiving `data.message === "Current track update"` with `current_track: null`:
+       - If `data.queue_empty` or `data.stopped` is true (or if explicit stop was triggered): Immediately clear state (`currentTrack = null`, `isPlaying = false`, `progress = 0`, `elapsedTime = 00:00`) with 0ms delay.
+       - Otherwise, if queued tracks remain, hold previous track display for 2 seconds.
    - Verify: `npm run build` in `frontend/`.
 
-2. **Sync Authenticated Plex Username in `App.tsx`**
-   - Files: `frontend/src/App.tsx`
+2. **Ensure Backend Broadcasts `stopped: true` when Queue Exhausts in `backend/services/plex.py`**
+   - Files: `backend/services/plex.py`, `backend/websockets.py`
    - Change:
-     - In `GET /api/auth/settings` handler, set `localStorage.setItem("tunebox_admin_name", res.data.plex_username)` if `res.data.plex_username` is present.
-     - Update admin header badge and WebSocket client registration to use `tunebox_admin_name` or `plexUsername` instead of `` `Admin (${instanceName})` ``.
+     - In `send_current_playing()`, include `"stopped": True` in the message payload when `current_track` is `None` and `playback_active` is `False`.
+     - In `playback_orchestrator()`, stop `track_time_tracker` immediately when the queue ends.
+   - Verify: `uv run python -m pytest backend/tests/test_queue_end_stopped.py`.
+
+3. **Verify Full Suite**
+   - Files: `frontend/src/components/MusicControls.tsx`, `backend/services/plex.py`, `backend/websockets.py`
+   - Change: Run production build and backend test suite.
    - Verify: `npm run build` in `frontend/` and `uv run python -m pytest backend/tests/`.
 
-3. **Add Unit Tests for Admin Username Persistence in Frontend/Backend Context**
-   - Files: `backend/tests/test_auth.py`
-   - Change: Verify `GET /api/auth/settings` returns the authenticated Plex username properly.
-   - Verify: `uv run python -m pytest backend/tests/test_auth.py`.
-
 ## Risks & mitigations
-- **Risk**: Stale `tunebox_admin_name` remaining in localStorage after logging out.
-- **Mitigation**: Ensure `localStorage.removeItem("tunebox_admin_name")` is executed on admin logout.
+- **Risk**: None. Stopped state becomes deterministic.
 
 ## Rollback plan
-- Revert via `git checkout main` or `git restore frontend/src/App.tsx frontend/src/utils.ts`.
+- Revert via `git checkout main` or `git restore backend/services/plex.py backend/websockets.py frontend/src/components/MusicControls.tsx`.
