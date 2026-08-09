@@ -396,14 +396,7 @@ def get_all_artists():
             from backend.services.plex import fetch_all_artists  # noqa: PLC0415
             return fetch_all_artists()
         from backend.services.library import get_indexed_artists  # noqa: PLC0415
-        artists = get_indexed_artists()
-        if not artists:
-            import asyncio  # noqa: PLC0415
-            from backend.services.indexer import sync_all_servers  # noqa: PLC0415
-            asyncio.create_task(asyncio.to_thread(sync_all_servers))
-            from backend.services.plex import fetch_all_artists  # noqa: PLC0415
-            return fetch_all_artists()
-        return artists
+        return get_indexed_artists()
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Error fetching artists: {e}"
