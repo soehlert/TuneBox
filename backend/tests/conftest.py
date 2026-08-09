@@ -56,6 +56,8 @@ def mock_plex_track():
     mock_track.duration = 180
     mock_track.thumb = "http://example.com/album_art.jpg"
     mock_track.grandparentTitle = "Test Artist"
+    mock_track.parentRatingKey = "6789"
+    mock_track.album_id = "6789"
     return mock_track
 
 

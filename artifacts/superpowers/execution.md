@@ -1,10 +1,17 @@
-# Superpowers Execution Log
+- **Step 1: Include `album_id` in Redis Queue Payload**
+  - Files: `backend/services/redis.py`
+  - Changes: Added `"album_id": getattr(song, "album_id", getattr(song, "parentRatingKey", None))` to `song_data` dict in `add_to_queue_redis`.
+  - Verification: `uv run python -m pytest backend/tests/test_redis.py` (16/16 passed).
+  - Status: PASS
 
-## Step 1: Inspect SQLite Database & Audit Single-Server Artist Rows
-- **Files**: `backend/services/library.py`
-- **What Changed / Found**:
-  - Ran diagnostic SQL analysis on `library.db`.
-  - Found 642 duplicate artist entries (2,053 total rows instead of 1,411 unique artists) and 1,781 duplicate album entries.
-  - **Root Cause**: Previous indexing passes inserted rows using an older `_norm()` function that preserved spaces (e.g. `norm_name = "aaron neville"`). When `_norm()` was updated to strip non-alphanumeric characters (`norm_name = "aaronneville"`), `ON CONFLICT(norm_name)` did not match the existing rows with spaces, causing SQLite to insert duplicate rows for almost every artist and album.
-- **Verification Command**: `uv run python -c "from backend.services.library import get_db_connection, _norm; conn = get_db_connection(); print(len(conn.execute('SELECT artist_id FROM artists').fetchall()))"`
-- **Result**: Root cause confirmed (642 stale space-containing artist duplicates & 1,781 stale album duplicates identified for consolidation).
+- **Step 2: Add Album Navigation to Queue Component**
+  - Files: `frontend/src/components/Queue.tsx`, `frontend/src/components/Queue.css`
+  - Changes: Imported `useNavigate` from `react-router-dom`. Created `handleTrackClick` to navigate to `/albums/${track.album_id}/tracks`. Attached click handler to queue and history items with `e.stopPropagation()` on action buttons and drag handles. Added hover highlight and slide-right animation in `Queue.css`.
+  - Verification: `npm run build` in `frontend/` (succeeded) and `uv run python -m pytest backend/tests/` (113/113 passed).
+  - Status: PASS
+
+- **Step 3: Add Unit Test for `album_id` Serialization**
+  - Files: `backend/tests/test_redis.py`, `backend/tests/conftest.py`
+  - Changes: Updated `mock_plex_track` fixture to include `album_id` and `parentRatingKey`. Added `assert track_data["album_id"] == "6789"` to `test_add_to_queue_redis` test case.
+  - Verification: `uv run python -m pytest backend/tests/test_redis.py` (16/16 passed).
+  - Status: PASS

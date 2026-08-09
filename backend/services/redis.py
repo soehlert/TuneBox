@@ -49,8 +49,9 @@ def add_to_queue_redis(song, server_id=None, server_name=None, server_token=None
 
     song_data = {
         "item_id": song.ratingKey,
+        "album_id": getattr(song, "album_id", getattr(song, "parentRatingKey", None)),
         "title": song.title,
-        "artist": getattr(song, "grandparentTitle", "Unknown Artist"),
+        "artist": getattr(song, "grandparentTitle", getattr(song, "artist", "Unknown Artist")),
         "duration": song.duration,
         "album_art": song.thumb if hasattr(song, "thumb") else None,
         "server_id": target_server_id,

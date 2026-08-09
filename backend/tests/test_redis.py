@@ -51,6 +51,7 @@ def test_add_to_queue_redis(mock_redis, mock_plex_track, mocker):
     assert called_args[0] == "playback_queue"
     track_data = json.loads(called_args[1])
     assert track_data["item_id"] == "12345"
+    assert track_data["album_id"] == "6789"
     assert track_data["title"] == "Test Song"
 
 

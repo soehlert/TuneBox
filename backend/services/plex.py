@@ -326,6 +326,11 @@ def get_track(item_id, server_id: str | None = None):
     track = plex.fetchItem(item_id_val)
     logger.debug("Fetched track: %s", getattr(track, "title", "Track"))
 
+    # Set sqlite_track_id attribute for queue serialization & frontend navigation
+    setattr(track, "sqlite_track_id", item_id)
+    if hasattr(track, "parentRatingKey") and track.parentRatingKey:
+        setattr(track, "album_id", track.parentRatingKey)
+
     return track
 
 

@@ -63,7 +63,8 @@
 }
 
 .queue-item:hover:not(.active) {
-  background-color: rgba(255, 255, 255, 0.03);
+  background-color: rgba(255, 255, 255, 0.08);
+  transform: translateX(2px);
 }
 
 /* Active item highlight (Gold/Orange card) */

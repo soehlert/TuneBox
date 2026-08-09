@@ -1,8 +1,10 @@
 import { useEffect, useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Box, Typography } from '@mui/material';
 import "./Queue.css";
 
 const QueueComponent = () => {
+  const navigate = useNavigate();
   const [queue, setQueue] = useState<any[]>([]);
   const [history, setHistory] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'queue' | 'history'>('queue');
@@ -22,6 +24,13 @@ const QueueComponent = () => {
       }
     } catch (error) {
       console.error("Error fetching playback history:", error);
+    }
+  };
+
+  const handleTrackClick = (track: any) => {
+    if (track && track.album_id) {
+      const sParam = track.server_id ? `?server_id=${track.server_id}` : "";
+      navigate(`/albums/${track.album_id}/tracks${sParam}`);
     }
   };
 
@@ -321,6 +330,7 @@ const QueueComponent = () => {
               <li
                 key={index}
                 data-index={index}
+                onClick={() => handleTrackClick(track)}
                 onDragOver={(e) => handleDragOver(e, index)}
                 onDrop={(e) => handleDrop(e, index)}
                 onDragEnd={handleDragEnd}
@@ -331,8 +341,15 @@ const QueueComponent = () => {
                     <span
                       className="material-symbols-outlined queue-drag-handle"
                       draggable
-                      onDragStart={(e) => handleDragStart(e, index)}
-                      onTouchStart={(e) => handleTouchStart(e, index)}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      onDragStart={(e) => {
+                        e.stopPropagation();
+                        handleDragStart(e, index);
+                      }}
+                      onTouchStart={(e) => {
+                        e.stopPropagation();
+                        handleTouchStart(e, index);
+                      }}
                       onTouchMove={handleTouchMove}
                       onTouchEnd={handleTouchEnd}
                       title="Drag to reorder"
@@ -478,7 +495,7 @@ const QueueComponent = () => {
             </Box>
           ) : (
             history.map((track, index) => (
-              <li key={index} className="queue-item">
+              <li key={index} className="queue-item" onClick={() => handleTrackClick(track)}>
                 <Box className="queue-item-left">
                   {track.item_id ? (
                     <img
@@ -513,7 +530,10 @@ const QueueComponent = () => {
                 <Box className="queue-item-right">
                   <button
                     className="requeue-btn"
-                    onClick={() => handleRequeue(track)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRequeue(track);
+                    }}
                     title="Add back to queue"
                   >
                     <span className="material-symbols-outlined" style={{ fontSize: "14px" }}>add</span>
