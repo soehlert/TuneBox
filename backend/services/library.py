@@ -26,22 +26,35 @@ def _norm(text: str) -> str:
     return re.sub(r"[^a-z0-9]", "", t) or t
 
 
-def upsert_server(server_id: str, name: str, server_url: str | None = None, is_primary: bool = False, enabled: bool = True, db_path: str | None = None):
+def upsert_server(server_id: str, name: str, server_url: str | None = None, is_primary: bool = False, enabled: bool | None = True, db_path: str | None = None):
     """Insert or update a target Plex server in the servers registry."""
     conn = get_db_connection(db_path)
     try:
-        conn.execute(
-            """
-            INSERT INTO servers (server_id, name, server_url, is_primary, enabled, last_indexed_at)
-            VALUES (?, ?, ?, ?, ?, 0)
-            ON CONFLICT(server_id) DO UPDATE SET
-                name = excluded.name,
-                server_url = COALESCE(excluded.server_url, servers.server_url),
-                is_primary = excluded.is_primary,
-                enabled = excluded.enabled
-            """,
-            (server_id, name, server_url, 1 if is_primary else 0, 1 if enabled else 0),
-        )
+        if enabled is None:
+            conn.execute(
+                """
+                INSERT INTO servers (server_id, name, server_url, is_primary, enabled, last_indexed_at)
+                VALUES (?, ?, ?, ?, 1, 0)
+                ON CONFLICT(server_id) DO UPDATE SET
+                    name = excluded.name,
+                    server_url = COALESCE(excluded.server_url, servers.server_url),
+                    is_primary = excluded.is_primary
+                """,
+                (server_id, name, server_url, 1 if is_primary else 0),
+            )
+        else:
+            conn.execute(
+                """
+                INSERT INTO servers (server_id, name, server_url, is_primary, enabled, last_indexed_at)
+                VALUES (?, ?, ?, ?, ?, 0)
+                ON CONFLICT(server_id) DO UPDATE SET
+                    name = excluded.name,
+                    server_url = COALESCE(excluded.server_url, servers.server_url),
+                    is_primary = excluded.is_primary,
+                    enabled = excluded.enabled
+                """,
+                (server_id, name, server_url, 1 if is_primary else 0, 1 if enabled else 0),
+            )
         conn.commit()
     finally:
         conn.close()
