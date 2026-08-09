@@ -1,11 +1,11 @@
-- **Step 1: Update Admin Queue Control Buttons & Tooltips**
-  - Files: `frontend/src/App.tsx`
-  - Changes: Re-labeled buttons to "Clear Upcoming Queue" and "Clear Full Queue". Added tooltips (`title`), Google Material icons (`playlist_remove` & `stop_circle`), hover transitions, and helper sub-text under each button. Added `confirmStopOpen` state.
+- **Step 1: Fix `getLocalUsername()` Resolution in `utils.ts`**
+  - Files: `frontend/src/utils.ts`
+  - Changes: Removed `localStorage.getItem("tunebox_instance_name")` from username identity resolution. `getLocalUsername()` now prioritizes `tunebox_admin_name` > `guest.name` > `"Admin"`.
   - Verification: `npm run build` in `frontend/` (succeeded).
   - Status: PASS
 
-- **Step 2: Configure App-Styled Confirmation Modals**
+- **Step 2: Sync Authenticated Plex Username & Clean Admin Navbar Badge**
   - Files: `frontend/src/App.tsx`
-  - Changes: Configured `ConfirmModal` for both actions. "Clear Upcoming Queue" modal confirms clearing up-next songs while keeping the active track playing; "Clear Full Queue" modal confirms stopping playback and clearing all tracks.
+  - Changes: Automatically cached `res.data.plex_username` into `localStorage.setItem("tunebox_admin_name", username)` upon fetching settings. Removed `` `Admin (${instanceName})` `` string formatting from the Navbar admin badge and WebSocket registration so the clean Plex username is displayed.
   - Verification: `npm run build` in `frontend/` (succeeded) and `uv run python -m pytest backend/tests/` (113/113 passed).
   - Status: PASS

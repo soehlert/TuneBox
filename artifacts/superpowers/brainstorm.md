@@ -1,71 +1,41 @@
 ## Goal
-Clarify the purpose, behavior, copy, visual styling, and placement of queue management admin controls (`Clear Queue` vs `Stop Queue & Playback`).
+Evaluate Plex PIN authentication vs current admin name resolution, and resolve the issue where `instance_name` (or fallback `"Admin"`) overrides the admin's logged-in username in stats/queues.
 
 ## Constraints
-- **Framework & Stack**: React / Vite / Material UI / Python FastAPI / Redis.
-- **Role Scoping**: Admin controls require admin credentials (`X-Admin-Token` header).
-- **Core Requirement**: Must avoid accidental queue/playback destruction while keeping common party/host actions easy to understand and execute.
+- **Framework & Stack**: React (Frontend), FastAPI (Backend), Plex API via `MyPlexAccount` / `MyPlexPinLogin`.
+- **Existing Behaviors**: Guest sessions store custom guest names; Admin sessions store `tunebox_admin_token` and `tunebox_admin_name`.
 
-## Known context
-- Currently in `frontend/src/App.tsx` (under Admin Controls drawer/panel):
-  - **`Clear Queue`** calls `POST /api/music/clear-queue`.
-    - *Behavior*: Clears upcoming queue tracks (indexes 1..N), but **keeps the currently playing track (index 0)** playing.
-  - **`Stop Queue & Playback`** calls `POST /api/music/stop-queue`.
-    - *Behavior*: Stops PlexAmp player playback, halts the time tracker, clears `now_playing`, and **wipes the entire queue including the current track (index 0)**.
-- **UI Problem**:
-  - The current buttons are generic side-by-side solid color rectangular blocks (`#e67e22` orange vs `#ff4d4d` red).
-  - "Clear Queue" sounds like it wipes everything (including current track), which causes confusion since it actually preserves the active song.
-  - The icons and labels don't visually reflect the non-destructive (soft clear) vs destructive (hard stop & reset) difference.
+## Known Context
+- **Plex PIN Authentication**:
+  - When an admin logs into TuneBox using Plex PIN linking (`/api/auth/pin`), Plex authenticates the user against `plex.tv`.
+  - Upon successful PIN claim, `MyPlexAccount(token=token)` fetches the real authenticated Plex `username` (e.g. `"sadie"` or `"soehlert"`).
+  - The backend returns `"username"` from `GET /api/auth/settings` and during PIN verification.
+- **Root Cause of Username Being Overridden**:
+  - `getLocalUsername()` in `frontend/src/utils.ts` currently falls back to `localStorage.getItem("tunebox_instance_name") || "Admin"` when `tunebox_admin_name` is missing or when fallback logic fires.
+  - In `frontend/src/App.tsx`, admin registration and header badges fell back to `` `Admin (${instanceName})` `` instead of using the fetched Plex username.
 
 ## Risks
-- **Accidental Disruption**: An admin wanting to just clear upcoming queued guest requests accidentally hits "Stop Queue & Playback", cutting off party music instantly.
-- **UI Clutter**: Adding overly verbose explanations directly on the main admin panel.
+- If an admin token is present in localStorage but `tunebox_admin_name` hasn't been cached locally yet, queuing a song sends `username: "Admin"` or `username: instanceName` to stats instead of the real username.
 
 ## Options (2–4)
 
-### Option 1: Keep Both Buttons, Re-label, Re-style, and Add Distinct Micro-copy & Icons (Recommended)
-- **Concept**:
-  - Keep both functions, as "clear upcoming requests" vs "emergency stop everything" serve two distinct real-world needs (e.g., party host clearing bad guest requests vs shutting down the jukebox).
-  - **Button 1 (Upcoming queue)**:
-    - *Label*: **"Clear Upcoming Queue"** (or **"Clear Up Next"**)
-    - *Icon*: `playlist_remove` or `cleaning_services`
-    - *Sub-text / Tooltip*: *"Clears upcoming songs, keeps current song playing"*
-    - *Styling*: Outline or subtle warning style (e.g. Amber/Orange outline `#f5a623`).
-  - **Button 2 (Stop & Drain Everything)**:
-    - *Label*: **"Stop Music & Reset Queue"** (or **"Stop Playback & Clear All"**)
-    - *Icon*: `stop_circle`
-    - *Sub-text / Tooltip*: *"Stops player immediately and wipes all songs"*
-    - *Styling*: Solid red destructive action style (`#e74c3c` or `#d32f2f`) with prompt confirmation modal.
+### Option 1: Store & Synchronize Plex Username on Admin Auth / Settings Fetch (Recommended)
+- **Summary**:
+  - Store the authenticated Plex `username` in `localStorage.setItem("tunebox_admin_name", username)` whenever `/api/auth/settings` or PIN check succeeds.
+  - In `getLocalUsername()` (`utils.ts`), prioritize `tunebox_admin_name` > `guest.name` > `"Admin"`. Remove `instance_name` fallback from username resolution so stats never attribute actions to instance names.
+- **Pros**: Ensures `getLocalUsername()` always returns the authenticated Plex username (e.g. `"sadie"`), ensuring stats properly attribute queue additions to the logged-in user.
+- **Cons**: None.
 
-### Option 2: Single Primary Action with a Secondary Action Dropdown / Toggle
-- **Concept**:
-  - Provide a single primary action button **"Clear Queue"** with a dropdown/split-button or radio toggle selecting scope:
-    - `(•) Clear Up Next (keep current track)`
-    - `( ) Stop & Clear Everything`
-- **Pros**: Reduces button count on screen.
-- **Cons**: Requires an extra click/toggle to switch modes, hiding common admin actions.
-
-### Option 3: Move "Clear Upcoming Queue" into Queue Drawer Header, Keep "Stop Playback" in Admin Modal
-- **Concept**:
-  - Place a small "Clear Upcoming" icon/button inside the Queue panel header (`Queue.tsx`), accessible directly next to the Queue tab.
-  - Keep the full emergency "Stop Playback & Reset" button inside Admin Settings.
-- **Pros**: Contextually places queue clearing directly where the queue is viewed.
-- **Cons**: Puts destructive/admin actions in public queue view unless hidden behind admin auth tokens.
+### Option 2: Tie Admin Actions Strictly to Backend Auth Session
+- **Summary**: Have the backend inject `added_by` from the active Plex token username automatically on the server side instead of trusting frontend `username` query parameters.
+- **Pros**: Completely immune to frontend storage mismatches.
+- **Cons**: Requires refactoring multiple backend queue endpoints to inspect request authorization headers.
 
 ## Recommendation
-**Option 1** is recommended:
-1. **Keep both buttons** because preserving current music while wiping guest requests vs shutting down playback are fundamentally different actions.
-2. **Rename for absolute clarity**:
-   - **"Clear Upcoming Queue"** (preserves current song)
-   - **"Stop Playback & Clear All"** (stops player + wipes current song)
-3. **Sensible Hierarchical Styling**:
-   - **"Clear Upcoming Queue"**: Soft warning style (Amber border/ghost button or muted orange button with `playlist_remove` icon).
-   - **"Stop Playback & Clear All"**: Distinct danger/destructive style (Red background with `stop_circle` icon) requiring confirmation modal.
-   - Include a concise 1-line helper text underneath each button explaining exact behavior.
+**Option 1** is recommended. We will update `utils.ts` and `App.tsx` so the authenticated Plex username returned by `/api/auth/settings` is stored as `tunebox_admin_name` and used consistently everywhere.
 
 ## Acceptance Criteria
-- [ ] Admin panel clearly distinguishes between clearing upcoming tracks vs stopping current playback and clearing all tracks.
-- [ ] Button labels explicitly state "Clear Upcoming Queue" and "Stop Playback & Clear All".
-- [ ] Visual hierarchy reflects non-destructive (upcoming queue clear) vs destructive (full stop & wipe).
-- [ ] Clicking "Clear Upcoming Queue" prompts confirmation and leaves active track playing.
-- [ ] Clicking "Stop Playback & Clear All" prompts confirmation, halts player, and empties entire queue.
+- [ ] Admin username (e.g. `"sadie"`) is stored in `tunebox_admin_name` upon loading settings or logging in.
+- [ ] `getLocalUsername()` strictly returns `tunebox_admin_name` for admin sessions and never returns `instance_name`.
+- [ ] Admin header badge and WebSocket presence display the Plex username instead of `Admin (InstanceName)`.
+- [ ] Queue additions by admin log under the Plex username in stats.

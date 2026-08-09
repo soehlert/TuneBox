@@ -6,15 +6,15 @@ export const getLocalUsername = (): string | null => {
   if (guestStr) {
     try {
       const guest = JSON.parse(guestStr);
-      return guest.name;
+      if (guest.name) return guest.name;
     } catch {
-      return null;
+      // ignore JSON parse error
     }
   }
   
   const adminToken = localStorage.getItem("tunebox_admin_token");
   if (adminToken) {
-    return localStorage.getItem("tunebox_instance_name") || "Admin";
+    return "Admin";
   }
   
   return null;

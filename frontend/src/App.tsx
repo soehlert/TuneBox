@@ -462,7 +462,10 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
         headers: { "x-admin-token": adminToken },
       })
       .then((res) => {
-        setPlexUsername(res.data.plex_username ?? "");
+        if (res.data.plex_username) {
+          setPlexUsername(res.data.plex_username);
+          localStorage.setItem("tunebox_admin_name", res.data.plex_username);
+        }
         setSelectedServer(res.data.plex_server_name ?? "");
         setSelectedPlayer(res.data.client_name ?? "");
         if (res.data.instance_name) setInstanceName(res.data.instance_name);
@@ -799,13 +802,10 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
             {sectionsOpen.general && (
               <form id="settings-form" onSubmit={handleSave} style={{ display: "flex", flexDirection: "column", gap: "14px", padding: "4px 8px 12px 8px" }}>
                 <div>
-                  <label style={labelStyle}>Plex Username</label>
-                  <input
-                    type="text"
-                    value={plexUsername}
-                    onChange={(e) => { setPlexUsername(e.target.value); setIsFormDirty(true); }}
-                    style={inputStyle}
-                  />
+                  <label style={labelStyle}>Authenticated Plex Account</label>
+                  <div style={{ ...inputStyle, background: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.1)", color: "#f5a623", fontWeight: "bold" }}>
+                    {plexUsername || "Connected via Plex"}
+                  </div>
                 </div>
                 <div>
                   <label style={labelStyle}>TuneBox Instance Name</label>
@@ -1846,7 +1846,7 @@ function App() {
         let name = "Unknown";
         let role = "guest";
         if (isAdmin) {
-          name = localStorage.getItem("tunebox_admin_name") || `Admin (${instanceName})`;
+          name = localStorage.getItem("tunebox_admin_name") || "Admin";
           role = "admin";
         } else if (isDisplay) {
           name = localStorage.getItem("tunebox_display_name") || "Shared Display";
@@ -2187,10 +2187,7 @@ function App() {
                     title="Admin Session — Click to open Settings"
                   >
                     <span className="material-symbols-outlined" style={{ fontSize: "15px" }}>admin_panel_settings</span>
-                    <span>{
-                      localStorage.getItem("tunebox_admin_name") ||
-                      (instanceName ? `Admin (${instanceName})` : "Admin")
-                    }</span>
+                    <span>{localStorage.getItem("tunebox_admin_name") || "Admin"}</span>
                   </div>
                   <span style={{ width: "1px", height: "12px", background: "rgba(51, 118, 173, 0.3)" }}></span>
                   <span
@@ -2537,13 +2534,9 @@ function App() {
               <p style={{ color: "#aaa", fontSize: "14px", marginBottom: "30px", lineHeight: "1.5", textAlign: "center" }}>
                 Welcome! Let's get your details set up your Tukebox.
               </p>
-              <div style={{ marginBottom: "20px" }}>
-                <label style={labelStyle}>Plex Username</label>
-                <input type="text" placeholder="e.g. plex_user" value={plexUsername} onChange={(e) => setPlexUsername(e.target.value)} style={inputStyle} required />
-              </div>
               <div style={{ marginBottom: "25px" }}>
                 <label style={labelStyle}>TuneBox Instance Name</label>
-                <input type="text" placeholder="e.g. Dop's TuneBox" value={localUsername} onChange={(e) => setLocalUsername(e.target.value)} style={inputStyle} required />
+                <input type="text" placeholder="e.g. Living Room Jukebox" value={localUsername} onChange={(e) => setLocalUsername(e.target.value)} style={inputStyle} required />
               </div>
               <button type="submit" style={btnStyle}
                 onMouseOver={(e) => (e.currentTarget.style.background = "#d48b17")}
