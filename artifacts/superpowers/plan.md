@@ -1,30 +1,37 @@
 ## Goal
-Enable clicking a queue track (or its artwork/title) in the Queue panel to navigate directly to that track's Album view (`/albums/:albumId/tracks`) in the main viewing area.
+Redesign and re-label the two admin queue control buttons ("Clear Upcoming Queue" and "Clear Full Queue") with tooltips, clear descriptions, consistent app styling, and confirmation popups for both actions.
 
 ## Assumptions
-1. Since this is local dev, all tracks stored in the Redis queue will strictly include `album_id` in their queue payload. No fallback or legacy data handling code is needed.
-2. Clicking a queue track's title/artwork will navigate to `/albums/${track.album_id}/tracks` using React Router's `useNavigate()` hook.
-3. Queue action buttons (delete, drag handle, move to top) stop click propagation so clicking action buttons does not trigger album navigation.
+1. "Clear Upcoming Queue" calls `POST /api/music/clear-queue` (clears queued tracks 1..N, keeping the currently playing song).
+2. "Clear Full Queue" calls `POST /api/music/stop-queue` (stops playback and empties the entire queue including index 0).
+3. Both buttons will use custom `ConfirmModal` dialogs styled consistently with the app's dark glassmorphism theme.
+4. Tooltips/helper labels will explain the exact distinction between the two buttons.
 
 ## Plan
-1. **Include `album_id` in Redis Queue Payload**
-   - Files: `backend/services/redis.py`
-   - Change: Always set `"album_id": getattr(song, "album_id", getattr(song, "parentRatingKey", None))` in the `song_data` dict inside `add_to_queue_redis`.
-   - Verify: `uv run pytest backend/tests/test_redis.py`
+1. **Update Admin Controls UI & Tooltips in App.tsx**
+   - Files: `frontend/src/App.tsx`
+   - Change:
+     - Rename button 1 to **"Clear Upcoming Queue"** (`#f5a623` amber/orange).
+     - Rename button 2 to **"Clear Full Queue"** (`#ff4d4d` red).
+     - Add `title` tooltips and 1-line helper descriptions underneath each button.
+     - Add `confirmStopOpen` state for "Clear Full Queue" so both actions trigger a `ConfirmModal`.
+   - Verify: `npm run build` in `frontend/`.
 
-2. **Add Album Navigation to Queue Component**
-   - Files: `frontend/src/components/Queue.tsx`, `frontend/src/components/Queue.css`
-   - Change: Import `useNavigate` in `Queue.tsx`. Add `onClick` on track title/artwork to execute `navigate(`/albums/${track.album_id}/tracks${sParam}`)`. Add cursor pointer styling and hover styling in `Queue.css`.
-   - Verify: `uv run python -m pytest backend/tests/` and verify UI build via `npm run build` in `frontend/`.
+2. **Configure Confirmation Modals for Both Queue Actions**
+   - Files: `frontend/src/App.tsx`
+   - Change:
+     - `ConfirmModal` for Upcoming Queue: *"Clear upcoming tracks (keeps currently playing song)?"*
+     - `ConfirmModal` for Full Queue: *"Stop music & clear full queue (stops playback and wipes current track)?"*
+   - Verify: `npm run build` in `frontend/`.
 
-3. **Add Unit Test for `album_id` Serialization**
-   - Files: `backend/tests/test_redis.py`
-   - Change: Verify `album_id` is present in Redis queue track serialization output.
-   - Verify: `uv run pytest backend/tests/test_redis.py`
+3. **Verify End-to-End Build & Backend Test Compatibility**
+   - Files: `frontend/src/App.tsx`
+   - Change: Verify frontend production build and execute backend test suite.
+   - Verify: `npm run build` in `frontend/` and `uv run python -m pytest backend/tests/`.
 
 ## Risks & mitigations
-- **Risk**: Clicking drag handle or action buttons could trigger navigation if event propagation isn't stopped.
-- **Mitigation**: Add `e.stopPropagation()` on all action button and drag handle click/touch handlers.
+- **Risk**: User accidentally clicks full queue stop thinking it only clears up-next songs.
+- **Mitigation**: Add distinct red color + explicit modal copy detailing that "Clear Full Queue" stops active music and wipes the current track.
 
 ## Rollback plan
-- Revert changes via `git checkout main` or `git revert` on `feature/queue-item-album-navigation`.
+- Revert changes via `git checkout main` or `git restore frontend/src/App.tsx`.

@@ -524,6 +524,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
   };
 
   const [confirmClearOpen, setConfirmClearOpen] = useState(false);
+  const [confirmStopOpen, setConfirmStopOpen] = useState(false);
   const [renameState, setRenameState] = useState<{ isOpen: boolean; clientId: string; currentName: string }>({
     isOpen: false,
     clientId: "",
@@ -560,10 +561,24 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
         {},
         { headers: { "x-admin-token": adminToken } }
       );
-      setMsg("✓ Playback queue cleared!");
+      setMsg("✓ Upcoming queue cleared!");
     } catch (err) {
       console.error("Failed to clear queue:", err);
-      setMsg("✗ Failed to clear queue.");
+      setMsg("✗ Failed to clear upcoming queue.");
+    }
+  };
+
+  const handleExecuteStopQueue = async () => {
+    setConfirmStopOpen(false);
+    try {
+      await fetch(getApiUrl("/api/music/stop-queue"), {
+        method: "POST",
+        headers: { "x-admin-token": adminToken },
+      });
+      setMsg("✓ Playback stopped & full queue cleared!");
+    } catch (err) {
+      console.error("Error stopping queue:", err);
+      setMsg("✗ Failed to clear full queue.");
     }
   };
 
@@ -1026,41 +1041,47 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
 
                 {/* Queue Control Buttons */}
                 <div>
-                  <label style={{ ...labelStyle, fontSize: "13px", color: "rgba(255, 255, 255, 0.6)", display: "block", marginBottom: "6px" }}>⚠️ Admin Controls</label>
-                  <div style={{ display: "flex", gap: "10px" }}>
+                  <label style={{ ...labelStyle, fontSize: "13px", color: "rgba(255, 255, 255, 0.6)", display: "block", marginBottom: "8px" }}>⚠️ Admin Controls</label>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                     <button
                       type="button"
                       onClick={() => setConfirmClearOpen(true)}
+                      title="Clears all upcoming songs in the queue while preserving the currently playing track"
                       style={{
-                        flex: 1,
-                        background: "#e67e22",
-                        border: "none",
-                        color: "#ffffff",
+                        width: "100%",
+                        background: "rgba(245, 166, 35, 0.15)",
+                        border: "1px solid rgba(245, 166, 35, 0.4)",
+                        color: "#f5a623",
                         borderRadius: "8px",
                         padding: "12px 14px",
                         fontSize: "13px",
                         fontWeight: "bold",
                         cursor: "pointer",
-                        transition: "background-color 0.2s",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "6px",
+                        transition: "all 0.2s ease-in-out",
+                      }}
+                      onMouseOver={(e) => {
+                        e.currentTarget.style.backgroundColor = "rgba(245, 166, 35, 0.25)";
+                        e.currentTarget.style.borderColor = "#f5a623";
+                      }}
+                      onMouseOut={(e) => {
+                        e.currentTarget.style.backgroundColor = "rgba(245, 166, 35, 0.15)";
+                        e.currentTarget.style.borderColor = "rgba(245, 166, 35, 0.4)";
                       }}
                     >
-                      Clear Queue
+                      <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>playlist_remove</span>
+                      Clear Upcoming Queue
                     </button>
+
                     <button
                       type="button"
-                      onClick={async () => {
-                        try {
-                          await fetch(getApiUrl("/api/music/stop-queue"), {
-                            method: "POST",
-                            headers: { "x-admin-token": adminToken },
-                          });
-                          setMsg("✓ Playback stopped & queue drained!");
-                        } catch (err) {
-                          console.error("Error stopping queue:", err);
-                        }
-                      }}
+                      onClick={() => setConfirmStopOpen(true)}
+                      title="Stops player immediately and clears the entire queue including the current song"
                       style={{
-                        flex: 1,
+                        width: "100%",
                         background: "#ff4d4d",
                         border: "none",
                         color: "#ffffff",
@@ -1069,8 +1090,12 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                         fontSize: "13px",
                         fontWeight: "bold",
                         cursor: "pointer",
-                        boxShadow: "0 4px 12px rgba(255, 77, 77, 0.2)",
-                        transition: "background-color 0.2s",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "6px",
+                        boxShadow: "0 4px 12px rgba(255, 77, 77, 0.25)",
+                        transition: "all 0.2s ease-in-out",
                       }}
                       onMouseOver={(e) => {
                         e.currentTarget.style.backgroundColor = "#e04343";
@@ -1079,7 +1104,8 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
                         e.currentTarget.style.backgroundColor = "#ff4d4d";
                       }}
                     >
-                      ⏹️ Stop Queue & Playback
+                      <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>stop_circle</span>
+                      Clear Full Queue
                     </button>
                   </div>
                 </div>
@@ -1331,12 +1357,21 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
         />
         <ConfirmModal
           isOpen={confirmClearOpen}
-          title="Clear Playback Queue?"
-          message="Are you sure you want to clear all tracks from the playback queue? This action will immediately empty the queue for all connected party guests."
-          confirmText="Clear Queue"
+          title="Clear Upcoming Queue?"
+          message="Are you sure you want to clear upcoming tracks from the queue? The currently playing song will remain active."
+          confirmText="Clear Upcoming"
           cancelText="Cancel"
           onConfirm={handleExecuteClearQueue}
           onCancel={() => setConfirmClearOpen(false)}
+        />
+        <ConfirmModal
+          isOpen={confirmStopOpen}
+          title="Clear Full Queue & Stop Music?"
+          message="Are you sure you want to stop playback and clear the full queue? This will immediately halt playback and wipe the active song as well as all upcoming tracks."
+          confirmText="Clear Full Queue"
+          cancelText="Cancel"
+          onConfirm={handleExecuteStopQueue}
+          onCancel={() => setConfirmStopOpen(false)}
         />        <PromptModal
           isOpen={renameState.isOpen}
           title="Change Username"

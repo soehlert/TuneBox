@@ -1,57 +1,71 @@
 ## Goal
-1. Design a sane, local mechanism for hosts/admins to manually override TuneBox deduplication results (force-merge separate entries, split false-positive merges, and lock match states).
-2. Fix missing artist artwork for items residing on secondary/remote Plex servers without requiring write access to remote Plex servers.
+Clarify the purpose, behavior, copy, visual styling, and placement of queue management admin controls (`Clear Queue` vs `Stop Queue & Playback`).
 
 ## Constraints
-- **Read-Only Remote Access**: TuneBox must never attempt to write metadata or lock fields back to remote Plex Media Server databases.
-- **Local Persistence**: All manual merge overrides, unmerges, and match locks must be stored in TuneBox's local persistent store (Redis/SQLite).
-- **Multi-Server Key Disparity**: An artist or album has different local `ratingKey` IDs on each Plex server (e.g. AC/DC is ID `101` on Server A and ID `504` on Server B). Overrides must identify items using composite keys `(server_id, ratingKey)` or canonical Plex GUIDs.
+- **Framework & Stack**: React / Vite / Material UI / Python FastAPI / Redis.
+- **Role Scoping**: Admin controls require admin credentials (`X-Admin-Token` header).
+- **Core Requirement**: Must avoid accidental queue/playback destruction while keeping common party/host actions easy to understand and execute.
 
-## Known Context
-- **Deduplication Engine**: `backend/services/plex.py` currently merges artists and albums across servers using canonical Plex GUIDs (`plex://artist/...`) and title normalization (`re.sub(r"[^a-z0-9]", "", title)`).
-- **Image Proxying (`fetch_art`)**: TuneBox proxies images from Plex using `/api/music/artist-image/{artist_id}?server_id={server_id}`.
-- **Why Remote Artist Pictures Fail**:
-  1. Secondary server artist images fail if `server_id` is omitted in frontend image URLs, causing TuneBox to search the primary server (`plex-so`) where the secondary `artist_id` doesn't exist.
-  2. Plex Media Server does not automatically download artist bio photos unless agents match the artist.
-  3. When an artist is merged across multiple servers, if Server A lacks an artist photo, TuneBox currently does not attempt to fetch art from candidate Servers B or C that *do* have photos.
+## Known context
+- Currently in `frontend/src/App.tsx` (under Admin Controls drawer/panel):
+  - **`Clear Queue`** calls `POST /api/music/clear-queue`.
+    - *Behavior*: Clears upcoming queue tracks (indexes 1..N), but **keeps the currently playing track (index 0)** playing.
+  - **`Stop Queue & Playback`** calls `POST /api/music/stop-queue`.
+    - *Behavior*: Stops PlexAmp player playback, halts the time tracker, clears `now_playing`, and **wipes the entire queue including the current track (index 0)**.
+- **UI Problem**:
+  - The current buttons are generic side-by-side solid color rectangular blocks (`#e67e22` orange vs `#ff4d4d` red).
+  - "Clear Queue" sounds like it wipes everything (including current track), which causes confusion since it actually preserves the active song.
+  - The icons and labels don't visually reflect the non-destructive (soft clear) vs destructive (hard stop & reset) difference.
 
 ## Risks
-- **ID Instability**: Raw integer `ratingKey`s on Plex can change if a server library is recreated. Storing overrides solely by integer ID could orphan locks. *(Mitigation: Use canonical GUIDs when available, falling back to composite `server_id:ratingKey` pairs)*.
-- **UI Clutter**: Adding matching controls to everyday guest views will degrade the simple jukebox experience. *(Mitigation: Keep match/unmerge/lock controls strictly within Host Settings / Admin views)*.
+- **Accidental Disruption**: An admin wanting to just clear upcoming queued guest requests accidentally hits "Stop Queue & Playback", cutting off party music instantly.
+- **UI Clutter**: Adding overly verbose explanations directly on the main admin panel.
 
-## Options
+## Options (2–4)
 
-### Option 1: Local Override & Lock Registry with Multi-Server Image Fallback (Recommended)
-- **Local Override Registry**:
-  - Maintain a local Redis hash `manual_dedupe_overrides` with three rule types:
-    1. **Force Merge**: Explicitly group `[serverA:id1, serverB:id2]` into a single entity regardless of title/GUID differences.
-    2. **Unmerge / Split**: Explicitly separate `serverA:id1` from `serverB:id2` regardless of matching titles/GUIDs.
-    3. **Match Lock**: Flag an artist/album entity as `"locked": true`, instructing deduplication routines to bypass auto-merging or auto-splitting for that entity.
-- **Multi-Server Artwork Fallback**:
-  - Update `fetch_art` for merged entities: if Server A returns 404 or has no `thumb`, automatically check connected candidate Servers B and C for that merged artist before giving up.
-  - Ensure frontend image URLs pass `server_id` or query the unified entity.
-- **Admin UI**:
-  - Add an "Edit Match & Artwork" modal accessible in Host Settings -> Catalog Audit or from the Artist detail view.
+### Option 1: Keep Both Buttons, Re-label, Re-style, and Add Distinct Micro-copy & Icons (Recommended)
+- **Concept**:
+  - Keep both functions, as "clear upcoming requests" vs "emergency stop everything" serve two distinct real-world needs (e.g., party host clearing bad guest requests vs shutting down the jukebox).
+  - **Button 1 (Upcoming queue)**:
+    - *Label*: **"Clear Upcoming Queue"** (or **"Clear Up Next"**)
+    - *Icon*: `playlist_remove` or `cleaning_services`
+    - *Sub-text / Tooltip*: *"Clears upcoming songs, keeps current song playing"*
+    - *Styling*: Outline or subtle warning style (e.g. Amber/Orange outline `#f5a623`).
+  - **Button 2 (Stop & Drain Everything)**:
+    - *Label*: **"Stop Music & Reset Queue"** (or **"Stop Playback & Clear All"**)
+    - *Icon*: `stop_circle`
+    - *Sub-text / Tooltip*: *"Stops player immediately and wipes all songs"*
+    - *Styling*: Solid red destructive action style (`#e74c3c` or `#d32f2f`) with prompt confirmation modal.
 
-### Option 2: CLI / Audit Script Interactive Overrides
-- Extend `audit_deduplication.py` with an interactive CLI mode (`--fix`) that prompts the user to approve/reject missed or suspect merges and saves choices to a JSON config file.
-- *Pros*: Quick to script; minimal frontend UI needed.
-- *Cons*: Host must run CLI commands in terminal to fix catalog mistakes.
+### Option 2: Single Primary Action with a Secondary Action Dropdown / Toggle
+- **Concept**:
+  - Provide a single primary action button **"Clear Queue"** with a dropdown/split-button or radio toggle selecting scope:
+    - `(•) Clear Up Next (keep current track)`
+    - `( ) Stop & Clear Everything`
+- **Pros**: Reduces button count on screen.
+- **Cons**: Requires an extra click/toggle to switch modes, hiding common admin actions.
 
-### Option 3: External Artwork Provider Fallback (Fanart.tv / MusicBrainz)
-- When no connected Plex server has an artist photo, query Fanart.tv or Last.fm APIs directly using artist name/MBID to fetch high-res artist posters.
-- *Pros*: Fills in missing artist pictures even if all Plex servers lack photos.
-- *Cons*: Requires external API keys and network calls to third-party services.
+### Option 3: Move "Clear Upcoming Queue" into Queue Drawer Header, Keep "Stop Playback" in Admin Modal
+- **Concept**:
+  - Place a small "Clear Upcoming" icon/button inside the Queue panel header (`Queue.tsx`), accessible directly next to the Queue tab.
+  - Keep the full emergency "Stop Playback & Reset" button inside Admin Settings.
+- **Pros**: Contextually places queue clearing directly where the queue is viewed.
+- **Cons**: Puts destructive/admin actions in public queue view unless hidden behind admin auth tokens.
 
 ## Recommendation
-Implement **Option 1**:
-1. Store local deduplication overrides and lock states in Redis (`manual_dedupe_overrides`).
-2. Add a clean "Edit Match" modal in Host Settings for force-merging, unmerging, and locking items.
-3. Enhance `fetch_art` image proxying to try all candidate servers of a merged entity, and ensure `server_id` is properly passed from the frontend.
+**Option 1** is recommended:
+1. **Keep both buttons** because preserving current music while wiping guest requests vs shutting down playback are fundamentally different actions.
+2. **Rename for absolute clarity**:
+   - **"Clear Upcoming Queue"** (preserves current song)
+   - **"Stop Playback & Clear All"** (stops player + wipes current song)
+3. **Sensible Hierarchical Styling**:
+   - **"Clear Upcoming Queue"**: Soft warning style (Amber border/ghost button or muted orange button with `playlist_remove` icon).
+   - **"Stop Playback & Clear All"**: Distinct danger/destructive style (Red background with `stop_circle` icon) requiring confirmation modal.
+   - Include a concise 1-line helper text underneath each button explaining exact behavior.
 
 ## Acceptance Criteria
-1. Admin can force-merge two separate artists/albums into one unified entry.
-2. Admin can unmerge incorrectly matched artists/albums into separate entries.
-3. Admin can toggle a "Lock" state on any artist/album that prevents background deduplication scans from changing its match state.
-4. Remote server artist pictures render correctly in TuneBox by passing `server_id` and falling back across candidate servers for merged entities.
-5. All override rules are stored locally in TuneBox without writing to remote Plex servers.
+- [ ] Admin panel clearly distinguishes between clearing upcoming tracks vs stopping current playback and clearing all tracks.
+- [ ] Button labels explicitly state "Clear Upcoming Queue" and "Stop Playback & Clear All".
+- [ ] Visual hierarchy reflects non-destructive (upcoming queue clear) vs destructive (full stop & wipe).
+- [ ] Clicking "Clear Upcoming Queue" prompts confirmation and leaves active track playing.
+- [ ] Clicking "Stop Playback & Clear All" prompts confirmation, halts player, and empties entire queue.
