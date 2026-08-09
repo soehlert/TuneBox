@@ -64,7 +64,7 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
             logger.warning("Failed to connect to Plex server %s (ID: %s) for indexing.", s_name, s_id)
             try:
                 from backend.websockets import broadcast_indexing_status_threadsafe  # noqa: PLC0415
-                broadcast_indexing_status_threadsafe(is_indexing=False, is_initial=is_initial, server_name=s_name, items_indexed=0, message=f"Failed to connect to server '{s_name}'.")
+                broadcast_indexing_status_threadsafe(is_indexing=False, is_initial=is_initial, server_name=s_name, items_indexed=0, message=f"Plex server '{s_name}' is unreachable or offline.")
             except Exception:
                 pass
             return 0
