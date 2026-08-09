@@ -213,54 +213,93 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
 
                 try:
                     from backend.websockets import broadcast_indexing_status_threadsafe  # noqa: PLC0415
-                    broadcast_indexing_status_threadsafe(is_indexing=True, is_initial=is_initial, server_name=s_name, message=f"Indexing tracks on {s_name}")
+                    broadcast_indexing_status_threadsafe(is_indexing=True, is_initial=is_initial, server_name=s_name, message=f"Indexing tracks on {s_name}...")
                 except Exception:
                     pass
 
                 logger.info("Bulk fetching tracks for section '%s' on server %s...", getattr(music_lib, "title", "Music"), s_name)
-                tracks = music_lib.all(libtype="track")
-
-                # Perform fast DB transaction for tracks
+                json_tracks = fetch_tracks_json_batched(plex, music_lib)
                 conn = get_db_connection(db_path)
                 try:
-                    for track in tracks:
-                        try:
-                            duration_sec = milliseconds_to_seconds(track.duration) if getattr(track, "duration", None) else 0
-                            trk_url = getattr(track, "key", None)
+                    if json_tracks is not None:
+                        logger.info("Fetched %d tracks via fast JSON batching for %s.", len(json_tracks), s_name)
+                        for trk in json_tracks:
+                            try:
+                                dur = (int(trk.get("duration", 0) or 0)) // 1000
+                                raw_rating = float(trk.get("userRating", 0.0) or 0.0)
+                                p_alb_key = str(trk.get("parentRatingKey", ""))
+                                alb_db_id = album_map.get(p_alb_key)
 
-                            raw_user_rating = getattr(track, "userRating", 0.0) or 0.0
-                            user_rating_stars = float(raw_user_rating) / 2.0 if raw_user_rating else 0.0
+                                upsert_track(
+                                    album_id=alb_db_id,
+                                    server_id=s_id,
+                                    server_track_id=str(trk.get("ratingKey")),
+                                    artist_name=trk.get("grandparentTitle") or "Unknown Artist",
+                                    album_title=trk.get("parentTitle") or "Unknown Album",
+                                    title=trk.get("title") or "Unknown Track",
+                                    duration=dur,
+                                    url=trk.get("key"),
+                                    thumb=trk.get("parentThumb") or trk.get("thumb"),
+                                    play_count=int(trk.get("viewCount", 0) or 0),
+                                    user_rating=raw_rating / 2.0 if raw_rating else 0.0,
+                                    db_path=db_path,
+                                    conn=conn,
+                                )
+                                items_indexed += 1
+                            except Exception as trk_ex:
+                                logger.debug("Failed to upsert JSON track %s: %s", trk.get("title"), trk_ex)
+                        conn.commit()
+                    else:
+                        logger.info("Fallback: fetching tracks via plexapi for section '%s' on %s...", getattr(music_lib, "title", "Music"), s_name)
+                        tracks = music_lib.all(libtype="track")
+                        for track in tracks:
+                            try:
+                                duration_sec = milliseconds_to_seconds(track.duration) if getattr(track, "duration", None) else 0
+                                trk_url = getattr(track, "key", None)
+                                raw_user_rating = getattr(track, "userRating", 0.0) or 0.0
+                                user_rating_stars = float(raw_user_rating) / 2.0 if raw_user_rating else 0.0
+                                p_alb_key = str(getattr(track, "parentRatingKey", ""))
+                                alb_db_id = album_map.get(p_alb_key)
+                                artist_name = getattr(track, "grandparentTitle", None) or "Unknown Artist"
+                                album_title = getattr(track, "parentTitle", None) or "Unknown Album"
 
-                            p_alb_key = str(getattr(track, "parentRatingKey", ""))
-                            alb_db_id = album_map.get(p_alb_key)
-
-                            artist_name = getattr(track, "grandparentTitle", None) or "Unknown Artist"
-                            album_title = getattr(track, "parentTitle", None) or "Unknown Album"
-
-                            upsert_track(
-                                album_id=alb_db_id,
-                                server_id=s_id,
-                                server_track_id=str(track.ratingKey),
-                                artist_name=artist_name,
-                                album_title=album_title,
-                                title=track.title,
-                                duration=duration_sec,
-                                url=str(trk_url) if trk_url else None,
-                                thumb=getattr(track, "parentThumb", None) or getattr(track, "thumb", None),
-                                play_count=getattr(track, "viewCount", 0) or 0,
-                                user_rating=user_rating_stars,
-                                db_path=db_path,
-                                conn=conn,
-                            )
-                            items_indexed += 1
-                        except Exception as trk_ex:
-                            logger.debug("Failed to upsert track %s: %s", getattr(track, "title", "Unknown"), trk_ex)
-                    conn.commit()
+                                upsert_track(
+                                    album_id=alb_db_id,
+                                    server_id=s_id,
+                                    server_track_id=str(track.ratingKey),
+                                    artist_name=artist_name,
+                                    album_title=album_title,
+                                    title=track.title,
+                                    duration=duration_sec,
+                                    url=str(trk_url) if trk_url else None,
+                                    thumb=getattr(track, "parentThumb", None) or getattr(track, "thumb", None),
+                                    play_count=getattr(track, "viewCount", 0) or 0,
+                                    user_rating=user_rating_stars,
+                                    db_path=db_path,
+                                    conn=conn,
+                                )
+                                items_indexed += 1
+                            except Exception as trk_ex:
+                                logger.debug("Failed to upsert track %s: %s", getattr(track, "title", "Unknown"), trk_ex)
+                        conn.commit()
                 finally:
                     conn.close()
 
             except Exception as lib_ex:
                 logger.warning("Error scanning section '%s' on server %s: %s", getattr(music_lib, "title", "Unknown"), s_name, lib_ex)
+                try:
+                    from backend.websockets import broadcast_indexing_status_threadsafe  # noqa: PLC0415
+                    broadcast_indexing_status_threadsafe(
+                        is_indexing=False,
+                        is_initial=is_initial,
+                        server_name=s_name,
+                        items_indexed=0,
+                        message=f"Indexing failed for '{s_name}': {lib_ex}",
+                        is_error=True,
+                    )
+                except Exception:
+                    pass
+                return 0
 
         logger.info("Successfully indexed %d items from server %s (ID: %s)", items_indexed, s_name, s_id)
         try:
@@ -276,7 +315,59 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
         return items_indexed
     except Exception as ex:
         logger.exception("Error indexing server %s: %s", s_name, ex)
+        try:
+            from backend.websockets import broadcast_indexing_status_threadsafe  # noqa: PLC0415
+            broadcast_indexing_status_threadsafe(
+                is_indexing=False,
+                is_initial=is_initial,
+                server_name=s_name,
+                items_indexed=0,
+                message=f"Indexing failed for '{s_name}': {ex}",
+                is_error=True,
+            )
+        except Exception:
+            pass
         return 0
+
+
+def fetch_tracks_json_batched(plex_conn, music_lib, batch_size: int = 5000) -> list[dict] | None:
+    """Fetch all tracks for a music section using fast paginated JSON requests (5,000 items per batch)."""
+    try:
+        import json
+        import urllib.request
+        import ssl
+
+        server_url = getattr(plex_conn, "_baseurl", None)
+        token = getattr(plex_conn, "_token", None)
+        sec_key = getattr(music_lib, "key", None)
+
+        if not server_url or not token or not sec_key:
+            return None
+
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+
+        all_items = []
+        start = 0
+
+        while True:
+            url = f"{server_url}/library/sections/{sec_key}/all?type=10&X-Plex-Token={token}&X-Plex-Container-Start={start}&X-Plex-Container-Size={batch_size}"
+            req = urllib.request.Request(url, headers={"Accept": "application/json"})
+            with urllib.request.urlopen(req, timeout=30, context=ctx) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+                mc = data.get("MediaContainer", {})
+                items = mc.get("Metadata", [])
+                if not items:
+                    break
+                all_items.extend(items)
+                start += len(items)
+                if len(items) < batch_size:
+                    break
+        return all_items
+    except Exception as ex:
+        logger.debug("Fast JSON track batching failed, falling back to plexapi: %s", ex)
+        return None
 
 
 def _prewarm_art_in_background(server_id: str, artist_ids: list[int], album_ids: list[int]):
