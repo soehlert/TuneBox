@@ -11,7 +11,11 @@ from backend.services.library import (
     upsert_track,
 )
 
+import threading
+
 logger = logging.getLogger(__name__)
+
+_sync_lock = threading.Lock()
 
 
 def index_server(server_info: dict, db_path: str | None = None, force_full: bool = False) -> int:
@@ -217,6 +221,10 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
 
 def sync_all_servers(db_path: str | None = None, force_full: bool = False):
     """Sync and perform incremental diff index across all accessible enabled Plex servers."""
+    if not _sync_lock.acquire(blocking=False):
+        logger.info("Library index sync is already in progress. Skipping redundant concurrent request.")
+        return
+
     try:
         from backend.services.plex import fetch_accessible_plex_servers, get_enabled_server_ids
 
@@ -280,3 +288,5 @@ def sync_all_servers(db_path: str | None = None, force_full: bool = False):
                     logger.warning("Error indexing server %s: %s", s.get("name"), ex)
     except Exception as ex:
         logger.warning("Error in sync_all_servers: %s", ex)
+    finally:
+        _sync_lock.release()
