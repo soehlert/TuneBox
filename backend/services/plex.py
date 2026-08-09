@@ -1406,6 +1406,11 @@ def get_target_plex_connection(server_id: str | None = None):
     if getattr(primary_plex, "machineIdentifier", None) == server_id:
         return primary_plex
 
+    enabled_ids = {str(x).lower() for x in get_enabled_server_ids()}
+    if server_id and str(server_id).lower() not in enabled_ids:
+        logger.info("[Plex Connection] Server '%s' is disabled. Skipping network connection.", server_id)
+        return None
+
     now = time.time()
     # Check positive connection cache (5 min)
     if server_id in _plex_connection_cache:
@@ -2123,8 +2128,9 @@ def fetch_art(item_id: int, item_type: str, server_id: str | None = None):
     try:
         from backend.services.library import get_all_art_sources, get_server_credentials
         all_sources = get_all_art_sources(item_id, item_type)
-
-        if server_id:
+        if not all_sources and server_id:
+            all_sources = [(None, server_id, None)]
+        elif server_id:
             all_sources = sorted(all_sources, key=lambda s: 0 if s[1] == server_id else 1)
 
         last_error = None

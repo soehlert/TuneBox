@@ -85,17 +85,20 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
         items_indexed = 0
         now = int(time.time())
 
+        items_indexed = 0
         from backend.db.library_db import get_db_connection  # noqa: PLC0415
-        conn = get_db_connection(db_path)
-        try:
-            for music_lib in music_libs:
-                try:
-                    # 1. Bulk fetch all artists for section in 1 request
-                    logger.info("Bulk fetching artists for section '%s' on server %s...", getattr(music_lib, "title", "Music"), s_name)
-                    artists = music_lib.all(libtype="artist")
-                    artist_map: dict[str, int] = {}  # ratingKey -> artist_db_id
-                    artist_name_map: dict[str, str] = {}  # ratingKey -> artist_name
 
+        for music_lib in music_libs:
+            try:
+                # 1. Bulk fetch all artists for section over network (NO DB lock open)
+                logger.info("Bulk fetching artists for section '%s' on server %s...", getattr(music_lib, "title", "Music"), s_name)
+                artists = music_lib.all(libtype="artist")
+                artist_map: dict[str, int] = {}  # ratingKey -> artist_db_id
+                artist_name_map: dict[str, str] = {}  # ratingKey -> artist_name
+
+                # Perform fast DB transaction for artists
+                conn = get_db_connection(db_path)
+                try:
                     for artist in artists:
                         try:
                             guid_val = getattr(artist, "guid", None) or getattr(artist, "ratingKey", "")
@@ -114,15 +117,19 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
                             artist_name_map[r_key] = artist.title
                         except Exception as a_ex:
                             logger.debug("Failed to upsert artist %s: %s", getattr(artist, "title", "Unknown"), a_ex)
-
                     conn.commit()
-                    logger.info("Bulk upserted %d artists for server %s.", len(artist_map), s_name)
+                finally:
+                    conn.close()
+                logger.info("Bulk upserted %d artists for server %s.", len(artist_map), s_name)
 
-                    # 2. Bulk fetch all albums for section in 1 request
-                    logger.info("Bulk fetching albums for section '%s' on server %s...", getattr(music_lib, "title", "Music"), s_name)
-                    albums = music_lib.all(libtype="album")
-                    album_map: dict[str, int] = {}  # album ratingKey -> album_db_id
+                # 2. Bulk fetch all albums for section over network (NO DB lock open)
+                logger.info("Bulk fetching albums for section '%s' on server %s...", getattr(music_lib, "title", "Music"), s_name)
+                albums = music_lib.all(libtype="album")
+                album_map: dict[str, int] = {}  # album ratingKey -> album_db_id
 
+                # Perform fast DB transaction for albums
+                conn = get_db_connection(db_path)
+                try:
                     for album in albums:
                         try:
                             year_val = getattr(album, "year", None)
@@ -156,13 +163,18 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
                             album_map[str(album.ratingKey)] = alb_db_id
                         except Exception as alb_ex:
                             logger.debug("Failed to upsert album %s: %s", getattr(album, "title", "Unknown"), alb_ex)
-
                     conn.commit()
-                    logger.info("Bulk upserted %d albums for server %s.", len(album_map), s_name)
+                finally:
+                    conn.close()
+                logger.info("Bulk upserted %d albums for server %s.", len(album_map), s_name)
 
-                    # 3. Bulk fetch all tracks for section in 1 request
-                    logger.info("Bulk fetching tracks for section '%s' on server %s...", getattr(music_lib, "title", "Music"), s_name)
-                    tracks = music_lib.all(libtype="track")
+                # 3. Bulk fetch all tracks for section over network (NO DB lock open)
+                logger.info("Bulk fetching tracks for section '%s' on server %s...", getattr(music_lib, "title", "Music"), s_name)
+                tracks = music_lib.all(libtype="track")
+
+                # Perform fast DB transaction for tracks
+                conn = get_db_connection(db_path)
+                try:
                     for track in tracks:
                         try:
                             duration_sec = milliseconds_to_seconds(track.duration) if getattr(track, "duration", None) else 0
@@ -195,16 +207,12 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
                             items_indexed += 1
                         except Exception as trk_ex:
                             logger.debug("Failed to upsert track %s: %s", getattr(track, "title", "Unknown"), trk_ex)
-
                     conn.commit()
+                finally:
+                    conn.close()
 
-                except Exception as lib_ex:
-                    logger.warning("Error scanning section '%s' on server %s: %s", getattr(music_lib, "title", "Unknown"), s_name, lib_ex)
-        finally:
-            try:
-                conn.close()
-            except Exception:
-                pass
+            except Exception as lib_ex:
+                logger.warning("Error scanning section '%s' on server %s: %s", getattr(music_lib, "title", "Unknown"), s_name, lib_ex)
 
         logger.info("Successfully indexed %d items from server %s (ID: %s)", items_indexed, s_name, s_id)
         try:
