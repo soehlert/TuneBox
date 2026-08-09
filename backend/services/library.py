@@ -395,17 +395,23 @@ def clean_library_deduplication(db_path: str | None = None) -> dict:
         conn.commit()
         if removed_artists > 0 or removed_albums > 0:
             logger.info("Cleaned library database: consolidated %d duplicate artists, %d duplicate albums", removed_artists, removed_albums)
-        
+
         # Clear art RAM and Redis caches
         try:
-            from backend.services.plex import clear_art_memory_cache
+            from backend.services.plex import clear_art_memory_cache  # noqa: PLC0415
             clear_art_memory_cache()
         except Exception:
             pass
 
         return {"removed_artists": removed_artists, "removed_albums": removed_albums}
+    except Exception as ex:
+        logger.warning("Error running library deduplication: %s", ex)
+        return {"removed_artists": 0, "removed_albums": 0}
     finally:
-        conn.close()
+        try:
+            conn.close()
+        except Exception:
+            pass
 
 
 def get_indexed_artists(sort_mode: str = "name_asc", db_path: str | None = None) -> list[dict]:

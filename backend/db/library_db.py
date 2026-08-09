@@ -17,9 +17,12 @@ def get_db_connection(db_path: str | None = None) -> sqlite3.Connection:
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA journal_mode=WAL;")
         conn.execute("PRAGMA foreign_keys=ON;")
+        res = conn.execute("PRAGMA integrity_check(1);").fetchone()
+        if res and res[0] != "ok":
+            raise sqlite3.DatabaseError(f"Database integrity check failed: {res[0]}")
         return conn
     except (sqlite3.DatabaseError, sqlite3.OperationalError) as ex:
-        if "malformed" in str(ex).lower() or "disk image" in str(ex).lower():
+        if "malformed" in str(ex).lower() or "disk image" in str(ex).lower() or "integrity check" in str(ex).lower():
             logger.warning("Corrupted SQLite database detected at %s (%s). Recreating clean database...", target_path, ex)
             try:
                 if os.path.exists(target_path):
