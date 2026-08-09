@@ -1746,6 +1746,7 @@ function App() {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [accessibleServers, setAccessibleServers] = useState<any[]>([]);
   const [showServerModal, setShowServerModal] = useState(false);
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [indexingStatus, setIndexingStatus] = useState<{ isIndexing: boolean; isInitial: boolean; serverName: string } | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -1793,8 +1794,30 @@ function App() {
       .catch((err) => console.error("Error fetching indexing status:", err));
   }, [isConfigured]);
 
+  // Auto-refresh artist list dynamically while library indexing is active in background
+  useEffect(() => {
+    if (!isConfigured || !indexingStatus?.isIndexing || debouncedSearchTerm) return;
+
+    const interval = setInterval(() => {
+      const artistListURL = getApiUrl("/api/music/artists");
+      axios
+        .get(artistListURL)
+        .then((res) => {
+          if (Array.isArray(res.data)) {
+            const sortedArtists = res.data
+              .filter((item: any) => item.name)
+              .sort((a: any, b: any) => (a.name && b.name ? a.name.localeCompare(b.name) : -1));
+            setArtists(sortedArtists);
+            setFilteredArtists(sortedArtists);
+          }
+        })
+        .catch(() => {});
+    }, 2500);
+
+    return () => clearInterval(interval);
+  }, [isConfigured, indexingStatus?.isIndexing, debouncedSearchTerm]);
+
   // Debouncing hook logic
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   useEffect(() => {
     if (searchTerm) {
       setLoadingArtists(true);

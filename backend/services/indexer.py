@@ -190,23 +190,38 @@ def sync_all_servers(db_path: str | None = None, force_full: bool = False):
         ]
 
         if not target_servers:
-            target_servers = [s for s in all_accessible if s.get("is_primary")] or (all_accessible[:1] if all_accessible else [])
-
-        if not target_servers:
             from backend.services.mock_data import seed_mock_library_db
             seed_mock_library_db(db_path)
             return
 
-        logger.info("Starting background incremental diff sync for %d enabled server(s)...", len(target_servers))
+        # Separate primary server(s) from secondary servers
+        primary_servers = [s for s in target_servers if s.get("is_primary")]
+        secondary_servers = [s for s in target_servers if not s.get("is_primary")]
+        if not primary_servers and target_servers:
+            primary_servers = [target_servers[0]]
+            secondary_servers = target_servers[1:]
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(target_servers) or 1, 4)) as executor:
-            futures = [executor.submit(index_server, s, db_path, force_full) for s in target_servers]
-            done, _ = concurrent.futures.wait(futures, timeout=60.0)
-            for f in done:
-                try:
-                    f.result()
-                except Exception as ex:
-                    logger.warning("Error in background server sync thread: %s", ex)
+        logger.info("Starting sync: %d primary server(s), %d secondary server(s)...", len(primary_servers), len(secondary_servers))
+
+        # 1. Index primary server FIRST so main library populates immediately
+        for p_server in primary_servers:
+            try:
+                logger.info("Indexing primary server '%s' first...", p_server.get("name"))
+                index_server(p_server, db_path, force_full)
+            except Exception as p_ex:
+                logger.warning("Error indexing primary server %s: %s", p_server.get("name"), p_ex)
+
+        # 2. Index secondary servers in background threadpool
+        if secondary_servers:
+            logger.info("Indexing %d secondary server(s) in background...", len(secondary_servers))
+            with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(secondary_servers), 4)) as executor:
+                futures = [executor.submit(index_server, s, db_path, force_full) for s in secondary_servers]
+                done, _ = concurrent.futures.wait(futures, timeout=60.0)
+                for f in done:
+                    try:
+                        f.result()
+                    except Exception as ex:
+                        logger.warning("Error in secondary server sync thread: %s", ex)
     except Exception as ex:
         logger.warning("Falling back to mock library seeding due to sync error: %s", ex)
         from backend.services.mock_data import seed_mock_library_db
