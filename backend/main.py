@@ -46,6 +46,15 @@ async def lifespan(app: FastAPI):
             with contextlib.suppress(asyncio.CancelledError):
                 await task
 
+        # Checkpoint & flush SQLite WAL journal on container shutdown to prevent corruption
+        try:
+            from backend.db.library_db import get_db_connection  # noqa: PLC0415
+            conn = get_db_connection()
+            conn.execute("PRAGMA wal_checkpoint(TRUNCATE);")
+            conn.close()
+        except Exception as wal_ex:
+            logger.debug("WAL checkpoint on shutdown: %s", wal_ex)
+
 
 # Initialize the FastAPI backend
 app = FastAPI(
