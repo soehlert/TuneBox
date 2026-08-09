@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface FallbackImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
   src: string;
@@ -19,6 +19,10 @@ export const FallbackImage = ({
   ...props
 }: FallbackImageProps) => {
   const [error, setError] = useState(false);
+
+  useEffect(() => {
+    setError(false);
+  }, [src]);
 
   if (error || !src) {
     const iconName = type === 'artist' ? 'person' : 'album';

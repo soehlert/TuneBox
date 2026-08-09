@@ -709,78 +709,83 @@ async def clear_redis_cache(key: str):
 
 @router.get("/artist-image/{artist_id}")
 def get_artist_image(artist_id: int | str, request: Request, server_id: str | None = None):
-    """Fetch and proxy the artist photo from Plex."""
-    try:
-        from backend.services.library import get_art_source_info
-        _, _, rating_key = get_art_source_info(artist_id, "artist")
-    except Exception:
-        rating_key = None
+    """Fetch and proxy the artist image from Plex."""
+    content_bytes, media_type = fetch_art_bytes(artist_id, "artist", server_id=server_id)
+    is_fallback = not content_bytes or len(content_bytes) < 100 or content_bytes.startswith(b"\x89PNG")
+    if is_fallback:
+        return Response(
+            content=content_bytes,
+            media_type=media_type,
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate, max-age=0",
+                "Pragma": "no-cache",
+                "Expires": "0",
+            },
+        )
 
-    etag = f'"artist-{artist_id}-{rating_key or "default"}-{server_id or "primary"}-v5"'
+    etag = f'"artist-{artist_id}-{len(content_bytes)}-{server_id or "primary"}"'
     headers = {
-        "Cache-Control": "public, max-age=86400, must-revalidate",
+        "Cache-Control": "public, max-age=3600, must-revalidate",
         "ETag": etag,
     }
     if request.headers.get("if-none-match") == etag:
         return Response(status_code=304, headers=headers)
 
-    content_bytes, media_type = fetch_art_bytes(artist_id, "artist", server_id=server_id)
     return Response(content=content_bytes, media_type=media_type, headers=headers)
 
 
 @router.get("/album-art/{album_id}")
 def get_album_art(album_id: int | str, request: Request, server_id: str | None = None):
     """Fetch and proxy the album art from Plex."""
-    try:
-        from backend.services.library import get_art_source_info
-        _, _, rating_key = get_art_source_info(album_id, "album")
-    except Exception:
-        rating_key = None
+    content_bytes, media_type = fetch_art_bytes(album_id, "album", server_id=server_id)
+    is_fallback = not content_bytes or len(content_bytes) < 100 or content_bytes.startswith(b"\x89PNG")
+    if is_fallback:
+        return Response(
+            content=content_bytes,
+            media_type=media_type,
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate, max-age=0",
+                "Pragma": "no-cache",
+                "Expires": "0",
+            },
+        )
 
-    etag = f'"album-{album_id}-{rating_key or "default"}-{server_id or "primary"}-v5"'
+    etag = f'"album-{album_id}-{len(content_bytes)}-{server_id or "primary"}"'
     headers = {
-        "Cache-Control": "public, max-age=86400, must-revalidate",
+        "Cache-Control": "public, max-age=3600, must-revalidate",
         "ETag": etag,
     }
     if request.headers.get("if-none-match") == etag:
         return Response(status_code=304, headers=headers)
 
-    content_bytes, media_type = fetch_art_bytes(album_id, "album", server_id=server_id)
     return Response(content=content_bytes, media_type=media_type, headers=headers)
 
 
 @router.get("/track-art/{track_id}")
 def get_track_art(track_id: int | str, request: Request, server_id: str | None = None):
     """Fetch and proxy the track art from Plex."""
-    try:
-        from backend.services.library import get_art_source_info
-        _, _, rating_key = get_art_source_info(track_id, "track")
-    except Exception:
-        rating_key = None
+    content_bytes, media_type = fetch_art_bytes(track_id, "track", server_id=server_id)
+    is_fallback = not content_bytes or len(content_bytes) < 100 or content_bytes.startswith(b"\x89PNG")
+    if is_fallback:
+        return Response(
+            content=content_bytes,
+            media_type=media_type,
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate, max-age=0",
+                "Pragma": "no-cache",
+                "Expires": "0",
+            },
+        )
 
-    etag = f'"track-{track_id}-{rating_key or "default"}-{server_id or "primary"}-v5"'
+    etag = f'"track-{track_id}-{len(content_bytes)}-{server_id or "primary"}"'
     headers = {
-        "Cache-Control": "public, max-age=86400, must-revalidate",
+        "Cache-Control": "public, max-age=3600, must-revalidate",
         "ETag": etag,
     }
     if request.headers.get("if-none-match") == etag:
         return Response(status_code=304, headers=headers)
 
-    content_bytes, media_type = fetch_art_bytes(track_id, "track", server_id=server_id)
     return Response(content=content_bytes, media_type=media_type, headers=headers)
-
-    try:
-        response = fetch_art(track_id, "track", server_id=server_id)
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Error fetching track art: {e}"
-        ) from e
-    else:
-        return StreamingResponse(
-            response.iter_content(chunk_size=1024), media_type="image/jpeg", headers=headers
-        )
 
 
 @router.get("/playlists")
