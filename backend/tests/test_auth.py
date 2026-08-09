@@ -60,7 +60,7 @@ def test_auth_status_testing_bypass(client):
     data = response.json()
     assert data["authenticated"] is True
     assert data["is_configured"] is True
-    assert data["admin_token"] == "mock-admin-token"
+    assert "admin_token" not in data
     assert data["testing"] is True
 
 

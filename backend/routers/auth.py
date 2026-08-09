@@ -97,7 +97,6 @@ async def status():
             "instance_name": settings.instance_name,
             "is_configured": True,
             "testing": True,
-            "admin_token": settings.admin_token,
         }
 
     is_configured = bool(

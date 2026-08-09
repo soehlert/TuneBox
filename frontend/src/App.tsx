@@ -1905,13 +1905,6 @@ function App() {
         setLocalUsername(res.data.client_name);
       }
 
-      // Testing-mode bypass: backend returns admin_token in status when TESTING=true
-      // and setup has been completed. Store it so admin mode activates immediately.
-      if (res.data.admin_token && !adminToken) {
-        localStorage.setItem("tunebox_admin_token", res.data.admin_token);
-        setAdminToken(res.data.admin_token);
-      }
-
       if (res.data.authenticated) {
         if (res.data.is_configured) {
           setStep(4);
