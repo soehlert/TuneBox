@@ -164,11 +164,8 @@ def get_current_playing_track():
     Returns:
         The current track info or None if nothing is playing or stopped.
     """
-    if track_time_tracker.state == "stopped":
-        return None
-
     cached_track = get_cached_data("now_playing")
-    if not cached_track:
+    if not cached_track or not isinstance(cached_track, dict):
         return None
 
     # Track time info is calculated dynamically from the tracker
@@ -182,13 +179,16 @@ def get_current_playing_track():
     remaining_time = max(total_time - elapsed, 0) if total_time > 0 else 0
     remaining_percentage = (remaining_time / total_time * 100) if total_time > 0 else 0
 
+    track_state = cached_track.get("track_state") or ("playing" if track_time_tracker.is_playing else "paused")
+
     return {
         "item_id": cached_track.get("item_id"),
         "server_id": cached_track.get("server_id"),
-        "title": cached_track["title"],
+        "title": cached_track.get("title", "Unknown Title"),
         "artist": cached_track.get("artist", "Unknown Artist"),
         "album": cached_track.get("album", "Unknown Album"),
-        "track_state": "playing" if track_time_tracker.is_playing else "paused",
+        "album_art": cached_track.get("album_art"),
+        "track_state": track_state,
         "total_time": total_time,
         "elapsed_time": elapsed,
         "remaining_time": remaining_time,
@@ -519,29 +519,33 @@ def generate_autoplay_tracks():
     # 1. Fetch recent playback history IDs
     history = get_playback_history_ids()
     
-    # If in testing mode or history is empty, fall back
-    if settings.testing or not history:
-        # We try to load cached playlist tracks as fallback pool
+    # If in testing mode or history has fewer than 5 items, fall back to preseed playlist / library pool
+    if settings.testing or len(history) < 5:
+        # We try to load preseed playlist tracks or library tracks as fallback pool
         try:
             cached = get_redis_cache_client().get("last_seeded_playlist_tracks")
-            if cached:
-                fallback_pool = json.loads(cached)
-                # Sample up to 10 tracks
+            fallback_pool = json.loads(cached) if cached else None
+            if not fallback_pool:
+                from backend.db.library_db import get_latest_preseed_playlist_tracks  # noqa: PLC0415
+                fallback_pool = get_latest_preseed_playlist_tracks()
+
+            if fallback_pool and isinstance(fallback_pool, list):
                 sampled_ids = random.sample(fallback_pool, min(len(fallback_pool), 10))
                 for tid in sampled_ids:
-                    track = get_track(tid)
                     try:
-                        add_to_queue_redis(track, is_fallback=True)
+                        track = get_track(tid)
+                        if track:
+                            add_to_queue_redis(track, is_fallback=True)
                     except Exception:
                         pass
-                logger.info("Autoplay seeded queue using cached playlist fallback.")
+                logger.info("Autoplay seeded queue using preseed playlist fallback.")
                 return
         except Exception as ex:
-            logger.warning("Failed to retrieve cached playlist tracks for autoplay fallback: %s", ex)
+            logger.warning("Failed to retrieve preseed playlist tracks for autoplay fallback: %s", ex)
             
-        # Hard fallback to MOCK_TRACKS if cached playlist is unavailable
+        # Hard fallback to MOCK_TRACKS if in testing mode
         if settings.testing:
-            from backend.services.mock_data import MOCK_TRACKS
+            from backend.services.mock_data import MOCK_TRACKS  # noqa: PLC0415
             all_tracks = []
             for album_tracks in MOCK_TRACKS.values():
                 all_tracks.extend(album_tracks)
@@ -561,8 +565,8 @@ def generate_autoplay_tracks():
             logger.info("Autoplay seeded queue using mock track fallback.")
             return
 
-    # 2. Select up to 3 distinct seeds from the history
-    seeds = list(set(history))[:3]
+    # 2. Select up to 5 distinct seeds from the history
+    seeds = list(set(history))[:5]
     candidate_tracks = []
     
     # 3. Query Plex for related tracks
@@ -591,26 +595,58 @@ def generate_autoplay_tracks():
         if str(c.ratingKey) not in [str(h) for h in history]:
             filtered_candidates.append(c)
     
-    # If we have no/few candidates, fall back to cached playlist tracks
+    # If we have no/few candidates, fall back to preseed playlist tracks (Redis or SQLite)
     if len(filtered_candidates) < 10:
         try:
             cached = get_redis_cache_client().get("last_seeded_playlist_tracks")
-            if cached:
-                fallback_pool = json.loads(cached)
+            fallback_pool = json.loads(cached) if cached else None
+            if not fallback_pool:
+                from backend.db.library_db import get_latest_preseed_playlist_tracks  # noqa: PLC0415
+                fallback_pool = get_latest_preseed_playlist_tracks()
+
+            if fallback_pool and isinstance(fallback_pool, list):
                 needed = 10 - len(filtered_candidates)
                 sampled_ids = random.sample(fallback_pool, min(len(fallback_pool), needed))
                 for tid in sampled_ids:
                     try:
-                        # Skip if already in history
-                        if tid in history:
+                        if str(tid) in [str(h) for h in history]:
                             continue
                         track = get_track(tid)
-                        filtered_candidates.append(track)
+                        if track:
+                            filtered_candidates.append(track)
                     except Exception:
                         pass
         except Exception as ex:
-            logger.warning("Autoplay fallback pool lookup failed: %s", ex)
-            
+            logger.warning("Autoplay preseed playlist fallback lookup failed: %s", ex)
+
+    # Ultimate fallback: fetch random indexed tracks from local SQLite library.db
+    if len(filtered_candidates) < 10 and not settings.testing:
+        needed = 10 - len(filtered_candidates)
+        try:
+            from backend.db.library_db import get_db_connection  # noqa: PLC0415
+            conn = get_db_connection()
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT server_track_id FROM tracks ORDER BY RANDOM() LIMIT ?;",
+                (needed * 2,),
+            )
+            rows = cursor.fetchall()
+            conn.close()
+            for row in rows:
+                if len(filtered_candidates) >= 10:
+                    break
+                tid = row["server_track_id"]
+                if str(tid) in [str(h) for h in history]:
+                    continue
+                try:
+                    track = get_track(tid)
+                    if track:
+                        filtered_candidates.append(track)
+                except Exception:
+                    pass
+        except Exception as sq_ex:
+            logger.warning("Failed to fetch random tracks from SQLite for autoplay: %s", sq_ex)
+
     if not filtered_candidates:
         logger.warning("No candidates found for autoplay.")
         return
@@ -706,11 +742,12 @@ async def playback_orchestrator():
                             await send_queue()
                     else:
                         # Queue finished
-                        playback_active = False
-                        clear_cache("now_playing")
-                        from backend.websockets import send_current_playing, reset_skip_votes  # noqa: PLC0415
-                        await reset_skip_votes()
-                        await send_current_playing()
+                        if playback_active:
+                            playback_active = False
+                            clear_cache("now_playing")
+                            from backend.websockets import send_current_playing, reset_skip_votes  # noqa: PLC0415
+                            await reset_skip_votes()
+                            await send_current_playing()
 
                 # 2. Check for natural track completion
                 elif track_time_tracker.is_playing:
@@ -821,6 +858,7 @@ async def check_plexamp_resync(force_align: bool = False):
                             state = timeline.state
                             machineIdentifier = player.machineIdentifier
                         mock_sess.player = MockPlayer()
+                        mock_sess.ratingKey = rating_key
 
                         # Resolve track metadata details
                         cached_track = get_cached_data("now_playing")
@@ -2571,10 +2609,12 @@ def seed_queue_from_playlist(playlist_id: int, count: int = 10):
         raise HTTPException(status_code=404, detail="Playlist not found")
         
     tracks = playlist.items()
-    # Store all playlist track ratingKeys in cache as a fallback pool for Autoplay
+    # Store all playlist track ratingKeys in cache and SQLite as fallback pool for Autoplay
     playlist_track_ids = [int(t.ratingKey) for t in tracks]
     try:
         get_redis_cache_client().set("last_seeded_playlist_tracks", json.dumps(playlist_track_ids))
+        from backend.db.library_db import save_preseed_playlist_tracks  # noqa: PLC0415
+        save_preseed_playlist_tracks(playlist_track_ids, playlist_id=str(playlist_id))
     except Exception as ex:
         logger.warning("Failed to cache fallback pool: %s", ex)
 

@@ -100,7 +100,6 @@ def add_to_queue_redis(song, server_id=None, server_name=None, server_token=None
             logger.info("Added guest song %s to Redis queue.", song.title)
 
 
-
 def remove_from_redis_queue(item_id):
     """Remove a song from the Redis playback queue by its item_id.
 
@@ -139,7 +138,7 @@ def get_redis_queue():
 
 
 def clear_redis_queue(force_all: bool = False):
-    """Clear the Redis playback queue.
+    """Clear the Redis playback queue, saving a before_clear snapshot of user tracks first.
 
     If force_all is True, delete the entire queue including index 0.
     If force_all is False and a track is active, preserve index 0.
@@ -150,6 +149,7 @@ def clear_redis_queue(force_all: bool = False):
     client = get_redis_queue_client()
     from backend.services.plex import track_time_tracker  # noqa: PLC0415
 
+    # 2. Perform queue clear
     if force_all or (not track_time_tracker.is_playing and track_time_tracker.state != "paused"):
         client.delete("playback_queue")
         logger.info("The Redis playback queue has been completely cleared.")

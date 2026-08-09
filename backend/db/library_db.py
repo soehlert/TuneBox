@@ -147,6 +147,18 @@ def init_library_db(db_path: str | None = None):
             """
         )
 
+        # 6. Queue Snapshots Table for persistent crash recovery & admin restore
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS queue_snapshots (
+                snapshot_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                created_at INTEGER NOT NULL,
+                trigger_type TEXT NOT NULL,
+                queue_data TEXT NOT NULL
+            )
+            """
+        )
+
         # Indexes for fast B-Tree lookups
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_artists_name ON artists (name COLLATE NOCASE);")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_artists_play_count ON artists (play_count DESC);")
@@ -158,11 +170,76 @@ def init_library_db(db_path: str | None = None):
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_tracks_album ON tracks (album_id);")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_playback_history_played_at ON playback_history (played_at DESC);")
 
+        # 6. Preseed Playlist Tracks Table for persistent autoplay fallback
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS preseed_playlist_tracks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                playlist_id TEXT,
+                tracks_json TEXT NOT NULL,
+                updated_at INTEGER NOT NULL
+            )
+            """
+        )
+
         conn.commit()
         logger.info("Library SQLite schema initialized successfully.")
     except Exception as e:
         logger.exception("Failed to initialize library SQLite database: %s", e)
         raise e
+    finally:
+        conn.close()
+
+
+def save_preseed_playlist_tracks(track_ids: list, playlist_id: str = "default", db_path: str | None = None) -> bool:
+    """Save preseed playlist track IDs into SQLite for persistent autoplay fallback."""
+    import json
+    import time
+    if not isinstance(track_ids, list) or not track_ids:
+        return False
+    conn = get_db_connection(db_path)
+    try:
+        cursor = conn.cursor()
+        now = int(time.time())
+        json_str = json.dumps(track_ids)
+        cursor.execute(
+            "INSERT INTO preseed_playlist_tracks (playlist_id, tracks_json, updated_at) VALUES (?, ?, ?);",
+            (str(playlist_id), json_str, now),
+        )
+        cursor.execute(
+            """
+            DELETE FROM preseed_playlist_tracks
+            WHERE id NOT IN (
+                SELECT id FROM preseed_playlist_tracks ORDER BY updated_at DESC LIMIT 5
+            );
+            """
+        )
+        conn.commit()
+        return True
+    except Exception as ex:
+        logger.exception("Failed to save preseed playlist tracks to SQLite: %s", ex)
+        return False
+    finally:
+        conn.close()
+
+
+def get_latest_preseed_playlist_tracks(db_path: str | None = None) -> list | None:
+    """Retrieve the most recent preseed playlist track IDs from SQLite."""
+    import json
+    conn = get_db_connection(db_path)
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT tracks_json FROM preseed_playlist_tracks ORDER BY updated_at DESC LIMIT 1;"
+        )
+        row = cursor.fetchone()
+        if not row:
+            return None
+        data = json.loads(row["tracks_json"])
+        return data if isinstance(data, list) and len(data) > 0 else None
+    except Exception as ex:
+        logger.exception("Failed to get preseed playlist tracks from SQLite: %s", ex)
+        return None
     finally:
         conn.close()
 

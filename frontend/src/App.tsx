@@ -585,6 +585,8 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName }: S
     }
   };
 
+
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -1719,6 +1721,7 @@ function App() {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [accessibleServers, setAccessibleServers] = useState<any[]>([]);
   const [showServerModal, setShowServerModal] = useState(false);
+  const [indexingStatus, setIndexingStatus] = useState<{ isIndexing: boolean; isInitial: boolean; serverName: string } | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Clear search query when clear_search parameter is present
@@ -1903,6 +1906,19 @@ function App() {
             console.log("Received unset_display_mode WS push!");
             localStorage.removeItem("tunebox_display");
             setIsDisplay(false);
+          } else if (data.type === "indexing_status") {
+            console.log("Received indexing_status WS push:", data);
+            const isInd = Boolean(data.is_indexing);
+            const isInit = Boolean(data.is_initial);
+            const sName = data.server_name || "Plex";
+            setIndexingStatus({
+              isIndexing: isInd,
+              isInitial: isInit,
+              serverName: sName,
+            });
+            if (!isInd) {
+              setTimeout(() => setIndexingStatus(null), 4000);
+            }
           } else if (data.message === "pong") {
             window.clearTimeout(pongTimeout);
           }
@@ -2312,6 +2328,63 @@ function App() {
           <div className="main-wrapper">
             {/* Subpage content */}
             <div className={`main-content ${(location.pathname === "/" || location.pathname === "/artists") && viewMode !== "artists" && viewMode !== "albums" ? "no-sidebar" : ""}`}>
+              {indexingStatus?.isIndexing && indexingStatus?.isInitial && (
+                <div
+                  style={{
+                    background: "linear-gradient(90deg, #1e3c72 0%, #2a5298 100%)",
+                    borderBottom: "1px solid rgba(100, 200, 255, 0.4)",
+                    color: "#ffffff",
+                    padding: "12px 20px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "12px",
+                    fontSize: "14px",
+                    fontWeight: 600,
+                    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
+                    borderRadius: "8px",
+                    marginBottom: "16px",
+                    zIndex: 10,
+                  }}
+                >
+                  <span className="material-symbols-outlined spin-animation" style={{ fontSize: "20px", color: "#64c8ff" }}>
+                    sync
+                  </span>
+                  <span>
+                    Indexing new server <strong>{indexingStatus.serverName}</strong>... Songs and artwork are populating in real-time.
+                  </span>
+                </div>
+              )}
+
+              {/* Background Index Update Toast */}
+              {indexingStatus?.isIndexing && !indexingStatus?.isInitial && (
+                <div
+                  style={{
+                    position: "fixed",
+                    bottom: "90px",
+                    right: "24px",
+                    background: "rgba(15, 23, 42, 0.92)",
+                    border: "1px solid rgba(100, 200, 255, 0.35)",
+                    color: "#64c8ff",
+                    padding: "10px 16px",
+                    borderRadius: "24px",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    boxShadow: "0 8px 24px rgba(0, 0, 0, 0.4)",
+                    backdropFilter: "blur(12px)",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    zIndex: 1100,
+                    transition: "all 0.3s ease-in-out",
+                  }}
+                >
+                  <span className="material-symbols-outlined spin-animation" style={{ fontSize: "16px", color: "#64c8ff" }}>
+                    sync
+                  </span>
+                  Updating library index for {indexingStatus.serverName}...
+                </div>
+              )}
               <div className="header-gradient"></div>
               {(location.pathname === "/" || location.pathname === "/artists") && (
                 <BrowseTabs currentMode={viewMode} onModeChange={setViewMode} />

@@ -29,6 +29,30 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
 
     from backend.services.plex import get_target_plex_connection, is_music_library_section, milliseconds_to_seconds
 
+    # Check if this is an initial library index (0 artists in SQLite)
+    is_initial = False
+    try:
+        from backend.db.library_db import get_db_connection  # noqa: PLC0415
+        conn = get_db_connection(db_path)
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM artists;")
+        artist_count = cursor.fetchone()[0]
+        conn.close()
+        is_initial = (artist_count == 0)
+    except Exception:
+        pass
+
+    try:
+        import asyncio  # noqa: PLC0415
+        from backend.websockets import send_indexing_status  # noqa: PLC0415
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(send_indexing_status(is_indexing=True, is_initial=is_initial, server_name=s_name))
+        except RuntimeError:
+            asyncio.run(send_indexing_status(is_indexing=True, is_initial=is_initial, server_name=s_name))
+    except Exception as ws_ex:
+        logger.debug("Could not send indexing status start: %s", ws_ex)
+
     try:
         plex = get_target_plex_connection(s_id)
         if not plex:
@@ -134,6 +158,16 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
                 logger.warning("Error scanning section '%s' on server %s: %s", getattr(music_lib, "title", "Unknown"), s_name, lib_ex)
 
         logger.info("Successfully indexed %d items from server %s (ID: %s)", items_indexed, s_name, s_id)
+        try:
+            import asyncio  # noqa: PLC0415
+            from backend.websockets import send_indexing_status  # noqa: PLC0415
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(send_indexing_status(is_indexing=False, is_initial=is_initial, server_name=s_name, items_indexed=items_indexed))
+            except RuntimeError:
+                asyncio.run(send_indexing_status(is_indexing=False, is_initial=is_initial, server_name=s_name, items_indexed=items_indexed))
+        except Exception as ws_ex:
+            logger.debug("Could not send indexing status complete: %s", ws_ex)
         return items_indexed
     except Exception as ex:
         logger.exception("Error indexing server %s: %s", s_name, ex)

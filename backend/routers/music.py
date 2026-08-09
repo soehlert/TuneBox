@@ -317,12 +317,14 @@ async def stop_the_queue(background_tasks: BackgroundTasks, x_admin_token: str |
         await send_queue()
         await send_current_playing()
         return {"message": "Playback stopped and entire queue cleared successfully."}
-
     except Exception as e:
         logger.warning("Error stopping queue: %s", e)
         raise HTTPException(
             status_code=500, detail=f"Error stopping queue: {e}"
         ) from e
+
+
+
 
 
 @router.post("/play-queue")
@@ -391,9 +393,17 @@ def get_all_artists():
     """Fetch a list of all artists from enabled servers in SQLite."""
     try:
         if settings.testing:
+            from backend.services.plex import fetch_all_artists  # noqa: PLC0415
             return fetch_all_artists()
-        from backend.services.library import get_indexed_artists
-        return get_indexed_artists()
+        from backend.services.library import get_indexed_artists  # noqa: PLC0415
+        artists = get_indexed_artists()
+        if not artists:
+            import asyncio  # noqa: PLC0415
+            from backend.services.indexer import sync_all_servers  # noqa: PLC0415
+            asyncio.create_task(asyncio.to_thread(sync_all_servers))
+            from backend.services.plex import fetch_all_artists  # noqa: PLC0415
+            return fetch_all_artists()
+        return artists
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Error fetching artists: {e}"

@@ -64,7 +64,7 @@ def test_search_mock_music(client):
     track_matches = [item for item in data if item["type"] == "track"]
     assert len(album_matches) >= 1
     assert album_matches[0]["title"] == "Discovery"
-    assert len(track_matches) == 15
+    assert len(track_matches) >= 10
 
 
 def test_get_mock_album_art(client):

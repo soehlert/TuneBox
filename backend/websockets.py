@@ -149,6 +149,27 @@ async def send_current_playing():
             active_connections["music_control"].pop(session_id, None)
 
 
+async def send_indexing_status(is_indexing: bool, is_initial: bool, server_name: str, items_indexed: int = 0):
+    """Send library indexing status to all connected clients."""
+    message = {
+        "type": "indexing_status",
+        "is_indexing": is_indexing,
+        "is_initial": is_initial,
+        "server_name": server_name,
+        "items_indexed": items_indexed,
+    }
+    logger.info("Broadcasting indexing status: is_indexing=%s, is_initial=%s, server=%s", is_indexing, is_initial, server_name)
+    all_sessions = set()
+    for category in active_connections.values():
+        all_sessions.update(category.keys())
+
+    for session_id in list(all_sessions):
+        try:
+            await send_to_specific_client(session_id, message, "indexing_status")
+        except Exception as e:
+            logger.debug("Failed to send indexing status to session %s: %s", session_id, e)
+
+
 async def update_websocket_clients():
     """Periodically send updates to all connected WebSocket clients."""
     while True:
