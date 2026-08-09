@@ -56,11 +56,14 @@ def set_server_enabled_status(server_id: str, enabled: bool, db_path: str | None
         conn.close()
 
 
-def upsert_artist(name: str, guid: str | None = None, thumb: str | None = None, play_count: int = 0, server_id: str | None = None, server_artist_id: str | None = None, db_path: str | None = None) -> int:
+def upsert_artist(name: str, guid: str | None = None, thumb: str | None = None, play_count: int = 0, server_id: str | None = None, server_artist_id: str | None = None, db_path: str | None = None, conn: sqlite3.Connection | None = None) -> int:
     """Upsert an artist into SQLite library with multi-server mapping."""
     norm_name = _norm(name)
     now = int(time.time())
-    conn = get_db_connection(db_path)
+    should_close = False
+    if conn is None:
+        conn = get_db_connection(db_path)
+        should_close = True
     try:
         cursor = conn.cursor()
         cursor.execute(
@@ -89,17 +92,22 @@ def upsert_artist(name: str, guid: str | None = None, thumb: str | None = None, 
                 (artist_id, server_id, str(server_artist_id)),
             )
 
-        conn.commit()
+        if should_close:
+            conn.commit()
         return artist_id
     finally:
-        conn.close()
+        if should_close:
+            conn.close()
 
 
-def upsert_album(title: str, artist_name: str, artist_id: int | None = None, year: int | None = None, genre: str | None = None, thumb: str | None = None, play_count: int = 0, guid: str | None = None, server_id: str | None = None, server_album_id: str | None = None, db_path: str | None = None) -> int:
+def upsert_album(title: str, artist_name: str, artist_id: int | None = None, year: int | None = None, genre: str | None = None, thumb: str | None = None, play_count: int = 0, guid: str | None = None, server_id: str | None = None, server_album_id: str | None = None, db_path: str | None = None, conn: sqlite3.Connection | None = None) -> int:
     """Upsert an album into SQLite library with multi-server mapping."""
     norm_key = f"{_norm(title)}::{_norm(artist_name)}"
     now = int(time.time())
-    conn = get_db_connection(db_path)
+    should_close = False
+    if conn is None:
+        conn = get_db_connection(db_path)
+        should_close = True
     try:
         cursor = conn.cursor()
         cursor.execute(
@@ -131,17 +139,22 @@ def upsert_album(title: str, artist_name: str, artist_id: int | None = None, yea
                 (album_id, server_id, str(server_album_id)),
             )
 
-        conn.commit()
+        if should_close:
+            conn.commit()
         return album_id
     finally:
-        conn.close()
+        if should_close:
+            conn.close()
 
 
-def upsert_track(album_id: int, server_id: str, server_track_id: str, artist_name: str, album_title: str, title: str, duration: int, url: str | None = None, thumb: str | None = None, play_count: int = 0, user_rating: float = 0.0, db_path: str | None = None) -> int:
+def upsert_track(album_id: int, server_id: str, server_track_id: str, artist_name: str, album_title: str, title: str, duration: int, url: str | None = None, thumb: str | None = None, play_count: int = 0, user_rating: float = 0.0, db_path: str | None = None, conn: sqlite3.Connection | None = None) -> int:
     """Upsert a track into SQLite library."""
     now = int(time.time())
     safe_url = str(url) if (url is not None and not callable(url)) else None
-    conn = get_db_connection(db_path)
+    should_close = False
+    if conn is None:
+        conn = get_db_connection(db_path)
+        should_close = True
     try:
         cursor = conn.cursor()
         existing = cursor.execute(
@@ -159,7 +172,8 @@ def upsert_track(album_id: int, server_id: str, server_track_id: str, artist_nam
                 """,
                 (album_id, artist_name, album_title, title, duration, safe_url, thumb, play_count, float(user_rating or 0.0), float(user_rating or 0.0), now, track_id),
             )
-            conn.commit()
+            if should_close:
+                conn.commit()
             return track_id
         else:
             cursor.execute(
@@ -169,10 +183,12 @@ def upsert_track(album_id: int, server_id: str, server_track_id: str, artist_nam
                 """,
                 (album_id, server_id, str(server_track_id), artist_name, album_title, title, duration, safe_url, thumb, play_count, float(user_rating or 0.0), now),
             )
-            conn.commit()
+            if should_close:
+                conn.commit()
             return cursor.lastrowid
     finally:
-        conn.close()
+        if should_close:
+            conn.close()
 
 
 def rate_track_db(track_id: int | str, rating: float, db_path: str | None = None):

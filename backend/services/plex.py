@@ -2360,14 +2360,25 @@ def fetch_accessible_plex_servers():
 
 
 def get_enabled_server_ids() -> list[str]:
-    """Get list of server_ids that are enabled for the unified music catalog. Defaults to primary server on fresh boot."""
+    """Get list of server_ids that are enabled for the unified music catalog. Uses SQLite as primary source of truth."""
     import json
     try:
-        from backend.services.redis import get_redis_cache_client
+        from backend.services.library import get_db_connection  # noqa: PLC0415
+        conn = get_db_connection()
+        cursor = conn.execute("SELECT server_id FROM servers WHERE enabled = 1")
+        rows = cursor.fetchall()
+        conn.close()
+        if rows:
+            return [str(r["server_id"]) for r in rows]
+    except Exception as sq_ex:
+        logger.debug("Failed to read enabled_server_ids from SQLite: %s", sq_ex)
+
+    try:
+        from backend.services.redis import get_redis_cache_client  # noqa: PLC0415
         val = get_redis_cache_client().get("enabled_server_ids")
         if val:
             parsed = json.loads(val)
-            if isinstance(parsed, list) and len(parsed) > 0:
+            if isinstance(parsed, list):
                 return parsed
     except Exception as e:
         logger.debug("Failed to read enabled_server_ids from Redis: %s", e)

@@ -19,6 +19,16 @@ def get_db_connection(db_path: str | None = None) -> sqlite3.Connection:
         conn.execute("PRAGMA foreign_keys=ON;")
         res = conn.execute("PRAGMA integrity_check(1);").fetchone()
         if res and res[0] != "ok":
+            # Attempt REINDEX repair before declaring database corrupt
+            try:
+                logger.warning("SQLite integrity check warning (%s). Running REINDEX repair...", res[0])
+                conn.execute("REINDEX;")
+                check_again = conn.execute("PRAGMA integrity_check(1);").fetchone()
+                if check_again and check_again[0] == "ok":
+                    logger.info("SQLite REINDEX repair SUCCESSFUL!")
+                    return conn
+            except Exception as reindex_ex:
+                logger.warning("REINDEX repair failed: %s", reindex_ex)
             raise sqlite3.DatabaseError(f"Database integrity check failed: {res[0]}")
         return conn
     except (sqlite3.DatabaseError, sqlite3.OperationalError) as ex:
