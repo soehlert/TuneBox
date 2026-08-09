@@ -310,6 +310,17 @@ def get_track(item_id, server_id: str | None = None):
             return MockTrack()
         raise HTTPException(status_code=404, detail="Track not found")
 
+    if not settings.testing and not hasattr(get_target_plex_connection, "mock_calls"):
+        try:
+            from backend.services.library import get_art_source_info
+            _, resolved_server_id, rating_key = get_art_source_info(item_id, "track")
+            if rating_key:
+                item_id_val = int(rating_key) if str(rating_key).isdigit() else rating_key
+            if resolved_server_id:
+                server_id = server_id or resolved_server_id
+        except Exception as resolve_ex:
+            logger.debug("Failed resolving track source info for %s: %s", item_id, resolve_ex)
+
     plex = get_target_plex_connection(server_id)
     logger.debug("Fetching track: %s (server_id=%s)", item_id_val, server_id)
     track = plex.fetchItem(item_id_val)

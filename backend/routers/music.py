@@ -128,8 +128,8 @@ async def add_to_queue(
         server_name = payload.server_name if payload else None
         username = payload.username if payload else None
 
+        song = get_track(item_id, server_id=server_id)
         t_plex = get_target_plex_connection(server_id)
-        song = t_plex.fetchItem(item_id)
 
         all_servers = fetch_accessible_plex_servers() if (server_id and not settings.testing) else []
         target_res = next((s for s in all_servers if s["server_id"] == server_id), None)
@@ -516,8 +516,9 @@ async def add_album_to_queue_endpoint(
 
         for t in tracks:
             item_id = t.get("track_id")
-            song = get_track(item_id, server_id=server_id)
-            add_to_queue_redis(song, server_id=server_id, added_by=added_by)
+            t_server_id = t.get("server_id") or server_id
+            song = get_track(item_id, server_id=t_server_id)
+            add_to_queue_redis(song, server_id=t_server_id, added_by=added_by)
             added_count += 1
             if added_by and added_by != "Guest":
                 from backend.services.stats import increment_adds

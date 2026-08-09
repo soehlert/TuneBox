@@ -806,7 +806,7 @@ def get_tracks_for_album_db(album_id: int | str, db_path: str | None = None) -> 
 
         cursor = conn.execute(
             """
-            SELECT t.track_id, t.title, t.duration, t.artist_name as artist, t.album_title as album, t.url, t.thumb, t.user_rating, srv.name as server_name, COALESCE(srv.is_primary, 0) as is_primary
+            SELECT t.track_id, t.title, t.duration, t.artist_name as artist, t.album_title as album, t.url, t.thumb, t.user_rating, srv.name as server_name, COALESCE(srv.is_primary, 0) as is_primary, t.server_id
             FROM tracks t
             JOIN servers srv ON t.server_id = srv.server_id
             WHERE srv.enabled = 1 AND t.album_id = ?
@@ -842,6 +842,7 @@ def get_tracks_for_album_db(album_id: int | str, db_path: str | None = None) -> 
                 "user_rating": float(r["user_rating"] or 0.0),
                 "is_primary": bool(r["is_primary"]),
                 "server_name": r["server_name"],
+                "server_id": r["server_id"],
             }
             for idx, r in enumerate(deduped_rows)
         ]

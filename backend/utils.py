@@ -16,6 +16,8 @@ def is_track_object(item):
     """
     if isinstance(item, Track):
         return True
+    if getattr(item, "TYPE", None) == "track" or getattr(item, "type", None) == "track":
+        return True
     from backend.config import settings
 
     return bool(settings.testing and item.__class__.__name__ == "MockTrack")

@@ -43,9 +43,13 @@ def test_get_redis_queue_client(mock_redis, mock_resolve):
 def test_is_track_object():
     """Test identification of valid Plex Track objects."""
     track = MagicMock(spec=Track)
+    duck_type_track1 = MagicMock(TYPE="track")
+    duck_type_track2 = MagicMock(type="track")
     not_a_track = object()
 
     assert is_track_object(track) is True
+    assert is_track_object(duck_type_track1) is True
+    assert is_track_object(duck_type_track2) is True
     assert is_track_object(not_a_track) is False
 
 

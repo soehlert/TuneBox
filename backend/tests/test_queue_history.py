@@ -87,6 +87,7 @@ def test_requeue_history_track_endpoint(mock_redis, mocker):
     mock_song.duration = 200000
     mock_song.media = []
 
+    mocker.patch("backend.routers.music.get_track", return_value=mock_song)
     mocker.patch("backend.routers.music.get_target_plex_connection", return_value=mocker.MagicMock(fetchItem=mocker.MagicMock(return_value=mock_song)))
     mocker.patch("backend.routers.music.add_to_queue_redis")
 
