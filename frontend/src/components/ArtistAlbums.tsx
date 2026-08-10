@@ -67,62 +67,52 @@ function ArtistAlbums() {
 
   return (
     <div className="album-list-wrapper">
-      <div style={{ display: "flex", gap: "12px", marginBottom: "16px", flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: "12px", marginBottom: "16px", flexWrap: "wrap", alignItems: "center" }}>
         <button className="back-button" style={{ marginBottom: 0 }} onClick={() => navigate("/?clear_search=true")}>
           <span className="material-symbols-outlined">groups</span>
           Back to Artists
         </button>
-      </div>
-      <header className="page-header" style={{ marginBottom: "16px" }}>
-        <Typography variant="h1" className="gradient-text">{artistName}</Typography>
 
         {uniqueArtistSources.length > 1 ? (
-          <div style={{ marginTop: "6px" }}>
-            <div
-              style={{
-                display: "inline-flex",
-                flexDirection: "column",
-                gap: "3px",
-                fontSize: "12px",
-                background: "rgba(191, 9, 94, 0.15)",
-                border: "1px solid rgba(191, 9, 94, 0.35)",
-                color: "#ff4d94",
-                padding: "6px 14px",
-                borderRadius: "14px",
-                fontWeight: 600,
-                maxWidth: "max-content",
-              }}
-              title={`Available on: ${artistSourcesStr}`}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <span>🌐</span>
-                <span>{uniqueArtistSources.length} Connected Libraries</span>
-              </div>
-              <div style={{ fontSize: "11px", opacity: 0.85, paddingLeft: "20px" }}>
-                {artistSourcesStr}
-              </div>
-            </div>
-          </div>
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              fontSize: "12px",
+              background: "rgba(191, 9, 94, 0.15)",
+              border: "1px solid rgba(191, 9, 94, 0.35)",
+              color: "#ff4d94",
+              padding: "6px 14px",
+              borderRadius: "14px",
+              fontWeight: 600,
+            }}
+            title={`Available on: ${artistSourcesStr}`}
+          >
+            🌐 {uniqueArtistSources.length} Connected Libraries ({artistSourcesStr})
+          </span>
         ) : uniqueArtistSources.length === 1 ? (
-          <div style={{ marginTop: "6px" }}>
-            <span
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                fontSize: "12px",
-                background: "rgba(191, 9, 94, 0.15)",
-                border: "1px solid rgba(191, 9, 94, 0.35)",
-                color: "#ff4d94",
-                padding: "4px 12px",
-                borderRadius: "14px",
-                fontWeight: 600,
-              }}
-            >
-              📍 {uniqueArtistSources[0]}
-            </span>
-          </div>
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              fontSize: "12px",
+              background: "rgba(191, 9, 94, 0.15)",
+              border: "1px solid rgba(191, 9, 94, 0.35)",
+              color: "#ff4d94",
+              padding: "4px 12px",
+              borderRadius: "14px",
+              fontWeight: 600,
+            }}
+          >
+            📍 {uniqueArtistSources[0]}
+          </span>
         ) : null}
+      </div>
+      <header className="page-header">
+        <Typography variant="h1" className="gradient-text">{artistName}</Typography>
+        <Typography className="page-subtitle">Select an album to view tracks</Typography>
       </header>
       {loading ? (
         <Typography variant="h6">Loading...</Typography>
