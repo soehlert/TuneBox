@@ -75,6 +75,12 @@ def set_server_enabled_status(server_id: str, enabled: bool, db_path: str | None
         conn.commit()
     finally:
         conn.close()
+    _ART_SOURCE_MEM_CACHE.clear()
+    try:
+        from backend.services.plex import clear_art_memory_cache  # noqa: PLC0415
+        clear_art_memory_cache()
+    except Exception:
+        pass
 
 
 def upsert_artist(name: str, guid: str | None = None, thumb: str | None = None, play_count: int = 0, server_id: str | None = None, server_artist_id: str | None = None, db_path: str | None = None, conn: sqlite3.Connection | None = None) -> int:
@@ -842,8 +848,17 @@ def get_all_art_sources(item_id: int | str, item_type: str, db_path: str | None 
 
         elif item_type == "track":
             r_row = conn.execute(
-                "SELECT t.track_id, t.album_id FROM tracks t LEFT JOIN track_sources ts ON t.track_id = ts.track_id WHERE t.track_id = ? OR ts.server_track_id = ? OR t.server_track_id = ? LIMIT 1",
-                (item_id, str(item_id), str(item_id)),
+                """
+                SELECT t.track_id, t.album_id
+                FROM tracks t
+                LEFT JOIN track_sources ts ON t.track_id = ts.track_id
+                LEFT JOIN servers srv ON t.server_id = srv.server_id
+                WHERE (srv.enabled = 1 OR srv.enabled IS NULL)
+                  AND (t.server_track_id = ? OR ts.server_track_id = ? OR t.track_id = ?)
+                ORDER BY (CASE WHEN t.server_track_id = ? OR ts.server_track_id = ? THEN 0 ELSE 1 END)
+                LIMIT 1
+                """,
+                (str(item_id), str(item_id), item_id, str(item_id), str(item_id)),
             ).fetchone()
             if r_row:
                 resolved_id = r_row["track_id"]

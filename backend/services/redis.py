@@ -60,8 +60,17 @@ def add_to_queue_redis(song, server_id=None, server_name=None, server_token=None
             from backend.services.library import get_db_connection  # noqa: PLC0415
             conn = get_db_connection()
             row = conn.execute(
-                "SELECT t.album_id FROM tracks t LEFT JOIN track_sources ts ON t.track_id = ts.track_id WHERE t.track_id = ? OR ts.server_track_id = ? OR t.server_track_id = ? LIMIT 1",
-                (song.ratingKey, str(song.ratingKey), str(song.ratingKey)),
+                """
+                SELECT t.album_id
+                FROM tracks t
+                LEFT JOIN track_sources ts ON t.track_id = ts.track_id
+                LEFT JOIN servers srv ON t.server_id = srv.server_id
+                WHERE (srv.enabled = 1 OR srv.enabled IS NULL)
+                  AND (t.server_track_id = ? OR ts.server_track_id = ? OR t.track_id = ?)
+                ORDER BY (CASE WHEN t.server_track_id = ? OR ts.server_track_id = ? THEN 0 ELSE 1 END)
+                LIMIT 1
+                """,
+                (str(song.ratingKey), str(song.ratingKey), song.ratingKey, str(song.ratingKey), str(song.ratingKey)),
             ).fetchone()
             conn.close()
             if row:
