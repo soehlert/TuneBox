@@ -422,45 +422,10 @@ def play_song(player, song, server_token=None, server_url=None):
         quality_str,
         player.title
     )
-    cmd_start_time = time.time()
-    target_plex = get_plex_connection()
-    if server_url and server_token and not settings.testing:
-        try:
-            from plexapi.server import PlexServer
-            target_plex = PlexServer(server_url, server_token, timeout=5)
-        except Exception as ex:
-            logger.warning("Failed to connect to target server %s: %s", server_url, ex)
+    global playback_active
+    playback_active = True
 
-    playback_succeeded = False
-    if hasattr(player, "createPlayQueue"):
-        try:
-            pq = player.createPlayQueue(target_plex, song)
-            try:
-                if pq:
-                    player.playMedia(pq)
-            except Exception as pq_ex:
-                logger.debug("playMedia(pq) call note: %s", pq_ex)
-            logger.info("Successfully started playback via createPlayQueue on %s", player.title)
-            playback_succeeded = True
-        except Exception as e:
-            logger.warning("Failed to play via createPlayQueue: %s. Falling back to playMedia.", e)
-            try:
-                player.playMedia(song)
-                playback_succeeded = True
-            except Exception as ex2:
-                logger.warning("Failed to play via playMedia on %s: %s", player.title, ex2)
-                invalidate_cached_player()
-                raise PlexApiException(f"Player '{player.title}' unreachable: {ex2}") from ex2
-    else:
-        try:
-            player.playMedia(song)
-            playback_succeeded = True
-        except Exception as ex2:
-            logger.warning("Failed to play via playMedia on %s: %s", player.title, ex2)
-            invalidate_cached_player()
-            raise PlexApiException(f"Player '{player.title}' unreachable: {ex2}") from ex2
-
-    # Store track details in Redis under "now_playing"
+    # 1. Update Redis cache, timer, and broadcast WebSockets IMMEDIATELY (0ms UI latency)
     eff_server_id = getattr(song, "server_id", None) or target_server_id
     eff_album_id = getattr(song, "parentRatingKey", None) or getattr(song, "album_id", None)
     song_data = {
@@ -485,6 +450,38 @@ def play_song(player, song, server_token=None, server_url=None):
     from backend.websockets import broadcast_current_playing_threadsafe, broadcast_queue_threadsafe  # noqa: PLC0415
     broadcast_queue_threadsafe()
     broadcast_current_playing_threadsafe()
+
+    # 2. Issue player network socket commands
+    target_plex = get_plex_connection()
+    if server_url and server_token and not settings.testing:
+        try:
+            from plexapi.server import PlexServer
+            target_plex = PlexServer(server_url, server_token, timeout=5)
+        except Exception as ex:
+            logger.warning("Failed to connect to target server %s: %s", server_url, ex)
+
+    if hasattr(player, "createPlayQueue"):
+        try:
+            pq = player.createPlayQueue(target_plex, song)
+            try:
+                if pq:
+                    player.playMedia(pq)
+            except Exception as pq_ex:
+                logger.debug("playMedia(pq) call note: %s", pq_ex)
+            logger.info("Successfully started playback via createPlayQueue on %s", player.title)
+        except Exception as e:
+            logger.warning("Failed to play via createPlayQueue: %s. Falling back to playMedia.", e)
+            try:
+                player.playMedia(song)
+            except Exception as ex2:
+                logger.warning("Failed to play via playMedia on %s: %s", player.title, ex2)
+                invalidate_cached_player()
+    else:
+        try:
+            player.playMedia(song)
+        except Exception as ex2:
+            logger.warning("Failed to play via playMedia on %s: %s", player.title, ex2)
+            invalidate_cached_player()
 
 
 
