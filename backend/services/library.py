@@ -946,7 +946,14 @@ def get_tracks_for_album_db(album_id: int | str, db_path: str | None = None) -> 
 
         alb_row = alb_rows[0]
         resolved_album_id = alb_row["album_id"]
-        server_sources = [{"server_id": r["server_id"], "server_name": r["server_name"]} for r in alb_rows if r["server_id"] and r["server_name"]]
+        seen_server_ids = set()
+        server_sources = []
+        for r in alb_rows:
+            s_id = r["server_id"]
+            s_name = r["server_name"]
+            if s_id and s_name and s_id not in seen_server_ids:
+                seen_server_ids.add(s_id)
+                server_sources.append({"server_id": s_id, "server_name": s_name})
 
         cursor = conn.execute(
             """

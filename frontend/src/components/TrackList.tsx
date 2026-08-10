@@ -266,9 +266,17 @@ function TrackList() {
             <header className="page-header" style={{ marginBottom: "16px" }}>
               <Typography variant="h1" className="gradient-text">{albumData.album_title || "Unknown Album"}</Typography>
               {(() => {
-                const sources = albumData.sources || [];
-                if (sources.length > 1) {
-                  const names = sources.map((s) => s.server_name).filter(Boolean).join(" • ");
+                const rawSources = albumData.sources || [];
+                const uniqueSourcesMap = new Map<string, string>();
+                rawSources.forEach((s) => {
+                  if (s.server_name) {
+                    uniqueSourcesMap.set(s.server_id || s.server_name, s.server_name);
+                  }
+                });
+                const uniqueNames = Array.from(uniqueSourcesMap.values());
+                const namesStr = uniqueNames.join(" • ");
+
+                if (uniqueNames.length > 1) {
                   return (
                     <div style={{ marginTop: "6px" }}>
                       <div
@@ -285,20 +293,21 @@ function TrackList() {
                           fontWeight: 600,
                           maxWidth: "max-content",
                         }}
-                        title={`Available on: ${names}`}
+                        title={`Available on: ${namesStr}`}
                       >
                         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                           <span>🌐</span>
-                          <span>{sources.length} Connected Libraries</span>
+                          <span>{uniqueNames.length} Connected Libraries</span>
                         </div>
                         <div style={{ fontSize: "11px", opacity: 0.85, paddingLeft: "20px" }}>
-                          {names}
+                          {namesStr}
                         </div>
                       </div>
                     </div>
                   );
                 }
-                if (albumData.server_name) {
+                const displayServer = uniqueNames[0] || albumData.server_name;
+                if (displayServer) {
                   return (
                     <div style={{ marginTop: "6px" }}>
                       <span
@@ -315,7 +324,7 @@ function TrackList() {
                           fontWeight: 600,
                         }}
                       >
-                        📍 {albumData.server_name}
+                        📍 {displayServer}
                       </span>
                     </div>
                   );
