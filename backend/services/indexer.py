@@ -54,7 +54,7 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
 
     try:
         from backend.websockets import broadcast_indexing_status_threadsafe  # noqa: PLC0415
-        broadcast_indexing_status_threadsafe(is_indexing=True, is_initial=is_initial, server_name=s_name, message=f"Indexing artists on {s_name}...")
+        broadcast_indexing_status_threadsafe(is_indexing=True, is_initial=is_initial, server_name=s_name, message=f"Indexing artists on {s_name}")
     except Exception as ws_ex:
         logger.debug("Could not send indexing status start: %s", ws_ex)
 
@@ -185,11 +185,11 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
 
                 try:
                     from backend.websockets import broadcast_indexing_status_threadsafe  # noqa: PLC0415
-                    broadcast_indexing_status_threadsafe(is_indexing=True, is_initial=is_initial, server_name=s_name, message=f"Indexing albums on {s_name}...")
+                    broadcast_indexing_status_threadsafe(is_indexing=True, is_initial=is_initial, server_name=s_name, message=f"Indexing albums on {s_name}")
                 except Exception:
                     pass
 
-                logger.info("Bulk fetching albums for section '%s' on server %s...", getattr(music_lib, "title", "Music"), s_name)
+                logger.info("Bulk fetching albums for section '%s' on server %s", getattr(music_lib, "title", "Music"), s_name)
                 album_map: dict[str, int] = {}  # album ratingKey -> album_db_id
 
                 json_albums = fetch_section_json_batched(plex, music_lib, item_type=9)
@@ -275,11 +275,11 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
 
                 try:
                     from backend.websockets import broadcast_indexing_status_threadsafe  # noqa: PLC0415
-                    broadcast_indexing_status_threadsafe(is_indexing=True, is_initial=is_initial, server_name=s_name, message=f"Indexing tracks on {s_name}...")
+                    broadcast_indexing_status_threadsafe(is_indexing=True, is_initial=is_initial, server_name=s_name, message=f"Indexing tracks on {s_name}")
                 except Exception:
                     pass
 
-                logger.info("Bulk fetching tracks for section '%s' on server %s...", getattr(music_lib, "title", "Music"), s_name)
+                logger.info("Bulk fetching tracks for section '%s' on server %s", getattr(music_lib, "title", "Music"), s_name)
                 json_tracks = fetch_section_json_batched(plex, music_lib, item_type=10)
                 conn = get_db_connection(db_path)
                 try:
