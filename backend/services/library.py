@@ -842,15 +842,18 @@ def get_all_art_sources(item_id: int | str, item_type: str, db_path: str | None 
 
         elif item_type == "track":
             r_row = conn.execute(
-                "SELECT t.track_id FROM tracks t LEFT JOIN track_sources ts ON t.track_id = ts.track_id WHERE t.track_id = ? OR ts.server_track_id = ? OR t.server_track_id = ? LIMIT 1",
+                "SELECT t.track_id, t.album_id FROM tracks t LEFT JOIN track_sources ts ON t.track_id = ts.track_id WHERE t.track_id = ? OR ts.server_track_id = ? OR t.server_track_id = ? LIMIT 1",
                 (item_id, str(item_id), str(item_id)),
             ).fetchone()
             if r_row:
                 resolved_id = r_row["track_id"]
+                track_album_id = r_row["album_id"]
+            else:
+                track_album_id = None
 
             cursor = conn.execute(
                 """
-                SELECT COALESCE(ts.thumb, t.thumb) as thumb, ts.server_id, ts.server_track_id as rating_key, COALESCE(srv.is_primary, 0) as is_primary
+                SELECT COALESCE(ts.thumb, t.thumb) as thumb, ts.server_id, ts.server_track_id as rating_key, COALESCE(srv.is_primary, 0) as is_primary, t.album_id
                 FROM tracks t
                 JOIN track_sources ts ON t.track_id = ts.track_id
                 JOIN servers srv ON ts.server_id = srv.server_id
@@ -863,12 +866,20 @@ def get_all_art_sources(item_id: int | str, item_type: str, db_path: str | None 
                 thumb_val = row["thumb"]
                 if thumb_val and thumb_val.startswith("/api/music/"):
                     thumb_val = None
+                r_dict = dict(row)
+                if not thumb_val and r_dict.get("album_id"):
+                    alb_row = conn.execute(
+                        "SELECT thumb FROM albums WHERE album_id = ? AND thumb IS NOT NULL AND thumb != '' AND thumb NOT LIKE '/api/music/%' LIMIT 1",
+                        (r_dict["album_id"],),
+                    ).fetchone()
+                    if alb_row:
+                        thumb_val = alb_row["thumb"]
                 sources.append((thumb_val, row["server_id"], row["rating_key"]))
 
             if not sources:
                 cursor_base = conn.execute(
                     """
-                    SELECT t.thumb, t.server_id, t.server_track_id as rating_key, COALESCE(srv.is_primary, 0) as is_primary
+                    SELECT t.thumb, t.server_id, t.server_track_id as rating_key, COALESCE(srv.is_primary, 0) as is_primary, t.album_id
                     FROM tracks t
                     LEFT JOIN servers srv ON t.server_id = srv.server_id
                     WHERE t.track_id = ? AND (srv.enabled = 1 OR srv.enabled IS NULL)
@@ -880,6 +891,15 @@ def get_all_art_sources(item_id: int | str, item_type: str, db_path: str | None 
                     thumb_val = row["thumb"]
                     if thumb_val and thumb_val.startswith("/api/music/"):
                         thumb_val = None
+                    r_dict = dict(row)
+                    eff_album_id = r_dict.get("album_id") or track_album_id
+                    if not thumb_val and eff_album_id:
+                        alb_row = conn.execute(
+                            "SELECT thumb FROM albums WHERE album_id = ? AND thumb IS NOT NULL AND thumb != '' AND thumb NOT LIKE '/api/music/%' LIMIT 1",
+                            (eff_album_id,),
+                        ).fetchone()
+                        if alb_row:
+                            thumb_val = alb_row["thumb"]
                     sources.append((thumb_val, row["server_id"], row["rating_key"]))
 
         return sources if sources else [(None, None, None)]

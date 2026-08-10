@@ -47,9 +47,24 @@ def add_to_queue_redis(song, server_id=None, server_name=None, server_token=None
         except Exception:
             pass
 
+    album_id_val = getattr(song, "album_id", None) or getattr(song, "parentRatingKey", None)
+    if not album_id_val and hasattr(song, "ratingKey"):
+        try:
+            from backend.services.library import get_db_connection  # noqa: PLC0415
+            conn = get_db_connection()
+            row = conn.execute(
+                "SELECT t.album_id FROM tracks t LEFT JOIN track_sources ts ON t.track_id = ts.track_id WHERE t.track_id = ? OR ts.server_track_id = ? OR t.server_track_id = ? LIMIT 1",
+                (song.ratingKey, str(song.ratingKey), str(song.ratingKey)),
+            ).fetchone()
+            conn.close()
+            if row:
+                album_id_val = row["album_id"]
+        except Exception:
+            pass
+
     song_data = {
         "item_id": song.ratingKey,
-        "album_id": getattr(song, "album_id", getattr(song, "parentRatingKey", None)),
+        "album_id": album_id_val or song.ratingKey,
         "title": song.title,
         "artist": getattr(song, "grandparentTitle", getattr(song, "artist", "Unknown Artist")),
         "duration": song.duration,

@@ -793,6 +793,19 @@ def get_track_art(track_id: int | str, request: Request, server_id: str | None =
 
     content_bytes, media_type = fetch_art_bytes(track_id, "track", server_id=server_id)
     is_fallback = not content_bytes or len(content_bytes) < 100 or content_bytes.startswith(b"\x89PNG")
+
+    if is_fallback and not settings.testing:
+        try:
+            from backend.services.library import get_all_art_sources  # noqa: PLC0415
+            alb_sources = get_all_art_sources(track_id, "album")
+            if alb_sources and alb_sources[0][0]:
+                alb_bytes, alb_mime = fetch_art_bytes(track_id, "album", server_id=server_id)
+                if alb_bytes and len(alb_bytes) > 100 and not alb_bytes.startswith(b"\x89PNG"):
+                    content_bytes, media_type = alb_bytes, alb_mime
+                    is_fallback = False
+        except Exception as alb_art_ex:
+            logger.debug("Album art fallback for track %s failed: %s", track_id, alb_art_ex)
+
     if is_fallback:
         return Response(
             content=content_bytes,

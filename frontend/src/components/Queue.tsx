@@ -373,7 +373,7 @@ const QueueComponent = () => {
                   )}
                   {track.item_id ? (
                     <img
-                      src={`${apiBase}/api/music/track-art/${track.item_id}${track.server_id ? '?server_id=' + track.server_id : ''}`}
+                      src={`${apiBase}/api/music/album-art/${track.album_id || track.item_id}${track.server_id ? '?server_id=' + track.server_id : ''}`}
                       alt={track.title}
                       className="queue-item-art"
                       onError={(e) => {

@@ -270,7 +270,7 @@ const MusicControlsComponent = ({
           {currentTrack ? (
             <>
               <FallbackImage
-                src={currentTrack.item_id ? `${apiBase}/api/music/track-art/${currentTrack.item_id}${currentTrack.server_id ? `?server_id=${currentTrack.server_id}` : ""}` : ""}
+                src={currentTrack ? `${apiBase}/api/music/album-art/${targetAlbumId}${sParam}` : ""}
                 alt={currentTrack.title}
                 type="album"
                 className="player-album-art"
