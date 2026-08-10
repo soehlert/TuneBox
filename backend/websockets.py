@@ -116,6 +116,9 @@ async def send_current_playing():
     if current_track:
         track_data = {
             "item_id": current_track.get("item_id"),
+            "album_id": current_track.get("album_id"),
+            "album_art": current_track.get("album_art"),
+            "server_id": current_track.get("server_id"),
             "title": current_track["title"],
             "artist": current_track["artist"],
             "total_time": current_track["total_time"],

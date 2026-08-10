@@ -71,7 +71,8 @@ const MusicControlsComponent = ({
               if (currentTrackData) {
                 clearTransitionTimer();
                 setCurrentTrack(currentTrackData);
-                setIsPlaying(currentTrackData.track_state === 'playing');
+                const stateLower = String(currentTrackData.track_state || '').toLowerCase();
+                setIsPlaying(stateLower === 'playing');
 
                 const remainingTime = currentTrackData.remaining_time;
                 const totalTime = currentTrackData.total_time;
@@ -248,8 +249,22 @@ const MusicControlsComponent = ({
     }
   };
 
-  const targetAlbumId = currentTrack ? (currentTrack.album_id || currentTrack.item_id) : "";
+  const targetAlbumId = currentTrack ? currentTrack.album_id : "";
   const sParam = currentTrack && currentTrack.server_id ? `?server_id=${currentTrack.server_id}` : "";
+
+  let artSrc = "";
+  if (currentTrack) {
+    if (currentTrack.album_art && currentTrack.album_art.startsWith("/api/music/")) {
+      const sep = currentTrack.album_art.includes("?") ? "&" : "?";
+      artSrc = `${apiBase}${currentTrack.album_art}${sParam ? sParam.replace("?", sep) : ""}`;
+    } else if (currentTrack.album_art) {
+      artSrc = currentTrack.album_art;
+    } else if (currentTrack.album_id) {
+      artSrc = `${apiBase}/api/music/album-art/${currentTrack.album_id}${sParam}`;
+    } else if (currentTrack.item_id) {
+      artSrc = `${apiBase}/api/music/track-art/${currentTrack.item_id}${sParam}`;
+    }
+  }
 
   return (
     <Box className="player-inner-container">
@@ -264,14 +279,14 @@ const MusicControlsComponent = ({
             }
           }}
           style={{
-            cursor: currentTrack ? "pointer" : "default",
+            cursor: currentTrack && targetAlbumId ? "pointer" : "default",
           }}
-          title={currentTrack ? "View Album" : ""}
+          title={currentTrack && targetAlbumId ? "View Album" : ""}
         >
           {currentTrack ? (
             <>
               <FallbackImage
-                src={targetAlbumId ? `${apiBase}/api/music/album-art/${targetAlbumId}${sParam}` : ""}
+                src={artSrc}
                 alt={currentTrack.title}
                 type="album"
                 className="player-album-art"
