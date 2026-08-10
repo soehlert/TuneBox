@@ -850,8 +850,8 @@ async def playback_orchestrator():
                         if remaining_queue:
                             next_song = remaining_queue[0]
                             logger.info("Immediately advancing queue to next song: %s", next_song.get("title"))
-                            eff_server_id = next_song.get("server_id") or target_server_id
-                            eff_album_id = next_song.get("album_id")
+                            dur_raw = next_song.get("duration", 0)
+                            dur_sec = milliseconds_to_seconds(dur_raw) if (isinstance(dur_raw, (int, float)) and dur_raw > 10000) else float(dur_raw or 0)
                             next_song_data = {
                                 "item_id": str(next_song["item_id"]),
                                 "server_id": eff_server_id,
@@ -859,7 +859,7 @@ async def playback_orchestrator():
                                 "title": next_song.get("title", "Unknown Title"),
                                 "artist": next_song.get("artist", "Unknown Artist"),
                                 "album": next_song.get("album", "Unknown Album"),
-                                "duration": next_song.get("duration", 0),
+                                "duration": dur_sec,
                                 "elapsed_time": 0.0,
                                 "updated_at": time.time(),
                                 "album_art": f"/api/music/track-art/{next_song['item_id']}",

@@ -278,11 +278,13 @@ async def clear_the_queue(background_tasks: BackgroundTasks):
         The clearing of the queue.
     """
     try:
+        from backend.services.plex import track_time_tracker
         try:
             stop_playback()
         except Exception as stop_ex:
             logger.debug("Error stopping playback during clear_the_queue: %s", stop_ex)
 
+        track_time_tracker.stop()
         result = clear_redis_queue(force_all=True)
         clear_cache("now_playing")
 
