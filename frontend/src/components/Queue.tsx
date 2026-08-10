@@ -104,7 +104,7 @@ const QueueComponent = () => {
 
   // Mouse Drag and Drop Handlers
   const handleDragStart = (e: React.DragEvent, index: number) => {
-    if (index === 0) return;
+    if (index === 0 || !adminToken) return;
     setDraggedIndex(index);
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData("text/plain", index.toString());
@@ -115,7 +115,7 @@ const QueueComponent = () => {
   };
 
   const handleDragOver = (e: React.DragEvent, index: number) => {
-    if (index === 0 || draggedIndex === null) return;
+    if (index === 0 || draggedIndex === null || !adminToken) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
     if (dragOverIndex !== index) {
@@ -139,13 +139,13 @@ const QueueComponent = () => {
 
   // Mobile Touch Drag Handlers
   const handleTouchStart = (_e: React.TouchEvent, index: number) => {
-    if (index === 0) return;
+    if (index === 0 || !adminToken) return;
     touchDragRef.current = { index, targetIndex: null };
     setDraggedIndex(index);
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (!touchDragRef.current) return;
+    if (!touchDragRef.current || !adminToken) return;
     const touch = e.touches[0];
     const targetElement = document.elementFromPoint(touch.clientX, touch.clientY);
     const itemElement = targetElement?.closest(".queue-item");
@@ -344,7 +344,7 @@ const QueueComponent = () => {
               <li
                 key={index}
                 data-index={index}
-                draggable={!isActive}
+                draggable={!isActive && Boolean(adminToken)}
                 onClick={() => handleTrackClick(track)}
                 onDragStart={(e) => handleDragStart(e, index)}
                 onDragOver={(e) => handleDragOver(e, index)}
@@ -353,7 +353,7 @@ const QueueComponent = () => {
                 className={`queue-item ${isActive ? 'active' : ''} ${isDragging ? 'dragging' : ''} ${isDragOver ? 'drag-over' : ''}`}
               >
                 <Box className="queue-item-left">
-                  {!isActive && (
+                  {adminToken && !isActive && (
                     <span
                       className="material-symbols-outlined queue-drag-handle"
                       onMouseDown={(e) => e.stopPropagation()}
