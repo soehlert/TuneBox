@@ -1030,7 +1030,7 @@ def get_library_health_stats(db_path: str | None = None) -> dict:
         ).fetchone()[0]
 
         servers = conn.execute(
-            "SELECT server_id, name, enabled, is_primary FROM servers ORDER BY enabled DESC, is_primary DESC, name ASC"
+            "SELECT server_id, name, enabled, is_primary FROM servers WHERE server_id != 'mock' AND LOWER(name) NOT LIKE '%mock%' ORDER BY enabled DESC, is_primary DESC, name ASC"
         ).fetchall()
 
         server_stats = []
@@ -1043,10 +1043,12 @@ def get_library_health_stats(db_path: str | None = None) -> dict:
             art_cnt = conn.execute("SELECT COUNT(DISTINCT artist_id) FROM artist_sources WHERE server_id = ?", (s_id,)).fetchone()[0]
             alb_cnt = conn.execute("SELECT COUNT(DISTINCT album_id) FROM album_sources WHERE server_id = ?", (s_id,)).fetchone()[0]
 
-            try:
-                trk_cnt = conn.execute("SELECT COUNT(*) FROM track_sources WHERE server_id = ?", (s_id,)).fetchone()[0]
-            except Exception:
-                trk_cnt = conn.execute("SELECT COUNT(*) FROM tracks WHERE server_id = ?", (s_id,)).fetchone()[0]
+            trk_cnt = conn.execute("SELECT COUNT(*) FROM tracks WHERE server_id = ?", (s_id,)).fetchone()[0]
+            if trk_cnt == 0:
+                try:
+                    trk_cnt = conn.execute("SELECT COUNT(*) FROM track_sources WHERE server_id = ?", (s_id,)).fetchone()[0]
+                except Exception:
+                    pass
 
             server_stats.append({
                 "server_id": s_id,

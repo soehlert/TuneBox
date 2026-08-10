@@ -1406,78 +1406,124 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
                 ) : !libraryStats ? (
                   <p style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "13px", margin: 0 }}>No statistics available.</p>
                 ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                     {/* Summary Cards */}
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: "10px" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", gap: "8px" }}>
                       <div style={{ background: "rgba(255, 255, 255, 0.03)", border: "1px solid rgba(255, 255, 255, 0.06)", borderRadius: "8px", padding: "10px", textAlign: "center" }}>
-                        <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.5)", textTransform: "uppercase", fontWeight: "bold" }}>Total Catalog</span>
+                        <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.5)", textTransform: "uppercase", fontWeight: "bold" }}>Total Artists</span>
                         <div style={{ fontSize: "18px", fontWeight: "800", color: "#fff", marginTop: "4px" }}>
-                          {libraryStats.total_artists.toLocaleString()} <span style={{ fontSize: "11px", opacity: 0.6 }}>artists</span>
-                        </div>
-                        <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.6)", marginTop: "2px" }}>
-                          {libraryStats.total_albums.toLocaleString()} albums • {libraryStats.total_tracks.toLocaleString()} tracks
+                          {libraryStats.total_artists.toLocaleString()}
                         </div>
                       </div>
 
                       <div style={{ background: "rgba(255, 255, 255, 0.03)", border: "1px solid rgba(255, 255, 255, 0.06)", borderRadius: "8px", padding: "10px", textAlign: "center" }}>
-                        <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.5)", textTransform: "uppercase", fontWeight: "bold" }}>Missing Artist Art</span>
+                        <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.5)", textTransform: "uppercase", fontWeight: "bold" }}>Total Albums</span>
+                        <div style={{ fontSize: "18px", fontWeight: "800", color: "#fff", marginTop: "4px" }}>
+                          {libraryStats.total_albums.toLocaleString()}
+                        </div>
+                      </div>
+
+                      <div style={{ background: "rgba(255, 255, 255, 0.03)", border: "1px solid rgba(255, 255, 255, 0.06)", borderRadius: "8px", padding: "10px", textAlign: "center" }}>
+                        <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.5)", textTransform: "uppercase", fontWeight: "bold" }}>Total Tracks</span>
+                        <div style={{ fontSize: "18px", fontWeight: "800", color: "#fff", marginTop: "4px" }}>
+                          {libraryStats.total_tracks.toLocaleString()}
+                        </div>
+                      </div>
+
+                      <div style={{ background: "rgba(255, 255, 255, 0.03)", border: "1px solid rgba(255, 255, 255, 0.06)", borderRadius: "8px", padding: "10px", textAlign: "center" }}>
+                        <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.5)", textTransform: "uppercase", fontWeight: "bold" }}>Missing Artist Art</span>
                         <div style={{ fontSize: "18px", fontWeight: "800", color: libraryStats.missing_artist_art > 0 ? "#ff6b6b" : "#44d7b6", marginTop: "4px" }}>
                           {libraryStats.missing_artist_art.toLocaleString()}
                         </div>
-                        <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)", marginTop: "2px" }}>
-                          {libraryStats.total_artists > 0 ? `${((libraryStats.missing_artist_art / libraryStats.total_artists) * 100).toFixed(1)}% missing` : "0%"}
+                        <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.4)", marginTop: "2px" }}>
+                          {libraryStats.total_artists > 0 ? `${((libraryStats.missing_artist_art / libraryStats.total_artists) * 100).toFixed(1)}%` : "0%"}
                         </div>
                       </div>
 
                       <div style={{ background: "rgba(255, 255, 255, 0.03)", border: "1px solid rgba(255, 255, 255, 0.06)", borderRadius: "8px", padding: "10px", textAlign: "center" }}>
-                        <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.5)", textTransform: "uppercase", fontWeight: "bold" }}>Missing Album Art</span>
+                        <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.5)", textTransform: "uppercase", fontWeight: "bold" }}>Missing Album Art</span>
                         <div style={{ fontSize: "18px", fontWeight: "800", color: libraryStats.missing_album_art > 0 ? "#ff6b6b" : "#44d7b6", marginTop: "4px" }}>
                           {libraryStats.missing_album_art.toLocaleString()}
                         </div>
-                        <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)", marginTop: "2px" }}>
-                          {libraryStats.total_albums > 0 ? `${((libraryStats.missing_album_art / libraryStats.total_albums) * 100).toFixed(1)}% missing` : "0%"}
+                        <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.4)", marginTop: "2px" }}>
+                          {libraryStats.total_albums > 0 ? `${((libraryStats.missing_album_art / libraryStats.total_albums) * 100).toFixed(1)}%` : "0%"}
                         </div>
                       </div>
                     </div>
 
-                    {/* Per-Server Catalog Table */}
-                    <div>
-                      <span style={{ color: "rgba(255,255,255,0.6)", fontSize: "12px", fontWeight: "bold", marginBottom: "8px", display: "block" }}>
-                        Per-Server Indexed Items
-                      </span>
-                      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                        {libraryStats.servers.map((srv) => (
-                          <div
-                            key={srv.server_id}
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "space-between",
-                              padding: "8px 12px",
-                              background: "rgba(255, 255, 255, 0.02)",
-                              border: "1px solid rgba(255, 255, 255, 0.05)",
-                              borderRadius: "6px",
-                              fontSize: "12px",
-                            }}
-                          >
-                            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                              <span style={{ color: "#fff", fontWeight: "bold" }}>{srv.server_name}</span>
-                              {srv.is_primary && (
-                                <span style={{ fontSize: "9px", background: "var(--color-primary)", color: "#000", fontWeight: "bold", padding: "1px 6px", borderRadius: "10px" }}>
-                                  PRIMARY
-                                </span>
-                              )}
-                              <span style={{ fontSize: "10px", color: srv.enabled ? "#44d7b6" : "rgba(255,255,255,0.3)" }}>
-                                {srv.enabled ? "Enabled" : "Disabled"}
-                              </span>
-                            </div>
-                            <div style={{ color: "rgba(255,255,255,0.7)", fontFamily: "monospace" }}>
-                              {srv.artist_count.toLocaleString()} artists • {srv.album_count.toLocaleString()} albums • {srv.track_count.toLocaleString()} tracks
-                            </div>
+                    {/* Per-Server Catalog Tables (Grouped by Enabled / Disabled) */}
+                    {(() => {
+                      const enabledList = libraryStats.servers.filter((s) => s.enabled);
+                      const disabledList = libraryStats.servers.filter((s) => !s.enabled);
+
+                      const renderServerTable = (servers: typeof libraryStats.servers) => (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 75px 75px 75px", padding: "4px 10px", fontSize: "10px", fontWeight: "bold", color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                            <div>Server Name</div>
+                            <div style={{ textAlign: "right" }}>Artists</div>
+                            <div style={{ textAlign: "right" }}>Albums</div>
+                            <div style={{ textAlign: "right" }}>Tracks</div>
                           </div>
-                        ))}
-                      </div>
-                    </div>
+                          {servers.map((srv) => (
+                            <div
+                              key={srv.server_id}
+                              style={{
+                                display: "grid",
+                                gridTemplateColumns: "1fr 75px 75px 75px",
+                                alignItems: "center",
+                                padding: "8px 10px",
+                                background: "rgba(255, 255, 255, 0.02)",
+                                border: "1px solid rgba(255, 255, 255, 0.05)",
+                                borderRadius: "6px",
+                                fontSize: "12px",
+                              }}
+                            >
+                              <div style={{ display: "flex", alignItems: "center", gap: "6px", minWidth: 0, overflow: "hidden" }}>
+                                <span style={{ color: "#fff", fontWeight: "bold", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                  {srv.server_name}
+                                </span>
+                                {srv.is_primary && (
+                                  <span style={{ fontSize: "9px", background: "var(--color-primary)", color: "#000", fontWeight: "bold", padding: "1px 5px", borderRadius: "8px", flexShrink: 0 }}>
+                                    PRIMARY
+                                  </span>
+                                )}
+                              </div>
+                              <div style={{ textAlign: "right", color: "rgba(255,255,255,0.85)", fontFamily: "monospace" }}>
+                                {srv.artist_count.toLocaleString()}
+                              </div>
+                              <div style={{ textAlign: "right", color: "rgba(255,255,255,0.85)", fontFamily: "monospace" }}>
+                                {srv.album_count.toLocaleString()}
+                              </div>
+                              <div style={{ textAlign: "right", color: "rgba(255,255,255,0.85)", fontFamily: "monospace" }}>
+                                {srv.track_count.toLocaleString()}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      );
+
+                      return (
+                        <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                          {enabledList.length > 0 && (
+                            <div>
+                              <span style={{ color: "#44d7b6", fontSize: "11px", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "6px", display: "block" }}>
+                                Enabled Servers ({enabledList.length})
+                              </span>
+                              {renderServerTable(enabledList)}
+                            </div>
+                          )}
+
+                          {disabledList.length > 0 && (
+                            <div>
+                              <span style={{ color: "rgba(255,255,255,0.4)", fontSize: "11px", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "6px", display: "block" }}>
+                                Disabled Servers ({disabledList.length})
+                              </span>
+                              {renderServerTable(disabledList)}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
               </div>
