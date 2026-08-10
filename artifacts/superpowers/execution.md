@@ -1,24 +1,16 @@
-## Step 1: Backend API Endpoints for Missing Artwork & Re-sync
-- **Files**:
-  - `backend/services/library.py`
-  - `backend/routers/stats.py`
-  - `backend/tests/test_stats.py`
-- **What Changed**:
-  - Implemented `get_missing_artwork_items()` and `refetch_item_artwork()` in `backend/services/library.py`.
-  - Exposed `GET /api/stats/missing-artwork` and `POST /api/stats/refetch-artwork` endpoints in `backend/routers/stats.py`.
-  - Added unit test `test_get_missing_artwork_endpoint` in `backend/tests/test_stats.py`.
-- **Verification Command**: `uv run python -m pytest backend/tests/test_stats.py`
-- **Result**: PASSED (3 passed in 0.25s)
+# Execution Log: Full Multi-Phase Percentage Indexing Progress Bar
 
-## Step 2 & 3: MissingArtworkModal Component & Metric Card Click Handlers
-- **Files**:
-  - `frontend/src/components/MissingArtworkModal.tsx`
-  - `frontend/src/components/MissingArtworkModal.css`
-  - `frontend/src/utils.ts`
-  - `frontend/src/App.tsx`
-- **What Changed**:
-  - Built `MissingArtworkModal` React component with live search filtering, "Copy Name" button with checkmark feedback, and "Re-Sync Artwork" button calling `/api/stats/refetch-artwork`.
-  - Exported `getApiUrl` utility in `frontend/src/utils.ts`.
-  - Made Missing Artist Art and Missing Album Art cards clickable (`cursor: "pointer"`, hover glow effect) opening `MissingArtworkModal`.
-- **Verification Command**: `npm run build` inside `frontend/`
-- **Result**: PASSED (built in 865ms)
+## Overview
+Added real-time percentage progress calculations across **all three indexing phases** (Artists, Albums, and Tracks) as well as initial network metadata fetch status broadcasts.
+
+## Summary of Changes
+1. **Network Metadata Fetching Status**:
+   - Emits immediate WebSocket feedback before HTTP section downloads: `Fetching artist catalog from plex-so`, `Fetching album catalog from plex-so`, and `Fetching track catalog from plex-so`.
+2. **Multi-Phase Percentage Progress**:
+   - **Artists**: `pct = (idx / total_artists) * 100` $\rightarrow$ `Indexing artists on plex-so • 45% (600 / 1,411)`.
+   - **Albums**: `pct = (idx / total_albums) * 100` $\rightarrow$ `Indexing albums on plex-so • 45% (1,300 / 3,040)`.
+   - **Tracks**: `pct = (idx / total_tracks) * 100` $\rightarrow$ `Indexing tracks on plex-so • 45% (11,700 / 26,000)`.
+
+## Verification Commands & Results
+- `uv run python -m pytest backend/tests/` -> PASSED (116 passed in 18.10s)
+- `docker compose down && docker compose up -d` -> PASSED (containers running live)

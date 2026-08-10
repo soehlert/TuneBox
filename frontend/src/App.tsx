@@ -2014,7 +2014,16 @@ function App() {
   const [accessibleServers, setAccessibleServers] = useState<any[]>([]);
   const [showServerModal, setShowServerModal] = useState(false);
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
-  const [indexingStatus, setIndexingStatus] = useState<{ isIndexing: boolean; isInitial: boolean; serverName: string; message?: string | null; isError?: boolean } | null>(null);
+  const [indexingStatus, setIndexingStatus] = useState<{
+    isIndexing: boolean;
+    isInitial: boolean;
+    serverName: string;
+    itemsIndexed?: number;
+    totalItems?: number;
+    percentage?: number;
+    message?: string | null;
+    isError?: boolean;
+  } | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Clear search query when clear_search parameter is present
@@ -2243,10 +2252,16 @@ function App() {
             const sName = data.server_name || "Plex";
             const msg = data.message || null;
             const isErr = Boolean(data.is_error);
+            const itemsIndexed = typeof data.items_indexed === "number" ? data.items_indexed : 0;
+            const totalItems = typeof data.total_items === "number" ? data.total_items : 0;
+            const percentage = typeof data.percentage === "number" ? data.percentage : 0;
             setIndexingStatus({
               isIndexing: isInd,
               isInitial: isInit,
               serverName: sName,
+              itemsIndexed,
+              totalItems,
+              percentage,
               message: msg,
               isError: isErr,
             });
@@ -2674,9 +2689,8 @@ function App() {
                     color: "#ffffff",
                     padding: "12px 20px",
                     display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: "12px",
+                    flexDirection: "column",
+                    gap: "8px",
                     fontSize: "14px",
                     fontWeight: 600,
                     boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)",
@@ -2685,14 +2699,30 @@ function App() {
                     zIndex: 10,
                   }}
                 >
-                  <span className={`material-symbols-outlined ${indexingStatus.isIndexing ? "spin-animation" : ""}`} style={{ fontSize: "20px", color: indexingStatus.isError ? "#ffcdd2" : "#64c8ff" }}>
-                    {indexingStatus.isIndexing ? "sync" : indexingStatus.isError ? "warning" : "check_circle"}
-                  </span>
-                  <span>
-                    {indexingStatus.message
-                      ? indexingStatus.message
-                      : <>Indexing server <strong>{indexingStatus.serverName}</strong>...</>}
-                  </span>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "12px" }}>
+                    <span className={`material-symbols-outlined ${indexingStatus.isIndexing ? "spin-animation" : ""}`} style={{ fontSize: "20px", color: indexingStatus.isError ? "#ffcdd2" : "#64c8ff" }}>
+                      {indexingStatus.isIndexing ? "sync" : indexingStatus.isError ? "warning" : "check_circle"}
+                    </span>
+                    <span>
+                      {indexingStatus.message
+                        ? indexingStatus.message
+                        : <>Indexing server <strong>{indexingStatus.serverName}</strong></>}
+                    </span>
+                  </div>
+
+                  {indexingStatus.isIndexing && (
+                    <div style={{ width: "100%", background: "rgba(255, 255, 255, 0.15)", borderRadius: "3px", height: "4px", overflow: "hidden" }}>
+                      <div
+                        style={{
+                          width: `${Math.min(100, Math.max(0, indexingStatus.percentage || 0))}%`,
+                          background: "linear-gradient(90deg, #f5a623 0%, #ff4d4d 100%)",
+                          height: "100%",
+                          borderRadius: "3px",
+                          transition: "width 0.3s ease-out",
+                        }}
+                      />
+                    </div>
+                  )}
                 </div>
               )}
               <div className="header-gradient"></div>
