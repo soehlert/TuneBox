@@ -1023,10 +1023,22 @@ def get_library_health_stats(db_path: str | None = None) -> dict:
         total_tracks = conn.execute("SELECT COUNT(*) FROM tracks").fetchone()[0]
 
         missing_artist_art = conn.execute(
-            "SELECT COUNT(*) FROM artists WHERE thumb IS NULL OR thumb = '' OR thumb LIKE '/api/music/%'"
+            """
+            SELECT COUNT(DISTINCT a.artist_id)
+            FROM artists a
+            JOIN artist_sources src ON a.artist_id = src.artist_id
+            JOIN servers srv ON src.server_id = srv.server_id
+            WHERE srv.is_primary = 1 AND (a.thumb IS NULL OR a.thumb = '' OR a.thumb LIKE '/api/music/%')
+            """
         ).fetchone()[0]
         missing_album_art = conn.execute(
-            "SELECT COUNT(*) FROM albums WHERE thumb IS NULL OR thumb = '' OR thumb LIKE '/api/music/%'"
+            """
+            SELECT COUNT(DISTINCT alb.album_id)
+            FROM albums alb
+            JOIN album_sources src ON alb.album_id = src.album_id
+            JOIN servers srv ON src.server_id = srv.server_id
+            WHERE srv.is_primary = 1 AND (alb.thumb IS NULL OR alb.thumb = '' OR alb.thumb LIKE '/api/music/%')
+            """
         ).fetchone()[0]
 
         servers = conn.execute(

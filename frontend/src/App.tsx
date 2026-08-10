@@ -1506,7 +1506,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
                         <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
                           {enabledList.length > 0 && (
                             <div>
-                              <span style={{ color: "#44d7b6", fontSize: "11px", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "6px", display: "block" }}>
+                              <span style={{ color: "#f5a623", fontSize: "11px", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "6px", display: "block" }}>
                                 Enabled Servers ({enabledList.length})
                               </span>
                               {renderServerTable(enabledList)}
