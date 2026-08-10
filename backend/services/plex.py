@@ -360,8 +360,22 @@ def get_track(item_id, server_id: str | None = None):
             logger.debug("Failed resolving track source info for %s: %s", item_id, resolve_ex)
 
     plex = get_target_plex_connection(server_id)
+    if not plex:
+        plex = get_plex_connection()
+    if not plex:
+        raise HTTPException(status_code=404, detail="No active Plex server available")
+
     logger.debug("Fetching track: %s (server_id=%s)", item_id_val, server_id)
-    track = plex.fetchItem(item_id_val)
+    try:
+        track = plex.fetchItem(item_id_val)
+    except Exception as ex:
+        logger.debug("fetchItem failed on server %s for item %s: %s. Trying primary server connection.", server_id, item_id_val, ex)
+        primary_plex = get_plex_connection()
+        if primary_plex and primary_plex != plex:
+            track = primary_plex.fetchItem(item_id_val)
+        else:
+            raise ex
+
     logger.debug("Fetched track: %s", getattr(track, "title", "Track"))
 
     # Set sqlite_track_id attribute for queue serialization & frontend navigation
@@ -896,7 +910,11 @@ async def check_plexamp_resync(force_align: bool = False):
                             mock_sess.thumb = cached_track["album_art"]
                         else:
                             # Fetch full track metadata from Plex
-                            track = await asyncio.to_thread(get_track, rating_key)
+                            try:
+                                track = await asyncio.to_thread(get_track, rating_key, server_id=target_server_id)
+                            except Exception as t_ex:
+                                logger.debug("Failed fetching track details for ratingKey %s during timeline poll: %s", rating_key, t_ex)
+                                track = None
                             if track:
                                 mock_sess.title = track.title
                                 mock_sess.grandparentTitle = getattr(track, "grandparentTitle", "Unknown Artist")
@@ -911,26 +929,15 @@ async def check_plexamp_resync(force_align: bool = False):
                         active_session = mock_sess
                         logger.debug("Successfully read direct player timeline for %s at %sms (state=%s)", mock_sess.title, mock_sess.viewOffset, timeline.state)
             except Exception as e:
-                logger.warning("Could not poll player timeline directly: %s. Player offline — auto-pausing local tracker.", e)
-                global _cached_active_player, _cached_active_player_name
-                _cached_active_player = None
-                _cached_active_player_name = None
-
-                if track_time_tracker.is_playing:
-                    track_time_tracker.pause()
-                    now_playing = get_cached_data("now_playing")
-                    if isinstance(now_playing, dict):
-                        now_playing["track_state"] = "paused"
-                        cache_data("now_playing", now_playing)
-                    await send_current_playing()
-                return
+                logger.debug("Could not poll player timeline directly: %s. Falling back to Plex sessions check.", e)
 
         if not active_session:
             sessions = await asyncio.to_thread(plex.sessions)
             for session in sessions:
-                if (
-                    getattr(session, "player", None)
-                    and session.player.machineIdentifier == player.machineIdentifier
+                p_obj = getattr(session, "player", None)
+                if p_obj and (
+                    p_obj.machineIdentifier == player.machineIdentifier
+                    or getattr(p_obj, "title", "").lower() == getattr(player, "title", "").lower()
                 ):
                     active_session = session
                     break
