@@ -2356,16 +2356,15 @@ function App() {
 
   const handleStartLinking = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!localUsername.trim() || !plexUsername.trim()) {
+    if (!localUsername.trim()) {
       setAppDialog({
         open: true,
         title: "Setup Warning",
-        message: "Please enter both Plex username and TuneBox Instance Name.",
+        message: "Please enter a TuneBox Instance Name.",
       });
       return;
     }
     try {
-      localStorage.setItem("tunebox_setup_plex_username", plexUsername);
       localStorage.setItem("tunebox_setup_local_username", localUsername);
       const res = await axios.post(getApiUrl("/api/auth/pin"));
       setPinCode(res.data.code);
@@ -2374,6 +2373,11 @@ function App() {
       setStep(2);
     } catch (err) {
       console.error("Failed to request PIN:", err);
+      setAppDialog({
+        open: true,
+        title: "Setup Error",
+        message: "Failed to request Plex authorization PIN. Please check server logs.",
+      });
     }
   };
 
