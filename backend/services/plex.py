@@ -1062,16 +1062,16 @@ async def check_plexamp_resync(force_align: bool = False):
                 else 0
             )
 
-            # Guard: if this session is the track we just finished with an empty queue
-            if _queue_finished_track and session_title == _queue_finished_track:
-                logger.info(
-                    "Resync found finished track '%s' still active on Plex. Stopping playback.",
-                    session_title,
-                )
+            # Guard: if queue is empty and playback finished or stopped, clear state completely
+            from backend.services.redis import get_redis_queue
+            if not get_redis_queue() and (_queue_finished_track or not track_time_tracker.is_playing):
+                logger.info("Resync detected empty queue. Clearing now_playing state.")
                 _queue_finished_track = None
+                clear_cache("now_playing")
+                track_time_tracker.stop()
                 try:
                     await asyncio.to_thread(stop_playback)
-                except Exception as stop_ex:  # noqa: BLE001
+                except Exception as stop_ex:
                     logger.debug("stop_playback during resync guard failed: %s", stop_ex)
                 await send_current_playing()
                 return
