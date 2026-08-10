@@ -609,7 +609,7 @@ function ArtistList({
                         variant="contained"
                         onClick={(e) => {
                           e.stopPropagation();
-                          addToQueue(track.track_id, track.server_id, track.server_name);
+                          addToQueue(track.server_track_id || track.item_id || track.track_id, track.server_id, track.server_name);
                         }}
                         style={{
                           background: "var(--color-primary)",

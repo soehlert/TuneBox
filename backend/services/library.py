@@ -911,6 +911,11 @@ _ART_SOURCE_MEM_CACHE: dict[str, tuple[str | None, str | None, str | None]] = {}
 _ART_SOURCE_MEM_CACHE_MAX_SIZE = 5000
 
 
+def clear_art_source_cache():
+    """Clear memory resolution cache for track/album source info."""
+    _ART_SOURCE_MEM_CACHE.clear()
+
+
 def get_art_source_info(item_id: int | str, item_type: str, db_path: str | None = None) -> tuple[str | None, str | None, str | None]:
     """Resolve stored thumb URL, server_id, and Plex server ratingKey from SQLite for a given SQLite item_id or ratingKey."""
     cache_key = f"{item_type}:{item_id}"

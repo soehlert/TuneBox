@@ -146,14 +146,9 @@ def seed_mock_library_db(db_path: str | None = None):
     from backend.config import settings
     from backend.services.library import get_db_connection, upsert_server, upsert_artist, upsert_album, upsert_track
 
-    if not settings.testing:
-        conn = get_db_connection(db_path)
-        try:
-            real_server = conn.execute("SELECT 1 FROM servers WHERE server_id != 'mock-server-001' LIMIT 1").fetchone()
-            if real_server:
-                return
-        finally:
-            conn.close()
+    if not db_path:
+        # Never seed mock data into real library.db
+        return
 
     mock_server_id = "mock-server-001"
     upsert_server(mock_server_id, "Mock Plex Server", "http://mock-server:32400", is_primary=True, enabled=True, db_path=db_path)

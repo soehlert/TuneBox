@@ -2270,6 +2270,11 @@ def clear_art_memory_cache():
     """Clear RAM and Redis art image caches."""
     _MEMORY_ART_CACHE.clear()
     try:
+        from backend.services.library import clear_art_source_cache  # noqa: PLC0415
+        clear_art_source_cache()
+    except Exception:
+        pass
+    try:
         from backend.services.redis import get_redis_cache_client
         r = get_redis_cache_client()
         keys = r.keys("art_bytes:*")

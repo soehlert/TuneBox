@@ -9,6 +9,9 @@ import "./TrackList.css";
 
 interface Track {
   track_id: number;
+  server_track_id?: string | number;
+  rating_key?: string | number;
+  server_id?: string;
   title: string;
   duration: string;
   track_number?: number;
@@ -171,11 +174,13 @@ function TrackList() {
     }
   };
 
-  const addToQueue = async (trackId: number) => {
+  const addToQueue = async (track: Track) => {
     try {
-      const queueUrl = `${apiBase}/api/music/queue/${trackId}`;
+      const targetId = track.server_track_id || track.rating_key || track.track_id;
+      const targetServerId = track.server_id || serverId;
+      const queueUrl = `${apiBase}/api/music/queue/${targetId}`;
       await axios.post(queueUrl, {
-        server_id: serverId,
+        server_id: targetServerId,
         username: getLocalUsername(),
       });
       showSnackbar("Track added to queue!", "success");
@@ -393,7 +398,7 @@ function TrackList() {
                           </Typography>
                           <Button
                             variant="contained"
-                            onClick={() => addToQueue(track.track_id)}
+                            onClick={() => addToQueue(track)}
                           >
                             Add to Queue
                           </Button>
