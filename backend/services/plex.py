@@ -481,7 +481,7 @@ def play_song(player, song, server_token=None, server_url=None):
     }
     cache_data("now_playing", song_data)
 
-    track_time_tracker.start(song.title)
+    track_time_tracker.start(song.title, item_id=str(song.ratingKey))
     logger.info("Song %s started playing on player: %s", song.title, player.title)
 
     from backend.websockets import broadcast_current_playing_threadsafe, broadcast_queue_threadsafe  # noqa: PLC0415
@@ -882,7 +882,7 @@ async def playback_orchestrator():
             tick_count += 1
             if tick_count >= HEARTBEAT_INTERVAL:
                 tick_count = 0
-                await check_plexamp_resync()
+                asyncio.create_task(check_plexamp_resync())
 
         except Exception:
             logger.exception("Error in playback orchestrator")
@@ -1036,15 +1036,18 @@ async def check_plexamp_resync(force_align: bool = False):
 
             cached_track = get_cached_data("now_playing")
 
-            # Check if this session matches our currently playing track by item_id or title
+            # Check if this session matches our currently playing track by exact Plex ratingKey (item_id) or title
             is_same_track = False
-            if cached_track:
-                c_item_id = str(cached_track.get("item_id", ""))
-                s_item_id = str(getattr(active_session, "ratingKey", ""))
+            s_item_id = str(getattr(active_session, "ratingKey", ""))
+            t_item_id = str(getattr(track_time_tracker, "item_id", ""))
+            c_item_id = str(cached_track.get("item_id", "")) if cached_track else ""
+
+            if s_item_id and ((c_item_id and s_item_id == c_item_id) or (t_item_id and s_item_id == t_item_id)):
+                is_same_track = True
+            elif cached_track:
                 c_title = (cached_track.get("title") or "").strip().lower()
                 s_title = (session_title or "").strip().lower()
-
-                if (c_item_id and s_item_id and c_item_id == s_item_id) or (c_title and s_title and c_title == s_title):
+                if c_title and s_title and c_title == s_title:
                     is_same_track = True
 
             # 1. Track changed externally on Plexamp (e.g. manual track pick directly inside Plexamp app)

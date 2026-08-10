@@ -61,6 +61,7 @@ class TrackTimeTracker:
     def __init__(self):
         """Initialize a TrackTimeTracker object."""
         self.track_name = None
+        self.item_id = None
         self.state = "stopped"  # "playing", "paused", "stopped"
         self.accumulated_elapsed = 0.0
         self.last_resume_time = None
@@ -94,9 +95,10 @@ class TrackTimeTracker:
             return None
         return time.time() - self.elapsed_time
 
-    def start(self, track_name):
+    def start(self, track_name, item_id=None):
         """Start tracking a new track."""
         self.track_name = track_name
+        self.item_id = str(item_id) if item_id else None
         self.state = "playing"
         self.accumulated_elapsed = 0.0
         self.last_resume_time = time.time()
