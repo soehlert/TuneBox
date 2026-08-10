@@ -838,7 +838,7 @@ async def playback_orchestrator():
                         if remaining_queue:
                             next_song = remaining_queue[0]
                             logger.info("Immediately advancing queue to next song: %s", next_song.get("title"))
-                            track_time_tracker.start(next_song.get("title"))
+                            track_time_tracker.start(next_song.get("title"), item_id=str(next_song.get("item_id")))
                             try:
                                 player = await asyncio.to_thread(get_active_player)
                                 s_id = next_song.get("server_id")
