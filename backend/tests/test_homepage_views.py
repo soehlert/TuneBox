@@ -1,10 +1,23 @@
 """Tests for homepage views: all albums, genres, and decades."""
 
+import pytest
 from fastapi.testclient import TestClient
 from backend.config import settings
+from backend.db.library_db import init_library_db
 from backend.main import app
+from backend.services.mock_data import seed_mock_library_db
 
 client = TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def setup_test_db():
+    orig_testing = settings.testing
+    settings.testing = True
+    init_library_db()
+    seed_mock_library_db()
+    yield
+    settings.testing = orig_testing
 
 
 def test_get_all_albums_endpoint():
