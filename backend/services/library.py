@@ -1009,7 +1009,7 @@ def get_tracks_for_album_db(album_id: int | str, db_path: str | None = None) -> 
 
         cursor = conn.execute(
             """
-            SELECT t.track_id, t.title, t.duration, t.artist_name as artist, t.album_title as album, t.url, t.thumb, t.user_rating, srv.name as server_name, COALESCE(srv.is_primary, 0) as is_primary, t.server_id
+            SELECT t.track_id, t.server_track_id as rating_key, t.title, t.duration, t.artist_name as artist, t.album_title as album, t.url, t.thumb, t.user_rating, srv.name as server_name, COALESCE(srv.is_primary, 0) as is_primary, t.server_id
             FROM tracks t
             JOIN servers srv ON t.server_id = srv.server_id
             WHERE srv.enabled = 1 AND t.album_id = ?
@@ -1034,7 +1034,9 @@ def get_tracks_for_album_db(album_id: int | str, db_path: str | None = None) -> 
         tracks = [
             {
                 "track_id": r["track_id"],
-                "item_id": r["track_id"],
+                "server_track_id": r["rating_key"],
+                "rating_key": r["rating_key"],
+                "item_id": r["rating_key"] or r["track_id"],
                 "title": r["title"],
                 "duration": r["duration"],
                 "artist": r["artist"],

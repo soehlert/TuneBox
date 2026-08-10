@@ -50,11 +50,11 @@ const QueueComponent = () => {
 
   const handleDeleteTrack = async (itemId: number | string) => {
     try {
+      const headers: Record<string, string> = {};
+      if (adminToken) headers["X-Admin-Token"] = adminToken;
       const response = await fetch(`${apiBase}/api/music/queue/${itemId}`, {
         method: "DELETE",
-        headers: {
-          "X-Admin-Token": adminToken,
-        },
+        headers,
       });
       if (!response.ok) {
         throw new Error(`Failed to delete track: ${response.statusText}`);
@@ -104,7 +104,7 @@ const QueueComponent = () => {
 
   // Mouse Drag and Drop Handlers
   const handleDragStart = (e: React.DragEvent, index: number) => {
-    if (index === 0 || !adminToken) return;
+    if (index === 0) return;
     setDraggedIndex(index);
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData("text/plain", index.toString());
@@ -115,7 +115,7 @@ const QueueComponent = () => {
   };
 
   const handleDragOver = (e: React.DragEvent, index: number) => {
-    if (index === 0 || draggedIndex === null || !adminToken) return;
+    if (index === 0 || draggedIndex === null) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
     if (dragOverIndex !== index) {
@@ -139,13 +139,13 @@ const QueueComponent = () => {
 
   // Mobile Touch Drag Handlers
   const handleTouchStart = (_e: React.TouchEvent, index: number) => {
-    if (index === 0 || !adminToken) return;
+    if (index === 0) return;
     touchDragRef.current = { index, targetIndex: null };
     setDraggedIndex(index);
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (!touchDragRef.current || !adminToken) return;
+    if (!touchDragRef.current) return;
     const touch = e.touches[0];
     const targetElement = document.elementFromPoint(touch.clientX, touch.clientY);
     const itemElement = targetElement?.closest(".queue-item");
@@ -344,22 +344,19 @@ const QueueComponent = () => {
               <li
                 key={index}
                 data-index={index}
+                draggable={!isActive}
                 onClick={() => handleTrackClick(track)}
+                onDragStart={(e) => handleDragStart(e, index)}
                 onDragOver={(e) => handleDragOver(e, index)}
                 onDrop={(e) => handleDrop(e, index)}
                 onDragEnd={handleDragEnd}
                 className={`queue-item ${isActive ? 'active' : ''} ${isDragging ? 'dragging' : ''} ${isDragOver ? 'drag-over' : ''}`}
               >
                 <Box className="queue-item-left">
-                  {adminToken && !isActive && (
+                  {!isActive && (
                     <span
                       className="material-symbols-outlined queue-drag-handle"
-                      draggable
                       onMouseDown={(e) => e.stopPropagation()}
-                      onDragStart={(e) => {
-                        e.stopPropagation();
-                        handleDragStart(e, index);
-                      }}
                       onTouchStart={(e) => {
                         e.stopPropagation();
                         handleTouchStart(e, index);
@@ -434,7 +431,7 @@ const QueueComponent = () => {
                   ) : (
                     <Typography className="queue-item-time">{formatDuration(track.duration)}</Typography>
                   )}
-                  {adminToken && !isActive && (
+                  {!isActive && (
                     <>
                       {index > 1 && (
                         <button

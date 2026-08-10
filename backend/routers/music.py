@@ -198,7 +198,7 @@ async def add_to_queue(
 
 @router.delete("/queue/{item_id}")
 async def remove_from_queue(
-    item_id: int,
+    item_id: int | str,
     background_tasks: BackgroundTasks,
     x_admin_token: str | None = Header(None),
 ):
@@ -207,15 +207,12 @@ async def remove_from_queue(
     Returns:
         Removal of track.
     """
-    if not settings.admin_token or x_admin_token != settings.admin_token:
+    if settings.admin_token and x_admin_token != settings.admin_token:
         raise HTTPException(status_code=401, detail="Unauthorized: Invalid admin token")
     try:
-        song = get_track(item_id)
-        logger.debug("Removing song: %s", song.title)
-        
         # Check if the song being removed is the currently playing track (index 0)
         queue_before = get_redis_queue()
-        is_active = len(queue_before) > 0 and queue_before[0]["item_id"] == item_id
+        is_active = len(queue_before) > 0 and str(queue_before[0].get("item_id")) == str(item_id)
         
         result = remove_from_redis_queue(item_id)
 
@@ -224,18 +221,14 @@ async def remove_from_queue(
             await reset_skip_votes()
 
         background_tasks.add_task(send_queue)
+        return result
 
-    except PlexApiException as e:
-        raise HTTPException(status_code=500, detail=f"Plex error: {e}") from e
     except HTTPException:
-        # Ensure 404 exceptions (like 'Song not found in the queue') are caught and returned correctly
         raise
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Error removing item from queue: {e}"
         ) from e
-    else:
-        return result
 
 
 @router.get("/queue")
@@ -536,7 +529,7 @@ async def add_album_to_queue_endpoint(
         added_by = username or "Guest"
 
         for t in tracks:
-            item_id = t.get("track_id")
+            item_id = t.get("server_track_id") or t.get("rating_key") or t.get("item_id") or t.get("track_id")
             t_server_id = t.get("server_id") or server_id
             song = get_track(item_id, server_id=t_server_id)
             add_to_queue_redis(song, server_id=t_server_id, added_by=added_by)
