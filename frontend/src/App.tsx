@@ -1122,11 +1122,13 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
                       title="Clears all upcoming songs in the queue while preserving the currently playing track"
                       style={{
                         width: "100%",
+                        height: "44px",
+                        boxSizing: "border-box",
                         background: "rgba(245, 166, 35, 0.15)",
                         border: "1px solid rgba(245, 166, 35, 0.4)",
                         color: "#f5a623",
                         borderRadius: "8px",
-                        padding: "12px 14px",
+                        padding: "0 14px",
                         fontSize: "13px",
                         fontWeight: "bold",
                         cursor: "pointer",
@@ -1155,11 +1157,13 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
                       title="Stops player immediately and clears the entire queue including the current song"
                       style={{
                         width: "100%",
+                        height: "44px",
+                        boxSizing: "border-box",
                         background: "#ff4d4d",
-                        border: "none",
+                        border: "1px solid transparent",
                         color: "#ffffff",
                         borderRadius: "8px",
-                        padding: "12px 14px",
+                        padding: "0 14px",
                         fontSize: "13px",
                         fontWeight: "bold",
                         cursor: "pointer",
@@ -1309,7 +1313,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
           </div>
 
           {/* Section 4: Active Party Guests */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "12px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
             <div
               onClick={() => toggleSection("guests")}
               style={{
@@ -1378,7 +1382,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
           </div>
 
           {/* Section 5: Library Statistics & Health */}
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "12px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
             <div
               onClick={() => toggleSection("health")}
               style={{

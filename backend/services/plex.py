@@ -2299,17 +2299,6 @@ def fetch_art_bytes(item_id: int | str, item_type: str, server_id: str | None = 
         content_bytes = b""
 
     if not content_bytes or len(content_bytes) <= 100:
-        try:
-            from backend.db.library_db import get_db_connection  # noqa: PLC0415
-            conn = get_db_connection()
-            if item_type == "artist":
-                conn.execute("UPDATE artists SET thumb = '' WHERE artist_id = ?", (item_id,))
-            elif item_type == "album":
-                conn.execute("UPDATE albums SET thumb = '' WHERE album_id = ?", (item_id,))
-            conn.commit()
-            conn.close()
-        except Exception as update_ex:
-            logger.debug("Failed auto-clearing stale artwork for %s %s: %s", item_type, item_id, update_ex)
         return transparent_png, "image/png"
 
     res = (content_bytes, "image/jpeg")

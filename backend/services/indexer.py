@@ -484,8 +484,11 @@ def sync_all_servers(db_path: str | None = None, force_full: bool = False):
         ]
 
         if not target_servers:
-            from backend.services.mock_data import seed_mock_library_db
-            seed_mock_library_db(db_path)
+            if settings.testing:
+                from backend.services.mock_data import seed_mock_library_db  # noqa: PLC0415
+                seed_mock_library_db(db_path)
+            else:
+                logger.info("No enabled target Plex servers found to index. Skipping background indexing.")
             return
 
         # Prioritize unindexed servers (0 tracks in SQLite) first so new server banners show immediately
