@@ -262,6 +262,20 @@ def broadcast_json_threadsafe(data: dict):
             logger.debug("Failed threadsafe json broadcast: %s", ex)
 
 
+def broadcast_current_playing_threadsafe():
+    """Thread-safe helper to broadcast current track state to all WebSockets on the main event loop."""
+    global main_loop
+    if main_loop and main_loop.is_running():
+        asyncio.run_coroutine_threadsafe(send_current_playing(), main_loop)
+
+
+def broadcast_queue_threadsafe():
+    """Thread-safe helper to broadcast queue state to all WebSockets on the main event loop."""
+    global main_loop
+    if main_loop and main_loop.is_running():
+        asyncio.run_coroutine_threadsafe(send_queue(), main_loop)
+
+
 async def update_websocket_clients():
     """Periodically send updates to all connected WebSocket clients."""
     while True:
@@ -402,8 +416,6 @@ async def websocket_handler(websocket: WebSocket):
         if current_indexing_status.get("is_indexing"):
             await websocket.send_text(json.dumps(current_indexing_status))
         if message_type == "music_control":
-            from backend.services.plex import debounced_plexamp_resync  # noqa: PLC0415
-            await debounced_plexamp_resync(force_align=True)
             await send_current_playing()
             status = get_skip_vote_status()
             await websocket.send_text(json.dumps({"type": "skip_vote_update", "status": status}))

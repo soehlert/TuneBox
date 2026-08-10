@@ -478,6 +478,10 @@ def play_song(player, song, server_token=None, server_url=None):
     track_time_tracker.start(song.title)
     logger.info("Song %s started playing on player: %s", song.title, player.title)
 
+    from backend.websockets import broadcast_current_playing_threadsafe, broadcast_queue_threadsafe  # noqa: PLC0415
+    broadcast_queue_threadsafe()
+    broadcast_current_playing_threadsafe()
+
 
 
 
