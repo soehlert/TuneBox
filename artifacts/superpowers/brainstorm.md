@@ -49,9 +49,10 @@ Execute **Option 4** (Comprehensive Phased Rollout):
    - Track deletion from queue (`DELETE /api/music/queue/{item_id}`).
    - Queue reordering and Move to Top (`POST /api/music/queue/reorder`).
    - Adding entire albums to queue in track order using `server_track_id` Plex ratingKeys.
-2. **Phase 2**: Catalog Resolution & Server Filtering (`test_catalog_filtering.py`)
-   - Search & browse filtering by enabled servers.
-   - Artwork proxying and album art fallback resolution without dummy fallbacks.
+2. **Phase 2 (COMPLETED & VERIFIED)**: Catalog Resolution & Server Filtering ([test_catalog_filtering.py](file:///Users/soehlert/projects/testing/TuneBox/backend/tests/test_catalog_filtering.py))
+   - Search & browse filtering by enabled servers (`srv.enabled = 1`).
+   - Artwork cache key isolation by `server_id` (`art_bytes:{item_type}:{item_id}:{server_id}`).
+   - Artwork proxying and track-to-album fallback without dummy file data.
 3. **Phase 3**: Real-Time WebSocket & State Sync (`test_websocket_state.py`)
    - WebSocket queue broadcast updates (`send_queue`).
    - WebSocket current playing state sync (`send_current_playing`).
