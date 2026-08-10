@@ -517,7 +517,11 @@ def generate_autoplay_tracks():
     """Analyze recent history, fetch related tracks from Plex, and seed the queue with fallback items."""
     import random
     import json
-    from backend.services.redis import get_playback_history_ids, get_redis_cache_client, add_to_queue_redis
+    from backend.services.redis import get_playback_history_ids, get_redis_cache_client, add_to_queue_redis, is_autoplay_enabled
+
+    if not is_autoplay_enabled() and not settings.testing:
+        logger.info("Autoplay is disabled. Skipping automatic track generation.")
+        return
 
     logger.info("Triggering Autoplay track generation.")
     
@@ -624,31 +628,38 @@ def generate_autoplay_tracks():
         except Exception as ex:
             logger.warning("Autoplay preseed playlist fallback lookup failed: %s", ex)
 
-    # Ultimate fallback: fetch random indexed tracks from local SQLite library.db
+    # Ultimate fallback: fetch random indexed tracks from local SQLite library.db (filtering by enabled servers)
     if len(filtered_candidates) < 10 and not settings.testing:
         needed = 10 - len(filtered_candidates)
         try:
             from backend.db.library_db import get_db_connection  # noqa: PLC0415
-            conn = get_db_connection()
-            cursor = conn.cursor()
-            cursor.execute(
-                "SELECT server_track_id FROM tracks ORDER BY RANDOM() LIMIT ?;",
-                (needed * 2,),
-            )
-            rows = cursor.fetchall()
-            conn.close()
-            for row in rows:
-                if len(filtered_candidates) >= 10:
-                    break
-                tid = row["server_track_id"]
-                if str(tid) in [str(h) for h in history]:
-                    continue
-                try:
-                    track = get_track(tid)
-                    if track:
-                        filtered_candidates.append(track)
-                except Exception:
-                    pass
+            enabled_ids = get_enabled_server_ids()
+            if enabled_ids:
+                conn = get_db_connection()
+                placeholders = ",".join(["?"] * len(enabled_ids))
+                cursor = conn.cursor()
+                cursor.execute(
+                    f"SELECT server_track_id, server_id FROM tracks WHERE server_id IN ({placeholders}) ORDER BY RANDOM() LIMIT ?;",
+                    (*enabled_ids, needed * 2),
+                )
+                rows = cursor.fetchall()
+                conn.close()
+                for row in rows:
+                    if len(filtered_candidates) >= 10:
+                        break
+                    tid = row["server_track_id"]
+                    sid = row["server_id"]
+                    if str(tid) in [str(h) for h in history]:
+                        continue
+                    try:
+                        track = get_track(tid, server_id=sid)
+                        if track:
+                            track.server_id = sid
+                            filtered_candidates.append(track)
+                    except Exception:
+                        pass
+        except Exception as sq_ex:
+            logger.warning("Autoplay random fallback track selection failed: %s", sq_ex)
         except Exception as sq_ex:
             logger.warning("Failed to fetch random tracks from SQLite for autoplay: %s", sq_ex)
 

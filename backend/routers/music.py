@@ -279,13 +279,19 @@ def get_queue_history():
 
 @router.post("/clear-queue")
 async def clear_the_queue(background_tasks: BackgroundTasks):
-    """Clear the Redis playback queue.
+    """Clear the entire Redis playback queue and stop active playback.
 
     Returns:
         The clearing of the queue.
     """
     try:
-        result = clear_redis_queue()
+        try:
+            stop_playback()
+        except Exception as stop_ex:
+            logger.debug("Error stopping playback during clear_the_queue: %s", stop_ex)
+
+        result = clear_redis_queue(force_all=True)
+        clear_cache("now_playing")
 
         from backend.websockets import reset_skip_votes
         await reset_skip_votes()
