@@ -422,35 +422,6 @@ def play_song(player, song, server_token=None, server_url=None):
         quality_str,
         player.title
     )
-    global playback_active
-    playback_active = True
-
-    # Store track details in Redis under "now_playing" and start tracker IMMEDIATELY (0ms UI latency)
-    eff_server_id = getattr(song, "server_id", None) or target_server_id
-    eff_album_id = getattr(song, "parentRatingKey", None) or getattr(song, "album_id", None)
-    song_data = {
-        "item_id": str(song.ratingKey),
-        "server_id": eff_server_id,
-        "album_id": str(eff_album_id) if eff_album_id else None,
-        "title": song.title,
-        "artist": getattr(song, "grandparentTitle", "Unknown Artist"),
-        "album": getattr(song, "parentTitle", "Unknown Album"),
-        "duration": milliseconds_to_seconds(song.duration) if song.duration else 0,
-        "elapsed_time": 0.0,
-        "updated_at": time.time(),
-        "album_art": f"/api/music/track-art/{song.ratingKey}",
-        "track_state": "playing",
-        "server_name": getattr(song, "server_name", None),
-    }
-    cache_data("now_playing", song_data)
-
-    track_time_tracker.start(song.title, item_id=str(song.ratingKey))
-    logger.info("Song %s started playing on player: %s", song.title, player.title)
-
-    from backend.websockets import broadcast_current_playing_threadsafe, broadcast_queue_threadsafe  # noqa: PLC0415
-    broadcast_queue_threadsafe()
-    broadcast_current_playing_threadsafe()
-
     target_plex = get_plex_connection()
     if server_url and server_token and not settings.testing:
         try:
@@ -498,6 +469,35 @@ def play_song(player, song, server_token=None, server_url=None):
             logger.warning("Failed direct playMedia on %s: %s", player.title, ex2)
             invalidate_cached_player()
             raise PlexApiException(f"Player '{player.title}' unreachable: {ex2}") from ex2
+
+    if not playback_succeeded:
+        return
+
+    # Store track details in Redis under "now_playing" and start tracker AFTER playback command sent
+    eff_server_id = getattr(song, "server_id", None) or target_server_id
+    eff_album_id = getattr(song, "parentRatingKey", None) or getattr(song, "album_id", None)
+    song_data = {
+        "item_id": str(song.ratingKey),
+        "server_id": eff_server_id,
+        "album_id": str(eff_album_id) if eff_album_id else None,
+        "title": song.title,
+        "artist": getattr(song, "grandparentTitle", "Unknown Artist"),
+        "album": getattr(song, "parentTitle", "Unknown Album"),
+        "duration": milliseconds_to_seconds(song.duration) if song.duration else 0,
+        "elapsed_time": 0.0,
+        "updated_at": time.time(),
+        "album_art": f"/api/music/track-art/{song.ratingKey}",
+        "track_state": "playing",
+        "server_name": getattr(song, "server_name", None),
+    }
+    cache_data("now_playing", song_data)
+
+    track_time_tracker.start(song.title, item_id=str(song.ratingKey))
+    logger.info("Song %s started playing on player: %s", song.title, player.title)
+
+    from backend.websockets import broadcast_current_playing_threadsafe, broadcast_queue_threadsafe  # noqa: PLC0415
+    broadcast_queue_threadsafe()
+    broadcast_current_playing_threadsafe()
 
 
 
