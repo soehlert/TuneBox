@@ -1,56 +1,32 @@
-# Implementation Plan: Expandable Library Statistics & Missing Artwork Inspector
-
-Add an expandable "Library Statistics & Health" section inside the Settings Modal displaying missing artwork counters and per-server catalog breakdowns.
+# Implementation Plan: Accurate Percentage-Based Progress Bar for Library Indexing
 
 ## Goal
-Provide instant (< 10ms), clear visibility into catalog counts (Artists, Albums, Tracks), missing artwork counts (Artists, Albums), and per-server indexed item counts directly inside the Settings Modal.
+Add a percentage progress bar and real-time detailed updates (`Indexing tracks on plex-so • 45% (11,700 / 26,000)`) to the WebSocket notification banner during library indexing.
 
 ## Assumptions
-- SQLite database `library.db` contains authoritative `artists`, `albums`, `tracks`, `artist_sources`, `album_sources`, `track_sources`, and `servers`.
-- Stats queries run as lightweight SQLite `COUNT(*)` aggregations taking < 5ms.
-- Settings Modal UI will render an expandable accordion section.
-
----
+- Target Plex servers expose total item count during library section retrieval.
+- WebSocket clients receive real-time progress broadcast payloads.
+- Strictly **no trailing ellipsis (`...`)** in any log, comment, or notification text.
 
 ## Plan
+1. **Backend Progress Tracking & Calculation**
+   - Files: `backend/services/indexer.py`, `backend/websockets.py`
+   - Change: Track total section items and current batch position; broadcast `index_progress` payload with percentage and formatted message.
+   - Verify: `uv run python -m pytest backend/tests/test_indexer.py`
 
-### Step 1: Add Backend Library Health Statistics Query & Endpoint
-- **Files**:
-  - `backend/services/library.py`
-  - `backend/routers/stats.py`
-  - `backend/tests/test_stats.py`
-- **Change**:
-  - Implement `get_library_health_stats(db_path=None)` in `backend/services/library.py` returning `total_artists`, `total_albums`, `total_tracks`, `missing_artist_art`, `missing_album_art`, and `servers` list (with per-server artist, album, and track counts).
-  - Add `@router.get("/library")` endpoint in `backend/routers/stats.py`.
-  - Write unit test `test_get_library_health_stats` in `backend/tests/test_stats.py`.
-- **Verify**:
-  - `uv run pytest backend/tests/test_stats.py`
+2. **Frontend Progress Bar UI & WebSocket Integration**
+   - Files: `frontend/src/App.tsx`
+   - Change: Store `indexingProgress` state, render percentage progress bar (`width: ${percentage}%`) with gradient styling, and format status text.
+   - Verify: `npm run build` in `frontend/`
 
-### Step 2: Add Expandable "Library Statistics & Health" Section in Settings Modal
-- **Files**:
-  - `frontend/src/components/SettingsModal.tsx`
-- **Change**:
-  - Add collapsible accordion UI section with an analytics icon ("Library Statistics & Health").
-  - Fetch `/api/stats/library` when accordion is expanded.
-  - Render metric cards for Total Catalog Summary and Missing Artwork counters (Artists & Albums).
-  - Render a clean per-server breakdown table showing server name, enabled status, primary badge, artist count, album count, and track count.
-- **Verify**:
-  - `cd frontend && npm run build`
+3. **Live Verification & Container Restart**
+   - Files: Docker Compose environment
+   - Change: Restart containers (`docker compose up -d --build` & `docker compose restart`) and trigger manual re-index to verify progress bar in browser.
+   - Verify: Manual re-index test on `http://localhost:3000`.
 
-### Step 3: Live Docker Rebuild & Manual Verification Instructions
-- **Files**: None
-- **Change**:
-  - Run `docker compose up -d --build` and `docker compose restart`.
-- **Verify**:
-  - Run full test suite: `uv run pytest backend/tests/`.
-  - Manual verification instructions provided to the user.
+## Risks & Mitigations
+- **Risk**: Rapid WebSocket progress events overwhelming the browser.
+- **Mitigation**: Progress events are emitted per batch (every 500 items), limiting updates to ~1-2 events per second.
 
----
-
-## Risks & mitigations
-- **Risk**: Database lock during active indexing when fetching stats.
-- **Mitigation**: Use read-only SQLite transaction connections (`get_db_connection()`) with WAL mode.
-
-## Rollback plan
-- Revert commits on feature branch with `git reset --hard HEAD~1`.
-- Restart stack with `docker compose restart`.
+## Rollback Plan
+- Revert changes via `git checkout main`.

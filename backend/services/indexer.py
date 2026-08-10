@@ -284,8 +284,9 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
                 conn = get_db_connection(db_path)
                 try:
                     if json_tracks is not None:
-                        logger.info("Fetched %d tracks via fast JSON batching for %s.", len(json_tracks), s_name)
-                        for trk in json_tracks:
+                        total_trk_count = len(json_tracks)
+                        logger.info("Fetched %d tracks via fast JSON batching for %s.", total_trk_count, s_name)
+                        for trk_idx, trk in enumerate(json_tracks):
                             try:
                                 dur = (int(trk.get("duration", 0) or 0)) // 1000
                                 raw_rating = float(trk.get("userRating", 0.0) or 0.0)
@@ -314,13 +315,31 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
                                     conn=conn,
                                 )
                                 items_indexed += 1
+                                if trk_idx > 0 and trk_idx % 500 == 0:
+                                    conn.commit()
+                                    pct = min(100, int((trk_idx / max(1, total_trk_count)) * 100))
+                                    msg = f"Indexing tracks on {s_name} • {pct}% ({trk_idx:,} / {total_trk_count:,})"
+                                    try:
+                                        from backend.websockets import broadcast_indexing_status_threadsafe  # noqa: PLC0415
+                                        broadcast_indexing_status_threadsafe(
+                                            is_indexing=True,
+                                            is_initial=is_initial,
+                                            server_name=s_name,
+                                            items_indexed=trk_idx,
+                                            total_items=total_trk_count,
+                                            percentage=pct,
+                                            message=msg,
+                                        )
+                                    except Exception:
+                                        pass
                             except Exception as trk_ex:
                                 logger.debug("Failed to upsert JSON track %s: %s", trk.get("title"), trk_ex)
                         conn.commit()
                     else:
-                        logger.info("Fallback: fetching tracks via plexapi for section '%s' on %s...", getattr(music_lib, "title", "Music"), s_name)
+                        logger.info("Fallback: fetching tracks via plexapi for section '%s' on %s", getattr(music_lib, "title", "Music"), s_name)
                         tracks = music_lib.all(libtype="track")
-                        for track in tracks:
+                        total_trk_count = len(tracks)
+                        for trk_idx, track in enumerate(tracks):
                             try:
                                 duration_sec = milliseconds_to_seconds(track.duration) if getattr(track, "duration", None) else 0
                                 trk_url = getattr(track, "key", None)
@@ -352,6 +371,23 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
                                     conn=conn,
                                 )
                                 items_indexed += 1
+                                if trk_idx > 0 and trk_idx % 500 == 0:
+                                    conn.commit()
+                                    pct = min(100, int((trk_idx / max(1, total_trk_count)) * 100))
+                                    msg = f"Indexing tracks on {s_name} • {pct}% ({trk_idx:,} / {total_trk_count:,})"
+                                    try:
+                                        from backend.websockets import broadcast_indexing_status_threadsafe  # noqa: PLC0415
+                                        broadcast_indexing_status_threadsafe(
+                                            is_indexing=True,
+                                            is_initial=is_initial,
+                                            server_name=s_name,
+                                            items_indexed=trk_idx,
+                                            total_items=total_trk_count,
+                                            percentage=pct,
+                                            message=msg,
+                                        )
+                                    except Exception:
+                                        pass
                             except Exception as trk_ex:
                                 logger.debug("Failed to upsert track %s: %s", getattr(track, "title", "Unknown"), trk_ex)
                         conn.commit()
@@ -512,22 +548,22 @@ def sync_all_servers(db_path: str | None = None, force_full: bool = False):
         first_batch = [sorted_targets[0]] if sorted_targets else []
         remaining_batch = sorted_targets[1:] if len(sorted_targets) > 1 else []
 
-        logger.info("Starting sync for %d server(s): first='%s', remaining=%d...", len(sorted_targets), first_batch[0].get("name") if first_batch else "", len(remaining_batch))
+        logger.info("Starting sync for %d server(s): first='%s', remaining=%d", len(sorted_targets), first_batch[0].get("name") if first_batch else "", len(remaining_batch))
 
         # 1. Index first target server (unindexed new server or primary) FIRST
         for s in first_batch:
             try:
-                logger.info("Indexing server '%s' first...", s.get("name"))
+                logger.info("Indexing server '%s' first", s.get("name"))
                 index_server(s, db_path, force_full)
             except Exception as ex:
                 logger.warning("Error indexing server %s: %s", s.get("name"), ex)
 
         # 2. Index remaining servers sequentially to prevent SQLite database lock contention
         if remaining_batch:
-            logger.info("Indexing %d remaining server(s) sequentially...", len(remaining_batch))
+            logger.info("Indexing %d remaining server(s) sequentially", len(remaining_batch))
             for s in remaining_batch:
                 try:
-                    logger.info("Indexing server '%s'...", s.get("name"))
+                    logger.info("Indexing server '%s'", s.get("name"))
                     index_server(s, db_path, force_full)
                 except Exception as ex:
                     logger.warning("Error indexing server %s: %s", s.get("name"), ex)

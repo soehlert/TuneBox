@@ -1,21 +1,22 @@
-## Step 1: Add Backend Library Health Statistics Query & Endpoint
-- **Files**:
-  - `backend/services/library.py`
-  - `backend/routers/stats.py`
-  - `backend/tests/test_stats.py`
-- **What Changed**:
-  - Implemented `get_library_health_stats(db_path=None)` in `backend/services/library.py` returning overall totals, missing artwork counts, and per-server artist/album/track breakdowns.
-  - Added `@router.get("/library")` endpoint in `backend/routers/stats.py`.
-  - Created unit test suite `backend/tests/test_stats.py`.
-- **Verification Command**: `uv run python -m pytest backend/tests/test_stats.py`
-- **Result**: PASSED (2 passed in 0.16s)
+# Execution Log: Accurate Percentage-Based Progress Bar for Library Indexing
 
-## Step 2: Add Expandable "Library Statistics & Health" Section in Settings Modal
-- **Files**:
-  - `frontend/src/App.tsx`
-- **What Changed**:
-  - Added `sectionsOpen.health` accordion state and `fetchHealthStats()` helper.
-  - Rendered Section 5: **📊 Library Statistics & Health** inside `SettingsModal`.
-  - Added total catalog count card, missing artist/album artwork metric cards, and per-server indexed catalog breakdown table.
-- **Verification Command**: `npm run build` in `frontend/`
-- **Result**: PASSED (built in 1.01s)
+## Step 1: Backend Progress Tracking & Calculation
+- **Files**: `backend/services/indexer.py`, `backend/websockets.py`
+- **Changes**:
+  - Enhanced `send_indexing_status` and `broadcast_indexing_status_threadsafe` in `backend/websockets.py` to support `total_items` and `percentage`.
+  - Added batch percentage calculation and real-time WebSocket progress broadcasts in `backend/services/indexer.py`.
+  - Stripped all trailing ellipsis (`...`) from log messages per project directives.
+- **Verification**: `uv run python -m pytest backend/tests/` -> PASSED (116 passed in 17.66s)
+
+## Step 2: Frontend Progress Bar UI & WebSocket Integration
+- **Files**: `frontend/src/App.tsx`
+- **Changes**:
+  - Updated `indexingStatus` state type signature and WS message parser to extract `itemsIndexed`, `totalItems`, and `percentage`.
+  - Added an animated 4px gradient progress bar (`linear-gradient(90deg, #f5a623, #ff4d4d)`) inside the notification banner.
+  - Stripped trailing ellipsis from fallback JSX string.
+- **Verification**: `cd frontend && npm run build` -> PASSED (built in 2.52s)
+
+## Step 3: Live Verification & Container Restart
+- **Environment**: Docker Compose
+- **Changes**: Rebuilt and restarted containers via `docker compose up -d --build` & `docker compose restart`.
+- **Verification**: Containers active and serving on `http://localhost:3000`.
