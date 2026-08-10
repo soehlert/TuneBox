@@ -460,28 +460,26 @@ def play_song(player, song, server_token=None, server_url=None):
         except Exception as ex:
             logger.warning("Failed to connect to target server %s: %s", server_url, ex)
 
-    if hasattr(player, "createPlayQueue"):
-        try:
-            pq = player.createPlayQueue(target_plex, song)
+    # Execute direct playMedia(song) command to instruct Plexamp to play song
+    playback_succeeded = False
+    try:
+        player.playMedia(song)
+        playback_succeeded = True
+        logger.info("Successfully started playback via playMedia(song) on %s", player.title)
+    except Exception as pm_ex:
+        logger.warning("playMedia(song) failed on %s: %s. Trying createPlayQueue fallback.", player.title, pm_ex)
+        if hasattr(player, "createPlayQueue"):
             try:
+                pq = player.createPlayQueue(target_plex, song)
                 if pq:
-                    player.playMedia(pq)
+                    try:
+                        player.playMedia(song)
+                    except Exception:
+                        pass
+                playback_succeeded = True
             except Exception as pq_ex:
-                logger.debug("playMedia(pq) call note: %s", pq_ex)
-            logger.info("Successfully started playback via createPlayQueue on %s", player.title)
-        except Exception as e:
-            logger.warning("Failed to play via createPlayQueue: %s. Falling back to playMedia.", e)
-            try:
-                player.playMedia(song)
-            except Exception as ex2:
-                logger.warning("Failed to play via playMedia on %s: %s", player.title, ex2)
+                logger.warning("createPlayQueue fallback failed on %s: %s", player.title, pq_ex)
                 invalidate_cached_player()
-    else:
-        try:
-            player.playMedia(song)
-        except Exception as ex2:
-            logger.warning("Failed to play via playMedia on %s: %s", player.title, ex2)
-            invalidate_cached_player()
 
 
 
@@ -1312,6 +1310,17 @@ def skip_current_track():
     track_time_tracker.stop()
     clear_cache("now_playing")
     playback_active = True
+
+    remaining_queue = get_redis_queue()
+    if remaining_queue:
+        next_song = remaining_queue[0]
+        try:
+            player = get_active_player()
+            track = get_track(next_song["item_id"])
+            play_song(player, track)
+        except Exception as ex:
+            logger.warning("Failed to start next track immediately on skip: %s", ex)
+
     return {"message": "Track skipped successfully."}
 
 
