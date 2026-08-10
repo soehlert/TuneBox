@@ -263,51 +263,74 @@ function TrackList() {
           <Typography variant="h6">Loading...</Typography>
         ) : albumData ? (
           <>
-            <header className="page-header">
+            <header className="page-header" style={{ marginBottom: "16px" }}>
               <Typography variant="h1" className="gradient-text">{albumData.album_title || "Unknown Album"}</Typography>
-              <div style={{ display: "flex", gap: "8px", alignItems: "center", marginTop: "4px" }}>
-                <Typography className="page-subtitle" style={{ margin: 0 }}>Queue songs to TuneBox</Typography>
-                {(() => {
-                  const sources = albumData.sources || [];
-                  if (sources.length > 1) {
-                    const names = sources.map((s) => s.server_name).filter(Boolean).join(" • ");
-                    return (
-                      <span
-                        style={{
-                          fontSize: "11px",
-                          background: "rgba(46, 204, 113, 0.2)",
-                          border: "1px solid rgba(46, 204, 113, 0.5)",
-                          color: "#2ecc71",
-                          padding: "2px 8px",
-                          borderRadius: "12px",
-                          fontWeight: 700,
-                        }}
-                        title={`Available on: ${names}`}
-                      >
-                        🌐 {sources.length} Connected Libraries ({names})
-                      </span>
-                    );
+              {(() => {
+                const rawSources = albumData.sources || [];
+                const uniqueSourcesMap = new Map<string, string>();
+                rawSources.forEach((s) => {
+                  if (s.server_name) {
+                    uniqueSourcesMap.set(s.server_id || s.server_name, s.server_name);
                   }
-                  if (albumData.server_name) {
-                    return (
+                });
+                const uniqueNames = Array.from(uniqueSourcesMap.values());
+                const namesStr = uniqueNames.join(" • ");
+
+                if (uniqueNames.length > 1) {
+                  return (
+                    <div style={{ marginTop: "6px" }}>
+                      <div
+                        style={{
+                          display: "inline-flex",
+                          flexDirection: "column",
+                          gap: "3px",
+                          fontSize: "12px",
+                          background: "rgba(191, 9, 94, 0.15)",
+                          border: "1px solid rgba(191, 9, 94, 0.35)",
+                          color: "#ff4d94",
+                          padding: "6px 14px",
+                          borderRadius: "14px",
+                          fontWeight: 600,
+                          maxWidth: "max-content",
+                        }}
+                        title={`Available on: ${namesStr}`}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                          <span>🌐</span>
+                          <span>{uniqueNames.length} Connected Libraries</span>
+                        </div>
+                        <div style={{ fontSize: "11px", opacity: 0.85, paddingLeft: "20px" }}>
+                          {namesStr}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+                const displayServer = uniqueNames[0] || albumData.server_name;
+                if (displayServer) {
+                  return (
+                    <div style={{ marginTop: "6px" }}>
                       <span
                         style={{
-                          fontSize: "11px",
-                          background: "rgba(245, 166, 35, 0.2)",
-                          border: "1px solid rgba(245, 166, 35, 0.4)",
-                          color: "#f5a623",
-                          padding: "2px 8px",
-                          borderRadius: "12px",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          fontSize: "12px",
+                          background: "rgba(191, 9, 94, 0.15)",
+                          border: "1px solid rgba(191, 9, 94, 0.35)",
+                          color: "#ff4d94",
+                          padding: "4px 12px",
+                          borderRadius: "14px",
                           fontWeight: 600,
                         }}
                       >
-                        📍 {albumData.server_name}
+                        📍 {displayServer}
                       </span>
-                    );
-                  }
-                  return null;
-                })()}
-              </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
             </header>
               {(
                 <FallbackImage
