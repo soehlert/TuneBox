@@ -431,31 +431,42 @@ def play_song(player, song, server_token=None, server_url=None):
             logger.warning("Failed to connect to target server %s: %s", server_url, ex)
 
     playback_succeeded = False
-    if hasattr(player, "createPlayQueue"):
+
+    # Tier 1: Try target_plex.createPlayQueue directly
+    try:
+        pq = target_plex.createPlayQueue(song)
+        if pq and hasattr(player, "playMedia"):
+            try:
+                player.playMedia(pq)
+                playback_succeeded = True
+                logger.info("Successfully started playback via target_plex.createPlayQueue on %s", player.title)
+            except Exception as pm_ex:
+                logger.debug("playMedia(pq) failed: %s", pm_ex)
+    except Exception as pq_err:
+        logger.debug("target_plex.createPlayQueue attempt noted: %s", pq_err)
+
+    # Tier 2: Try player.createPlayQueue
+    if not playback_succeeded and hasattr(player, "createPlayQueue"):
         try:
             pq = player.createPlayQueue(target_plex, song)
             try:
                 if pq:
                     player.playMedia(pq)
             except Exception as pq_ex:
-                logger.debug("playMedia(pq) call note: %s", pq_ex)
-            logger.info("Successfully started playback via createPlayQueue on %s", player.title)
+                logger.debug("player.playMedia(pq) call note: %s", pq_ex)
+            logger.info("Successfully started playback via player.createPlayQueue on %s", player.title)
             playback_succeeded = True
         except Exception as e:
-            logger.warning("Failed to play via createPlayQueue: %s. Falling back to playMedia.", e)
-            try:
-                player.playMedia(song)
-                playback_succeeded = True
-            except Exception as ex2:
-                logger.warning("Failed to play via playMedia on %s: %s", player.title, ex2)
-                invalidate_cached_player()
-                raise PlexApiException(f"Player '{player.title}' unreachable: {ex2}") from ex2
-    else:
+            logger.warning("player.createPlayQueue attempt noted: %s", e)
+
+    # Tier 3: Direct playMedia(song) fallback
+    if not playback_succeeded:
         try:
             player.playMedia(song)
             playback_succeeded = True
+            logger.info("Successfully started playback via direct playMedia(song) on %s", player.title)
         except Exception as ex2:
-            logger.warning("Failed to play via playMedia on %s: %s", player.title, ex2)
+            logger.warning("Failed direct playMedia on %s: %s", player.title, ex2)
             invalidate_cached_player()
             raise PlexApiException(f"Player '{player.title}' unreachable: {ex2}") from ex2
 
