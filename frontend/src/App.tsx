@@ -362,7 +362,52 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
     queue: false,
     devices: false,
     guests: false,
+    health: false,
   });
+
+  const [libraryStats, setLibraryStats] = useState<{
+    total_artists: number;
+    total_albums: number;
+    total_tracks: number;
+    missing_artist_art: number;
+    missing_album_art: number;
+    servers: Array<{
+      server_id: string;
+      server_name: string;
+      enabled: boolean;
+      is_primary: boolean;
+      artist_count: number;
+      album_count: number;
+      track_count: number;
+    }>;
+  } | null>(null);
+  const [loadingStats, setLoadingStats] = useState(false);
+
+  const fetchHealthStats = () => {
+    setLoadingStats(true);
+    axios
+      .get(getApiUrl("/api/stats/library"))
+      .then((res) => setLibraryStats(res.data))
+      .catch((err) => console.error("Failed to load library stats:", err))
+      .finally(() => setLoadingStats(false));
+  };
+
+  const toggleSection = (key: "general" | "queue" | "devices" | "guests" | "health") => {
+    setSectionsOpen((prev) => {
+      const next = {
+        general: false,
+        queue: false,
+        devices: false,
+        guests: false,
+        health: false,
+        [key]: !prev[key],
+      };
+      if (key === "health" && next.health && !libraryStats) {
+        fetchHealthStats();
+      }
+      return next;
+    });
+  };
 
   const [autoplayEnabled, setAutoplayEnabled] = useState(false);
 
@@ -775,14 +820,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
           {/* Section 1: General Settings */}
           <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
             <div
-              onClick={() => {
-                setSectionsOpen(prev => ({
-                  general: !prev.general,
-                  queue: false,
-                  devices: false,
-                  guests: false,
-                }));
-              }}
+              onClick={() => toggleSection("general")}
               style={{
                 display: "flex",
                 justifyContent: "space-between",
@@ -960,7 +998,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
           {/* Section 2: Queue Management */}
           <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
             <div
-              onClick={() => setSectionsOpen(prev => ({ general: false, queue: !prev.queue, devices: false, guests: false }))}
+              onClick={() => toggleSection("queue")}
               style={{
                 display: "flex",
                 justifyContent: "space-between",
@@ -1149,7 +1187,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
           {/* Section 3: Connected Devices & Kiosks */}
           <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
             <div
-              onClick={() => setSectionsOpen(prev => ({ general: false, queue: false, devices: !prev.devices, guests: false }))}
+              onClick={() => toggleSection("devices")}
               style={{
                 display: "flex",
                 justifyContent: "space-between",
@@ -1271,7 +1309,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
           {/* Section 4: Active Party Guests */}
           <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "12px" }}>
             <div
-              onClick={() => setSectionsOpen(prev => ({ general: false, queue: false, devices: false, guests: !prev.guests }))}
+              onClick={() => toggleSection("guests")}
               style={{
                 display: "flex",
                 justifyContent: "space-between",
@@ -1331,6 +1369,115 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
                         </div>
                       </div>
                     ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Section 5: Library Statistics & Health */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "12px" }}>
+            <div
+              onClick={() => toggleSection("health")}
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                cursor: "pointer",
+                padding: "12px 14px",
+                background: "rgba(255, 255, 255, 0.04)",
+                border: "1px solid rgba(255, 255, 255, 0.08)",
+                borderRadius: "8px",
+                userSelect: "none",
+              }}
+            >
+              <span style={{ color: "#f5a623", fontSize: "14px", fontWeight: "bold", display: "flex", alignItems: "center", gap: "6px" }}>
+                📊 Library Statistics & Health
+              </span>
+              <span style={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "11px" }}>
+                {sectionsOpen.health ? "▲" : "▼"}
+              </span>
+            </div>
+
+            {sectionsOpen.health && (
+              <div style={{ padding: "4px 8px 12px 8px" }}>
+                {loadingStats ? (
+                  <p style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "13px", margin: 0 }}>Loading statistics...</p>
+                ) : !libraryStats ? (
+                  <p style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "13px", margin: 0 }}>No statistics available.</p>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                    {/* Summary Cards */}
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: "10px" }}>
+                      <div style={{ background: "rgba(255, 255, 255, 0.03)", border: "1px solid rgba(255, 255, 255, 0.06)", borderRadius: "8px", padding: "10px", textAlign: "center" }}>
+                        <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.5)", textTransform: "uppercase", fontWeight: "bold" }}>Total Catalog</span>
+                        <div style={{ fontSize: "18px", fontWeight: "800", color: "#fff", marginTop: "4px" }}>
+                          {libraryStats.total_artists.toLocaleString()} <span style={{ fontSize: "11px", opacity: 0.6 }}>artists</span>
+                        </div>
+                        <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.6)", marginTop: "2px" }}>
+                          {libraryStats.total_albums.toLocaleString()} albums • {libraryStats.total_tracks.toLocaleString()} tracks
+                        </div>
+                      </div>
+
+                      <div style={{ background: "rgba(255, 255, 255, 0.03)", border: "1px solid rgba(255, 255, 255, 0.06)", borderRadius: "8px", padding: "10px", textAlign: "center" }}>
+                        <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.5)", textTransform: "uppercase", fontWeight: "bold" }}>Missing Artist Art</span>
+                        <div style={{ fontSize: "18px", fontWeight: "800", color: libraryStats.missing_artist_art > 0 ? "#ff6b6b" : "#44d7b6", marginTop: "4px" }}>
+                          {libraryStats.missing_artist_art.toLocaleString()}
+                        </div>
+                        <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)", marginTop: "2px" }}>
+                          {libraryStats.total_artists > 0 ? `${((libraryStats.missing_artist_art / libraryStats.total_artists) * 100).toFixed(1)}% missing` : "0%"}
+                        </div>
+                      </div>
+
+                      <div style={{ background: "rgba(255, 255, 255, 0.03)", border: "1px solid rgba(255, 255, 255, 0.06)", borderRadius: "8px", padding: "10px", textAlign: "center" }}>
+                        <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.5)", textTransform: "uppercase", fontWeight: "bold" }}>Missing Album Art</span>
+                        <div style={{ fontSize: "18px", fontWeight: "800", color: libraryStats.missing_album_art > 0 ? "#ff6b6b" : "#44d7b6", marginTop: "4px" }}>
+                          {libraryStats.missing_album_art.toLocaleString()}
+                        </div>
+                        <div style={{ fontSize: "11px", color: "rgba(255,255,255,0.4)", marginTop: "2px" }}>
+                          {libraryStats.total_albums > 0 ? `${((libraryStats.missing_album_art / libraryStats.total_albums) * 100).toFixed(1)}% missing` : "0%"}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Per-Server Catalog Table */}
+                    <div>
+                      <span style={{ color: "rgba(255,255,255,0.6)", fontSize: "12px", fontWeight: "bold", marginBottom: "8px", display: "block" }}>
+                        Per-Server Indexed Items
+                      </span>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                        {libraryStats.servers.map((srv) => (
+                          <div
+                            key={srv.server_id}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              padding: "8px 12px",
+                              background: "rgba(255, 255, 255, 0.02)",
+                              border: "1px solid rgba(255, 255, 255, 0.05)",
+                              borderRadius: "6px",
+                              fontSize: "12px",
+                            }}
+                          >
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                              <span style={{ color: "#fff", fontWeight: "bold" }}>{srv.server_name}</span>
+                              {srv.is_primary && (
+                                <span style={{ fontSize: "9px", background: "var(--color-primary)", color: "#000", fontWeight: "bold", padding: "1px 6px", borderRadius: "10px" }}>
+                                  PRIMARY
+                                </span>
+                              )}
+                              <span style={{ fontSize: "10px", color: srv.enabled ? "#44d7b6" : "rgba(255,255,255,0.3)" }}>
+                                {srv.enabled ? "Enabled" : "Disabled"}
+                              </span>
+                            </div>
+                            <div style={{ color: "rgba(255,255,255,0.7)", fontFamily: "monospace" }}>
+                              {srv.artist_count.toLocaleString()} artists • {srv.album_count.toLocaleString()} albums • {srv.track_count.toLocaleString()} tracks
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>

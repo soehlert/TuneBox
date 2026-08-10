@@ -19,3 +19,11 @@ def reset_session_stats(x_admin_token: str | None = Header(None)):
         raise HTTPException(status_code=401, detail="Unauthorized: Invalid admin token")
     stats.clear_session_stats()
     return {"message": "Session stats successfully reset."}
+
+
+@router.get("/library")
+def get_library_health_stats():
+    """Retrieve catalog counts, missing artwork metrics, and per-server breakdown."""
+    from backend.services.library import get_library_health_stats as fetch_stats  # noqa: PLC0415
+    return fetch_stats()
+

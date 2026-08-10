@@ -1012,3 +1012,60 @@ def get_server_credentials(server_id: str | None = None, db_path: str | None = N
         return server_url, token
     finally:
         conn.close()
+
+
+def get_library_health_stats(db_path: str | None = None) -> dict:
+    """Fetch library statistics, missing artwork counts, and per-server indexed item counts."""
+    conn = get_db_connection(db_path)
+    try:
+        total_artists = conn.execute("SELECT COUNT(*) FROM artists").fetchone()[0]
+        total_albums = conn.execute("SELECT COUNT(*) FROM albums").fetchone()[0]
+        total_tracks = conn.execute("SELECT COUNT(*) FROM tracks").fetchone()[0]
+
+        missing_artist_art = conn.execute(
+            "SELECT COUNT(*) FROM artists WHERE thumb IS NULL OR thumb = '' OR thumb LIKE '/api/music/%'"
+        ).fetchone()[0]
+        missing_album_art = conn.execute(
+            "SELECT COUNT(*) FROM albums WHERE thumb IS NULL OR thumb = '' OR thumb LIKE '/api/music/%'"
+        ).fetchone()[0]
+
+        servers = conn.execute(
+            "SELECT server_id, name, enabled, is_primary FROM servers ORDER BY enabled DESC, is_primary DESC, name ASC"
+        ).fetchall()
+
+        server_stats = []
+        for s in servers:
+            s_id = s["server_id"]
+            s_name = s["name"]
+            s_enabled = bool(s["enabled"])
+            s_primary = bool(s["is_primary"])
+
+            art_cnt = conn.execute("SELECT COUNT(DISTINCT artist_id) FROM artist_sources WHERE server_id = ?", (s_id,)).fetchone()[0]
+            alb_cnt = conn.execute("SELECT COUNT(DISTINCT album_id) FROM album_sources WHERE server_id = ?", (s_id,)).fetchone()[0]
+
+            try:
+                trk_cnt = conn.execute("SELECT COUNT(*) FROM track_sources WHERE server_id = ?", (s_id,)).fetchone()[0]
+            except Exception:
+                trk_cnt = conn.execute("SELECT COUNT(*) FROM tracks WHERE server_id = ?", (s_id,)).fetchone()[0]
+
+            server_stats.append({
+                "server_id": s_id,
+                "server_name": s_name,
+                "enabled": s_enabled,
+                "is_primary": s_primary,
+                "artist_count": art_cnt,
+                "album_count": alb_cnt,
+                "track_count": trk_cnt,
+            })
+
+        return {
+            "total_artists": total_artists,
+            "total_albums": total_albums,
+            "total_tracks": total_tracks,
+            "missing_artist_art": missing_artist_art,
+            "missing_album_art": missing_album_art,
+            "servers": server_stats,
+        }
+    finally:
+        conn.close()
+

@@ -1,45 +1,30 @@
-# Finish Summary: Track ID Disambiguation & `track_sources` Implementation
+# Execution Finish Summary: Expandable Library Statistics & Health in Settings Modal
 
-All 5 implementation plan steps have been executed and verified.
+## Summary of Changes
+1. **Backend Service & API Endpoint**:
+   - `backend/services/library.py`: Added `get_library_health_stats(db_path=None)` returning total artists, albums, tracks, missing artist/album artwork counts, and per-server indexed catalog breakdowns.
+   - `backend/routers/stats.py`: Added `GET /api/stats/library` endpoint.
+   - `backend/tests/test_stats.py`: Created unit test suite verifying stats calculation and API response.
+2. **Frontend UI Accordion**:
+   - `frontend/src/App.tsx`: Added expandable **📊 Library Statistics & Health** section inside `SettingsModal` displaying metric cards and per-server indexed items breakdown table.
 
----
+## Verification Commands & Results
+- `uv run python -m pytest backend/tests/test_stats.py` -> PASSED (2 passed in 0.16s)
+- `cd frontend && npm run build` -> PASSED (built in 1.01s)
+- `uv run python -m pytest backend/tests/` -> PASSED (116 passed in 17.37s)
+- `docker compose up -d --build` & `docker compose restart` -> PASSED (containers active)
 
-## 1. Summary of Changes
+## Review Pass
+- **Blocker**: None
+- **Major**: None
+- **Minor**: None
+- **Nit**: None
 
-### 🗄️ Database Migration (`track_sources` Table)
-- Added `track_sources` schema (`source_id`, `track_id`, `server_id`, `server_track_id`, `bitrate`, `codec`, `sample_rate`, `bit_depth`, `thumb`, `updated_at`) with performance B-Tree indexes in `backend/db/library_db.py`.
-- Multi-server library deduplication automatically maps all copies of a song across enabled servers to a single, unified TuneBox `track_id`.
-
-### ⚡ Indexer & Service Updates
-- Updated `upsert_track` signature in `backend/services/library.py` and JSON batch indexers in `backend/services/indexer.py` to extract and populate per-server rating keys and audio stream quality metrics (`bitrate`, `codec`).
-
-### 🎯 Strict `track_id` Query Resolution
-- Refactored `rate_track_db`, `is_track_on_primary_server`, `log_playback_event_db`, and `get_all_art_sources` to strictly query `WHERE t.track_id = ?`.
-- Removed all ambiguous `OR server_track_id = ?` SQL clauses, completely eliminating ID collisions between internal `track_id` values and Plex ratingKeys.
-
-### 🎧 Enabled Server & Best-Quality Audio Selection
-- Updated `get_track` and stream selection in `backend/services/plex.py` to query `track_sources` joined with `servers WHERE srv.enabled = 1`, ordering available streams by audio quality (`bitrate DESC`) and local server preference.
-- Disabled servers are automatically excluded from stream selection (`srv.enabled = 1`).
-
----
-
-## 2. Automated Test Verification
-
-| Test Suite | Command | Result |
-| :--- | :--- | :--- |
-| **Database Schema** | `uv run python -c "from backend.db.library_db import init_library_db; init_library_db()"` | PASS |
-| **Indexer Integration** | `uv run python -m pytest backend/tests/test_indexer.py` | PASS (2 passed) |
-| **Library DB Queries** | `uv run python -m pytest backend/tests/test_library_db.py` | PASS (3 passed) |
-| **Plex & Queue Resolution** | `uv run python -m pytest backend/tests/test_plex.py backend/tests/test_queue_history.py` | PASS (10 passed) |
-| **Full Pytest Suite** | `uv run python -m pytest backend/tests/` | **PASS (113 passed in 16.79s)** |
-
----
-
-## 3. Manual Verification Steps
-
-1. Open TuneBox at `http://localhost:3000`.
-2. Go to the album view for **Ants in My Room** by Carter Vail (`track_id = 25873`).
-3. Click **Add to Queue**.
-4. **Verify**: The Up Next queue panel displays **Ants in My Room** by Carter Vail, never *Mrs. Brown...* (`server_track_id = 25873`).
-5. Open Settings, toggle servers ON/OFF, and save.
-6. **Verify**: Playing tracks always selects streams from enabled servers, picking high-bitrate lossless audio when available.
+## Manual Verification Steps
+1. Open TuneBox in your browser (`http://localhost:3000`).
+2. Click the gear icon (**Settings**) in the top right / bottom controls.
+3. Click the expandable header **📊 Library Statistics & Health**.
+4. Verify that:
+   - Total catalog summary card displays correct counts for artists, albums, and tracks.
+   - Missing Artist Art and Missing Album Art cards display numeric counts and percentages.
+   - Per-Server Indexed Items table shows enabled/primary status and exact artist, album, and track counts per server.
