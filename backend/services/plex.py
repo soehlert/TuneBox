@@ -173,20 +173,22 @@ def get_current_playing_track():
     if not cached_track or not isinstance(cached_track, dict):
         return None
 
-    # Track time info is calculated dynamically from tracker or Redis timestamp delta
-    import time as time_mod
-    total_time = cached_track.get("duration", 0)  # duration in seconds
-
-    if track_time_tracker.track_name == cached_track.get("title") and track_time_tracker.elapsed_time > 0:
-        elapsed = track_time_tracker.elapsed_time
-    else:
-        base_elapsed = float(cached_track.get("elapsed_time", 0.0))
-        updated_at = float(cached_track.get("updated_at", 0.0))
-        t_state = cached_track.get("track_state", "playing")
-        if updated_at > 0 and t_state == "playing":
-            elapsed = base_elapsed + max(time_mod.time() - updated_at, 0)
+    # Ensure track_time_tracker is initialized for this track
+    cached_title = cached_track.get("title")
+    if cached_title and track_time_tracker.track_name != cached_title:
+        track_time_tracker.track_name = cached_title
+        track_time_tracker.state = cached_track.get("track_state", "playing")
+        base_el = float(cached_track.get("elapsed_time", 0.0))
+        upd_at = float(cached_track.get("updated_at", 0.0))
+        if upd_at > 0 and track_time_tracker.state == "playing":
+            track_time_tracker.accumulated_elapsed = base_el + max(time.time() - upd_at, 0)
+            track_time_tracker.last_resume_time = time.time()
         else:
-            elapsed = base_elapsed
+            track_time_tracker.accumulated_elapsed = base_el
+            track_time_tracker.last_resume_time = None
+
+    elapsed = track_time_tracker.elapsed_time
+    total_time = cached_track.get("duration", 0)  # duration in seconds
 
     # Safeguard bounds
     elapsed = max(elapsed, 0)
@@ -200,7 +202,11 @@ def get_current_playing_track():
     if item_id and (not album_art or not album_art.startswith("/api/music/")):
         album_art = f"/api/music/track-art/{item_id}"
 
-    track_state = cached_track.get("track_state") or ("playing" if track_time_tracker.is_playing else "paused")
+    track_state = (
+        track_time_tracker.state
+        if track_time_tracker.state in ("playing", "paused")
+        else cached_track.get("track_state", "playing")
+    )
 
     return {
         "item_id": item_id,
@@ -1148,9 +1154,22 @@ def pause_playback():
     global playback_active
 
     try:
-        now_playing = get_cached_data("now_playing")
-        current_state = now_playing.get("track_state", "playing") if isinstance(now_playing, dict) else "playing"
+        if track_time_tracker.state in ("playing", "paused"):
+            current_state = track_time_tracker.state
+        else:
+            now_playing = get_cached_data("now_playing")
+            current_state = now_playing.get("track_state", "playing") if isinstance(now_playing, dict) else "playing"
+
         new_state = "paused" if current_state == "playing" else "playing"
+        if new_state == "paused":
+            track_time_tracker.pause()
+        else:
+            track_time_tracker.resume()
+
+        now_playing = get_cached_data("now_playing")
+        if isinstance(now_playing, dict):
+            now_playing["track_state"] = new_state
+            cache_data("now_playing", now_playing)
 
         player = None
         try:
