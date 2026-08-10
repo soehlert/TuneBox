@@ -1,56 +1,54 @@
-# Implementation Plan: Expandable Library Statistics & Missing Artwork Inspector
-
-Add an expandable "Library Statistics & Health" section inside the Settings Modal displaying missing artwork counters and per-server catalog breakdowns.
+# Superpowers Implementation Plan: Missing Artwork Inspector Modal
 
 ## Goal
-Provide instant (< 10ms), clear visibility into catalog counts (Artists, Albums, Tracks), missing artwork counts (Artists, Albums), and per-server indexed item counts directly inside the Settings Modal.
+Make the "Missing Artist Art" and "Missing Album Art" metric cards in Settings clickable to open an interactive modal (`MissingArtworkModal`) listing all primary server items missing artwork, with search filtering, a "Copy Name" button, and 1-click artwork re-syncing from Plex.
 
 ## Assumptions
-- SQLite database `library.db` contains authoritative `artists`, `albums`, `tracks`, `artist_sources`, `album_sources`, `track_sources`, and `servers`.
-- Stats queries run as lightweight SQLite `COUNT(*)` aggregations taking < 5ms.
-- Settings Modal UI will render an expandable accordion section.
-
----
+- Missing artwork inspection is strictly scoped to items on the user's Primary/Admin Plex server (`srv.is_primary = 1`).
+- Items lacking artwork have `(thumb IS NULL OR thumb = '' OR thumb LIKE '/api/music/%')`.
+- Forced artwork re-sync queries the primary server's Plex API for updated thumbnail URLs and clears Redis art cache.
 
 ## Plan
 
-### Step 1: Add Backend Library Health Statistics Query & Endpoint
-- **Files**:
-  - `backend/services/library.py`
-  - `backend/routers/stats.py`
-  - `backend/tests/test_stats.py`
+### Step 1: Backend API Endpoints for Missing Artwork & Re-sync
+- **Files**: `backend/services/library.py`, `backend/routers/stats.py`, `backend/tests/test_stats.py`
 - **Change**:
-  - Implement `get_library_health_stats(db_path=None)` in `backend/services/library.py` returning `total_artists`, `total_albums`, `total_tracks`, `missing_artist_art`, `missing_album_art`, and `servers` list (with per-server artist, album, and track counts).
-  - Add `@router.get("/library")` endpoint in `backend/routers/stats.py`.
-  - Write unit test `test_get_library_health_stats` in `backend/tests/test_stats.py`.
-- **Verify**:
-  - `uv run pytest backend/tests/test_stats.py`
+  - Implement `get_missing_artwork_items(item_type: str, query: str | None = None, db_path=None)` in `backend/services/library.py`. Returns items on primary server missing artwork.
+  - Add `GET /api/stats/missing-artwork?type=artist|album&query=...` in `backend/routers/stats.py`.
+  - Add `POST /api/stats/refetch-artwork` (`type=artist|album`, `id=123`) in `backend/routers/stats.py` to trigger Plex artwork re-fetch and Redis cache purge.
+  - Add unit tests in `backend/tests/test_stats.py`.
+- **Verify**: `uv run python -m pytest backend/tests/test_stats.py`
 
-### Step 2: Add Expandable "Library Statistics & Health" Section in Settings Modal
-- **Files**:
-  - `frontend/src/components/SettingsModal.tsx`
+### Step 2: Create `MissingArtworkModal` Component
+- **Files**: `frontend/src/components/MissingArtworkModal.tsx`, `frontend/src/components/MissingArtworkModal.css`
 - **Change**:
-  - Add collapsible accordion UI section with an analytics icon ("Library Statistics & Health").
-  - Fetch `/api/stats/library` when accordion is expanded.
-  - Render metric cards for Total Catalog Summary and Missing Artwork counters (Artists & Albums).
-  - Render a clean per-server breakdown table showing server name, enabled status, primary badge, artist count, album count, and track count.
-- **Verify**:
-  - `cd frontend && npm run build`
+  - Build modal accepting `type: "artist" | "album"` and `onClose: () => void`.
+  - Features:
+    - Search input to filter missing items by title/artist.
+    - Item row listing title and artist name.
+    - **"Copy Name" button**: copies item title to clipboard with 2s checkmark feedback.
+    - **"Re-Sync Artwork" button**: calls `/api/stats/refetch-artwork`, showing inline spinner and refreshing item list on success.
+- **Verify**: `npm run build` inside `frontend/`
 
-### Step 3: Live Docker Rebuild & Manual Verification Instructions
+### Step 3: Wire Metric Card Click Handlers in `SettingsModal`
+- **Files**: `frontend/src/App.tsx`
+- **Change**:
+  - Add state `missingArtModalType: "artist" | "album" | null`.
+  - Make **Missing Artist Art** and **Missing Album Art** metric cards in Section 5 clickable (`cursor: "pointer"`, hover glow effect).
+  - Clicking opens `MissingArtworkModal`.
+- **Verify**: `npm run build` inside `frontend/`
+
+### Step 4: Verification & Live Docker Rebuild
 - **Files**: None
-- **Change**:
-  - Run `docker compose up -d --build` and `docker compose restart`.
+- **Change**: Run full test suite, rebuild Docker images, restart stack.
 - **Verify**:
-  - Run full test suite: `uv run pytest backend/tests/`.
-  - Manual verification instructions provided to the user.
-
----
+  - `uv run python -m pytest backend/tests/`
+  - `docker compose up -d --build`
+  - `docker compose restart`
 
 ## Risks & mitigations
-- **Risk**: Database lock during active indexing when fetching stats.
-- **Mitigation**: Use read-only SQLite transaction connections (`get_db_connection()`) with WAL mode.
+- **Large Missing Item Counts**: If hundreds of items lack artwork, returning all items could slow down rendering.
+  - *Mitigation*: Cap initial endpoint response to 200 items sorted alphabetically, with search filtering on the backend.
 
 ## Rollback plan
-- Revert commits on feature branch with `git reset --hard HEAD~1`.
-- Restart stack with `docker compose restart`.
+If issues arise, revert `backend/services/library.py`, `backend/routers/stats.py`, and `frontend/src/App.tsx` to commit `e514eba`.

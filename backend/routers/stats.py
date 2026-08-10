@@ -27,3 +27,30 @@ def get_library_health_stats():
     from backend.services.library import get_library_health_stats as fetch_stats  # noqa: PLC0415
     return fetch_stats()
 
+
+from pydantic import BaseModel  # noqa: E402
+
+
+class RefetchArtPayload(BaseModel):
+    type: str
+    id: int
+
+
+@router.get("/missing-artwork")
+def get_missing_artwork(type: str, query: str | None = None):
+    """Retrieve primary server items missing artwork."""
+    if type not in ("artist", "album"):
+        raise HTTPException(status_code=400, detail="Invalid item type")
+    from backend.services.library import get_missing_artwork_items  # noqa: PLC0415
+    return {"items": get_missing_artwork_items(item_type=type, query=query)}
+
+
+@router.post("/refetch-artwork")
+def refetch_item_artwork_endpoint(payload: RefetchArtPayload):
+    """Attempt to re-sync thumbnail URL from Plex for an item missing artwork."""
+    if payload.type not in ("artist", "album"):
+        raise HTTPException(status_code=400, detail="Invalid item type")
+    from backend.services.library import refetch_item_artwork  # noqa: PLC0415
+    success = refetch_item_artwork(item_type=payload.type, item_id=payload.id)
+    return {"success": success}
+

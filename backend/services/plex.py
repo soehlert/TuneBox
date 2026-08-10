@@ -2296,11 +2296,9 @@ def fetch_art_bytes(item_id: int | str, item_type: str, server_id: str | None = 
             content_bytes = b""
     except Exception as ex:
         logger.debug("Failed fetch_art for %s %s: %s", item_type, item_id, ex)
-        transparent_png = (
-            b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06"
-            b"\x00\x00\x00\x1f\x15c4\x00\x00\x00\rIDATx\x9cc`\x00\x01\x00\x00\x05\x00\x01"
-            b"\xa5\xf9\xd0\xb1\x00\x00\x00\x00IEND\xaeB`\x82"
-        )
+        content_bytes = b""
+
+    if not content_bytes or len(content_bytes) <= 100:
         return transparent_png, "image/png"
 
     res = (content_bytes, "image/jpeg")
@@ -2309,7 +2307,7 @@ def fetch_art_bytes(item_id: int | str, item_type: str, server_id: str | None = 
             _MEMORY_ART_CACHE.clear()
         _MEMORY_ART_CACHE[cache_bytes_key] = res
         try:
-            from backend.services.redis import get_redis_cache_client
+            from backend.services.redis import get_redis_cache_client  # noqa: PLC0415
             r = get_redis_cache_client()
             r.setex(cache_bytes_key, 86400 * 7, content_bytes)
         except Exception:

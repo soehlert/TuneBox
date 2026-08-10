@@ -43,3 +43,14 @@ def test_get_library_health_stats_endpoint():
     assert "missing_artist_art" in data
     assert "missing_album_art" in data
     assert "servers" in data
+
+
+def test_get_missing_artwork_endpoint():
+    response = client.get("/api/stats/missing-artwork?type=artist")
+    assert response.status_code == 200
+    data = response.json()
+    assert "items" in data
+    assert isinstance(data["items"], list)
+
+    bad_resp = client.get("/api/stats/missing-artwork?type=invalid")
+    assert bad_resp.status_code == 400
