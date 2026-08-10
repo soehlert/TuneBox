@@ -43,12 +43,18 @@ Currently on branch `feature/critical-core-tests`. The following 11 verified cor
 - **Option 4: Comprehensive Phased Rollout (Recommended)**
   Implement Options 1 through 3 sequentially in focused modules, culminating in real-time WebSocket state verification.
 
-## Recommendation
+## Recommendation & Roadmap
 Execute **Option 4** (Comprehensive Phased Rollout):
-1. **Phase 1**: Queue Mutation & Reordering (`test_queue_mutations.py`)
-2. **Phase 2**: Playback Controls & Position Scrobbling (`test_playback_controls.py`)
-3. **Phase 3**: Catalog Resolution & Server Filtering (`test_catalog_filtering.py`)
-4. **Phase 4**: Real-Time WebSocket & State Sync (`test_websocket_state.py`)
+1. **Phase 1 (COMPLETED & VERIFIED)**: Queue Mutation & Reordering ([test_queue_mutations.py](file:///Users/soehlert/projects/testing/TuneBox/backend/tests/test_queue_mutations.py))
+   - Track deletion from queue (`DELETE /api/music/queue/{item_id}`).
+   - Queue reordering and Move to Top (`POST /api/music/queue/reorder`).
+   - Adding entire albums to queue in track order using `server_track_id` Plex ratingKeys.
+2. **Phase 2**: Catalog Resolution & Server Filtering (`test_catalog_filtering.py`)
+   - Search & browse filtering by enabled servers.
+   - Artwork proxying and album art fallback resolution without dummy fallbacks.
+3. **Phase 3**: Real-Time WebSocket & State Sync (`test_websocket_state.py`)
+   - WebSocket queue broadcast updates (`send_queue`).
+   - WebSocket current playing state sync (`send_current_playing`).
 
 ## Acceptance criteria
 - Each test module targets a single behavior per test with exact assertions.
