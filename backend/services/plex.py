@@ -1036,10 +1036,21 @@ async def check_plexamp_resync(force_align: bool = False):
 
             cached_track = get_cached_data("now_playing")
 
-            # 1. Track changed on Plexamp (e.g. manual skip or Plexamp internal transition)
-            if not cached_track or cached_track.get("title") != session_title:
+            # Check if this session matches our currently playing track by item_id or title
+            is_same_track = False
+            if cached_track:
+                c_item_id = str(cached_track.get("item_id", ""))
+                s_item_id = str(getattr(active_session, "ratingKey", ""))
+                c_title = (cached_track.get("title") or "").strip().lower()
+                s_title = (session_title or "").strip().lower()
+
+                if (c_item_id and s_item_id and c_item_id == s_item_id) or (c_title and s_title and c_title == s_title):
+                    is_same_track = True
+
+            # 1. Track changed externally on Plexamp (e.g. manual track pick directly inside Plexamp app)
+            if not is_same_track and not (track_time_tracker.is_playing and track_time_tracker.track_name == session_title):
                 logger.info(
-                    "Detected track change on Plex: '%s'. Resynced.", session_title
+                    "Detected external track change on Plex: '%s'. Resynced.", session_title
                 )
                 from backend.websockets import reset_skip_votes  # noqa: PLC0415
                 await reset_skip_votes()
@@ -1075,45 +1086,24 @@ async def check_plexamp_resync(force_align: bool = False):
                 elif session_state == "playing":
                     track_time_tracker.resume()
 
-                track_time_tracker.accumulated_elapsed = float(plex_elapsed)
-                track_time_tracker.last_resume_time = (
-                    time.time() if session_state == "playing" else None
-                )
-
                 await send_current_playing()
 
-            # 2. Existing track: check for play/pause state change or major manual seeks (>8s)
+            # 2. Existing track: check for play/pause state change from external Plexamp app
             else:
                 state_changed = False
                 if session_state == "playing" and not track_time_tracker.is_playing:
-                    logger.info("Plexamp resumed playback. Resynced state.")
+                    logger.info("Plexamp resumed playback externally. Resynced state.")
                     track_time_tracker.resume()
                     state_changed = True
                 elif session_state == "paused" and track_time_tracker.is_playing:
-                    logger.info("Plexamp paused playback. Resynced state.")
+                    logger.info("Plexamp paused playback externally. Resynced state.")
                     track_time_tracker.pause()
                     state_changed = True
 
-                # ONLY adjust local timer if user manually SEEKED in Plexamp (>8.0s jump)
-                local_elapsed = track_time_tracker.elapsed_time
-                if force_align or abs(local_elapsed - plex_elapsed) > 8.0:
-                    logger.info(
-                        "Detected major seek of %.1fs on Plexamp (force_align=%s). Adjusting.",
-                        abs(local_elapsed - plex_elapsed),
-                        force_align,
-                    )
-                    track_time_tracker.track_name = session_title
-                    track_time_tracker.accumulated_elapsed = float(plex_elapsed)
-                    track_time_tracker.last_resume_time = (
-                        time.time() if session_state == "playing" else None
-                    )
-                    state_changed = True
-
                 if state_changed:
-                    cached_track["elapsed_time"] = track_time_tracker.elapsed_time
-                    cached_track["updated_at"] = time.time()
-                    cached_track["track_state"] = session_state
-                    cache_data("now_playing", cached_track)
+                    if cached_track:
+                        cached_track["track_state"] = session_state
+                        cache_data("now_playing", cached_track)
                     await send_current_playing()
 
         else:
