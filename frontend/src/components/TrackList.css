@@ -73,13 +73,13 @@
   flex-shrink: 0;
 }
 
+/* Intrinsic component cell for Star Rating alignment */
 .star-rating-cell {
-  width: 124px;
-  min-width: 124px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  min-width: 108px;
 }
 
 .track-card .MuiTypography-root {
@@ -96,7 +96,6 @@
   text-transform: none;
   border-radius: 20px !important;
   padding: 6px 16px !important;
-  min-width: 128px !important;
   box-shadow: 0 4px 12px rgba(229, 149, 0, 0.15) !important;
   transition: transform 0.2s, box-shadow 0.2s, background-color 0.25s, color 0.25s !important;
   flex-shrink: 0;
@@ -118,13 +117,22 @@
   white-space: nowrap;
 }
 
-/* Styling for duration text */
+/* Styling for duration text using tabular numbers for equal character alignment */
 .track-card .track-duration {
   color: rgba(255, 255, 255, 0.4) !important;
   font-size: 0.85rem !important;
   font-weight: 500;
-  width: 55px;
-  min-width: 55px;
+  font-variant-numeric: tabular-nums;
   text-align: right;
+  min-width: 45px;
   flex-shrink: 0;
+}
+
+@media (max-width: 600px) {
+  .track-card-right {
+    gap: 10px;
+  }
+  .star-rating-cell {
+    min-width: auto;
+  }
 }
