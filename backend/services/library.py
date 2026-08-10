@@ -912,15 +912,32 @@ def get_albums_for_artist_db(artist_id: int | str, db_path: str | None = None) -
         norm_name = _norm(artist_name) if artist_name else _norm(str(artist_id))
 
         query = """
-            SELECT DISTINCT alb.album_id, alb.artist_id, alb.artist_name as artist, alb.title, alb.year, alb.genre, alb.thumb, alb.play_count
+            SELECT alb.album_id, alb.artist_id, alb.artist_name as artist, alb.title, alb.year, alb.genre, alb.thumb, alb.play_count,
+                   GROUP_CONCAT(DISTINCT srv.server_id || '::' || srv.name) as sources_str
             FROM albums alb
             JOIN album_sources src ON alb.album_id = src.album_id
             JOIN servers srv ON src.server_id = srv.server_id
             WHERE srv.enabled = 1 AND alb.title != '' AND alb.title IS NOT NULL AND (alb.artist_id = ? OR src.server_album_id = ? OR LOWER(alb.artist_name) = ? OR alb.norm_title_artist LIKE ?)
+            GROUP BY alb.album_id
             ORDER BY alb.year DESC, alb.title COLLATE NOCASE ASC
         """
         cursor = conn.execute(query, (artist_id, str(artist_id), (artist_name or str(artist_id)).lower(), f"%::{norm_name}"))
-        return [dict(r) for r in cursor.fetchall()]
+        results = []
+        for r in cursor.fetchall():
+            item = dict(r)
+            sources_str = item.pop("sources_str", None)
+            sources = []
+            if sources_str:
+                seen_s = set()
+                for pair in sources_str.split(","):
+                    if "::" in pair:
+                        s_id, s_name = pair.split("::", 1)
+                        if s_id and s_name and s_id not in seen_s:
+                            seen_s.add(s_id)
+                            sources.append({"server_id": s_id, "server_name": s_name})
+            item["sources"] = sources
+            results.append(item)
+        return results
     finally:
         conn.close()
 

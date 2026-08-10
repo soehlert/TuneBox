@@ -223,22 +223,79 @@ function TrackList() {
     <div className="track-list-page">
       <div className="track-list-container">
         <div style={{ display: "flex", gap: "12px", marginBottom: "16px", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center" }}>
-          <button
-            className="back-button"
-            style={{ marginBottom: 0 }}
-            onClick={() => {
-              if (window.history.state && window.history.state.idx > 0) {
-                navigate(-1);
-              } else if (albumData?.artist_id) {
-                navigate(`/artists/${albumData.artist_id}/albums${serverId ? `?server_id=${serverId}` : ""}`);
-              } else {
-                navigate("/all-albums");
+          <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
+            <button
+              className="back-button"
+              style={{ marginBottom: 0 }}
+              onClick={() =>
+                navigate(
+                  `/artists/${albumData?.artist_id || ""}/albums${
+                    serverId ? `?server_id=${serverId}` : ""
+                  }`
+                )
               }
-            }}
-          >
-            <span className="material-symbols-outlined">arrow_back</span>
-            Back to Albums
-          </button>
+            >
+              <span className="material-symbols-outlined">library_music</span>
+              Back to Albums
+            </button>
+
+            {(() => {
+              if (!albumData) return null;
+              const rawSources = albumData.sources || [];
+              const uniqueSourcesMap = new Map<string, string>();
+              rawSources.forEach((s) => {
+                if (s.server_name) {
+                  uniqueSourcesMap.set(s.server_id || s.server_name, s.server_name);
+                }
+              });
+              const uniqueNames = Array.from(uniqueSourcesMap.values());
+              const namesStr = uniqueNames.join(" • ");
+
+              if (uniqueNames.length > 1) {
+                return (
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      fontSize: "12px",
+                      background: "rgba(191, 9, 94, 0.15)",
+                      border: "1px solid rgba(191, 9, 94, 0.35)",
+                      color: "#ff4d94",
+                      padding: "6px 14px",
+                      borderRadius: "14px",
+                      fontWeight: 600,
+                    }}
+                    title={`Available on: ${namesStr}`}
+                  >
+                    🌐 Libraries - {namesStr}
+                  </span>
+                );
+              }
+              const displayServer = uniqueNames[0] || albumData.server_name;
+              if (displayServer) {
+                return (
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      fontSize: "12px",
+                      background: "rgba(191, 9, 94, 0.15)",
+                      border: "1px solid rgba(191, 9, 94, 0.35)",
+                      color: "#ff4d94",
+                      padding: "4px 12px",
+                      borderRadius: "14px",
+                      fontWeight: 600,
+                    }}
+                  >
+                    📍 {displayServer}
+                  </span>
+                );
+              }
+              return null;
+            })()}
+          </div>
 
           {albumData && (
             <Button
@@ -265,72 +322,6 @@ function TrackList() {
           <>
             <header className="page-header" style={{ marginBottom: "16px" }}>
               <Typography variant="h1" className="gradient-text">{albumData.album_title || "Unknown Album"}</Typography>
-              {(() => {
-                const rawSources = albumData.sources || [];
-                const uniqueSourcesMap = new Map<string, string>();
-                rawSources.forEach((s) => {
-                  if (s.server_name) {
-                    uniqueSourcesMap.set(s.server_id || s.server_name, s.server_name);
-                  }
-                });
-                const uniqueNames = Array.from(uniqueSourcesMap.values());
-                const namesStr = uniqueNames.join(" • ");
-
-                if (uniqueNames.length > 1) {
-                  return (
-                    <div style={{ marginTop: "6px" }}>
-                      <div
-                        style={{
-                          display: "inline-flex",
-                          flexDirection: "column",
-                          gap: "3px",
-                          fontSize: "12px",
-                          background: "rgba(191, 9, 94, 0.15)",
-                          border: "1px solid rgba(191, 9, 94, 0.35)",
-                          color: "#ff4d94",
-                          padding: "6px 14px",
-                          borderRadius: "14px",
-                          fontWeight: 600,
-                          maxWidth: "max-content",
-                        }}
-                        title={`Available on: ${namesStr}`}
-                      >
-                        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                          <span>🌐</span>
-                          <span>{uniqueNames.length} Connected Libraries</span>
-                        </div>
-                        <div style={{ fontSize: "11px", opacity: 0.85, paddingLeft: "20px" }}>
-                          {namesStr}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                }
-                const displayServer = uniqueNames[0] || albumData.server_name;
-                if (displayServer) {
-                  return (
-                    <div style={{ marginTop: "6px" }}>
-                      <span
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: "6px",
-                          fontSize: "12px",
-                          background: "rgba(191, 9, 94, 0.15)",
-                          border: "1px solid rgba(191, 9, 94, 0.35)",
-                          color: "#ff4d94",
-                          padding: "4px 12px",
-                          borderRadius: "14px",
-                          fontWeight: 600,
-                        }}
-                      >
-                        📍 {displayServer}
-                      </span>
-                    </div>
-                  );
-                }
-                return null;
-              })()}
             </header>
               {(
                 <FallbackImage

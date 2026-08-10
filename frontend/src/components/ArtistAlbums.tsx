@@ -48,17 +48,70 @@ function ArtistAlbums() {
 
   const sParam = serverId ? `?server_id=${serverId}` : "";
 
+  // Derive artist name and unique connected servers across all albums
+  const artistName = albums.length > 0 && (albums[0] as any).artist ? (albums[0] as any).artist : "Albums";
+
+  const artistSourcesMap = new Map<string, string>();
+  albums.forEach((alb) => {
+    (alb.sources || []).forEach((s: any) => {
+      if (s.server_name) {
+        artistSourcesMap.set(s.server_id || s.server_name, s.server_name);
+      }
+    });
+    if (alb.server_name) {
+      artistSourcesMap.set(alb.server_name, alb.server_name);
+    }
+  });
+  const uniqueArtistSources = Array.from(artistSourcesMap.values());
+  const artistSourcesStr = uniqueArtistSources.join(" • ");
+
   return (
     <div className="album-list-wrapper">
-      <div style={{ display: "flex", gap: "12px", marginBottom: "16px", flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: "12px", marginBottom: "16px", flexWrap: "wrap", alignItems: "center" }}>
         <button className="back-button" style={{ marginBottom: 0 }} onClick={() => navigate("/?clear_search=true")}>
           <span className="material-symbols-outlined">groups</span>
           Back to Artists
         </button>
+
+        {uniqueArtistSources.length > 1 ? (
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              fontSize: "12px",
+              background: "rgba(191, 9, 94, 0.15)",
+              border: "1px solid rgba(191, 9, 94, 0.35)",
+              color: "#ff4d94",
+              padding: "6px 14px",
+              borderRadius: "14px",
+              fontWeight: 600,
+            }}
+            title={`Available on: ${artistSourcesStr}`}
+          >
+            🌐 Libraries - {artistSourcesStr}
+          </span>
+        ) : uniqueArtistSources.length === 1 ? (
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              fontSize: "12px",
+              background: "rgba(191, 9, 94, 0.15)",
+              border: "1px solid rgba(191, 9, 94, 0.35)",
+              color: "#ff4d94",
+              padding: "4px 12px",
+              borderRadius: "14px",
+              fontWeight: 600,
+            }}
+          >
+            📍 {uniqueArtistSources[0]}
+          </span>
+        ) : null}
       </div>
       <header className="page-header">
-        <Typography variant="h1" className="gradient-text">Albums</Typography>
-        <Typography className="page-subtitle">Select an album to view tracks</Typography>
+        <Typography variant="h1" className="gradient-text">{artistName}</Typography>
       </header>
       {loading ? (
         <Typography variant="h6">Loading...</Typography>
@@ -82,32 +135,40 @@ function ArtistAlbums() {
                 </Typography>
                 {(() => {
                   const sources = album.sources || [];
-                  if (sources.length > 1) {
+                  const uniqueAlbumMap = new Map<string, string>();
+                  sources.forEach((s: any) => {
+                    if (s.server_name) {
+                      uniqueAlbumMap.set(s.server_id || s.server_name, s.server_name);
+                    }
+                  });
+                  const uniqueAlbumNames = Array.from(uniqueAlbumMap.values());
+
+                  if (uniqueAlbumNames.length > 1) {
                     return (
                       <span
                         style={{
                           fontSize: "9px",
-                          background: "rgba(46, 204, 113, 0.2)",
-                          border: "1px solid rgba(46, 204, 113, 0.5)",
-                          color: "#2ecc71",
-                          padding: "1px 5px",
+                          background: "rgba(191, 9, 94, 0.15)",
+                          border: "1px solid rgba(191, 9, 94, 0.35)",
+                          color: "#ff4d94",
+                          padding: "1px 6px",
                           borderRadius: "8px",
                           fontWeight: 700,
                           lineHeight: 1.2,
                           cursor: "pointer",
                         }}
-                        title={`Found on ${sources.length} servers`}
+                        title={`Found on ${uniqueAlbumNames.length} servers`}
                         onClick={(e) => {
                           e.stopPropagation();
-                          const listStr = sources.map((s: any) => `• ${s.server_name || "Unknown Library"}`).join("\n");
+                          const listStr = uniqueAlbumNames.map((s: string) => `• ${s}`).join("\n");
                           setDialogState({
                             open: true,
                             title: `Multi-Library Album`,
-                            message: `"${album.title}" is available across ${sources.length} connected libraries:\n\n${listStr}`,
+                            message: `"${album.title}" is available across ${uniqueAlbumNames.length} connected libraries:\n\n${listStr}`,
                           });
                         }}
                       >
-                        🌐 {sources.length} libraries
+                        🌐 {uniqueAlbumNames.length} libraries
                       </span>
                     );
                   }

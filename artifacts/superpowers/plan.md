@@ -1,25 +1,30 @@
-# Implementation Plan: Connected Libraries Pill Enhancements & Text Cleanup
+# Implementation Plan: Artist Connected Libraries Pill & Subtle Pink Theme
 
 ## Goal
-Remove redundant `"Queue songs to TuneBox"` text on album track views, restyle Connected Libraries pill in subtle pink (`#ff4d94`, `rgba(191, 9, 94, 0.15)`), and position on a separate line below the album title.
+Add the Connected Libraries pill badge to the Artist albums page header (showing which servers the artist's library is available on, using subtle pink styling and multi-line formatting), and update album card badges on the artist view to match the subtle pink palette.
 
 ## Assumptions
-- Changes are isolated to `frontend/src/components/TrackList.tsx`.
+- Changes touch `backend/services/library.py` and `frontend/src/components/ArtistAlbums.tsx`.
 
 ## Plan
-1. **Frontend Track Header Clean Up & Pink Pill Styling**
-   - Files: `frontend/src/components/TrackList.tsx`
-   - Change: Remove "Queue songs to TuneBox" element, restyle connected libraries badge to magenta/pink theme, and wrap in a dedicated row div.
+1. **Backend Distinct Album & Artist Sources**
+   - Files: `backend/services/library.py`
+   - Change: Include deduplicated `sources` for each album returned by `get_albums_for_artist_db()`.
+   - Verify: `uv run python -m pytest backend/tests/`
+
+2. **Frontend Artist Header & Card Badges**
+   - Files: `frontend/src/components/ArtistAlbums.tsx`
+   - Change: Add multi-line Connected Libraries pill badge under Artist header, restyle card badges in subtle pink (`#ff4d94`, `rgba(191, 9, 94, 0.15)`).
    - Verify: `cd frontend && npm run build`
 
-2. **Live Docker Stack Restart & Verification**
+3. **Live Docker Verification & Stack Restart**
    - Files: Docker Compose environment
-   - Change: Restart Docker stack and visually inspect album track header.
+   - Change: Restart Docker stack and test Artist Albums page on `http://localhost:3000`.
    - Verify: Visual inspection on `http://localhost:3000`.
 
 ## Risks & mitigations
-- **Risk**: None (UI styling and layout adjustment).
-- **Mitigation**: Verified via TypeScript build and visual rendering.
+- **Risk**: None.
+- **Mitigation**: Verified via pytest and TypeScript build.
 
 ## Rollback plan
 - Revert via `git checkout main`.
