@@ -769,7 +769,7 @@ def search_music_db(query_str: str, db_path: str | None = None) -> list[dict]:
         conn.close()
 
 
-def get_all_art_sources(item_id: int | str, item_type: str, db_path: str | None = None) -> list[tuple[str | None, str | None, str | None]]:
+def get_all_art_sources(item_id: int | str, item_type: str, server_id: str | None = None, db_path: str | None = None) -> list[tuple[str | None, str | None, str | None]]:
     """Resolve all (stored_thumb, server_id, rating_key) sources for a given item, prioritizing primary server."""
     conn = get_db_connection(db_path)
     sources = []
@@ -847,19 +847,38 @@ def get_all_art_sources(item_id: int | str, item_type: str, db_path: str | None 
                 sources.append((thumb_val, row["server_id"], row["rating_key"]))
 
         elif item_type == "track":
-            r_row = conn.execute(
-                """
-                SELECT t.track_id, t.album_id
-                FROM tracks t
-                LEFT JOIN track_sources ts ON t.track_id = ts.track_id
-                LEFT JOIN servers srv ON t.server_id = srv.server_id
-                WHERE (srv.enabled = 1 OR srv.enabled IS NULL)
-                  AND (t.server_track_id = ? OR ts.server_track_id = ? OR t.track_id = ?)
-                ORDER BY (CASE WHEN t.server_track_id = ? OR ts.server_track_id = ? THEN 0 ELSE 1 END)
-                LIMIT 1
-                """,
-                (str(item_id), str(item_id), item_id, str(item_id), str(item_id)),
-            ).fetchone()
+            if server_id:
+                r_row = conn.execute(
+                    """
+                    SELECT t.track_id, t.album_id
+                    FROM tracks t
+                    LEFT JOIN track_sources ts ON t.track_id = ts.track_id
+                    LEFT JOIN servers srv ON t.server_id = srv.server_id
+                    WHERE (srv.enabled = 1 OR srv.enabled IS NULL)
+                      AND (
+                        ((t.server_track_id = ? OR ts.server_track_id = ?) AND (t.server_id = ? OR ts.server_id = ?))
+                        OR t.track_id = ?
+                      )
+                    ORDER BY (CASE WHEN (t.server_track_id = ? OR ts.server_track_id = ?) AND (t.server_id = ? OR ts.server_id = ?) THEN 0 ELSE 1 END)
+                    LIMIT 1
+                    """,
+                    (str(item_id), str(item_id), server_id, server_id, item_id, str(item_id), str(item_id), server_id, server_id),
+                ).fetchone()
+            else:
+                r_row = conn.execute(
+                    """
+                    SELECT t.track_id, t.album_id
+                    FROM tracks t
+                    LEFT JOIN track_sources ts ON t.track_id = ts.track_id
+                    LEFT JOIN servers srv ON t.server_id = srv.server_id
+                    WHERE (srv.enabled = 1 OR srv.enabled IS NULL)
+                      AND (t.server_track_id = ? OR ts.server_track_id = ? OR t.track_id = ?)
+                    ORDER BY (CASE WHEN t.server_track_id = ? OR ts.server_track_id = ? THEN 0 ELSE 1 END)
+                    LIMIT 1
+                    """,
+                    (str(item_id), str(item_id), item_id, str(item_id), str(item_id)),
+                ).fetchone()
+
             if r_row:
                 resolved_id = r_row["track_id"]
                 track_album_id = r_row["album_id"]
@@ -931,13 +950,13 @@ def clear_art_source_cache():
     _ART_SOURCE_MEM_CACHE.clear()
 
 
-def get_art_source_info(item_id: int | str, item_type: str, db_path: str | None = None) -> tuple[str | None, str | None, str | None]:
-    """Resolve stored thumb URL, server_id, and Plex server ratingKey from SQLite for a given SQLite item_id or ratingKey."""
-    cache_key = f"{item_type}:{item_id}"
+def get_art_source_info(item_id: int | str, item_type: str, server_id: str | None = None, db_path: str | None = None) -> tuple[str | None, str | None, str | None]:
+    """Resolve stored thumb URL, server_id, and Plex server ratingKey from SQLite for a given item_id or ratingKey."""
+    cache_key = f"{item_type}:{item_id}:{server_id or 'all'}"
     if cache_key in _ART_SOURCE_MEM_CACHE:
         return _ART_SOURCE_MEM_CACHE[cache_key]
 
-    sources = get_all_art_sources(item_id, item_type, db_path=db_path)
+    sources = get_all_art_sources(item_id, item_type, server_id=server_id, db_path=db_path)
     res = sources[0] if sources else (None, None, None)
 
     if len(_ART_SOURCE_MEM_CACHE) >= _ART_SOURCE_MEM_CACHE_MAX_SIZE:

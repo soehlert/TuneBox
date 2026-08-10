@@ -345,7 +345,7 @@ def get_track(item_id, server_id: str | None = None):
     if not settings.testing and not hasattr(get_target_plex_connection, "mock_calls"):
         try:
             from backend.services.library import get_art_source_info
-            _, resolved_server_id, rating_key = get_art_source_info(item_id, "track")
+            _, resolved_server_id, rating_key = get_art_source_info(item_id, "track", server_id=server_id)
             if rating_key:
                 item_id_val = int(rating_key) if str(rating_key).isdigit() else rating_key
             if resolved_server_id:
