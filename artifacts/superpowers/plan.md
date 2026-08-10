@@ -1,30 +1,45 @@
-# Implementation Plan: Artist Connected Libraries Pill & Subtle Pink Theme
+# Implementation Plan - Player Control & State Sync Polish
 
-## Goal
-Add the Connected Libraries pill badge to the Artist albums page header (showing which servers the artist's library is available on, using subtle pink styling and multi-line formatting), and update album card badges on the artist view to match the subtle pink palette.
+Fix time tracking delays, smooth out the progress bar movement to 60fps, and eliminate natural track completion rubber-banding when tracks end.
 
-## Assumptions
-- Changes touch `backend/services/library.py` and `frontend/src/components/ArtistAlbums.tsx`.
+## User Review Required
 
-## Plan
-1. **Backend Distinct Album & Artist Sources**
-   - Files: `backend/services/library.py`
-   - Change: Include deduplicated `sources` for each album returned by `get_albums_for_artist_db()`.
-   - Verify: `uv run python -m pytest backend/tests/`
+> [!IMPORTANT]
+> - All fixes will be made on isolated branch `feat/player-control-polish`.
+> - Automated regression tests will be added for natural track completion when paused/stopped.
+> - Full pytest suite (127+ tests) will be executed to guarantee zero regressions.
 
-2. **Frontend Artist Header & Card Badges**
-   - Files: `frontend/src/components/ArtistAlbums.tsx`
-   - Change: Add multi-line Connected Libraries pill badge under Artist header, restyle card badges in subtle pink (`#ff4d94`, `rgba(191, 9, 94, 0.15)`).
-   - Verify: `cd frontend && npm run build`
+## Proposed Changes
 
-3. **Live Docker Verification & Stack Restart**
-   - Files: Docker Compose environment
-   - Change: Restart Docker stack and test Artist Albums page on `http://localhost:3000`.
-   - Verify: Visual inspection on `http://localhost:3000`.
+### Backend - Playback Engine & Resync (`backend/services/plex.py`)
 
-## Risks & mitigations
-- **Risk**: None.
-- **Mitigation**: Verified via pytest and TypeScript build.
+#### [MODIFY] [plex.py](file:///Users/soehlert/projects/testing/TuneBox/backend/services/plex.py)
+- **Natural Track Completion Fix**: Update `check_queue_and_advance()` so track completion detection (`elapsed >= total_time - 1.0` or PMS session ended) runs regardless of whether `track_time_tracker.is_playing` was auto-paused by resync.
+- **Immediate Queue Advancement**: On completion, reliably remove the finished track from Redis (`remove_from_redis_queue`), advance to the next track if queue exists, or execute clean `stop_playback()` if queue is empty.
+- **Instant Time Initialization**: Ensure `track_time_tracker.start()` initializes wall-clock start time immediately when `play_song` is called, eliminating the delay before time tracking starts.
 
-## Rollback plan
-- Revert via `git checkout main`.
+---
+
+### Frontend - Player Bar Component (`frontend/src/components/MusicControls.tsx`)
+
+#### [MODIFY] [MusicControls.tsx](file:///Users/soehlert/projects/testing/TuneBox/frontend/src/components/MusicControls.tsx)
+- **Smooth 60fps Progress Interpolation**: Add a smooth client-side ticker interval (250ms) when `isPlaying` is true to smoothly increment local elapsed time and progress bar width between 1-second server WebSocket pulses.
+- **CSS Progress Smoothing**: Add `transition: 'width 0.25s linear'` to the progress bar container.
+
+---
+
+### Automated Tests (`backend/tests/test_core_playback_flow.py`)
+
+#### [MODIFY] [test_core_playback_flow.py](file:///Users/soehlert/projects/testing/TuneBox/backend/tests/test_core_playback_flow.py)
+- Add unit test verifying natural track completion advances queue when `track_time_tracker` is in `paused` or `stopped` state at end-of-track.
+
+## Verification Plan
+
+### Automated Tests
+- `uv run python -m pytest backend/tests/test_core_playback_flow.py`
+- `uv run python -m pytest` (Full 127+ test suite)
+
+### Manual Verification
+1. Play a song and observe the bottom player bar: progress timer starts at `0:00` instantly when song starts.
+2. Observe progress bar line: moves continuously and smoothly without 1-second jumps.
+3. Let a song play to completion (or fast forward to last 5 seconds): verify TuneBox advances smoothly to the next song in the queue without rubber-banding backwards.

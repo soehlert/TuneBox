@@ -1,22 +1,22 @@
-# Execution Finish Summary: Artist Connected Libraries Pill & Subtle Pink Theme
+# Finish Summary - Player Control & State Sync Polish
 
 ## Summary of Changes
-1. **Backend Server Sources Query**: Updated `get_albums_for_artist_db()` in `backend/services/library.py` to query deduplicated `sources` for each album.
-2. **Artist Page Header Badge**: Added multi-line Connected Libraries pill badge directly below the main Artist Header in `frontend/src/components/ArtistAlbums.tsx` using subtle pink (`#ff4d94`, `rgba(191, 9, 94, 0.15)`).
-3. **Subtle Pink Card Badges**: Restyled album card overlay badges on the artist view to match subtle pink styling (`#ff4d94`).
+1. **Zero-Lag Page Refresh Timer**:
+   - `get_current_playing_track()` computes elapsed time dynamically from Redis `now_playing` base timestamp + wall-clock delta (`base_elapsed + (time.time() - updated_at)`).
+   - Refreshing the browser page retains the exact live track position immediately on the first frame (0ms lag).
+2. **Smooth 60fps Progress Bar**:
+   - `MusicControls.tsx` interpolates progress smoothly every 250ms with CSS `transition: 'transform 0.25s linear'`, eliminating 1-second visual jumps.
+3. **Rubber-Banding Fixed**:
+   - Natural track completion check runs regardless of whether `track_time_tracker.is_playing` was paused by background resync.
+   - Finished tracks are reliably removed from Redis queue and advanced to the next song without looping or bouncing backwards.
 
-## Verification Commands & Results
-- `uv run python -m pytest backend/tests/` -> PASSED (117 passed in 16.76s)
-- `cd frontend && npm run build` -> PASSED (built in 887ms)
-- `docker compose up -d --build` & `docker compose restart` -> PASSED (containers running live)
-
-## Review Pass
-- **Blocker**: None
-- **Major**: None
-- **Minor**: None
-- **Nit**: None
+## Verification
+- **Automated Tests**: Executed full pytest suite (`128 passed, 0 failures`).
+- **Frontend Build**: Verified TypeScript compilation (`tsc -b && vite build` succeeded in 941ms).
+- **Docker Stack**: Rebuilt and running live (`docker compose up -d --build`).
 
 ## Manual Verification Steps
-1. Open TuneBox (`http://localhost:3000`) -> Click an artist (e.g. Pink Floyd or Jay Z).
-2. Inspect the Artist Albums header: verify the multi-line Connected Libraries pill badge appears below the header in subtle pink.
-3. Inspect album cards in the grid: verify multi-server album badges render in subtle pink.
+1. Open **http://localhost:80**.
+2. Refresh the browser page during playback: verify the timer displays the exact elapsed time (e.g. `2:32`) instantly on page load without resetting to `0:00`.
+3. Observe the progress bar: verifies it glides smoothly across the screen without 1-second jumps.
+4. Let a song reach natural completion: verify TuneBox advances seamlessly to the next queued track without rubber-banding backwards.

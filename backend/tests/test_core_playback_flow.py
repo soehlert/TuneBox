@@ -224,6 +224,36 @@ async def test_stops_when_out_of_tracks_in_queue(mocker, server_id: str = "plex-
     task = asyncio.create_task(playback_orchestrator())
     await asyncio.sleep(0.4)
     task.cancel()
-
     assert backend.services.plex._queue_finished_track == "Last Song"
     mock_stop.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_playback_natural_completion_when_tracker_paused(mocker):
+    """Verify natural track completion advances queue even if resync auto-paused tracker."""
+    import backend.services.plex
+    backend.services.plex.playback_active = True
+
+    track_item = {"item_id": "9001", "title": "Paused Song", "duration": 180}
+    
+    track_time_tracker.start("Paused Song")
+    track_time_tracker.accumulated_elapsed = 180.0
+    track_time_tracker.last_resume_time = None
+    track_time_tracker.state = "paused"  # Auto-paused by resync right as track ended
+
+    mock_remove = mocker.patch("backend.services.plex.remove_from_redis_queue")
+    mocker.patch("backend.services.plex.get_redis_queue", return_value=[])
+    mocker.patch("backend.services.plex.is_autoplay_enabled", return_value=False)
+    mocker.patch("backend.services.plex.get_cached_data", return_value=track_item)
+    mocker.patch("backend.services.plex.add_to_history")
+    mocker.patch("backend.services.plex.stop_playback")
+
+    mocker.patch("backend.websockets.send_queue", new_callable=AsyncMock)
+    mocker.patch("backend.websockets.send_current_playing", new_callable=AsyncMock)
+    mocker.patch("backend.websockets.reset_skip_votes", new_callable=AsyncMock)
+
+    task = asyncio.create_task(playback_orchestrator())
+    await asyncio.sleep(0.4)
+    task.cancel()
+
+    mock_remove.assert_called_with("9001")

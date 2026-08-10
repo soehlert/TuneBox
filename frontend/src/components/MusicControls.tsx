@@ -36,6 +36,8 @@ const MusicControlsComponent = ({
   const transitionTimeoutRef = useRef<number | null>(null);
   const pingIntervalRef = useRef<number | null>(null);
   const pongTimeoutRef = useRef<number | null>(null);
+  const localElapsedRef = useRef<number>(0);
+  const totalTimeRef = useRef<number>(0);
 
   const clearTransitionTimer = () => {
     if (transitionTimeoutRef.current) {
@@ -43,6 +45,23 @@ const MusicControlsComponent = ({
       transitionTimeoutRef.current = null;
     }
   };
+
+  useEffect(() => {
+    if (!isPlaying || !currentTrack) return;
+
+    const interval = setInterval(() => {
+      if (totalTimeRef.current > 0) {
+        localElapsedRef.current = Math.min(localElapsedRef.current + 0.25, totalTimeRef.current);
+        const elapsed = localElapsedRef.current;
+        const minutesElapsed = Math.floor(elapsed / 60);
+        const secondsElapsed = Math.floor(elapsed % 60);
+        setElapsedTime(`${minutesElapsed}:${secondsElapsed < 10 ? '0' : ''}${secondsElapsed}`);
+        setProgress((elapsed / totalTimeRef.current) * 100);
+      }
+    }, 250);
+
+    return () => clearInterval(interval);
+  }, [isPlaying, currentTrack]);
 
   const isDev = window.location.port === "5173";
   const apiBase = isDev ? `http://${window.location.hostname}:8000` : window.location.origin;
@@ -72,22 +91,26 @@ const MusicControlsComponent = ({
                 clearTransitionTimer();
                 setCurrentTrack(currentTrackData);
                 const stateLower = String(currentTrackData.track_state || '').toLowerCase();
-                setIsPlaying(stateLower === 'playing');
+                const playingNow = stateLower === 'playing';
+                setIsPlaying(playingNow);
 
-                const remainingTime = currentTrackData.remaining_time;
-                const totalTime = currentTrackData.total_time;
-                const elapsed = totalTime - remainingTime;
+                const totalTime = currentTrackData.total_time || 0;
+                const elapsed = currentTrackData.elapsed_time !== undefined
+                  ? currentTrackData.elapsed_time
+                  : Math.max(totalTime - currentTrackData.remaining_time, 0);
+
+                localElapsedRef.current = elapsed;
+                totalTimeRef.current = totalTime;
 
                 const minutesElapsed = Math.floor(elapsed / 60);
                 const secondsElapsed = Math.floor(elapsed % 60);
                 setElapsedTime(`${minutesElapsed}:${secondsElapsed < 10 ? '0' : ''}${secondsElapsed}`);
 
-                const totalTimeInSeconds = currentTrackData.total_time;
-                const minutes = Math.floor(totalTimeInSeconds / 60);
-                const seconds = Math.floor(totalTimeInSeconds % 60);
+                const minutes = Math.floor(totalTime / 60);
+                const seconds = Math.floor(totalTime % 60);
                 setDuration(`${minutes}:${seconds < 10 ? '0' : ''}${seconds}`);
 
-                setProgress(100 - currentTrackData.remaining_percentage);
+                setProgress(totalTime > 0 ? (elapsed / totalTime) * 100 : 0);
               } else if (data.stopped || data.queue_empty) {
                 // Instant stop (0ms delay) when queue ends or stopped explicitly
                 clearTransitionTimer();
@@ -444,6 +467,11 @@ const MusicControlsComponent = ({
             variant="determinate"
             value={progress}
             className="player-progress-bar"
+            sx={{
+              '& .MuiLinearProgress-bar': {
+                transition: 'transform 0.25s linear',
+              },
+            }}
           />
           <Typography className="player-time-text">{duration}</Typography>
         </Box>

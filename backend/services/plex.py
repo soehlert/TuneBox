@@ -173,9 +173,20 @@ def get_current_playing_track():
     if not cached_track or not isinstance(cached_track, dict):
         return None
 
-    # Track time info is calculated dynamically from the tracker
-    elapsed = track_time_tracker.elapsed_time
+    # Track time info is calculated dynamically from tracker or Redis timestamp delta
+    import time as time_mod
     total_time = cached_track.get("duration", 0)  # duration in seconds
+
+    if track_time_tracker.track_name == cached_track.get("title") and track_time_tracker.elapsed_time > 0:
+        elapsed = track_time_tracker.elapsed_time
+    else:
+        base_elapsed = float(cached_track.get("elapsed_time", 0.0))
+        updated_at = float(cached_track.get("updated_at", 0.0))
+        t_state = cached_track.get("track_state", "playing")
+        if updated_at > 0 and t_state == "playing":
+            elapsed = base_elapsed + max(time_mod.time() - updated_at, 0)
+        else:
+            elapsed = base_elapsed
 
     # Safeguard bounds
     elapsed = max(elapsed, 0)
@@ -451,6 +462,8 @@ def play_song(player, song, server_token=None, server_url=None):
         "artist": getattr(song, "grandparentTitle", "Unknown Artist"),
         "album": getattr(song, "parentTitle", "Unknown Album"),
         "duration": milliseconds_to_seconds(song.duration) if song.duration else 0,
+        "elapsed_time": 0.0,
+        "updated_at": time.time(),
         "album_art": f"/api/music/track-art/{song.ratingKey}",
         "track_state": "playing",
         "server_name": getattr(song, "server_name", None),
@@ -791,42 +804,41 @@ async def playback_orchestrator():
                             await send_current_playing()
 
                 # 2. Check for natural track completion
-                elif track_time_tracker.is_playing:
-                    elapsed = track_time_tracker.elapsed_time
-                    cached_track = get_cached_data("now_playing")
-                    if cached_track:
-                        total_time = cached_track.get("duration", 0)
-                        if total_time > 0 and elapsed >= total_time:
+                cached_track = get_cached_data("now_playing")
+                if cached_track:
+                    total_time = cached_track.get("duration", 0)
+                    elapsed = track_time_tracker.elapsed_time if track_time_tracker.track_name == cached_track.get("title") else float(cached_track.get("elapsed_time", 0.0))
+                    if total_time > 0 and elapsed >= (total_time - 1.0):
+                        logger.info(
+                            "Track %s finished. Advancing queue.",
+                            cached_track["title"],
+                        )
+                        add_to_history(cached_track)
+                        # Stop current tracking
+                        track_time_tracker.stop()
+                        # Remove finished track
+                        remove_from_redis_queue(cached_track["item_id"])
+
+                        # If the queue is now empty (and autoplay is off), set the
+                        # sentinel so resync doesn't bounce the progress bar back.
+                        remaining_queue = get_redis_queue()
+                        if not remaining_queue and not is_autoplay_enabled():
+                            _queue_finished_track = cached_track["title"]
                             logger.info(
-                                "Track %s finished. Advancing queue.",
+                                "Queue exhausted after '%s'. Sentinel set to prevent resync bounce.",
                                 cached_track["title"],
                             )
-                            add_to_history(cached_track)
-                            # Stop current tracking
-                            track_time_tracker.stop()
-                            # Remove finished track
-                            remove_from_redis_queue(cached_track["item_id"])
+                            await asyncio.to_thread(stop_playback)
 
-                            # If the queue is now empty (and autoplay is off), set the
-                            # sentinel so resync doesn't bounce the progress bar back.
-                            remaining_queue = get_redis_queue()
-                            if not remaining_queue and not is_autoplay_enabled():
-                                _queue_finished_track = cached_track["title"]
-                                logger.info(
-                                    "Queue exhausted after '%s'. Sentinel set to prevent resync bounce.",
-                                    cached_track["title"],
-                                )
-                                await asyncio.to_thread(stop_playback)
+                        from backend.websockets import (
+                            send_current_playing,
+                            send_queue,
+                            reset_skip_votes,
+                        )  # noqa: PLC0415
 
-                            from backend.websockets import (
-                                send_current_playing,
-                                send_queue,
-                                reset_skip_votes,
-                            )  # noqa: PLC0415
-
-                            await reset_skip_votes()
-                            await send_queue()
-                            await send_current_playing()
+                        await reset_skip_votes()
+                        await send_queue()
+                        await send_current_playing()
 
             # 3. Perform low-frequency resync check
             tick_count += 1
@@ -1004,6 +1016,8 @@ async def check_plexamp_resync(force_align: bool = False):
                     ),
                     "album": getattr(active_session, "parentTitle", "Unknown Album"),
                     "duration": session_duration,
+                    "elapsed_time": float(plex_elapsed),
+                    "updated_at": time.time(),
                     "album_art": f"/api/music/track-art/{active_session.ratingKey}",
                     "track_state": session_state or "playing",
                 }
@@ -1036,12 +1050,16 @@ async def check_plexamp_resync(force_align: bool = False):
                     logger.info("Plexamp resumed playback. Resynced state.")
                     track_time_tracker.resume()
                     cached_track["track_state"] = "playing"
+                    cached_track["elapsed_time"] = float(plex_elapsed)
+                    cached_track["updated_at"] = time.time()
                     cache_data("now_playing", cached_track)
                     state_changed = True
                 elif session_state == "paused" and track_time_tracker.is_playing:
                     logger.info("Plexamp paused playback. Resynced state.")
                     track_time_tracker.pause()
                     cached_track["track_state"] = "paused"
+                    cached_track["elapsed_time"] = float(plex_elapsed)
+                    cached_track["updated_at"] = time.time()
                     cache_data("now_playing", cached_track)
                     state_changed = True
 
@@ -1053,10 +1071,14 @@ async def check_plexamp_resync(force_align: bool = False):
                         local_elapsed - plex_elapsed,
                         force_align,
                     )
+                    track_time_tracker.track_name = session_title
                     track_time_tracker.accumulated_elapsed = float(plex_elapsed)
                     track_time_tracker.last_resume_time = (
                         time.time() if session_state == "playing" else None
                     )
+                    cached_track["elapsed_time"] = float(plex_elapsed)
+                    cached_track["updated_at"] = time.time()
+                    cache_data("now_playing", cached_track)
                     state_changed = True
 
                 if state_changed:
