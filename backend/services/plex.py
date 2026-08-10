@@ -810,10 +810,10 @@ async def playback_orchestrator():
 
                 # 2. Check for natural track completion
                 cached_track = get_cached_data("now_playing")
-                if cached_track:
+                if cached_track and playback_active:
                     total_time = cached_track.get("duration", 0)
                     elapsed = track_time_tracker.elapsed_time if track_time_tracker.track_name == cached_track.get("title") else float(cached_track.get("elapsed_time", 0.0))
-                    if total_time > 0 and elapsed >= total_time:
+                    if total_time > 0 and elapsed >= (total_time + 0.5):
                         logger.info(
                             "Track %s finished. Advancing queue.",
                             cached_track["title"],
@@ -1001,8 +1001,9 @@ async def check_plexamp_resync(force_align: bool = False):
                 logger.debug("Clearing finished-track sentinel (new track '%s' detected).", session_title)
                 _queue_finished_track = None
 
-            # 1. Check if track changed (manual skip/change on Plexamp)
             cached_track = get_cached_data("now_playing")
+
+            # 1. Track changed on Plexamp (e.g. manual skip or Plexamp internal transition)
             if not cached_track or cached_track.get("title") != session_title:
                 logger.info(
                     "Detected track change on Plex: '%s'. Resynced.", session_title
@@ -1048,42 +1049,32 @@ async def check_plexamp_resync(force_align: bool = False):
 
                 await send_current_playing()
 
-            # 2. Check if play/pause state changed on Plexamp
+            # 2. Existing track: anchor memory tracker to PMS session viewOffset silently
             else:
                 state_changed = False
                 if session_state == "playing" and not track_time_tracker.is_playing:
                     logger.info("Plexamp resumed playback. Resynced state.")
                     track_time_tracker.resume()
-                    cached_track["track_state"] = "playing"
-                    cached_track["elapsed_time"] = float(plex_elapsed)
-                    cached_track["updated_at"] = time.time()
-                    cache_data("now_playing", cached_track)
                     state_changed = True
                 elif session_state == "paused" and track_time_tracker.is_playing:
                     logger.info("Plexamp paused playback. Resynced state.")
                     track_time_tracker.pause()
-                    cached_track["track_state"] = "paused"
-                    cached_track["elapsed_time"] = float(plex_elapsed)
-                    cached_track["updated_at"] = time.time()
-                    cache_data("now_playing", cached_track)
                     state_changed = True
 
-                # 3. Check for elapsed time drift
+                # Always anchor memory tracker to PMS viewOffset silently (prevents clock drift buildup)
+                track_time_tracker.track_name = session_title
+                track_time_tracker.accumulated_elapsed = float(plex_elapsed)
+                track_time_tracker.last_resume_time = (
+                    time.time() if session_state == "playing" else None
+                )
+                cached_track["elapsed_time"] = float(plex_elapsed)
+                cached_track["updated_at"] = time.time()
+                cached_track["track_state"] = session_state
+                cache_data("now_playing", cached_track)
+
+                # Only broadcast over WebSocket if play/pause state changed or major seek (>8s)
                 local_elapsed = track_time_tracker.elapsed_time
-                if force_align or abs(local_elapsed - plex_elapsed) > DRIFT_THRESHOLD:
-                    logger.info(
-                        "Detected drift of %.1fs between local timer and Plexamp (force_align=%s). Adjusting.",
-                        local_elapsed - plex_elapsed,
-                        force_align,
-                    )
-                    track_time_tracker.track_name = session_title
-                    track_time_tracker.accumulated_elapsed = float(plex_elapsed)
-                    track_time_tracker.last_resume_time = (
-                        time.time() if session_state == "playing" else None
-                    )
-                    cached_track["elapsed_time"] = float(plex_elapsed)
-                    cached_track["updated_at"] = time.time()
-                    cache_data("now_playing", cached_track)
+                if force_align or abs(local_elapsed - plex_elapsed) > 8.0:
                     state_changed = True
 
                 if state_changed:

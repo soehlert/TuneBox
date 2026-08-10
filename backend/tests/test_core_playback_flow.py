@@ -237,7 +237,7 @@ async def test_playback_natural_completion_when_tracker_paused(mocker):
     track_item = {"item_id": "9001", "title": "Paused Song", "duration": 180}
     
     track_time_tracker.start("Paused Song")
-    track_time_tracker.accumulated_elapsed = 180.0
+    track_time_tracker.accumulated_elapsed = 181.0
     track_time_tracker.last_resume_time = None
     track_time_tracker.state = "paused"  # Auto-paused by resync right as track ended
 
