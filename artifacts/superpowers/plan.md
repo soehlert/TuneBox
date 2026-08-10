@@ -1,32 +1,31 @@
-# Implementation Plan: Accurate Percentage-Based Progress Bar for Library Indexing
+# Implementation Plan: Genre View Enhancements (Blue Theme, Custom Sorting & Cover Artwork)
 
 ## Goal
-Add a percentage progress bar and real-time detailed updates (`Indexing tracks on plex-so • 45% (11,700 / 26,000)`) to the WebSocket notification banner during library indexing.
+Enhance the **Genres View** by matching the Decades view's sleek blue color palette, adding a sort dropdown control (A-Z, Z-A, Most Albums, Least Albums), and rendering top album artwork thumbnails for visual differentiation across genres.
 
 ## Assumptions
-- Target Plex servers expose total item count during library section retrieval.
-- WebSocket clients receive real-time progress broadcast payloads.
-- Strictly **no trailing ellipsis (`...`)** in any log, comment, or notification text.
+- `get_all_genres_db()` can include `top_album_id` for top-performing album artwork in each genre.
+- Sort control is client-side instant toggle.
 
 ## Plan
-1. **Backend Progress Tracking & Calculation**
-   - Files: `backend/services/indexer.py`, `backend/websockets.py`
-   - Change: Track total section items and current batch position; broadcast `index_progress` payload with percentage and formatted message.
-   - Verify: `uv run python -m pytest backend/tests/test_indexer.py`
+1. **Backend Top Album Artwork Query**
+   - Files: `backend/services/library.py`
+   - Change: Include `top_album_id` subquery in `get_all_genres_db()`.
+   - Verify: `uv run python -m pytest backend/tests/test_homepage_views.py`
 
-2. **Frontend Progress Bar UI & WebSocket Integration**
-   - Files: `frontend/src/App.tsx`
-   - Change: Store `indexingProgress` state, render percentage progress bar (`width: ${percentage}%`) with gradient styling, and format status text.
-   - Verify: `npm run build` in `frontend/`
+2. **Frontend Blue Styling, Sort Dropdown & Artwork Cards**
+   - Files: `frontend/src/components/BrowseViews.tsx`
+   - Change: Update `GenresGridView` with Decades blue gradients (`#0077b6`), add sort dropdown toggle, and render top album artwork cover thumbnails.
+   - Verify: `cd frontend && npm run build`
 
-3. **Live Verification & Container Restart**
+3. **Live Docker Verification & Stack Restart**
    - Files: Docker Compose environment
-   - Change: Restart containers (`docker compose up -d --build` & `docker compose restart`) and trigger manual re-index to verify progress bar in browser.
-   - Verify: Manual re-index test on `http://localhost:3000`.
+   - Change: Restart Docker stack and manually test Genres view on `http://localhost:3000`.
+   - Verify: Visual inspection in browser.
 
 ## Risks & Mitigations
-- **Risk**: Rapid WebSocket progress events overwhelming the browser.
-- **Mitigation**: Progress events are emitted per batch (every 500 items), limiting updates to ~1-2 events per second.
+- **Risk**: Missing album art for obscure genres.
+- **Mitigation**: FallbackImage component renders styled music icon placeholder when no cover art exists.
 
 ## Rollback Plan
 - Revert changes via `git checkout main`.

@@ -574,12 +574,25 @@ def increment_album_play_count_db(album_title: str, db_path: str | None = None):
 
 
 def get_all_genres_db(db_path: str | None = None) -> list[dict]:
-    """Fetch all music genres with album counts from SQLite."""
+    """Fetch all music genres with album counts and top album artwork ID from SQLite."""
     conn = get_db_connection(db_path)
     try:
         cursor = conn.execute(
             """
-            SELECT COALESCE(NULLIF(TRIM(alb.genre), ''), 'Uncategorized') as genre, COUNT(DISTINCT alb.album_id) as album_count
+            SELECT 
+                COALESCE(NULLIF(TRIM(alb.genre), ''), 'Uncategorized') as genre, 
+                COUNT(DISTINCT alb.album_id) as album_count,
+                (
+                    SELECT alb_sub.album_id 
+                    FROM albums alb_sub 
+                    JOIN album_sources src_sub ON alb_sub.album_id = src_sub.album_id
+                    JOIN servers srv_sub ON src_sub.server_id = srv_sub.server_id
+                    WHERE srv_sub.enabled = 1 
+                      AND LOWER(COALESCE(NULLIF(TRIM(alb_sub.genre), ''), 'Uncategorized')) = LOWER(COALESCE(NULLIF(TRIM(alb.genre), ''), 'Uncategorized'))
+                      AND alb_sub.thumb IS NOT NULL AND alb_sub.thumb != ''
+                    ORDER BY alb_sub.play_count DESC, alb_sub.album_id ASC
+                    LIMIT 1
+                ) as top_album_id
             FROM albums alb
             JOIN album_sources src ON alb.album_id = src.album_id
             JOIN servers srv ON src.server_id = srv.server_id
