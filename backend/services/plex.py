@@ -829,20 +829,21 @@ async def playback_orchestrator():
                             await reset_skip_votes()
                             await send_current_playing()
 
-                # 2. Check for natural track completion
+                # 2. Check for natural track completion (remaining time <= 0.5s or elapsed >= total_time)
                 cached_track = get_cached_data("now_playing")
-                if cached_track and playback_active:
-                    total_time = cached_track.get("duration", 0)
+                if cached_track:
+                    total_time = float(cached_track.get("duration", 0))
                     elapsed = track_time_tracker.elapsed_time
-                    if total_time > 0 and elapsed >= total_time:
+                    remaining = total_time - elapsed if total_time > 0 else 999.0
+                    if total_time > 0 and (elapsed >= total_time or remaining <= 0.5):
                         logger.info(
-                            "Track %s finished. Advancing queue.",
+                            "Track '%s' reached end (elapsed=%.1fs, total=%.1fs). Advancing queue.",
                             cached_track["title"],
+                            elapsed,
+                            total_time,
                         )
                         add_to_history(cached_track)
-                        # Stop current tracking
                         track_time_tracker.stop()
-                        # Remove finished track
                         remove_from_redis_queue(cached_track["item_id"])
 
                         remaining_queue = get_redis_queue()
@@ -867,6 +868,7 @@ async def playback_orchestrator():
                             }
                             cache_data("now_playing", next_song_data)
                             track_time_tracker.start(next_song.get("title"), item_id=str(next_song.get("item_id")))
+                            playback_active = True
 
                             from backend.websockets import (
                                 send_current_playing,
@@ -899,19 +901,18 @@ async def playback_orchestrator():
                             except Exception as adv_ex:
                                 logger.warning("Immediate track advance failed: %s", adv_ex)
                         else:
-                            if not is_autoplay_enabled():
-                                _queue_finished_track = cached_track["title"]
-                                logger.info(
-                                    "Queue exhausted after '%s'. Stopping playback and clearing state.",
-                                    cached_track["title"],
-                                )
-                                clear_cache("now_playing")
-                                track_time_tracker.stop()
-                                playback_active = False
-                                try:
-                                    await asyncio.to_thread(stop_playback)
-                                except Exception as stop_ex:
-                                    logger.debug("stop_playback exception on queue exhaust: %s", stop_ex)
+                            _queue_finished_track = cached_track["title"]
+                            logger.info(
+                                "Queue exhausted after '%s'. Stopping playback and clearing state.",
+                                cached_track["title"],
+                            )
+                            clear_cache("now_playing")
+                            track_time_tracker.stop()
+                            playback_active = False
+                            try:
+                                await asyncio.to_thread(stop_playback)
+                            except Exception as stop_ex:
+                                logger.debug("stop_playback exception on queue exhaust: %s", stop_ex)
 
                             from backend.websockets import (
                                 send_current_playing,
