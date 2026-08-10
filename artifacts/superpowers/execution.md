@@ -1,16 +1,17 @@
-# Execution Log: Full Multi-Phase Percentage Indexing Progress Bar
+# Execution Log: Genre Sort Pills & Artwork Speed Optimizations
 
-## Overview
-Added real-time percentage progress calculations across **all three indexing phases** (Artists, Albums, and Tracks) as well as initial network metadata fetch status broadcasts.
+## Step 1: Backend Window Function SQL Query & 24h HTTP Art Caching
+- **Files**: `backend/services/library.py`, `backend/routers/music.py`
+- **Changes**:
+  - Replaced correlated subquery in `get_all_genres_db()` with single-pass SQLite Window Function (`ROW_NUMBER() OVER`).
+  - Increased artwork Cache-Control header to 24 hours (`max-age=86400`).
+- **Verification**: `uv run python -m pytest backend/tests/test_homepage_views.py` -> PASSED (8 passed in 0.47s)
+- **Result**: PASSED
 
-## Summary of Changes
-1. **Network Metadata Fetching Status**:
-   - Emits immediate WebSocket feedback before HTTP section downloads: `Fetching artist catalog from plex-so`, `Fetching album catalog from plex-so`, and `Fetching track catalog from plex-so`.
-2. **Multi-Phase Percentage Progress**:
-   - **Artists**: `pct = (idx / total_artists) * 100` $\rightarrow$ `Indexing artists on plex-so • 45% (600 / 1,411)`.
-   - **Albums**: `pct = (idx / total_albums) * 100` $\rightarrow$ `Indexing albums on plex-so • 45% (1,300 / 3,040)`.
-   - **Tracks**: `pct = (idx / total_tracks) * 100` $\rightarrow$ `Indexing tracks on plex-so • 45% (11,700 / 26,000)`.
-
-## Verification Commands & Results
-- `uv run python -m pytest backend/tests/` -> PASSED (116 passed in 18.10s)
-- `docker compose down && docker compose up -d` -> PASSED (containers running live)
+## Step 2: Frontend Dual Sort Pills & Image Lazy Loading
+- **Files**: `frontend/src/components/BrowseViews.tsx`
+- **Changes**:
+  - Replaced dropdown select with dual `.sort-pill-btn` buttons matching Artist page (`A-Z`/`Z-A` & `Most Albums`/`Least Albums`).
+  - Added `loading="lazy"` to `<FallbackImage>` in `GenresGridView` cards.
+- **Verification**: `cd frontend && npm run build` -> PASSED (built in 1.01s)
+- **Result**: PASSED

@@ -1,32 +1,24 @@
-# Implementation Plan: Accurate Percentage-Based Progress Bar for Library Indexing
+# Implementation Plan: Genre Sort Pills & Artwork Speed Optimizations
 
 ## Goal
-Add a percentage progress bar and real-time detailed updates (`Indexing tracks on plex-so • 45% (11,700 / 26,000)`) to the WebSocket notification banner during library indexing.
-
-## Assumptions
-- Target Plex servers expose total item count during library section retrieval.
-- WebSocket clients receive real-time progress broadcast payloads.
-- Strictly **no trailing ellipsis (`...`)** in any log, comment, or notification text.
+1. Replace single Genre sort dropdown with dual `.sort-pill-btn` buttons matching the Artist page (A-Z toggle & Most/Least Albums toggle).
+2. Speed up Genre page and artwork load times via single-pass window function SQL query, image lazy loading, and 24h HTTP browser caching.
 
 ## Plan
-1. **Backend Progress Tracking & Calculation**
-   - Files: `backend/services/indexer.py`, `backend/websockets.py`
-   - Change: Track total section items and current batch position; broadcast `index_progress` payload with percentage and formatted message.
-   - Verify: `uv run python -m pytest backend/tests/test_indexer.py`
+1. **Backend Window Function & Cache Tuning**
+   - Files: `backend/services/library.py`, `backend/routers/music.py`
+   - Change: Single-pass `ROW_NUMBER() OVER` in `get_all_genres_db()`, increase artwork Cache-Control to 24h.
+   - Verify: `uv run python -m pytest backend/tests/test_homepage_views.py`
 
-2. **Frontend Progress Bar UI & WebSocket Integration**
-   - Files: `frontend/src/App.tsx`
-   - Change: Store `indexingProgress` state, render percentage progress bar (`width: ${percentage}%`) with gradient styling, and format status text.
-   - Verify: `npm run build` in `frontend/`
+2. **Frontend Dual Sort Pills & Image Lazy Loading**
+   - Files: `frontend/src/components/BrowseViews.tsx`
+   - Change: Render `.sort-pill-btn` buttons for A-Z and Most/Least Albums, add `loading="lazy"` to genre fallback images.
+   - Verify: `cd frontend && npm run build`
 
-3. **Live Verification & Container Restart**
+3. **Live Docker Verification & Stack Restart**
    - Files: Docker Compose environment
-   - Change: Restart containers (`docker compose up -d --build` & `docker compose restart`) and trigger manual re-index to verify progress bar in browser.
-   - Verify: Manual re-index test on `http://localhost:3000`.
-
-## Risks & Mitigations
-- **Risk**: Rapid WebSocket progress events overwhelming the browser.
-- **Mitigation**: Progress events are emitted per batch (every 500 items), limiting updates to ~1-2 events per second.
+   - Change: Restart Docker stack and test Genres view on `http://localhost:3000`.
+   - Verify: Visual inspection in browser.
 
 ## Rollback Plan
-- Revert changes via `git checkout main`.
+- Revert via `git checkout main`.

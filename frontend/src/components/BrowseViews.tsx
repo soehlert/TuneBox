@@ -19,7 +19,189 @@ interface Album {
 interface Genre {
   genre: string;
   album_count: number;
+  top_album_id?: number | null;
 }
+
+
+
+export const GenresGridView: React.FC<{ apiBase: string }> = ({ apiBase }) => {
+  const [genres, setGenres] = useState<Genre[]>([]);
+  const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
+  const [genreAlbums, setGenreAlbums] = useState<Album[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [sortBy, setSortBy] = useState<"alphabetical" | "albums">("albums");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    axios
+      .get(`${apiBase}/api/music/genres`)
+      .then((res) => setGenres(res.data))
+      .catch((err) => console.error("Error fetching genres:", err))
+      .finally(() => setLoading(false));
+  }, [apiBase]);
+
+  const handleSelectGenre = (genreName: string) => {
+    setSelectedGenre(genreName);
+    setLoading(true);
+    axios
+      .get(`${apiBase}/api/music/genres/${encodeURIComponent(genreName)}/albums`)
+      .then((res) => setGenreAlbums(res.data))
+      .catch((err) => console.error("Error fetching genre albums:", err))
+      .finally(() => setLoading(false));
+  };
+
+  const sortedGenres = useMemo(() => {
+    return [...genres].sort((a, b) => {
+      if (sortBy === "alphabetical") {
+        return sortOrder === "asc"
+          ? a.genre.localeCompare(b.genre)
+          : b.genre.localeCompare(a.genre);
+      }
+      const diff = sortOrder === "desc"
+        ? b.album_count - a.album_count
+        : a.album_count - b.album_count;
+      return diff || a.genre.localeCompare(b.genre);
+    });
+  }, [genres, sortBy, sortOrder]);
+
+  if (loading && !selectedGenre) return <div style={{ color: "#aaa", padding: "40px", textAlign: "center" }}>Loading Genres...</div>;
+
+  if (selectedGenre) {
+    return (
+      <div>
+        <button
+          onClick={() => setSelectedGenre(null)}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "6px",
+            background: "rgba(255, 255, 255, 0.05)",
+            border: "1px solid rgba(255, 255, 255, 0.1)",
+            color: "#fff",
+            padding: "8px 16px",
+            borderRadius: "20px",
+            fontSize: "13px",
+            fontWeight: 700,
+            cursor: "pointer",
+            marginBottom: "20px",
+          }}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>arrow_back</span>
+          Back to Genres
+        </button>
+        <Typography variant="h5" style={{ color: "#fff", fontWeight: 800, marginBottom: "20px" }}>
+          {selectedGenre} ({genreAlbums.length} {genreAlbums.length === 1 ? "Album" : "Albums"})
+        </Typography>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "20px" }}>
+          {genreAlbums.map((alb) => (
+            <Card
+              key={alb.album_id}
+              onClick={() => navigate(`/albums/${alb.album_id}/tracks`)}
+              style={{ background: "rgba(255, 255, 255, 0.03)", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "16px", padding: "12px", cursor: "pointer" }}
+            >
+              <FallbackImage src={`${apiBase}/api/music/album-art/${alb.album_id}`} alt={alb.title} type="album" loading="lazy" style={{ width: "100%", aspectRatio: "1/1", borderRadius: "12px" }} />
+              <Typography style={{ color: "#fff", fontWeight: 700, fontSize: "14px", marginTop: "8px" }}>{alb.title}</Typography>
+              <Typography style={{ color: "rgba(255,255,255,0.6)", fontSize: "12px" }}>{alb.artist}</Typography>
+            </Card>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ width: "100%" }}>
+      {/* Header bar with count and dual sort pills */}
+      <div className="view-sort-bar">
+        <span className="view-count-badge">
+          {genres.length} {genres.length === 1 ? "Genre" : "Genres"}
+        </span>
+
+        <div className="view-sort-actions">
+          <button
+            className={`sort-pill-btn ${sortBy === "alphabetical" ? "active" : ""}`}
+            onClick={() => {
+              if (sortBy === "alphabetical") {
+                setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+              } else {
+                setSortBy("alphabetical");
+                setSortOrder("asc");
+              }
+            }}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: "15px" }}>swap_vert</span>
+            <span>{sortBy === "alphabetical" ? (sortOrder === "asc" ? "A-Z" : "Z-A") : "A-Z"}</span>
+          </button>
+
+          <button
+            className={`sort-pill-btn ${sortBy === "albums" ? "active" : ""}`}
+            onClick={() => {
+              if (sortBy === "albums") {
+                setSortOrder((prev) => (prev === "desc" ? "asc" : "desc"));
+              } else {
+                setSortBy("albums");
+                setSortOrder("desc");
+              }
+            }}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: "15px" }}>library_music</span>
+            <span>{sortBy === "albums" ? (sortOrder === "desc" ? "Most Albums" : "Least Albums") : "Most Albums"}</span>
+          </button>
+        </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "20px" }}>
+        {sortedGenres.map((g) => (
+          <Card
+            key={g.genre}
+            onClick={() => handleSelectGenre(g.genre)}
+            style={{
+              background: "linear-gradient(135deg, rgba(0,119,182,0.15) 0%, rgba(191,9,94,0.1) 100%)",
+              border: "1px solid rgba(255, 255, 255, 0.08)",
+              borderRadius: "20px",
+              padding: "16px",
+              cursor: "pointer",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "space-between",
+              gap: "12px",
+              transition: "transform 0.2s ease, border-color 0.2s ease",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.borderColor = "#0077b6")}
+            onMouseLeave={(e) => (e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.08)")}
+          >
+            {g.top_album_id ? (
+              <div style={{ width: "100%", height: "140px", borderRadius: "14px", overflow: "hidden", position: "relative" }}>
+                <FallbackImage
+                  src={`${apiBase}/api/music/album-art/${g.top_album_id}`}
+                  alt={g.genre}
+                  type="album"
+                  loading="lazy"
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+                <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, transparent 40%, rgba(0, 0, 0, 0.8) 100%)" }} />
+              </div>
+            ) : (
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span className="material-symbols-outlined" style={{ fontSize: "32px", color: "#0077b6" }}>music_note</span>
+              </div>
+            )}
+
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "4px" }}>
+              <Typography variant="h6" style={{ color: "#fff", fontWeight: 800, fontSize: "16px" }}>
+                {g.genre}
+              </Typography>
+              <span style={{ background: "rgba(0, 119, 182, 0.2)", color: "#38b6ff", fontSize: "12px", fontWeight: 800, padding: "4px 10px", borderRadius: "12px", whiteSpace: "nowrap" }}>
+                {g.album_count} {g.album_count === 1 ? "Album" : "Albums"}
+              </span>
+            </div>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 interface Decade {
   decade: string;
@@ -331,111 +513,7 @@ export const AlbumsGridView: React.FC<{
   );
 };
 
-export const GenresGridView: React.FC<{ apiBase: string }> = ({ apiBase }) => {
-  const [genres, setGenres] = useState<Genre[]>([]);
-  const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
-  const [genreAlbums, setGenreAlbums] = useState<Album[]>([]);
-  const [loading, setLoading] = useState(true);
-  const navigate = useNavigate();
 
-  useEffect(() => {
-    axios
-      .get(`${apiBase}/api/music/genres`)
-      .then((res) => setGenres(res.data))
-      .catch((err) => console.error("Error fetching genres:", err))
-      .finally(() => setLoading(false));
-  }, [apiBase]);
-
-  const handleSelectGenre = (genreName: string) => {
-    setSelectedGenre(genreName);
-    setLoading(true);
-    axios
-      .get(`${apiBase}/api/music/genres/${encodeURIComponent(genreName)}/albums`)
-      .then((res) => setGenreAlbums(res.data))
-      .catch((err) => console.error("Error fetching genre albums:", err))
-      .finally(() => setLoading(false));
-  };
-
-  if (loading && !selectedGenre) return <div style={{ color: "#aaa", padding: "40px", textAlign: "center" }}>Loading Genres...</div>;
-
-  if (selectedGenre) {
-    return (
-      <div>
-        <button
-          onClick={() => setSelectedGenre(null)}
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "6px",
-            background: "rgba(255, 255, 255, 0.05)",
-            border: "1px solid rgba(255, 255, 255, 0.1)",
-            color: "#fff",
-            padding: "8px 16px",
-            borderRadius: "20px",
-            fontSize: "13px",
-            fontWeight: 700,
-            cursor: "pointer",
-            marginBottom: "20px",
-          }}
-        >
-          <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>arrow_back</span>
-          Back to Genres
-        </button>
-        <Typography variant="h5" style={{ color: "#fff", fontWeight: 800, marginBottom: "20px" }}>
-          {selectedGenre} ({genreAlbums.length} {genreAlbums.length === 1 ? "Album" : "Albums"})
-        </Typography>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "20px" }}>
-          {genreAlbums.map((alb) => (
-            <Card
-              key={alb.album_id}
-              onClick={() => navigate(`/albums/${alb.album_id}/tracks`)}
-              style={{ background: "rgba(255, 255, 255, 0.03)", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "16px", padding: "12px", cursor: "pointer" }}
-            >
-              <FallbackImage src={`${apiBase}/api/music/album-art/${alb.album_id}`} alt={alb.title} type="album" style={{ width: "100%", aspectRatio: "1/1", borderRadius: "12px" }} />
-              <Typography style={{ color: "#fff", fontWeight: 700, fontSize: "14px", marginTop: "8px" }}>{alb.title}</Typography>
-              <Typography style={{ color: "rgba(255,255,255,0.6)", fontSize: "12px" }}>{alb.artist}</Typography>
-            </Card>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "20px" }}>
-      {genres.map((g) => (
-        <Card
-          key={g.genre}
-          onClick={() => handleSelectGenre(g.genre)}
-          style={{
-            background: "linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)",
-            border: "1px solid rgba(255, 255, 255, 0.08)",
-            borderRadius: "20px",
-            padding: "24px",
-            cursor: "pointer",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
-            gap: "16px",
-            transition: "transform 0.2s ease, border-color 0.2s ease",
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.borderColor = "#bf095e")}
-          onMouseLeave={(e) => (e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.08)")}
-        >
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span className="material-symbols-outlined" style={{ fontSize: "32px", color: "#bf095e" }}>music_note</span>
-            <span style={{ background: "rgba(191, 9, 94, 0.2)", color: "#ff4d94", fontSize: "12px", fontWeight: 800, padding: "4px 10px", borderRadius: "12px" }}>
-              {g.album_count} Albums
-            </span>
-          </div>
-          <Typography variant="h6" style={{ color: "#fff", fontWeight: 800 }}>
-            {g.genre}
-          </Typography>
-        </Card>
-      ))}
-    </div>
-  );
-};
 
 export const DecadesGridView: React.FC<{ apiBase: string }> = ({ apiBase }) => {
   const [decades, setDecades] = useState<Decade[]>([]);

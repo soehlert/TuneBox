@@ -574,18 +574,32 @@ def increment_album_play_count_db(album_title: str, db_path: str | None = None):
 
 
 def get_all_genres_db(db_path: str | None = None) -> list[dict]:
-    """Fetch all music genres with album counts from SQLite."""
+    """Fetch all music genres with album counts and top album artwork ID from SQLite."""
     conn = get_db_connection(db_path)
     try:
         cursor = conn.execute(
             """
-            SELECT COALESCE(NULLIF(TRIM(alb.genre), ''), 'Uncategorized') as genre, COUNT(DISTINCT alb.album_id) as album_count
-            FROM albums alb
-            JOIN album_sources src ON alb.album_id = src.album_id
-            JOIN servers srv ON src.server_id = srv.server_id
-            WHERE srv.enabled = 1 AND alb.title != '' AND alb.title IS NOT NULL
-            GROUP BY genre
-            ORDER BY album_count DESC, genre ASC
+            WITH ranked_albums AS (
+                SELECT 
+                    COALESCE(NULLIF(TRIM(alb.genre), ''), 'Uncategorized') as norm_genre,
+                    alb.album_id,
+                    alb.play_count,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY LOWER(COALESCE(NULLIF(TRIM(alb.genre), ''), 'Uncategorized'))
+                        ORDER BY (CASE WHEN alb.thumb IS NOT NULL AND alb.thumb != '' THEN 1 ELSE 0 END) DESC, alb.play_count DESC, alb.album_id ASC
+                    ) as rn
+                FROM albums alb
+                JOIN album_sources src ON alb.album_id = src.album_id
+                JOIN servers srv ON src.server_id = srv.server_id
+                WHERE srv.enabled = 1 AND alb.title != '' AND alb.title IS NOT NULL
+            )
+            SELECT 
+                norm_genre as genre,
+                COUNT(DISTINCT album_id) as album_count,
+                MAX(CASE WHEN rn = 1 THEN album_id END) as top_album_id
+            FROM ranked_albums
+            GROUP BY norm_genre
+            ORDER BY album_count DESC, norm_genre ASC
             """
         )
         return [dict(r) for r in cursor.fetchall()]
