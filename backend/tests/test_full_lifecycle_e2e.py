@@ -41,11 +41,11 @@ def reset_lifecycle_state(mock_redis):
 def test_e2e_queue_addition_no_autoplay_when_stopped(mock_redis, mocker):
     """Verify adding a track to the queue while stopped NEVER triggers autoplay."""
     mock_song = MagicMock()
-    mock_song.ratingKey = "7970"
-    mock_song.title = "Dial Up"
-    mock_song.grandparentTitle = "Childish Gambino"
-    mock_song.parentTitle = "Because the Internet"
-    mock_song.duration = 44000
+    mock_song.ratingKey = "9001"
+    mock_song.title = "Mock Song A"
+    mock_song.grandparentTitle = "Mock Artist"
+    mock_song.parentTitle = "Mock Album"
+    mock_song.duration = 180000
     mock_song.thumb = "/thumb.jpg"
     mock_song.media = []
 
@@ -56,7 +56,7 @@ def test_e2e_queue_addition_no_autoplay_when_stopped(mock_redis, mocker):
     mocker.patch("backend.routers.music.send_queue")
 
     response = client.post(
-        "/api/music/queue/7970",
+        "/api/music/queue/9001",
         json={"server_id": "plex-so", "server_name": "plex-so", "username": "Admin"},
     )
     assert response.status_code == 200
@@ -74,34 +74,34 @@ async def test_e2e_single_song_completion_and_queue_exhaustion(mock_redis, mocke
     backend.services.plex.playback_active = True
 
     single_track = {
-        "item_id": "7970",
-        "title": "Dial Up",
-        "artist": "Childish Gambino",
-        "album": "Because the Internet",
-        "duration": 44.0,
+        "item_id": "9001",
+        "title": "Mock Song A",
+        "artist": "Mock Artist",
+        "album": "Mock Album",
+        "duration": 180.0,
         "server_id": "plex-so",
     }
 
-    # 1. Start track
-    track_time_tracker.start("Dial Up", item_id="7970")
+    # 1. Start track at 0s
+    track_time_tracker.start("Mock Song A", item_id="9001")
     mocker.patch("backend.services.plex.get_cached_data", return_value=single_track)
 
     # Verify track is active at start (elapsed ~0s)
     curr = get_current_playing_track()
     assert curr is not None
-    assert curr["title"] == "Dial Up"
+    assert curr["title"] == "Mock Song A"
     assert curr["elapsed_time"] == pytest.approx(0.0, abs=0.1)
-    assert curr["remaining_time"] == pytest.approx(44.0, abs=0.1)
+    assert curr["remaining_time"] == pytest.approx(180.0, abs=0.1)
 
-    # 2. Advance time to mid-song (22s)
-    track_time_tracker.accumulated_elapsed = 22.0
+    # 2. Advance time to mid-song (90s)
+    track_time_tracker.accumulated_elapsed = 90.0
     track_time_tracker.last_resume_time = None
     curr_mid = get_current_playing_track()
-    assert curr_mid["elapsed_time"] == pytest.approx(22.0, abs=0.1)
-    assert curr_mid["remaining_time"] == pytest.approx(22.0, abs=0.1)
+    assert curr_mid["elapsed_time"] == pytest.approx(90.0, abs=0.1)
+    assert curr_mid["remaining_time"] == pytest.approx(90.0, abs=0.1)
 
-    # 3. Advance time to track completion (45s >= 44s)
-    track_time_tracker.accumulated_elapsed = 45.0
+    # 3. Advance time to track completion (181s >= 180s)
+    track_time_tracker.accumulated_elapsed = 181.0
 
     call_count = [0]
     def queue_side_effect():
@@ -128,7 +128,7 @@ async def test_e2e_single_song_completion_and_queue_exhaustion(mock_redis, mocke
     # Verify queue exhaustion outcome
     assert backend.services.plex.playback_active is False
     assert track_time_tracker.state == "stopped"
-    mock_remove.assert_called_once_with("7970")
+    mock_remove.assert_called_once_with("9001")
     mock_history.assert_called_once()
     mock_stop_player.assert_called_once()
 
@@ -139,11 +139,11 @@ async def test_e2e_multi_song_natural_queue_advancement(mock_redis, mocker):
     import backend.services.plex
     backend.services.plex.playback_active = True
 
-    track_a = {"item_id": "1001", "title": "Track A", "artist": "Artist 1", "duration": 30.0, "server_id": "plex-so"}
-    track_b = {"item_id": "1002", "title": "Track B", "artist": "Artist 2", "duration": 45.0, "server_id": "plex-so"}
+    track_a = {"item_id": "9001", "title": "Mock Song A", "artist": "Mock Artist 1", "duration": 120.0, "server_id": "plex-so"}
+    track_b = {"item_id": "9002", "title": "Mock Song B", "artist": "Mock Artist 2", "duration": 200.0, "server_id": "plex-so"}
 
-    track_time_tracker.start("Track A", item_id="1001")
-    track_time_tracker.accumulated_elapsed = 31.0
+    track_time_tracker.start("Mock Song A", item_id="9001")
+    track_time_tracker.accumulated_elapsed = 121.0
     track_time_tracker.last_resume_time = None
 
     call_count = [0]
@@ -161,10 +161,10 @@ async def test_e2e_multi_song_natural_queue_advancement(mock_redis, mocker):
     mocker.patch("backend.services.plex.get_active_player", return_value=mock_player)
 
     mock_track_b = MagicMock()
-    mock_track_b.ratingKey = "1002"
-    mock_track_b.title = "Track B"
-    mock_track_b.grandparentTitle = "Artist 2"
-    mock_track_b.duration = 45000
+    mock_track_b.ratingKey = "9002"
+    mock_track_b.title = "Mock Song B"
+    mock_track_b.grandparentTitle = "Mock Artist 2"
+    mock_track_b.duration = 200000
     mocker.patch("backend.services.plex.get_track", return_value=mock_track_b)
     mock_play = mocker.patch("backend.services.plex.play_song")
 
@@ -178,6 +178,6 @@ async def test_e2e_multi_song_natural_queue_advancement(mock_redis, mocker):
     task.cancel()
 
     assert backend.services.plex.playback_active is True
-    mock_remove.assert_called_once_with("1001")
+    mock_remove.assert_called_once_with("9001")
     mock_history.assert_called_once()
     mock_play.assert_called_once_with(mock_player, mock_track_b)
