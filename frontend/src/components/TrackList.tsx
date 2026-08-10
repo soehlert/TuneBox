@@ -238,25 +238,6 @@ function TrackList() {
             Back to Albums
           </button>
 
-          {albumData && (
-            <Button
-              variant="contained"
-              className="add-album-btn"
-              onClick={addAlbumToQueue}
-              style={{
-                background: "linear-gradient(135deg, #0077b6 0%, #bf095e 100%)",
-                color: "#fff",
-                fontWeight: "bold",
-                borderRadius: "20px",
-                padding: "8px 20px",
-                textTransform: "none"
-              }}
-            >
-              <span className="material-symbols-outlined" style={{ marginRight: "6px", fontSize: "20px" }}>playlist_add</span>
-              Add Entire Album to Queue
-            </Button>
-          )}
-
           {(() => {
             if (!albumData) return null;
             const rawSources = albumData.sources || [];
@@ -329,6 +310,25 @@ function TrackList() {
                   className="album-banner"
                 />
               )}
+
+              <div style={{ marginTop: "16px", marginBottom: "20px" }}>
+                <Button
+                  variant="contained"
+                  className="add-album-btn"
+                  onClick={addAlbumToQueue}
+                  style={{
+                    background: "linear-gradient(135deg, #0077b6 0%, #bf095e 100%)",
+                    color: "#fff",
+                    fontWeight: "bold",
+                    borderRadius: "20px",
+                    padding: "8px 20px",
+                    textTransform: "none"
+                  }}
+                >
+                  <span className="material-symbols-outlined" style={{ marginRight: "6px", fontSize: "20px" }}>playlist_add</span>
+                  Add Entire Album to Queue
+                </Button>
+              </div>
 
               <div className="track-list">
                 {albumData.tracks.map((track, idx, tracks) => {
