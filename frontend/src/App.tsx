@@ -1472,7 +1472,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
                         }}
                       >
                         <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.5)", textTransform: "uppercase", fontWeight: "bold" }}>Missing Artist Art 🔍</span>
-                        <div style={{ fontSize: "18px", fontWeight: "800", color: libraryStats.missing_artist_art > 0 ? "#ff6b6b" : "#44d7b6", marginTop: "4px" }}>
+                        <div style={{ fontSize: "18px", fontWeight: "800", color: libraryStats.missing_artist_art > 0 ? "#ff6b6b" : "#ffffff", marginTop: "4px" }}>
                           {libraryStats.missing_artist_art.toLocaleString()}
                         </div>
                         <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.4)", marginTop: "2px" }}>
@@ -1502,7 +1502,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
                         }}
                       >
                         <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.5)", textTransform: "uppercase", fontWeight: "bold" }}>Missing Album Art 🔍</span>
-                        <div style={{ fontSize: "18px", fontWeight: "800", color: libraryStats.missing_album_art > 0 ? "#ff6b6b" : "#44d7b6", marginTop: "4px" }}>
+                        <div style={{ fontSize: "18px", fontWeight: "800", color: libraryStats.missing_album_art > 0 ? "#ff6b6b" : "#ffffff", marginTop: "4px" }}>
                           {libraryStats.missing_album_art.toLocaleString()}
                         </div>
                         <div style={{ fontSize: "10px", color: "rgba(255,255,255,0.4)", marginTop: "2px" }}>
