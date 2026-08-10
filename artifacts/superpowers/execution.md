@@ -1,22 +1,16 @@
-# Execution Log: Accurate Percentage-Based Progress Bar for Library Indexing
+# Execution Log: Full Multi-Phase Percentage Indexing Progress Bar
 
-## Step 1: Backend Progress Tracking & Calculation
-- **Files**: `backend/services/indexer.py`, `backend/websockets.py`
-- **Changes**:
-  - Enhanced `send_indexing_status` and `broadcast_indexing_status_threadsafe` in `backend/websockets.py` to support `total_items` and `percentage`.
-  - Added batch percentage calculation and real-time WebSocket progress broadcasts in `backend/services/indexer.py`.
-  - Stripped all trailing ellipsis (`...`) from log messages per project directives.
-- **Verification**: `uv run python -m pytest backend/tests/` -> PASSED (116 passed in 17.66s)
+## Overview
+Added real-time percentage progress calculations across **all three indexing phases** (Artists, Albums, and Tracks) as well as initial network metadata fetch status broadcasts.
 
-## Step 2: Frontend Progress Bar UI & WebSocket Integration
-- **Files**: `frontend/src/App.tsx`
-- **Changes**:
-  - Updated `indexingStatus` state type signature and WS message parser to extract `itemsIndexed`, `totalItems`, and `percentage`.
-  - Added an animated 4px gradient progress bar (`linear-gradient(90deg, #f5a623, #ff4d4d)`) inside the notification banner.
-  - Stripped trailing ellipsis from fallback JSX string.
-- **Verification**: `cd frontend && npm run build` -> PASSED (built in 2.52s)
+## Summary of Changes
+1. **Network Metadata Fetching Status**:
+   - Emits immediate WebSocket feedback before HTTP section downloads: `Fetching artist catalog from plex-so`, `Fetching album catalog from plex-so`, and `Fetching track catalog from plex-so`.
+2. **Multi-Phase Percentage Progress**:
+   - **Artists**: `pct = (idx / total_artists) * 100` $\rightarrow$ `Indexing artists on plex-so • 45% (600 / 1,411)`.
+   - **Albums**: `pct = (idx / total_albums) * 100` $\rightarrow$ `Indexing albums on plex-so • 45% (1,300 / 3,040)`.
+   - **Tracks**: `pct = (idx / total_tracks) * 100` $\rightarrow$ `Indexing tracks on plex-so • 45% (11,700 / 26,000)`.
 
-## Step 3: Live Verification & Container Restart
-- **Environment**: Docker Compose
-- **Changes**: Rebuilt and restarted containers via `docker compose up -d --build` & `docker compose restart`.
-- **Verification**: Containers active and serving on `http://localhost:3000`.
+## Verification Commands & Results
+- `uv run python -m pytest backend/tests/` -> PASSED (116 passed in 18.10s)
+- `docker compose down && docker compose up -d` -> PASSED (containers running live)

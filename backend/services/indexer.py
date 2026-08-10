@@ -118,11 +118,11 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
 
                 try:
                     from backend.websockets import broadcast_indexing_status_threadsafe  # noqa: PLC0415
-                    broadcast_indexing_status_threadsafe(is_indexing=True, is_initial=is_initial, server_name=s_name, message=f"Indexing artists on {s_name}")
+                    broadcast_indexing_status_threadsafe(is_indexing=True, is_initial=is_initial, server_name=s_name, message=f"Fetching artist catalog from {s_name}")
                 except Exception:
                     pass
 
-                logger.info("Bulk fetching artists for section '%s' on server %s...", getattr(music_lib, "title", "Music"), s_name)
+                logger.info("Bulk fetching artists for section '%s' on server %s", getattr(music_lib, "title", "Music"), s_name)
                 artist_map: dict[str, int] = {}  # ratingKey -> artist_db_id
                 artist_name_map: dict[str, str] = {}  # ratingKey -> artist_name
 
@@ -130,7 +130,8 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
                 conn = get_db_connection(db_path)
                 try:
                     if json_artists is not None:
-                        logger.info("Fetched %d artists via fast JSON batching for %s.", len(json_artists), s_name)
+                        total_art_count = len(json_artists)
+                        logger.info("Fetched %d artists via fast JSON batching for %s.", total_art_count, s_name)
                         for idx, art in enumerate(json_artists):
                             try:
                                 a_db_id = upsert_artist(
@@ -146,14 +147,29 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
                                 r_key = str(art.get("ratingKey"))
                                 artist_map[r_key] = a_db_id
                                 artist_name_map[r_key] = art.get("title") or "Unknown Artist"
-                                if idx > 0 and idx % 500 == 0:
+                                if idx > 0 and idx % 200 == 0:
                                     conn.commit()
+                                    pct = min(100, int((idx / max(1, total_art_count)) * 100))
+                                    try:
+                                        from backend.websockets import broadcast_indexing_status_threadsafe  # noqa: PLC0415
+                                        broadcast_indexing_status_threadsafe(
+                                            is_indexing=True,
+                                            is_initial=is_initial,
+                                            server_name=s_name,
+                                            items_indexed=idx,
+                                            total_items=total_art_count,
+                                            percentage=pct,
+                                            message=f"Indexing artists on {s_name} • {pct}% ({idx:,} / {total_art_count:,})",
+                                        )
+                                    except Exception:
+                                        pass
                             except Exception as a_ex:
                                 logger.debug("Failed to upsert JSON artist %s: %s", art.get("title"), a_ex)
                         conn.commit()
                     else:
-                        logger.info("Fallback: fetching artists via plexapi for section '%s' on %s...", getattr(music_lib, "title", "Music"), s_name)
+                        logger.info("Fallback: fetching artists via plexapi for section '%s' on %s", getattr(music_lib, "title", "Music"), s_name)
                         artists = music_lib.all(libtype="artist")
+                        total_art_count = len(artists)
                         for idx, artist in enumerate(artists):
                             try:
                                 guid_val = getattr(artist, "guid", None) or getattr(artist, "ratingKey", "")
@@ -170,8 +186,22 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
                                 r_key = str(artist.ratingKey)
                                 artist_map[r_key] = a_db_id
                                 artist_name_map[r_key] = artist.title
-                                if idx > 0 and idx % 500 == 0:
+                                if idx > 0 and idx % 200 == 0:
                                     conn.commit()
+                                    pct = min(100, int((idx / max(1, total_art_count)) * 100))
+                                    try:
+                                        from backend.websockets import broadcast_indexing_status_threadsafe  # noqa: PLC0415
+                                        broadcast_indexing_status_threadsafe(
+                                            is_indexing=True,
+                                            is_initial=is_initial,
+                                            server_name=s_name,
+                                            items_indexed=idx,
+                                            total_items=total_art_count,
+                                            percentage=pct,
+                                            message=f"Indexing artists on {s_name} • {pct}% ({idx:,} / {total_art_count:,})",
+                                        )
+                                    except Exception:
+                                        pass
                             except Exception as a_ex:
                                 logger.debug("Failed to upsert artist %s: %s", getattr(artist, "title", "Unknown"), a_ex)
                         conn.commit()
@@ -185,7 +215,7 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
 
                 try:
                     from backend.websockets import broadcast_indexing_status_threadsafe  # noqa: PLC0415
-                    broadcast_indexing_status_threadsafe(is_indexing=True, is_initial=is_initial, server_name=s_name, message=f"Indexing albums on {s_name}")
+                    broadcast_indexing_status_threadsafe(is_indexing=True, is_initial=is_initial, server_name=s_name, message=f"Fetching album catalog from {s_name}")
                 except Exception:
                     pass
 
@@ -196,7 +226,8 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
                 conn = get_db_connection(db_path)
                 try:
                     if json_albums is not None:
-                        logger.info("Fetched %d albums via fast JSON batching for %s.", len(json_albums), s_name)
+                        total_alb_count = len(json_albums)
+                        logger.info("Fetched %d albums via fast JSON batching for %s.", total_alb_count, s_name)
                         for idx, alb in enumerate(json_albums):
                             try:
                                 year_val = alb.get("year")
@@ -221,14 +252,29 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
                                     conn=conn,
                                 )
                                 album_map[str(alb.get("ratingKey"))] = alb_db_id
-                                if idx > 0 and idx % 500 == 0:
+                                if idx > 0 and idx % 200 == 0:
                                     conn.commit()
+                                    pct = min(100, int((idx / max(1, total_alb_count)) * 100))
+                                    try:
+                                        from backend.websockets import broadcast_indexing_status_threadsafe  # noqa: PLC0415
+                                        broadcast_indexing_status_threadsafe(
+                                            is_indexing=True,
+                                            is_initial=is_initial,
+                                            server_name=s_name,
+                                            items_indexed=idx,
+                                            total_items=total_alb_count,
+                                            percentage=pct,
+                                            message=f"Indexing albums on {s_name} • {pct}% ({idx:,} / {total_alb_count:,})",
+                                        )
+                                    except Exception:
+                                        pass
                             except Exception as alb_ex:
                                 logger.debug("Failed to upsert JSON album %s: %s", alb.get("title"), alb_ex)
                         conn.commit()
                     else:
-                        logger.info("Fallback: fetching albums via plexapi for section '%s' on %s...", getattr(music_lib, "title", "Music"), s_name)
+                        logger.info("Fallback: fetching albums via plexapi for section '%s' on %s", getattr(music_lib, "title", "Music"), s_name)
                         albums = music_lib.all(libtype="album")
+                        total_alb_count = len(albums)
                         for idx, album in enumerate(albums):
                             try:
                                 year_val = getattr(album, "year", None)
@@ -260,8 +306,22 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
                                     conn=conn,
                                 )
                                 album_map[str(album.ratingKey)] = alb_db_id
-                                if idx > 0 and idx % 500 == 0:
+                                if idx > 0 and idx % 200 == 0:
                                     conn.commit()
+                                    pct = min(100, int((idx / max(1, total_alb_count)) * 100))
+                                    try:
+                                        from backend.websockets import broadcast_indexing_status_threadsafe  # noqa: PLC0415
+                                        broadcast_indexing_status_threadsafe(
+                                            is_indexing=True,
+                                            is_initial=is_initial,
+                                            server_name=s_name,
+                                            items_indexed=idx,
+                                            total_items=total_alb_count,
+                                            percentage=pct,
+                                            message=f"Indexing albums on {s_name} • {pct}% ({idx:,} / {total_alb_count:,})",
+                                        )
+                                    except Exception:
+                                        pass
                             except Exception as alb_ex:
                                 logger.debug("Failed to upsert album %s: %s", getattr(album, "title", "Unknown"), alb_ex)
                         conn.commit()
@@ -275,7 +335,7 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
 
                 try:
                     from backend.websockets import broadcast_indexing_status_threadsafe  # noqa: PLC0415
-                    broadcast_indexing_status_threadsafe(is_indexing=True, is_initial=is_initial, server_name=s_name, message=f"Indexing tracks on {s_name}")
+                    broadcast_indexing_status_threadsafe(is_indexing=True, is_initial=is_initial, server_name=s_name, message=f"Fetching track catalog from {s_name}")
                 except Exception:
                     pass
 
