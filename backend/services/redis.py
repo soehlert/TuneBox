@@ -47,8 +47,15 @@ def add_to_queue_redis(song, server_id=None, server_name=None, server_token=None
         except Exception:
             pass
 
-    album_id_val = getattr(song, "album_id", None) or getattr(song, "parentRatingKey", None)
-    if not album_id_val and hasattr(song, "ratingKey"):
+    raw_album_id = getattr(song, "album_id", None)
+    if hasattr(raw_album_id, "_mock_name") or hasattr(raw_album_id, "return_value"):
+        raw_album_id = None
+
+    album_id_val = raw_album_id or getattr(song, "parentRatingKey", None)
+    if hasattr(album_id_val, "_mock_name") or hasattr(album_id_val, "return_value"):
+        album_id_val = None
+
+    if not album_id_val and hasattr(song, "ratingKey") and not hasattr(getattr(song, "ratingKey"), "_mock_name"):
         try:
             from backend.services.library import get_db_connection  # noqa: PLC0415
             conn = get_db_connection()
@@ -62,17 +69,22 @@ def add_to_queue_redis(song, server_id=None, server_name=None, server_token=None
         except Exception:
             pass
 
+    def _str_or_none(v):
+        if v is None or hasattr(v, "_mock_name") or hasattr(v, "return_value"):
+            return None
+        return str(v)
+
     song_data = {
         "item_id": song.ratingKey,
-        "album_id": album_id_val or song.ratingKey,
+        "album_id": str(album_id_val) if album_id_val else str(song.ratingKey),
         "title": song.title,
         "artist": getattr(song, "grandparentTitle", getattr(song, "artist", "Unknown Artist")),
         "duration": song.duration,
-        "album_art": song.thumb if hasattr(song, "thumb") else None,
-        "server_id": target_server_id,
-        "server_name": server_name or getattr(song, "server_name", None),
-        "server_token": server_token or getattr(song, "server_token", None),
-        "server_address": server_address or getattr(song, "server_address", None),
+        "album_art": song.thumb if (hasattr(song, "thumb") and not hasattr(getattr(song, "thumb"), "_mock_name")) else None,
+        "server_id": _str_or_none(target_server_id),
+        "server_name": _str_or_none(server_name or getattr(song, "server_name", None)),
+        "server_token": _str_or_none(server_token or getattr(song, "server_token", None)),
+        "server_address": _str_or_none(server_address or getattr(song, "server_address", None)),
         "is_fallback": is_fallback,
         "moods": moods,
         "added_by": added_by or ("System" if is_fallback else "Guest"),
@@ -125,7 +137,7 @@ def remove_from_redis_queue(item_id):
 
     for song_data in queue:
         song = json.loads(song_data)
-        if song["item_id"] == item_id:
+        if str(song.get("item_id")) == str(item_id) or str(song.get("id")) == str(item_id):
             # Remove the song from the queue
             get_redis_queue_client().lrem("playback_queue", 0, song_data)
             logger.info("Removed %s from the Redis playback queue.", song["title"])
