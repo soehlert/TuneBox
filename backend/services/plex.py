@@ -427,7 +427,12 @@ def play_song(player, song, server_token=None, server_url=None):
     playback_succeeded = False
     if hasattr(player, "createPlayQueue"):
         try:
-            player.createPlayQueue(target_plex, song)
+            pq = player.createPlayQueue(target_plex, song)
+            try:
+                if pq:
+                    player.playMedia(pq)
+            except Exception as pq_ex:
+                logger.debug("playMedia(pq) call note: %s", pq_ex)
             logger.info("Successfully started playback via createPlayQueue on %s", player.title)
             playback_succeeded = True
         except Exception as e:
@@ -808,7 +813,7 @@ async def playback_orchestrator():
                 if cached_track:
                     total_time = cached_track.get("duration", 0)
                     elapsed = track_time_tracker.elapsed_time if track_time_tracker.track_name == cached_track.get("title") else float(cached_track.get("elapsed_time", 0.0))
-                    if total_time > 0 and elapsed >= (total_time - 1.0):
+                    if total_time > 0 and elapsed >= total_time:
                         logger.info(
                             "Track %s finished. Advancing queue.",
                             cached_track["title"],

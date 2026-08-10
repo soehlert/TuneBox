@@ -36,7 +36,8 @@ const MusicControlsComponent = ({
   const transitionTimeoutRef = useRef<number | null>(null);
   const pingIntervalRef = useRef<number | null>(null);
   const pongTimeoutRef = useRef<number | null>(null);
-  const localElapsedRef = useRef<number>(0);
+  const syncTimeRef = useRef<number>(0);
+  const baseElapsedRef = useRef<number>(0);
   const totalTimeRef = useRef<number>(0);
 
   const clearTransitionTimer = () => {
@@ -51,12 +52,12 @@ const MusicControlsComponent = ({
 
     const interval = setInterval(() => {
       if (totalTimeRef.current > 0) {
-        localElapsedRef.current = Math.min(localElapsedRef.current + 0.25, totalTimeRef.current);
-        const elapsed = localElapsedRef.current;
-        const minutesElapsed = Math.floor(elapsed / 60);
-        const secondsElapsed = Math.floor(elapsed % 60);
+        const elapsedSinceSync = Math.max((performance.now() - syncTimeRef.current) / 1000, 0);
+        const currentElapsed = Math.min(baseElapsedRef.current + elapsedSinceSync, totalTimeRef.current);
+        const minutesElapsed = Math.floor(currentElapsed / 60);
+        const secondsElapsed = Math.floor(currentElapsed % 60);
         setElapsedTime(`${minutesElapsed}:${secondsElapsed < 10 ? '0' : ''}${secondsElapsed}`);
-        setProgress((elapsed / totalTimeRef.current) * 100);
+        setProgress((currentElapsed / totalTimeRef.current) * 100);
       }
     }, 250);
 
@@ -99,7 +100,8 @@ const MusicControlsComponent = ({
                   ? currentTrackData.elapsed_time
                   : Math.max(totalTime - currentTrackData.remaining_time, 0);
 
-                localElapsedRef.current = elapsed;
+                syncTimeRef.current = performance.now();
+                baseElapsedRef.current = elapsed;
                 totalTimeRef.current = totalTime;
 
                 const minutesElapsed = Math.floor(elapsed / 60);
