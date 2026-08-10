@@ -142,19 +142,34 @@ def remove_from_redis_queue(item_id):
     Returns:
         A message about the song in the queue.
     """
-    queue = get_redis_queue_client().lrange("playback_queue", 0, -1)
+    client = get_redis_queue_client()
+    queue = client.lrange("playback_queue", 0, -1)
 
     for song_data in queue:
-        song = json.loads(song_data)
-        if str(song.get("item_id")) == str(item_id) or str(song.get("id")) == str(item_id):
-            # Remove the song from the queue
-            get_redis_queue_client().lrem("playback_queue", 0, song_data)
-            logger.info("Removed %s from the Redis playback queue.", song["title"])
-            return {"message": f"Removed {song['title']} from the queue."}
+        try:
+            song_str = song_data.decode("utf-8") if isinstance(song_data, bytes) else song_data
+            song = json.loads(song_str)
+        except Exception:
+            continue
 
-    # If the song wasn't found in the queue
+        s_item_id = str(song.get("item_id") or song.get("id") or "")
+        if s_item_id == str(item_id):
+            removed_count = client.lrem("playback_queue", 0, song_data)
+            if removed_count == 0:
+                if isinstance(song_data, bytes):
+                    try:
+                        client.lrem("playback_queue", 0, song_data.decode("utf-8"))
+                    except Exception:
+                        pass
+                elif isinstance(song_data, str):
+                    try:
+                        client.lrem("playback_queue", 0, song_data.encode("utf-8"))
+                    except Exception:
+                        pass
+            logger.info("Removed %s from the Redis playback queue.", song.get("title", "track"))
+            return {"message": f"Removed {song.get('title', 'track')} from the queue."}
+
     logger.warning("Song with item_id %s not found in the Redis queue.", item_id)
-
     return {"message": "Song not found in the queue."}
 
 
