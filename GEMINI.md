@@ -6,5 +6,6 @@
 - **Manual Verification Instructions**: Always tell the user step-by-step how to manually verify code fixes and features.
 - **Restart Stack**: Always restart the Docker compose stack (`docker compose up -d --build` or `docker compose restart`) after making code changes so updates are immediately live in place.
 - **No Trailing Ellipsis**: NEVER use trailing ellipsis (`...`) in code comments, docstrings, log messages, or UI notifications/messages (such as status updates during indexing or loading).
+- **No Mock Data Outside Tests**: NEVER return or display mock data, sample fallback datasets, or mock artists/albums/tracks outside of automated test execution (`settings.testing`). Always return real empty states (`[]` / `None`) when no data exists.
 
 
