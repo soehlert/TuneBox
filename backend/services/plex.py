@@ -184,15 +184,21 @@ def get_current_playing_track():
     remaining_time = max(total_time - elapsed, 0) if total_time > 0 else 0
     remaining_percentage = (remaining_time / total_time * 100) if total_time > 0 else 0
 
+    item_id = cached_track.get("item_id")
+    album_art = cached_track.get("album_art")
+    if item_id and (not album_art or not album_art.startswith("/api/music/")):
+        album_art = f"/api/music/track-art/{item_id}"
+
     track_state = cached_track.get("track_state") or ("playing" if track_time_tracker.is_playing else "paused")
 
     return {
-        "item_id": cached_track.get("item_id"),
+        "item_id": item_id,
         "server_id": cached_track.get("server_id"),
+        "album_id": cached_track.get("album_id"),
         "title": cached_track.get("title", "Unknown Title"),
         "artist": cached_track.get("artist", "Unknown Artist"),
         "album": cached_track.get("album", "Unknown Album"),
-        "album_art": cached_track.get("album_art"),
+        "album_art": album_art,
         "track_state": track_state,
         "total_time": total_time,
         "elapsed_time": elapsed,
@@ -421,13 +427,18 @@ def play_song(player, song, server_token=None, server_url=None):
         return
 
     # Store track details in Redis under "now_playing"
+    eff_server_id = getattr(song, "server_id", None) or target_server_id
+    eff_album_id = getattr(song, "parentRatingKey", None) or getattr(song, "album_id", None)
     song_data = {
-        "item_id": song.ratingKey,
+        "item_id": str(song.ratingKey),
+        "server_id": eff_server_id,
+        "album_id": str(eff_album_id) if eff_album_id else None,
         "title": song.title,
         "artist": getattr(song, "grandparentTitle", "Unknown Artist"),
         "album": getattr(song, "parentTitle", "Unknown Album"),
         "duration": milliseconds_to_seconds(song.duration) if song.duration else 0,
-        "album_art": song.thumb if hasattr(song, "thumb") else None,
+        "album_art": f"/api/music/track-art/{song.ratingKey}",
+        "track_state": "playing",
         "server_name": getattr(song, "server_name", None),
     }
     cache_data("now_playing", song_data)
@@ -976,15 +987,19 @@ async def check_plexamp_resync(force_align: bool = False):
                 await reset_skip_votes()
 
                 # Fetch details and cache them
+                eff_alb_id = getattr(active_session, "parentRatingKey", None)
                 song_data = {
-                    "item_id": active_session.ratingKey,
+                    "item_id": str(active_session.ratingKey),
+                    "server_id": target_server_id,
+                    "album_id": str(eff_alb_id) if eff_alb_id else None,
                     "title": session_title,
                     "artist": getattr(
                         active_session, "grandparentTitle", "Unknown Artist"
                     ),
                     "album": getattr(active_session, "parentTitle", "Unknown Album"),
                     "duration": session_duration,
-                    "album_art": getattr(active_session, "thumb", None),
+                    "album_art": f"/api/music/track-art/{active_session.ratingKey}",
+                    "track_state": session_state or "playing",
                 }
                 cache_data("now_playing", song_data)
 
