@@ -1,49 +1,56 @@
-# Superpowers Brainstorm: Missing Artwork Inspector & Plex Fixer Modal
+# Brainstorm: Critical Core Test Suite for TuneBox
 
 ## Goal
-Provide an interactive inspector modal accessible by clicking the "Missing Artist Art" or "Missing Album Art" cards in Settings, displaying a filterable list of all items lacking artwork on the primary/admin server with 1-click tools to resolve missing artwork.
+Establish a comprehensive, highly reliable, and trustworthy suite of core integration tests covering essential TuneBox application features: queue management, playback controls, catalog resolution, server filtering, and real-time state sync.
 
 ## Constraints
-- **Primary Server Scope Only**: Only items sourced from the user's primary/admin Plex server (`srv.is_primary = 1`) are inspected, as the admin cannot edit metadata on remote friend servers.
-- **Fast Pagination / Lazy Loading**: Must support large libraries (e.g. 50+ missing artwork items) without modal scrolling lag.
-- **No Automatic Image Overwrites**: Must preserve Plex metadata hierarchy and allow forced artwork re-indexing per item.
+- Focus on single-server operation by default, while supporting overridable `server_id` parameters for future multi-server tests.
+- Strictly forbid mock data or sample fallbacks outside of explicit automated test execution (`settings.testing`).
+- Maintain strict database and Redis state isolation between tests.
+- Never merge feature/test branches into `main` without explicit user approval.
 
-## Known context
-- SQLite database `library.db` contains `artists`, `albums`, `artist_sources`, and `album_sources`.
-- Items with missing artwork are identified by `(thumb IS NULL OR thumb = '' OR thumb LIKE '/api/music/%')` joined with `srv.is_primary = 1`.
-- TuneBox already has `fetch_and_cache_art` and Redis artwork caching services in `backend/services/plex.py`.
+## Known Context & Currently Verified Tests (Phase 0)
+Currently on branch `feature/critical-core-tests`. The following 11 verified core tests are already in place and passing:
+
+1. **[test_core_playback_flow.py](file:///Users/soehlert/projects/testing/TuneBox/backend/tests/test_core_playback_flow.py)**:
+   - `test_1_adding_to_queue_works`: Adding tracks to queue via API.
+   - `test_2_playing_song_works`: Orchestrator starting track playback.
+   - `test_3_song_plays_til_end_and_moves_to_next_track`: Track finishing and advancing to next queued item.
+   - `test_4_force_skip_works`: Force skip / skip endpoint functionality.
+   - `test_5_play_pause_toggles_playback_preserving_queue`: Play/pause toggling without mutating queue.
+   - `test_6_stops_when_out_of_tracks_in_queue`: Stopped state transition when queue is empty.
+
+2. **[test_queue_isolation.py](file:///Users/soehlert/projects/testing/TuneBox/backend/tests/test_queue_isolation.py)**:
+   - `test_clear_queue_endpoint_removes_all_items_and_stops_playback`: Complete queue clearing + playback stop.
+   - `test_only_user_added_songs_exist_in_queue`: Queue isolation ensuring only explicitly added tracks exist.
+   - `test_autoplay_does_not_seed_when_disabled`: Autoplay exit when disabled.
+
+3. **[test_server_resolution.py](file:///Users/soehlert/projects/testing/TuneBox/backend/tests/test_server_resolution.py)**:
+   - `test_get_art_source_info_resolves_server_track_id`: Resolution of Plex ratingKeys (`server_track_id`).
+   - `test_search_music_db_includes_server_id_and_server_name`: Search results metadata (`server_id`, `server_name`).
 
 ## Risks
-- **Large Missing Item Lists**: If hundreds of items lack artwork, rendering all items at once in React could slow down the modal. (Mitigated by server-side pagination / search filtering).
-- **Plex API Metadata Refresh Latency**: Re-fetching artwork from Plex API for a missing item requires network round-trip (~200ms).
+- Synthetic mocks masking integration flaws between API endpoints, Redis queue storage, and Plex service layer.
+- Lingering Redis state or autoplay fallback loops polluting test runs if fixtures do not reset state completely.
 
-## Options
-
-### Option 1: Clickable Metric Cards Opening a Filterable `MissingArtworkModal` (Recommended)
-- **UI Flow**:
-  - Click the **Missing Artist Art** or **Missing Album Art** cards in Settings.
-  - Opens a dedicated glassmorphism modal listing missing items for the primary server.
-  - Search bar to quickly filter items by name.
-- **Features Per Item**:
-  - Item name + Album/Artist details.
-  - **"Copy Name" button** for quick pasting into Plex Web search.
-  - **"Re-Sync Artwork" button** that triggers a targeted single-item artwork fetch from the primary Plex server and clears Redis cache for that item.
-- **Backend API**:
-  - `GET /api/stats/missing-art?type=artist|album`
-  - `POST /api/stats/refetch-art?type=artist|album&id=123`
-
-### Option 2: Inline Expandable List inside Settings Modal
-- Embed the list directly under the metric cards inside the Settings accordion.
-- **Downside**: Makes the Settings Modal very long and crowded.
-
-### Option 3: Direct Deep-Links to Plex Web App Edit View
-- Include a button on each missing item row opening the item directly inside Plex Web (`http://<server_ip>:32400/web/index.html#!/server/...`).
-- **Downside**: Requires knowing the external Web UI URL for every Plex server setup.
+## Options & Next Steps (2–4)
+- **Option 1: Queue Mutation & Reordering Suite (`test_queue_mutations.py`)**
+  Focus on testing track removal, queue reordering ("Move to Top"), and queuing full albums in track order.
+- **Option 2: Playback Controls & Position Scrobbling Suite (`test_playback_controls.py`)**
+  Focus on testing pause/resume position preservation, seeking/scrobbling to specific offsets, and previous/restart track logic (>3s vs <3s).
+- **Option 3: Catalog Resolution & Server Filtering Suite (`test_catalog_filtering.py`)**
+  Focus on testing search/browse server filtering (enabled vs. disabled servers) and artwork proxying without dummy fallbacks.
+- **Option 4: Comprehensive Phased Rollout (Recommended)**
+  Implement Options 1 through 3 sequentially in focused modules, culminating in real-time WebSocket state verification.
 
 ## Recommendation
-Implement **Option 1**. It keeps the Settings Modal clean, provides an intuitive workflow to inspect missing items, and includes a 1-click single-item re-sync action after fixing artwork in Plex.
+Execute **Option 4** (Comprehensive Phased Rollout):
+1. **Phase 1**: Queue Mutation & Reordering (`test_queue_mutations.py`)
+2. **Phase 2**: Playback Controls & Position Scrobbling (`test_playback_controls.py`)
+3. **Phase 3**: Catalog Resolution & Server Filtering (`test_catalog_filtering.py`)
+4. **Phase 4**: Real-Time WebSocket & State Sync (`test_websocket_state.py`)
 
-## Acceptance Criteria
-1. Clicking **Missing Artist Art** or **Missing Album Art** in Settings opens the `MissingArtworkModal`.
-2. Modal displays only items belonging to the user's primary/admin Plex server.
-3. Users can search missing items by title and click "Re-Sync Artwork" to refresh thumbnail URLs live.
+## Acceptance criteria
+- Each test module targets a single behavior per test with exact assertions.
+- Tests run against clean, isolated SQLite and Redis test contexts.
+- Full test suite passes via `uv run pytest` with zero warnings or unexpected side effects.
