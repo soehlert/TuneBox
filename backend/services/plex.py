@@ -422,6 +422,7 @@ def play_song(player, song, server_token=None, server_url=None):
         quality_str,
         player.title
     )
+    cmd_start_time = time.time()
     target_plex = get_plex_connection()
     if server_url and server_token and not settings.testing:
         try:
@@ -462,6 +463,9 @@ def play_song(player, song, server_token=None, server_url=None):
     if not playback_succeeded:
         return
 
+    cmd_delay = max(time.time() - cmd_start_time, 0)
+    est_initial_elapsed = max(cmd_delay - 0.4, 0.0) if not settings.testing else 0.0
+
     # Store track details in Redis under "now_playing"
     eff_server_id = getattr(song, "server_id", None) or target_server_id
     eff_album_id = getattr(song, "parentRatingKey", None) or getattr(song, "album_id", None)
@@ -473,7 +477,7 @@ def play_song(player, song, server_token=None, server_url=None):
         "artist": getattr(song, "grandparentTitle", "Unknown Artist"),
         "album": getattr(song, "parentTitle", "Unknown Album"),
         "duration": milliseconds_to_seconds(song.duration) if song.duration else 0,
-        "elapsed_time": 0.0,
+        "elapsed_time": est_initial_elapsed,
         "updated_at": time.time(),
         "album_art": f"/api/music/track-art/{song.ratingKey}",
         "track_state": "playing",
@@ -482,7 +486,9 @@ def play_song(player, song, server_token=None, server_url=None):
     cache_data("now_playing", song_data)
 
     track_time_tracker.start(song.title, item_id=str(song.ratingKey))
-    logger.info("Song %s started playing on player: %s", song.title, player.title)
+    track_time_tracker.accumulated_elapsed = est_initial_elapsed
+    track_time_tracker.last_resume_time = time.time()
+    logger.info("Song %s started playing on player: %s (network latency offset: %.2fs)", song.title, player.title, est_initial_elapsed)
 
     from backend.websockets import broadcast_current_playing_threadsafe, broadcast_queue_threadsafe  # noqa: PLC0415
     broadcast_queue_threadsafe()
