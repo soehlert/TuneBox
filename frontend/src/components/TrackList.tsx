@@ -360,18 +360,20 @@ function TrackList() {
                         </div>
                       )}
                       <Card className="track-card">
-                        <div className="track-card-left" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                          <Typography className="track-number" style={{ opacity: 0.6, fontWeight: "bold", minWidth: "24px" }}>
+                        <div className="track-card-left">
+                          <Typography className="track-number" style={{ opacity: 0.6, fontWeight: "bold", minWidth: "28px", flexShrink: 0 }}>
                             {track.track_number ?? (idx + 1)}.
                           </Typography>
                           <Typography className="album-track-title">{track.title || `Track ${track.track_number ?? (idx + 1)}`}</Typography>
                         </div>
-                        <div className="track-card-right" style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                          <StarRating
-                            rating={track.user_rating || 0}
-                            readOnly={!isAdmin || !(track.is_primary ?? true)}
-                            onRate={(newRating) => handleRateTrack(track.track_id, newRating)}
-                          />
+                        <div className="track-card-right">
+                          <div className="star-rating-cell">
+                            <StarRating
+                              rating={track.user_rating || 0}
+                              readOnly={!isAdmin || !(track.is_primary ?? true)}
+                              onRate={(newRating) => handleRateTrack(track.track_id, newRating)}
+                            />
+                          </div>
                           <Typography className="track-duration">
                             {formatDuration(track.duration)}
                           </Typography>

@@ -60,14 +60,25 @@
 .track-card-left {
   display: flex;
   align-items: center;
+  gap: 12px;
   min-width: 0;
-  flex-grow: 1;
+  flex: 1 1 auto;
+  margin-right: 16px;
 }
 
 .track-card-right {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 20px;
+  flex-shrink: 0;
+}
+
+.star-rating-cell {
+  width: 124px;
+  min-width: 124px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
 }
 
@@ -85,8 +96,10 @@
   text-transform: none;
   border-radius: 20px !important;
   padding: 6px 16px !important;
+  min-width: 128px !important;
   box-shadow: 0 4px 12px rgba(229, 149, 0, 0.15) !important;
   transition: transform 0.2s, box-shadow 0.2s, background-color 0.25s, color 0.25s !important;
+  flex-shrink: 0;
 }
 
 .track-card .MuiButton-root:hover {
@@ -110,4 +123,8 @@
   color: rgba(255, 255, 255, 0.4) !important;
   font-size: 0.85rem !important;
   font-weight: 500;
+  width: 55px;
+  min-width: 55px;
+  text-align: right;
+  flex-shrink: 0;
 }
