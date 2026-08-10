@@ -579,26 +579,27 @@ def get_all_genres_db(db_path: str | None = None) -> list[dict]:
     try:
         cursor = conn.execute(
             """
+            WITH ranked_albums AS (
+                SELECT 
+                    COALESCE(NULLIF(TRIM(alb.genre), ''), 'Uncategorized') as norm_genre,
+                    alb.album_id,
+                    alb.play_count,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY LOWER(COALESCE(NULLIF(TRIM(alb.genre), ''), 'Uncategorized'))
+                        ORDER BY (CASE WHEN alb.thumb IS NOT NULL AND alb.thumb != '' THEN 1 ELSE 0 END) DESC, alb.play_count DESC, alb.album_id ASC
+                    ) as rn
+                FROM albums alb
+                JOIN album_sources src ON alb.album_id = src.album_id
+                JOIN servers srv ON src.server_id = srv.server_id
+                WHERE srv.enabled = 1 AND alb.title != '' AND alb.title IS NOT NULL
+            )
             SELECT 
-                COALESCE(NULLIF(TRIM(alb.genre), ''), 'Uncategorized') as genre, 
-                COUNT(DISTINCT alb.album_id) as album_count,
-                (
-                    SELECT alb_sub.album_id 
-                    FROM albums alb_sub 
-                    JOIN album_sources src_sub ON alb_sub.album_id = src_sub.album_id
-                    JOIN servers srv_sub ON src_sub.server_id = srv_sub.server_id
-                    WHERE srv_sub.enabled = 1 
-                      AND LOWER(COALESCE(NULLIF(TRIM(alb_sub.genre), ''), 'Uncategorized')) = LOWER(COALESCE(NULLIF(TRIM(alb.genre), ''), 'Uncategorized'))
-                      AND alb_sub.thumb IS NOT NULL AND alb_sub.thumb != ''
-                    ORDER BY alb_sub.play_count DESC, alb_sub.album_id ASC
-                    LIMIT 1
-                ) as top_album_id
-            FROM albums alb
-            JOIN album_sources src ON alb.album_id = src.album_id
-            JOIN servers srv ON src.server_id = srv.server_id
-            WHERE srv.enabled = 1 AND alb.title != '' AND alb.title IS NOT NULL
-            GROUP BY genre
-            ORDER BY album_count DESC, genre ASC
+                norm_genre as genre,
+                COUNT(DISTINCT album_id) as album_count,
+                MAX(CASE WHEN rn = 1 THEN album_id END) as top_album_id
+            FROM ranked_albums
+            GROUP BY norm_genre
+            ORDER BY album_count DESC, norm_genre ASC
             """
         )
         return [dict(r) for r in cursor.fetchall()]

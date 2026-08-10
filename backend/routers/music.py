@@ -752,7 +752,7 @@ def get_album_art(album_id: int | str, request: Request, server_id: str | None =
 
     etag = f'"album-{album_id}-{len(content_bytes)}-{server_id or "primary"}"'
     headers = {
-        "Cache-Control": "public, max-age=3600, must-revalidate",
+        "Cache-Control": "public, max-age=86400, must-revalidate",
         "ETag": etag,
     }
     if request.headers.get("if-none-match") == etag:
@@ -779,7 +779,7 @@ def get_track_art(track_id: int | str, request: Request, server_id: str | None =
 
     etag = f'"track-{track_id}-{len(content_bytes)}-{server_id or "primary"}"'
     headers = {
-        "Cache-Control": "public, max-age=3600, must-revalidate",
+        "Cache-Control": "public, max-age=86400, must-revalidate",
         "ETag": etag,
     }
     if request.headers.get("if-none-match") == etag:

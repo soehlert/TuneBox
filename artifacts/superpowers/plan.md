@@ -1,31 +1,24 @@
-# Implementation Plan: Genre View Enhancements (Blue Theme, Custom Sorting & Cover Artwork)
+# Implementation Plan: Genre Sort Pills & Artwork Speed Optimizations
 
 ## Goal
-Enhance the **Genres View** by matching the Decades view's sleek blue color palette, adding a sort dropdown control (A-Z, Z-A, Most Albums, Least Albums), and rendering top album artwork thumbnails for visual differentiation across genres.
-
-## Assumptions
-- `get_all_genres_db()` can include `top_album_id` for top-performing album artwork in each genre.
-- Sort control is client-side instant toggle.
+1. Replace single Genre sort dropdown with dual `.sort-pill-btn` buttons matching the Artist page (A-Z toggle & Most/Least Albums toggle).
+2. Speed up Genre page and artwork load times via single-pass window function SQL query, image lazy loading, and 24h HTTP browser caching.
 
 ## Plan
-1. **Backend Top Album Artwork Query**
-   - Files: `backend/services/library.py`
-   - Change: Include `top_album_id` subquery in `get_all_genres_db()`.
+1. **Backend Window Function & Cache Tuning**
+   - Files: `backend/services/library.py`, `backend/routers/music.py`
+   - Change: Single-pass `ROW_NUMBER() OVER` in `get_all_genres_db()`, increase artwork Cache-Control to 24h.
    - Verify: `uv run python -m pytest backend/tests/test_homepage_views.py`
 
-2. **Frontend Blue Styling, Sort Dropdown & Artwork Cards**
+2. **Frontend Dual Sort Pills & Image Lazy Loading**
    - Files: `frontend/src/components/BrowseViews.tsx`
-   - Change: Update `GenresGridView` with Decades blue gradients (`#0077b6`), add sort dropdown toggle, and render top album artwork cover thumbnails.
+   - Change: Render `.sort-pill-btn` buttons for A-Z and Most/Least Albums, add `loading="lazy"` to genre fallback images.
    - Verify: `cd frontend && npm run build`
 
 3. **Live Docker Verification & Stack Restart**
    - Files: Docker Compose environment
-   - Change: Restart Docker stack and manually test Genres view on `http://localhost:3000`.
+   - Change: Restart Docker stack and test Genres view on `http://localhost:3000`.
    - Verify: Visual inspection in browser.
 
-## Risks & Mitigations
-- **Risk**: Missing album art for obscure genres.
-- **Mitigation**: FallbackImage component renders styled music icon placeholder when no cover art exists.
-
 ## Rollback Plan
-- Revert changes via `git checkout main`.
+- Revert via `git checkout main`.

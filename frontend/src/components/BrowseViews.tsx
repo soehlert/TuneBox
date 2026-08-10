@@ -22,14 +22,15 @@ interface Genre {
   top_album_id?: number | null;
 }
 
-type GenreSortOption = "most-albums" | "least-albums" | "a-z" | "z-a";
+
 
 export const GenresGridView: React.FC<{ apiBase: string }> = ({ apiBase }) => {
   const [genres, setGenres] = useState<Genre[]>([]);
   const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
   const [genreAlbums, setGenreAlbums] = useState<Album[]>([]);
   const [loading, setLoading] = useState(true);
-  const [sortOption, setSortOption] = useState<GenreSortOption>("most-albums");
+  const [sortBy, setSortBy] = useState<"alphabetical" | "albums">("albums");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -52,19 +53,17 @@ export const GenresGridView: React.FC<{ apiBase: string }> = ({ apiBase }) => {
 
   const sortedGenres = useMemo(() => {
     return [...genres].sort((a, b) => {
-      if (sortOption === "a-z") {
-        return a.genre.localeCompare(b.genre);
+      if (sortBy === "alphabetical") {
+        return sortOrder === "asc"
+          ? a.genre.localeCompare(b.genre)
+          : b.genre.localeCompare(a.genre);
       }
-      if (sortOption === "z-a") {
-        return b.genre.localeCompare(a.genre);
-      }
-      if (sortOption === "least-albums") {
-        return a.album_count - b.album_count || a.genre.localeCompare(b.genre);
-      }
-      // default: "most-albums"
-      return b.album_count - a.album_count || a.genre.localeCompare(b.genre);
+      const diff = sortOrder === "desc"
+        ? b.album_count - a.album_count
+        : a.album_count - b.album_count;
+      return diff || a.genre.localeCompare(b.genre);
     });
-  }, [genres, sortOption]);
+  }, [genres, sortBy, sortOrder]);
 
   if (loading && !selectedGenre) return <div style={{ color: "#aaa", padding: "40px", textAlign: "center" }}>Loading Genres...</div>;
 
@@ -101,7 +100,7 @@ export const GenresGridView: React.FC<{ apiBase: string }> = ({ apiBase }) => {
               onClick={() => navigate(`/albums/${alb.album_id}/tracks`)}
               style={{ background: "rgba(255, 255, 255, 0.03)", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "16px", padding: "12px", cursor: "pointer" }}
             >
-              <FallbackImage src={`${apiBase}/api/music/album-art/${alb.album_id}`} alt={alb.title} type="album" style={{ width: "100%", aspectRatio: "1/1", borderRadius: "12px" }} />
+              <FallbackImage src={`${apiBase}/api/music/album-art/${alb.album_id}`} alt={alb.title} type="album" loading="lazy" style={{ width: "100%", aspectRatio: "1/1", borderRadius: "12px" }} />
               <Typography style={{ color: "#fff", fontWeight: 700, fontSize: "14px", marginTop: "8px" }}>{alb.title}</Typography>
               <Typography style={{ color: "rgba(255,255,255,0.6)", fontSize: "12px" }}>{alb.artist}</Typography>
             </Card>
@@ -112,34 +111,43 @@ export const GenresGridView: React.FC<{ apiBase: string }> = ({ apiBase }) => {
   }
 
   return (
-    <div>
-      {/* Header bar with count and sort controls */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: "12px" }}>
-        <Typography style={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "13px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "1px" }}>
-          {genres.length} Genres
-        </Typography>
+    <div style={{ width: "100%" }}>
+      {/* Header bar with count and dual sort pills */}
+      <div className="view-sort-bar">
+        <span className="view-count-badge">
+          {genres.length} {genres.length === 1 ? "Genre" : "Genres"}
+        </span>
 
-        {/* Sort dropdown toggle */}
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", background: "rgba(0, 119, 182, 0.15)", border: "1px solid rgba(0, 119, 182, 0.3)", padding: "4px 12px", borderRadius: "20px" }}>
-          <span className="material-symbols-outlined" style={{ fontSize: "18px", color: "#38b6ff" }}>sort</span>
-          <select
-            value={sortOption}
-            onChange={(e) => setSortOption(e.target.value as GenreSortOption)}
-            style={{
-              background: "transparent",
-              border: "none",
-              color: "#38b6ff",
-              fontSize: "13px",
-              fontWeight: 700,
-              cursor: "pointer",
-              outline: "none",
+        <div className="view-sort-actions">
+          <button
+            className={`sort-pill-btn ${sortBy === "alphabetical" ? "active" : ""}`}
+            onClick={() => {
+              if (sortBy === "alphabetical") {
+                setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+              } else {
+                setSortBy("alphabetical");
+                setSortOrder("asc");
+              }
             }}
           >
-            <option value="most-albums" style={{ background: "#1b1928", color: "#fff" }}>Most Albums</option>
-            <option value="least-albums" style={{ background: "#1b1928", color: "#fff" }}>Least Albums</option>
-            <option value="a-z" style={{ background: "#1b1928", color: "#fff" }}>Alphabetical A-Z</option>
-            <option value="z-a" style={{ background: "#1b1928", color: "#fff" }}>Alphabetical Z-A</option>
-          </select>
+            <span className="material-symbols-outlined" style={{ fontSize: "15px" }}>swap_vert</span>
+            <span>{sortBy === "alphabetical" ? (sortOrder === "asc" ? "A-Z" : "Z-A") : "A-Z"}</span>
+          </button>
+
+          <button
+            className={`sort-pill-btn ${sortBy === "albums" ? "active" : ""}`}
+            onClick={() => {
+              if (sortBy === "albums") {
+                setSortOrder((prev) => (prev === "desc" ? "asc" : "desc"));
+              } else {
+                setSortBy("albums");
+                setSortOrder("desc");
+              }
+            }}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: "15px" }}>library_music</span>
+            <span>{sortBy === "albums" ? (sortOrder === "desc" ? "Most Albums" : "Least Albums") : "Most Albums"}</span>
+          </button>
         </div>
       </div>
 
@@ -169,6 +177,7 @@ export const GenresGridView: React.FC<{ apiBase: string }> = ({ apiBase }) => {
                   src={`${apiBase}/api/music/album-art/${g.top_album_id}`}
                   alt={g.genre}
                   type="album"
+                  loading="lazy"
                   style={{ width: "100%", height: "100%", objectFit: "cover" }}
                 />
                 <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, transparent 40%, rgba(0, 0, 0, 0.8) 100%)" }} />
