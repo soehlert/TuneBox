@@ -1,24 +1,25 @@
-# Implementation Plan: Genre Sort Pills & Artwork Speed Optimizations
+# Implementation Plan: Connected Libraries Pill Enhancements & Text Cleanup
 
 ## Goal
-1. Replace single Genre sort dropdown with dual `.sort-pill-btn` buttons matching the Artist page (A-Z toggle & Most/Least Albums toggle).
-2. Speed up Genre page and artwork load times via single-pass window function SQL query, image lazy loading, and 24h HTTP browser caching.
+Remove redundant `"Queue songs to TuneBox"` text on album track views, restyle Connected Libraries pill in subtle pink (`#ff4d94`, `rgba(191, 9, 94, 0.15)`), and position on a separate line below the album title.
+
+## Assumptions
+- Changes are isolated to `frontend/src/components/TrackList.tsx`.
 
 ## Plan
-1. **Backend Window Function & Cache Tuning**
-   - Files: `backend/services/library.py`, `backend/routers/music.py`
-   - Change: Single-pass `ROW_NUMBER() OVER` in `get_all_genres_db()`, increase artwork Cache-Control to 24h.
-   - Verify: `uv run python -m pytest backend/tests/test_homepage_views.py`
-
-2. **Frontend Dual Sort Pills & Image Lazy Loading**
-   - Files: `frontend/src/components/BrowseViews.tsx`
-   - Change: Render `.sort-pill-btn` buttons for A-Z and Most/Least Albums, add `loading="lazy"` to genre fallback images.
+1. **Frontend Track Header Clean Up & Pink Pill Styling**
+   - Files: `frontend/src/components/TrackList.tsx`
+   - Change: Remove "Queue songs to TuneBox" element, restyle connected libraries badge to magenta/pink theme, and wrap in a dedicated row div.
    - Verify: `cd frontend && npm run build`
 
-3. **Live Docker Verification & Stack Restart**
+2. **Live Docker Stack Restart & Verification**
    - Files: Docker Compose environment
-   - Change: Restart Docker stack and test Genres view on `http://localhost:3000`.
-   - Verify: Visual inspection in browser.
+   - Change: Restart Docker stack and visually inspect album track header.
+   - Verify: Visual inspection on `http://localhost:3000`.
 
-## Rollback Plan
+## Risks & mitigations
+- **Risk**: None (UI styling and layout adjustment).
+- **Mitigation**: Verified via TypeScript build and visual rendering.
+
+## Rollback plan
 - Revert via `git checkout main`.
