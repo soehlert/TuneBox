@@ -53,9 +53,10 @@ Execute **Option 4** (Comprehensive Phased Rollout):
    - Search & browse filtering by enabled servers (`srv.enabled = 1`).
    - Artwork cache key isolation by `server_id` (`art_bytes:{item_type}:{item_id}:{server_id}`).
    - Artwork proxying and track-to-album fallback without dummy file data.
-3. **Phase 3**: Real-Time WebSocket & State Sync (`test_websocket_state.py`)
-   - WebSocket queue broadcast updates (`send_queue`).
-   - WebSocket current playing state sync (`send_current_playing`).
+3. **Phase 3 (COMPLETED & VERIFIED)**: Real-Time WebSocket & State Sync ([test_websocket_state.py](file:///Users/soehlert/projects/testing/TuneBox/backend/tests/test_websocket_state.py))
+   - WebSocket queue broadcast updates (`send_queue`) & vibes tags matching [Queue.tsx](file:///Users/soehlert/projects/testing/TuneBox/frontend/src/components/Queue.tsx) schema.
+   - WebSocket current playing state sync (`send_current_playing`) matching [MusicControls.tsx](file:///Users/soehlert/projects/testing/TuneBox/frontend/src/components/MusicControls.tsx) schema.
+   - Stopped & empty-queue payload contracts and multi-client real-time synchronization.
 
 ## Acceptance criteria
 - Each test module targets a single behavior per test with exact assertions.
