@@ -712,16 +712,16 @@ def search_music_db(query_str: str, db_path: str | None = None) -> list[dict]:
         )
         res.extend([dict(r) for r in cursor.fetchall()])
 
-        # Search Tracks
+        # Search Tracks (strictly match track title, not artist or album title)
         cursor = conn.execute(
             """
             SELECT DISTINCT t.track_id as item_id, t.track_id, t.track_id as id, t.title, 'track' as type, t.artist_name as artist, t.album_title as album, t.duration, t.url, t.thumb
             FROM tracks t
             JOIN servers srv ON t.server_id = srv.server_id
-            WHERE srv.enabled = 1 AND (LOWER(t.title) LIKE ? OR LOWER(t.artist_name) LIKE ? OR LOWER(t.album_title) LIKE ?)
+            WHERE srv.enabled = 1 AND LOWER(t.title) LIKE ?
             LIMIT 15
             """,
-            (term, term, term),
+            (term,),
         )
         res.extend([dict(r) for r in cursor.fetchall()])
         return res

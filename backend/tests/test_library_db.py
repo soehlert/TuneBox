@@ -80,3 +80,24 @@ def test_clean_library_deduplication(temp_db):
         assert artists[0]["name"] == "Aaron Neville"
     finally:
         conn.close()
+
+
+def test_search_music_db_strict_title_track_matching(temp_db):
+    """Verify search_music_db matches tracks strictly on track title, not artist name."""
+    from backend.services.library import search_music_db, upsert_server, upsert_artist, upsert_album, upsert_track
+
+    upsert_server("srv-1", "Alpha Server", enabled=True, db_path=temp_db)
+    art_id = upsert_artist("Foo Fighters", server_id="srv-1", server_artist_id="101", db_path=temp_db)
+    alb_id = upsert_album("Foo Fighters", "Foo Fighters", artist_id=art_id, server_id="srv-1", server_album_id="201", db_path=temp_db)
+    upsert_track(alb_id, "srv-1", "301", "Foo Fighters", "Foo Fighters", "Everlong", 250, db_path=temp_db)
+
+    results = search_music_db("Foo Fighters", db_path=temp_db)
+    track_matches = [r for r in results if r["type"] == "track"]
+    artist_matches = [r for r in results if r["type"] == "artist"]
+    album_matches = [r for r in results if r["type"] == "album"]
+
+    assert len(artist_matches) == 1
+    assert artist_matches[0]["name"] == "Foo Fighters"
+    assert len(album_matches) == 1
+    assert album_matches[0]["title"] == "Foo Fighters"
+    assert len(track_matches) == 0, "Tracks by Foo Fighters with different title must not match search query 'Foo Fighters'"
