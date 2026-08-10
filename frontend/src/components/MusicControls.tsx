@@ -248,6 +248,9 @@ const MusicControlsComponent = ({
     }
   };
 
+  const targetAlbumId = currentTrack ? (currentTrack.album_id || currentTrack.item_id) : "";
+  const sParam = currentTrack && currentTrack.server_id ? `?server_id=${currentTrack.server_id}` : "";
+
   return (
     <Box className="player-inner-container">
       {/* Top Row: Track info (Left), Play/Skip (Center), Queue/Settings (Right) */}
@@ -256,9 +259,7 @@ const MusicControlsComponent = ({
         <Box
           className="player-left-section"
           onClick={() => {
-            if (currentTrack && (currentTrack.album_id || currentTrack.item_id)) {
-              const targetAlbumId = currentTrack.album_id || currentTrack.item_id;
-              const sParam = currentTrack.server_id ? `?server_id=${currentTrack.server_id}` : "";
+            if (currentTrack && targetAlbumId) {
               navigate(`/albums/${targetAlbumId}/tracks${sParam}`);
             }
           }}
@@ -270,7 +271,7 @@ const MusicControlsComponent = ({
           {currentTrack ? (
             <>
               <FallbackImage
-                src={currentTrack ? `${apiBase}/api/music/album-art/${targetAlbumId}${sParam}` : ""}
+                src={targetAlbumId ? `${apiBase}/api/music/album-art/${targetAlbumId}${sParam}` : ""}
                 alt={currentTrack.title}
                 type="album"
                 className="player-album-art"
