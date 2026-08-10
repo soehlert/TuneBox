@@ -1042,7 +1042,7 @@ def get_library_health_stats(db_path: str | None = None) -> dict:
         ).fetchone()[0]
 
         servers = conn.execute(
-            "SELECT server_id, name, enabled, is_primary FROM servers WHERE server_id != 'mock' AND LOWER(name) NOT LIKE '%mock%' ORDER BY enabled DESC, is_primary DESC, name ASC"
+            "SELECT server_id, name, enabled, is_primary FROM servers ORDER BY enabled DESC, is_primary DESC, name ASC"
         ).fetchall()
 
         server_stats = []

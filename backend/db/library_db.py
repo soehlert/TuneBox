@@ -242,6 +242,8 @@ def init_library_db(db_path: str | None = None):
             """
         )
 
+        cursor.execute("DELETE FROM servers WHERE server_id = 'mock' OR name LIKE '%Mock%';")
+
         conn.commit()
         logger.info("Library SQLite schema initialized successfully.")
     except Exception as e:

@@ -1393,6 +1393,20 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
             >
               <span style={{ color: "#f5a623", fontSize: "14px", fontWeight: "bold", display: "flex", alignItems: "center", gap: "6px" }}>
                 📊 Library Statistics & Health
+                <span className="kiosk-help-container">
+                  <span
+                    className="material-symbols-outlined"
+                    onClick={(e) => e.stopPropagation()}
+                    style={{ fontSize: "16px", color: "#3375A8", cursor: "help" }}
+                  >
+                    help_outline
+                  </span>
+                  <span className="kiosk-help-popover" style={{ width: "260px", lineHeight: "1.4" }}>
+                    • <strong>Total Cards</strong> show all items indexed across all enabled servers.<br />
+                    • <strong>Missing Artwork</strong> is scoped strictly to your Primary (Admin) Plex server.<br />
+                    • You can re-index any enabled server to pull fresh items and artwork.
+                  </span>
+                </span>
               </span>
               <span style={{ color: "rgba(255, 255, 255, 0.6)", fontSize: "11px" }}>
                 {sectionsOpen.health ? "▲" : "▼"}
