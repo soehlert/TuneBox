@@ -834,16 +834,39 @@ async def playback_orchestrator():
                         # Remove finished track
                         remove_from_redis_queue(cached_track["item_id"])
 
-                        # If the queue is now empty (and autoplay is off), set the
-                        # sentinel so resync doesn't bounce the progress bar back.
                         remaining_queue = get_redis_queue()
-                        if not remaining_queue and not is_autoplay_enabled():
-                            _queue_finished_track = cached_track["title"]
-                            logger.info(
-                                "Queue exhausted after '%s'. Sentinel set to prevent resync bounce.",
-                                cached_track["title"],
-                            )
-                            await asyncio.to_thread(stop_playback)
+                        if remaining_queue:
+                            next_song = remaining_queue[0]
+                            logger.info("Immediately advancing queue to next song: %s", next_song.get("title"))
+                            track_time_tracker.start(next_song.get("title"))
+                            try:
+                                player = await asyncio.to_thread(get_active_player)
+                                s_id = next_song.get("server_id")
+                                s_url = next_song.get("server_address")
+                                s_token = next_song.get("server_token")
+
+                                if s_id and not settings.testing:
+                                    t_plex = await asyncio.to_thread(get_target_plex_connection, s_id)
+                                    item_id_val = int(next_song["item_id"]) if str(next_song["item_id"]).isdigit() else next_song["item_id"]
+                                    track = await asyncio.to_thread(t_plex.fetchItem, item_id_val)
+                                    track.server_name = next_song.get("server_name")
+                                else:
+                                    track = await asyncio.to_thread(get_track, next_song["item_id"])
+
+                                if s_url and s_token and not settings.testing:
+                                    await asyncio.to_thread(play_song, player, track, s_token, s_url)
+                                else:
+                                    await asyncio.to_thread(play_song, player, track)
+                            except Exception as adv_ex:
+                                logger.warning("Immediate track advance failed: %s", adv_ex)
+                        else:
+                            if not is_autoplay_enabled():
+                                _queue_finished_track = cached_track["title"]
+                                logger.info(
+                                    "Queue exhausted after '%s'. Sentinel set to prevent resync bounce.",
+                                    cached_track["title"],
+                                )
+                                await asyncio.to_thread(stop_playback)
 
                         from backend.websockets import (
                             send_current_playing,
