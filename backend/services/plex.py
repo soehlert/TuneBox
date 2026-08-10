@@ -422,10 +422,47 @@ def play_song(player, song, server_token=None, server_url=None):
         quality_str,
         player.title
     )
-    global playback_active
-    playback_active = True
+    target_plex = get_plex_connection()
+    if server_url and server_token and not settings.testing:
+        try:
+            from plexapi.server import PlexServer
+            target_plex = PlexServer(server_url, server_token, timeout=5)
+        except Exception as ex:
+            logger.warning("Failed to connect to target server %s: %s", server_url, ex)
 
-    # 1. Update Redis cache, timer, and broadcast WebSockets IMMEDIATELY (0ms UI latency)
+    playback_succeeded = False
+    if hasattr(player, "createPlayQueue"):
+        try:
+            pq = player.createPlayQueue(target_plex, song)
+            try:
+                if pq:
+                    player.playMedia(pq)
+            except Exception as pq_ex:
+                logger.debug("playMedia(pq) call note: %s", pq_ex)
+            logger.info("Successfully started playback via createPlayQueue on %s", player.title)
+            playback_succeeded = True
+        except Exception as e:
+            logger.warning("Failed to play via createPlayQueue: %s. Falling back to playMedia.", e)
+            try:
+                player.playMedia(song)
+                playback_succeeded = True
+            except Exception as ex2:
+                logger.warning("Failed to play via playMedia on %s: %s", player.title, ex2)
+                invalidate_cached_player()
+                raise PlexApiException(f"Player '{player.title}' unreachable: {ex2}") from ex2
+    else:
+        try:
+            player.playMedia(song)
+            playback_succeeded = True
+        except Exception as ex2:
+            logger.warning("Failed to play via playMedia on %s: %s", player.title, ex2)
+            invalidate_cached_player()
+            raise PlexApiException(f"Player '{player.title}' unreachable: {ex2}") from ex2
+
+    if not playback_succeeded:
+        return
+
+    # Store track details in Redis under "now_playing"
     eff_server_id = getattr(song, "server_id", None) or target_server_id
     eff_album_id = getattr(song, "parentRatingKey", None) or getattr(song, "album_id", None)
     song_data = {
@@ -450,36 +487,6 @@ def play_song(player, song, server_token=None, server_url=None):
     from backend.websockets import broadcast_current_playing_threadsafe, broadcast_queue_threadsafe  # noqa: PLC0415
     broadcast_queue_threadsafe()
     broadcast_current_playing_threadsafe()
-
-    # 2. Issue player network socket commands
-    target_plex = get_plex_connection()
-    if server_url and server_token and not settings.testing:
-        try:
-            from plexapi.server import PlexServer
-            target_plex = PlexServer(server_url, server_token, timeout=5)
-        except Exception as ex:
-            logger.warning("Failed to connect to target server %s: %s", server_url, ex)
-
-    # Execute direct playMedia(song) command to instruct Plexamp to play song
-    playback_succeeded = False
-    try:
-        player.playMedia(song)
-        playback_succeeded = True
-        logger.info("Successfully started playback via playMedia(song) on %s", player.title)
-    except Exception as pm_ex:
-        logger.warning("playMedia(song) failed on %s: %s. Trying createPlayQueue fallback.", player.title, pm_ex)
-        if hasattr(player, "createPlayQueue"):
-            try:
-                pq = player.createPlayQueue(target_plex, song)
-                if pq:
-                    try:
-                        player.playMedia(song)
-                    except Exception:
-                        pass
-                playback_succeeded = True
-            except Exception as pq_ex:
-                logger.warning("createPlayQueue fallback failed on %s: %s", player.title, pq_ex)
-                invalidate_cached_player()
 
 
 
@@ -1310,17 +1317,6 @@ def skip_current_track():
     track_time_tracker.stop()
     clear_cache("now_playing")
     playback_active = True
-
-    remaining_queue = get_redis_queue()
-    if remaining_queue:
-        next_song = remaining_queue[0]
-        try:
-            player = get_active_player()
-            track = get_track(next_song["item_id"])
-            play_song(player, track)
-        except Exception as ex:
-            logger.warning("Failed to start next track immediately on skip: %s", ex)
-
     return {"message": "Track skipped successfully."}
 
 
