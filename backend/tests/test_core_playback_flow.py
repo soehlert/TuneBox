@@ -41,7 +41,7 @@ def clean_playback_state():
     track_time_tracker.stop()
 
 
-def test_1_adding_to_queue_works(mock_redis, mocker, server_id: str = "plex-so"):
+def test_adding_to_queue_works(mock_redis, mocker, server_id: str = "plex-so"):
     """Verify adding a track to the playback queue works with single server parameters."""
     mock_queue_client, _ = mock_redis
     mock_song = MagicMock()
@@ -66,7 +66,7 @@ def test_1_adding_to_queue_works(mock_redis, mocker, server_id: str = "plex-so")
 
 
 @pytest.mark.asyncio
-async def test_2_playing_song_works(mocker, server_id: str = "plex-so"):
+async def test_playing_song_works(mocker, server_id: str = "plex-so"):
     """Verify that starting playback of a song from queue works."""
     import backend.services.plex  # noqa: PLC0415
 
@@ -103,7 +103,7 @@ async def test_2_playing_song_works(mocker, server_id: str = "plex-so"):
 
 
 @pytest.mark.asyncio
-async def test_3_song_plays_til_end_and_moves_to_next_track(mocker, server_id: str = "plex-so"):
+async def test_song_plays_til_end_and_moves_to_next_track(mocker, server_id: str = "plex-so"):
     """Verify that a track playing to completion finishes and automatically advances to next track."""
     import backend.services.plex  # noqa: PLC0415
 
@@ -153,7 +153,7 @@ async def test_3_song_plays_til_end_and_moves_to_next_track(mocker, server_id: s
     mock_play.assert_called_once_with(mock_player, mock_track_b)
 
 
-def test_4_force_skip_works(mocker, server_id: str = "plex-so"):
+def test_force_skip_works(mocker, server_id: str = "plex-so"):
     """Verify force skip/skip endpoint triggers skip logic."""
     orig_admin = settings.admin_token
     settings.admin_token = "test_admin_token"
@@ -175,7 +175,7 @@ def test_4_force_skip_works(mocker, server_id: str = "plex-so"):
         settings.admin_token = orig_admin
 
 
-def test_5_play_pause_toggles_playback_preserving_queue(mocker, server_id: str = "plex-so"):
+def test_play_pause_toggles_playback_preserving_queue(mocker, server_id: str = "plex-so"):
     """Verify play/pause toggles playback without clearing or mutating queue state."""
     mock_pause = mocker.patch(
         "backend.routers.music.pause_playback",
@@ -190,7 +190,7 @@ def test_5_play_pause_toggles_playback_preserving_queue(mocker, server_id: str =
 
 
 @pytest.mark.asyncio
-async def test_6_stops_when_out_of_tracks_in_queue(mocker, server_id: str = "plex-so"):
+async def test_stops_when_out_of_tracks_in_queue(mocker, server_id: str = "plex-so"):
     """Verify playback stops cleanly when the queue is out of tracks (empty queue state)."""
     import backend.services.plex  # noqa: PLC0415
 
