@@ -9,18 +9,23 @@ from backend.db.library_db import get_db_connection
 logger = logging.getLogger(__name__)
 
 
+import unicodedata  # noqa: E402
+
+
 def _norm(text: str) -> str:
     """Normalize string for deduplication across Plex servers.
 
     Rules applied in order:
-      1. Lowercase
-      2. Treat '&' as 'and'  — so 'Simon & Garfunkel' == 'Simon and Garfunkel'
-      3. Strip leading 'the ' — so 'The Beatles' == 'Beatles'
-      4. Strip all non-alphanumeric characters and collapse whitespace
+      1. Unicode NFKD decomposition (e.g. Ÿ -> Y, é -> e)
+      2. Lowercase
+      3. Treat '&' as 'and'  — so 'Simon & Garfunkel' == 'Simon and Garfunkel'
+      4. Strip leading 'the ' — so 'The Beatles' == 'Beatles'
+      5. Strip all non-alphanumeric characters and collapse whitespace
     """
     if not text:
         return ""
-    t = text.lower().strip()
+    t = unicodedata.normalize("NFKD", text).encode("ASCII", "ignore").decode("utf-8")
+    t = t.lower().strip()
     t = re.sub(r"\s*&\s*", " and ", t)   # & -> and
     t = re.sub(r"^the\s+", "", t)        # strip leading "the "
     return re.sub(r"[^a-z0-9]", "", t) or t
