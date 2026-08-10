@@ -1408,15 +1408,26 @@ _failed_connection_cache: dict[str, float] = {}
 
 def get_target_plex_connection(server_id: str | None = None):
     """Connect to a target Plex server (local or remote shared server) with negative caching and SSL verification fallback."""
-    if not server_id or settings.testing:
+    if settings.testing:
         return get_plex_connection()
+
+    if not server_id:
+        enabled_ids = get_enabled_server_ids()
+        if enabled_ids:
+            primary_plex = get_plex_connection()
+            primary_id = getattr(primary_plex, "machineIdentifier", None)
+            if primary_id and primary_id in enabled_ids:
+                return primary_plex
+            server_id = enabled_ids[0]
+        else:
+            return get_plex_connection()
 
     primary_plex = get_plex_connection()
     if getattr(primary_plex, "machineIdentifier", None) == server_id:
         return primary_plex
 
-    enabled_ids = {str(x).lower() for x in get_enabled_server_ids()}
-    if server_id and str(server_id).lower() not in enabled_ids:
+    enabled_set = {str(x).lower() for x in get_enabled_server_ids()}
+    if server_id and str(server_id).lower() not in enabled_set:
         logger.info("[Plex Connection] Server '%s' is disabled. Skipping network connection.", server_id)
         return None
 

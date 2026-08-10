@@ -128,13 +128,25 @@ async def add_to_queue(
         server_name = payload.server_name if payload else None
         username = payload.username if payload else None
 
+        if not server_id and not settings.testing:
+            try:
+                from backend.services.library import get_art_source_info  # noqa: PLC0415
+                _, res_sid, _ = get_art_source_info(item_id, "track")
+                if res_sid:
+                    server_id = res_sid
+            except Exception as res_ex:
+                logger.debug("Could not resolve server_id for queue item %s: %s", item_id, res_ex)
+
         song = get_track(item_id, server_id=server_id)
+        if not getattr(song, "server_id", None) and server_id:
+            setattr(song, "server_id", server_id)
+
         t_plex = get_target_plex_connection(server_id)
 
         all_servers = fetch_accessible_plex_servers() if (server_id and not settings.testing) else []
-        target_res = next((s for s in all_servers if s["server_id"] == server_id), None)
+        target_res = next((s for s in all_servers if s.get("server_id") == server_id or str(s.get("name")).lower() == str(server_id).lower()), None)
 
-        s_name = server_name or (target_res.get("name") if target_res else settings.plex_server_name or "plex-so")
+        s_name = server_name or (target_res.get("name") if target_res else getattr(song, "server_name", None) or settings.plex_server_name or "plex-so")
         
         codec = ""
         bitrate = 0

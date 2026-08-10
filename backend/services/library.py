@@ -732,9 +732,12 @@ def search_music_db(query_str: str, db_path: str | None = None) -> list[dict]:
         res.extend([dict(r) for r in cursor.fetchall()])
 
         # Search Tracks (strictly match track title, not artist or album title)
+        srv_rows = conn.execute("SELECT server_id, name FROM servers").fetchall()
+        srv_map = {str(r["server_id"]): r["name"] for r in srv_rows}
+
         cursor = conn.execute(
             """
-            SELECT DISTINCT t.track_id as item_id, t.track_id, t.track_id as id, t.album_id, t.title, 'track' as type, t.artist_name as artist, t.album_title as album, t.duration, t.url, t.thumb
+            SELECT DISTINCT t.track_id as item_id, t.track_id, t.track_id as id, t.album_id, t.title, 'track' as type, t.artist_name as artist, t.album_title as album, t.duration, t.url, t.thumb, t.server_id, srv.name as server_name, t.server_track_id
             FROM tracks t
             JOIN servers srv ON t.server_id = srv.server_id
             WHERE srv.enabled = 1 AND LOWER(t.title) LIKE ?
@@ -742,7 +745,19 @@ def search_music_db(query_str: str, db_path: str | None = None) -> list[dict]:
             """,
             (term,),
         )
-        res.extend([dict(r) for r in cursor.fetchall()])
+        raw_tracks = [dict(r) for r in cursor.fetchall()]
+        for trk in raw_tracks:
+            sources = get_all_art_sources(trk["track_id"], "track", db_path=db_path)
+            s_list = []
+            for src_thumb, src_sid, src_rkey in sources:
+                if src_sid:
+                    s_name = srv_map.get(src_sid, "Plex Server")
+                    s_list.append({"server_id": src_sid, "server_name": s_name, "rating_key": src_rkey})
+            trk["sources"] = s_list
+            if not trk.get("server_id") and s_list:
+                trk["server_id"] = s_list[0]["server_id"]
+                trk["server_name"] = s_list[0]["server_name"]
+        res.extend(raw_tracks)
         return res
     finally:
         conn.close()
@@ -788,15 +803,15 @@ def get_all_art_sources(item_id: int | str, item_type: str, db_path: str | None 
 
         elif item_type == "album":
             r_row = conn.execute(
-                "SELECT alb.album_id FROM albums alb LEFT JOIN album_sources src ON alb.album_id = src.album_id WHERE alb.album_id = ? LIMIT 1",
-                (item_id,),
+                "SELECT alb.album_id FROM albums alb LEFT JOIN album_sources src ON alb.album_id = src.album_id WHERE alb.album_id = ? OR src.server_album_id = ? LIMIT 1",
+                (item_id, str(item_id)),
             ).fetchone()
             if r_row:
                 resolved_id = r_row["album_id"]
             else:
                 tr_row = conn.execute(
-                    "SELECT album_id FROM tracks WHERE track_id = ? LIMIT 1",
-                    (item_id,),
+                    "SELECT t.album_id FROM tracks t LEFT JOIN track_sources ts ON t.track_id = ts.track_id WHERE t.track_id = ? OR ts.server_track_id = ? OR t.server_track_id = ? LIMIT 1",
+                    (item_id, str(item_id), str(item_id)),
                 ).fetchone()
                 if tr_row:
                     resolved_id = tr_row["album_id"]
@@ -827,8 +842,8 @@ def get_all_art_sources(item_id: int | str, item_type: str, db_path: str | None 
 
         elif item_type == "track":
             r_row = conn.execute(
-                "SELECT t.track_id FROM tracks t WHERE t.track_id = ? LIMIT 1",
-                (item_id,),
+                "SELECT t.track_id FROM tracks t LEFT JOIN track_sources ts ON t.track_id = ts.track_id WHERE t.track_id = ? OR ts.server_track_id = ? OR t.server_track_id = ? LIMIT 1",
+                (item_id, str(item_id), str(item_id)),
             ).fetchone()
             if r_row:
                 resolved_id = r_row["track_id"]
