@@ -126,10 +126,12 @@ def reinitialize_plex():
 
 
 def pre_warm_all_caches():
-    """Trigger cache pre-warming for resources and artists in background."""
+    """Trigger cache pre-warming for resources, artists, and artwork thumbnails in background."""
     try:
         from backend.config import settings
         from backend.services.redis import clear_cache
+        from backend.services.indexer import _prewarm_art_in_background
+        from backend.db.library_db import get_db_connection
 
         # 1. Warm resources if plex token is configured
         if settings.plex_token:
@@ -141,7 +143,22 @@ def pre_warm_all_caches():
         if settings.plex_token:
             logger.info("Background warming Plex artists cache for enabled servers...")
             fetch_all_artists()
-            logger.info("Background cache pre-warming complete.")
+
+        # 3. Pre-warm ALL artist and album artwork thumbnails into Redis RAM in background
+        try:
+            conn = get_db_connection()
+            art_rows = conn.execute("SELECT artist_id FROM artists").fetchall()
+            alb_rows = conn.execute("SELECT album_id FROM albums").fetchall()
+            conn.close()
+            artist_ids = [r["artist_id"] for r in art_rows]
+            album_ids = [r["album_id"] for r in alb_rows]
+            if artist_ids or album_ids:
+                logger.info("Triggering background artwork pre-warming for %d artists and %d albums into Redis...", len(artist_ids), len(album_ids))
+                _prewarm_art_in_background("all", artist_ids, album_ids)
+        except Exception as art_ex:
+            logger.debug("Failed querying artwork IDs for pre-warming: %s", art_ex)
+
+        logger.info("Background cache pre-warming complete.")
     except Exception as e:
         logger.error("Failed to pre-warm caches: %s", e)
 

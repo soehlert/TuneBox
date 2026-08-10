@@ -300,6 +300,8 @@ function ArtistList({
                       src={`${apiBase}/api/music/artist-image/${artist.artist_id}`}
                       alt={artist.name}
                       type="artist"
+                      loading="eager"
+                      fetchPriority="high"
                       className="artist-photo"
                     />
                     <div className="artist-card-overlay" style={{ flexDirection: "column", gap: "4px", padding: "12px 8px" }}>
@@ -627,8 +629,18 @@ function ArtistList({
           <div className="artist-grid">
             {currentArtists.map((artist: any) => {
             const targetChar = scrollTargetLetter?.letter?.toUpperCase();
-            const firstChar = artist.name ? artist.name.trim()[0].toUpperCase() : "";
-            const isTarget = Boolean(targetChar && (targetChar === "0-9" ? /^\d/.test(firstChar) : firstChar === targetChar));
+            const cleanName = artist.name
+              ? artist.name.replace(/^[:?="'"()\s]+/, "").replace(/^(the|a|an)\s+/i, "").trim()
+              : "";
+            const firstChar = cleanName ? cleanName[0].toUpperCase() : (artist.name ? artist.name.trim()[0].toUpperCase() : "");
+            const rawFirst = artist.name ? artist.name.trim()[0].toUpperCase() : "";
+            const isTarget = Boolean(
+              targetChar && (
+                targetChar === "0-9"
+                  ? (/^\d/.test(firstChar) || /^\d/.test(rawFirst))
+                  : (firstChar === targetChar || rawFirst === targetChar)
+              )
+            );
             return (
               <Card
                 className="artist-card"
