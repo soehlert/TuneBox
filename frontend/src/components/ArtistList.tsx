@@ -516,20 +516,31 @@ function ArtistList({
                       background: "var(--color-glass-bg)",
                       border: "1px solid var(--color-glass-border)",
                       borderRadius: "12px",
-                      padding: "12px 20px",
+                      padding: "10px 16px",
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "space-between",
                       boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)",
                       boxSizing: "border-box",
                       width: "100%",
-                      cursor: track.album_id ? "pointer" : "default",
+                      cursor: "pointer",
                       transition: "transform 0.15s ease, border-color 0.15s ease",
                     }}
+                    onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--color-primary)")}
+                    onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--color-glass-border)")}
                   >
-                    <div style={{ display: "flex", flexDirection: "column", gap: "2px", minWidth: 0, textAlign: "left" }}>
-                      <Typography style={{ color: "white", fontFamily: "var(--font-title)", fontWeight: 700, fontSize: "0.95rem", display: "flex", alignItems: "center", gap: "8px", minWidth: 0 }}>
-                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{track.title}</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: "14px", minWidth: 0 }}>
+                      <FallbackImage
+                        src={`${apiBase}/api/music/album-art/${track.album_id || track.track_id}${track.server_id ? `?server_id=${track.server_id}` : ""}`}
+                        alt={track.album || track.title}
+                        type="album"
+                        loading="eager"
+                        fetchPriority="high"
+                        style={{ width: "48px", height: "48px", borderRadius: "8px", objectFit: "cover", flexShrink: 0 }}
+                      />
+                      <div style={{ display: "flex", flexDirection: "column", gap: "2px", minWidth: 0, textAlign: "left" }}>
+                        <Typography style={{ color: "white", fontFamily: "var(--font-title)", fontWeight: 700, fontSize: "0.95rem", display: "flex", alignItems: "center", gap: "8px", minWidth: 0 }}>
+                          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{track.title}</span>
                         {(() => {
                           const sources = track.sources || [];
                           if (sources.length > 1) {
@@ -588,6 +599,7 @@ function ArtistList({
                       <Typography style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "0.75rem", fontFamily: "var(--font-body)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                         {track.artist} • {track.album}
                       </Typography>
+                    </div>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: "16px", flexShrink: 0 }}>
                       <Typography style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.85rem", fontFamily: "var(--font-body)" }}>
