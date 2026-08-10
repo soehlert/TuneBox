@@ -822,7 +822,7 @@ async def playback_orchestrator():
                 cached_track = get_cached_data("now_playing")
                 if cached_track and playback_active:
                     total_time = cached_track.get("duration", 0)
-                    elapsed = track_time_tracker.elapsed_time if track_time_tracker.track_name == cached_track.get("title") else float(cached_track.get("elapsed_time", 0.0))
+                    elapsed = track_time_tracker.elapsed_time
                     if total_time > 0 and elapsed >= total_time:
                         logger.info(
                             "Track %s finished. Advancing queue.",
