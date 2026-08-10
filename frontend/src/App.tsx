@@ -1402,7 +1402,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
                     help_outline
                   </span>
                   <span className="kiosk-help-popover" style={{ width: "260px", lineHeight: "1.4" }}>
-                    • <strong>Total Cards</strong> show all items indexed across all enabled servers.<br />
+                    • <strong>Total Cards</strong> show all items indexed across all servers.<br />
                     • <strong>Missing Artwork</strong> is scoped strictly to your Primary (Admin) Plex server.<br />
                     • You can re-index any enabled server to pull fresh items and artwork.
                   </span>
