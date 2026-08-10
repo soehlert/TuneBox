@@ -7,6 +7,7 @@
 - **Restart Stack**: Always restart the Docker compose stack (`docker compose up -d --build` or `docker compose restart`) after making code changes so updates are immediately live in place.
 - **No Trailing Ellipsis**: NEVER use trailing ellipsis (`...`) in code comments, docstrings, log messages, or UI notifications/messages (such as status updates during indexing or loading).
 - **No Mock Data Outside Tests**: NEVER return or display mock data, sample fallback datasets, or mock artists/albums/tracks outside of automated test execution (`settings.testing`). Always return real empty states (`[]` / `None`) when no data exists.
-- **No Manual Seeking**: Do NOT code, assume, or suggest manual seeking in TuneBox / Plexamp playback controls.
+- **Docker Log Verification**: Always check Docker logs (`docker compose logs backend --tail 50` or `docker compose logs -f backend`) when investigating errors, diagnosing behavior, or forming an execution plan.
+
 
 

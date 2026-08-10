@@ -280,11 +280,10 @@ async def update_websocket_clients():
     """Periodically send updates to all connected WebSocket clients."""
     while True:
         try:
-            # Lazy import to avoid circular dependencies
-            from backend.services.plex import track_time_tracker  # noqa: PLC0415
+            from backend.services.plex import track_time_tracker, playback_active  # noqa: PLC0415
 
             if active_connections:
-                if track_time_tracker.is_playing:
+                if track_time_tracker.is_playing or playback_active:
                     await send_current_playing()
         except Exception as e:
             logger.exception("Error in update_websocket_clients loop: %s", e)

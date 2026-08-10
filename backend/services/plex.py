@@ -169,6 +169,9 @@ def get_current_playing_track():
     Returns:
         The current track info or None if nothing is playing or stopped.
     """
+    if not playback_active and not track_time_tracker.is_playing and track_time_tracker.state != "paused" and not get_redis_queue():
+        return None
+
     cached_track = get_cached_data("now_playing")
     if not cached_track or not isinstance(cached_track, dict):
         return None
@@ -188,15 +191,19 @@ def get_current_playing_track():
             track_time_tracker.last_resume_time = None
 
     elapsed = track_time_tracker.elapsed_time
-    total_time = cached_track.get("duration", 0)  # duration in seconds
+    total_time = float(cached_track.get("duration", 0))  # duration in seconds
+    if total_time > 10000:
+        total_time = milliseconds_to_seconds(total_time)
 
     # Safeguard bounds
     elapsed = max(elapsed, 0)
     elapsed = min(elapsed, total_time) if total_time > 0 else elapsed
 
     remaining_time = max(total_time - elapsed, 0) if total_time > 0 else 0
-    remaining_percentage = (remaining_time / total_time * 100) if total_time > 0 else 0
+    if total_time > 0 and remaining_time <= 0:
+        return None
 
+    remaining_percentage = (remaining_time / total_time * 100) if total_time > 0 else 0
     item_id = cached_track.get("item_id")
     album_art = cached_track.get("album_art")
     if item_id and (not album_art or not album_art.startswith("/api/music/")):
@@ -405,7 +412,7 @@ def get_track(item_id, server_id: str | None = None):
 
 def play_song(player, song, server_token=None, server_url=None):
     """Play a specific song on the Plex player."""
-    s_name = getattr(song, "server_name", None) or settings.plex_server_name or "plex-so"
+    s_name = getattr(song, "server_name", None) or settings.plex_server_name
     codec = ""
     bitrate = 0
     if getattr(song, "media", None) and len(song.media) > 0:
@@ -474,7 +481,7 @@ def play_song(player, song, server_token=None, server_url=None):
         return
 
     # Store track details in Redis under "now_playing" and start tracker AFTER playback command sent
-    eff_server_id = getattr(song, "server_id", None) or target_server_id
+    eff_server_id = getattr(song, "server_id", None) or getattr(song, "server_name", None) or settings.plex_server_name
     eff_album_id = getattr(song, "parentRatingKey", None) or getattr(song, "album_id", None)
     song_data = {
         "item_id": str(song.ratingKey),
@@ -767,10 +774,10 @@ async def playback_orchestrator():
                 await asyncio.sleep(5)
                 continue
 
-            # 1. Drive the queue if nothing is currently playing
+            # 1. Drive the queue if playback is active
             if playback_active:
                 queue = get_redis_queue()
-                if len(queue) <= 5 and is_autoplay_enabled():
+                if queue and len(queue) <= 5 and is_autoplay_enabled():
                     try:
                         await asyncio.to_thread(generate_autoplay_tracks)
                     except Exception as auto_ex:
@@ -852,10 +859,12 @@ async def playback_orchestrator():
                             logger.info("Immediately advancing queue to next song: %s", next_song.get("title"))
                             dur_raw = next_song.get("duration", 0)
                             dur_sec = milliseconds_to_seconds(dur_raw) if (isinstance(dur_raw, (int, float)) and dur_raw > 10000) else float(dur_raw or 0)
+                            next_server_id = next_song.get("server_id")
+                            next_album_id = next_song.get("album_id")
                             next_song_data = {
                                 "item_id": str(next_song["item_id"]),
-                                "server_id": eff_server_id,
-                                "album_id": str(eff_album_id) if eff_album_id else None,
+                                "server_id": next_server_id,
+                                "album_id": str(next_album_id) if next_album_id else None,
                                 "title": next_song.get("title", "Unknown Title"),
                                 "artist": next_song.get("artist", "Unknown Artist"),
                                 "album": next_song.get("album", "Unknown Album"),
@@ -922,251 +931,12 @@ async def playback_orchestrator():
 
                             await reset_skip_votes()
                             await send_queue()
-                            await send_current_playing()
-
-            # 3. Perform low-frequency resync check
-            tick_count += 1
-            if tick_count >= HEARTBEAT_INTERVAL:
-                tick_count = 0
-                asyncio.create_task(check_plexamp_resync())
-
         except Exception:
             logger.exception("Error in playback orchestrator")
 
         await asyncio.sleep(1)
 
 
-async def check_plexamp_resync(force_align: bool = False):
-    """Resync TuneBox's playback state and tracker with active Plex Media Server sessions.
-
-    Plex Media Server (PMS) is the authoritative source of truth for active playback sessions.
-    We query PMS sessions FIRST so active playback on Plexamp or any player is immediately
-    tracked even if direct player HTTP socket control is not open.
-    """
-    # ruff: noqa: PLW0603
-    global _queue_finished_track
-
-    if not settings.plex_token and not (
-        settings.plex_username and settings.plex_password
-    ):
-        return
-    if not settings.plex_server_name:
-        return
-
-    try:
-        try:
-            plex = get_plex_connection()
-        except PlexConnectionError as e:
-            logger.debug("Plex connection offline during background resync check: %s", e)
-            return
-
-        target_server_id = settings.plex_server_name or "plex-so"
-
-        # 1. Query Plex Media Server for active playback sessions (Authoritative Source of Truth)
-        active_session = None
-        try:
-            sessions = await asyncio.to_thread(plex.sessions)
-            music_sessions = [
-                s
-                for s in sessions
-                if getattr(s, "type", "track") in ("track", "music", "audio")
-                or hasattr(s, "grandparentTitle")
-            ]
-            if music_sessions:
-                # Try matching by configured client_name if specified
-                if settings.client_name:
-                    target_name = settings.client_name.lower().strip()
-                    for s in music_sessions:
-                        p = getattr(s, "player", None)
-                        if p:
-                            p_title = getattr(p, "title", "").lower().strip()
-                            p_device = getattr(p, "device", "").lower().strip()
-                            p_prod = getattr(p, "product", "").lower().strip()
-                            if (
-                                target_name in (p_title, p_device, p_prod)
-                                or p_title in target_name
-                                or target_name in p_title
-                            ):
-                                active_session = s
-                                break
-                # Fallback to first active music session on PMS
-                if not active_session:
-                    active_session = music_sessions[0]
-        except Exception as sess_ex:
-            logger.debug("Failed querying Plex sessions: %s", sess_ex)
-
-        # 2. Try timeline lookup only if active_session wasn't found via PMS sessions
-        if not active_session:
-            try:
-                player = await asyncio.to_thread(get_active_player)
-                if player and type(player).__name__ not in ("MagicMock", "Mock"):
-                    timeline = await asyncio.to_thread(getattr, player, "timeline", None)
-                    if timeline and timeline.state != "stopped":
-                        rating_key = getattr(timeline, "ratingKey", None)
-                        if rating_key:
-                            class MockSession:
-                                pass
-
-                            mock_sess = MockSession()
-                            mock_sess.ratingKey = rating_key
-                            mock_sess.viewOffset = timeline.time
-                            mock_sess.duration = timeline.duration
-
-                            class MockPlayer:
-                                state = timeline.state
-                                machineIdentifier = player.machineIdentifier
-
-                            mock_sess.player = MockPlayer()
-
-                            cached_track = get_cached_data("now_playing")
-                            if cached_track and str(cached_track.get("item_id")) == str(rating_key):
-                                mock_sess.title = cached_track["title"]
-                                mock_sess.grandparentTitle = cached_track["artist"]
-                                mock_sess.parentTitle = cached_track["album"]
-                                mock_sess.thumb = cached_track["album_art"]
-                            else:
-                                try:
-                                    track = await asyncio.to_thread(get_track, rating_key, server_id=target_server_id)
-                                except Exception:
-                                    track = None
-                                if track:
-                                    mock_sess.title = track.title
-                                    mock_sess.grandparentTitle = getattr(track, "grandparentTitle", "Unknown Artist")
-                                    mock_sess.parentTitle = getattr(track, "parentTitle", "Unknown Album")
-                                    mock_sess.thumb = getattr(track, "thumb", None)
-                                else:
-                                    mock_sess.title = "Unknown Track"
-                                    mock_sess.grandparentTitle = "Unknown Artist"
-                                    mock_sess.parentTitle = "Unknown Album"
-                                    mock_sess.thumb = None
-
-                            active_session = mock_sess
-            except Exception as p_ex:
-                logger.debug("Player timeline lookup skipped: %s", p_ex)
-
-        # Lazy import websockets
-        from backend.websockets import send_current_playing  # noqa: PLC0415
-
-        if active_session:
-            session_title = active_session.title
-            p_obj = getattr(active_session, "player", None)
-            session_state = getattr(p_obj, "state", "playing") if p_obj else "playing"
-            session_duration = (
-                milliseconds_to_seconds(active_session.duration)
-                if active_session.duration
-                else 0
-            )
-            plex_elapsed = (
-                milliseconds_to_seconds(active_session.viewOffset)
-                if getattr(active_session, "viewOffset", None)
-                else 0
-            )
-
-            # Guard: if queue is empty and playback finished or stopped, clear state completely
-            from backend.services.redis import get_redis_queue
-            if not get_redis_queue() and (_queue_finished_track or not track_time_tracker.is_playing):
-                logger.info("Resync detected empty queue. Clearing now_playing state.")
-                _queue_finished_track = None
-                clear_cache("now_playing")
-                track_time_tracker.stop()
-                try:
-                    await asyncio.to_thread(stop_playback)
-                except Exception as stop_ex:
-                    logger.debug("stop_playback during resync guard failed: %s", stop_ex)
-                await send_current_playing()
-                return
-
-            if _queue_finished_track and session_title != _queue_finished_track:
-                logger.debug("Clearing finished-track sentinel (new track '%s' detected).", session_title)
-                _queue_finished_track = None
-
-            cached_track = get_cached_data("now_playing")
-
-            # Check if this session matches our currently playing track by exact Plex ratingKey (item_id) or title
-            is_same_track = False
-            s_item_id = str(getattr(active_session, "ratingKey", ""))
-            t_item_id = str(getattr(track_time_tracker, "item_id", ""))
-            c_item_id = str(cached_track.get("item_id", "")) if cached_track else ""
-
-            if s_item_id and ((c_item_id and s_item_id == c_item_id) or (t_item_id and s_item_id == t_item_id)):
-                is_same_track = True
-            elif cached_track:
-                c_title = (cached_track.get("title") or "").strip().lower()
-                s_title = (session_title or "").strip().lower()
-                if c_title and s_title and c_title == s_title:
-                    is_same_track = True
-
-            # 1. Track changed externally on Plexamp (e.g. manual track pick directly inside Plexamp app)
-            if not is_same_track and not (track_time_tracker.is_playing and track_time_tracker.track_name == session_title):
-                logger.info(
-                    "Detected external track change on Plex: '%s'. Resynced.", session_title
-                )
-                from backend.websockets import reset_skip_votes  # noqa: PLC0415
-                await reset_skip_votes()
-
-                eff_alb_id = getattr(active_session, "parentRatingKey", None)
-                song_data = {
-                    "item_id": str(active_session.ratingKey),
-                    "server_id": target_server_id,
-                    "album_id": str(eff_alb_id) if eff_alb_id else None,
-                    "title": session_title,
-                    "artist": getattr(
-                        active_session, "grandparentTitle", "Unknown Artist"
-                    ),
-                    "album": getattr(active_session, "parentTitle", "Unknown Album"),
-                    "duration": session_duration,
-                    "elapsed_time": float(plex_elapsed),
-                    "updated_at": time.time(),
-                    "album_art": f"/api/music/track-art/{active_session.ratingKey}",
-                    "track_state": session_state or "playing",
-                }
-                cache_data("now_playing", song_data)
-
-                from backend.services.redis import ensure_queue_synced_with_now_playing  # noqa: PLC0415
-                from backend.websockets import send_queue  # noqa: PLC0415
-                ensure_queue_synced_with_now_playing(song_data)
-                await send_queue()
-
-                track_time_tracker.stop()
-                track_time_tracker.start(session_title)
-
-                if session_state == "paused":
-                    track_time_tracker.pause()
-                elif session_state == "playing":
-                    track_time_tracker.resume()
-
-                await send_current_playing()
-
-            # 2. Existing track: check for play/pause state change from external Plexamp app
-            else:
-                state_changed = False
-                if session_state == "playing" and not track_time_tracker.is_playing:
-                    logger.info("Plexamp resumed playback externally. Resynced state.")
-                    track_time_tracker.resume()
-                    state_changed = True
-                elif session_state == "paused" and track_time_tracker.is_playing:
-                    logger.info("Plexamp paused playback externally. Resynced state.")
-                    track_time_tracker.pause()
-                    state_changed = True
-
-                if state_changed:
-                    if cached_track:
-                        cached_track["track_state"] = session_state
-                        cache_data("now_playing", cached_track)
-                    await send_current_playing()
-
-        else:
-            if track_time_tracker.is_playing:
-                logger.info("No active Plexamp session detected. Auto-pausing local tracker to preserve track position.")
-                track_time_tracker.pause()
-                cached_track = get_cached_data("now_playing")
-                if isinstance(cached_track, dict):
-                    cached_track["track_state"] = "paused"
-                    cache_data("now_playing", cached_track)
-                await send_current_playing()
-
-    except Exception:
-        logger.exception("Failed to execute Plexamp resync")
 
 
 def stop_playback():

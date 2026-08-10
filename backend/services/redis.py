@@ -198,11 +198,14 @@ def clear_redis_queue(force_all: bool = False):
         A cleared redis queue message.
     """
     client = get_redis_queue_client()
-    from backend.services.plex import track_time_tracker  # noqa: PLC0415
+    from backend.services.plex import track_time_tracker, clear_cache  # noqa: PLC0415
 
-    # 2. Perform queue clear
+    # Perform queue clear
     if force_all or (not track_time_tracker.is_playing and track_time_tracker.state != "paused"):
         client.delete("playback_queue")
+        if force_all:
+            clear_cache("now_playing")
+            track_time_tracker.stop()
         logger.info("The Redis playback queue has been completely cleared.")
     else:
         queue = client.lrange("playback_queue", 0, -1)
@@ -254,6 +257,10 @@ def reorder_redis_queue(from_index: int, to_index: int):
 def ensure_queue_synced_with_now_playing(song_data: dict):
     """Ensure that index 0 of the Redis playback queue matches the currently active now_playing track."""
     if not isinstance(song_data, dict) or not song_data.get("title"):
+        return
+
+    from backend.services.plex import track_time_tracker, playback_active  # noqa: PLC0415
+    if not playback_active and not track_time_tracker.is_playing and track_time_tracker.state != "paused":
         return
 
     try:
