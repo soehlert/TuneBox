@@ -222,78 +222,99 @@ function TrackList() {
   return (
     <div className="track-list-page">
       <div className="track-list-container">
-        <div style={{ display: "flex", gap: "12px", marginBottom: "16px", flexWrap: "wrap", alignItems: "center" }}>
-          <button
-            className="back-button"
-            style={{ marginBottom: 0 }}
-            onClick={() =>
-              navigate(
-                `/artists/${albumData?.artist_id || ""}/albums${
-                  serverId ? `?server_id=${serverId}` : ""
-                }`
-              )
-            }
-          >
-            <span className="material-symbols-outlined">library_music</span>
-            Back to Albums
-          </button>
-
-          {(() => {
-            if (!albumData) return null;
-            const rawSources = albumData.sources || [];
-            const uniqueSourcesMap = new Map<string, string>();
-            rawSources.forEach((s) => {
-              if (s.server_name) {
-                uniqueSourcesMap.set(s.server_id || s.server_name, s.server_name);
+        <div style={{ display: "flex", gap: "12px", marginBottom: "16px", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
+            <button
+              className="back-button"
+              style={{ marginBottom: 0 }}
+              onClick={() =>
+                navigate(
+                  `/artists/${albumData?.artist_id || ""}/albums${
+                    serverId ? `?server_id=${serverId}` : ""
+                  }`
+                )
               }
-            });
-            const uniqueNames = Array.from(uniqueSourcesMap.values());
-            const namesStr = uniqueNames.join(" • ");
+            >
+              <span className="material-symbols-outlined">library_music</span>
+              Back to Albums
+            </button>
 
-            if (uniqueNames.length > 1) {
-              return (
-                <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "6px",
-                    fontSize: "12px",
-                    background: "rgba(191, 9, 94, 0.15)",
-                    border: "1px solid rgba(191, 9, 94, 0.35)",
-                    color: "#ff4d94",
-                    padding: "6px 14px",
-                    borderRadius: "14px",
-                    fontWeight: 600,
-                  }}
-                  title={`Available on: ${namesStr}`}
-                >
-                  🌐 {uniqueNames.length} Connected Libraries ({namesStr})
-                </span>
-              );
-            }
-            const displayServer = uniqueNames[0] || albumData.server_name;
-            if (displayServer) {
-              return (
-                <span
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "6px",
-                    fontSize: "12px",
-                    background: "rgba(191, 9, 94, 0.15)",
-                    border: "1px solid rgba(191, 9, 94, 0.35)",
-                    color: "#ff4d94",
-                    padding: "4px 12px",
-                    borderRadius: "14px",
-                    fontWeight: 600,
-                  }}
-                >
-                  📍 {displayServer}
-                </span>
-              );
-            }
-            return null;
-          })()}
+            {(() => {
+              if (!albumData) return null;
+              const rawSources = albumData.sources || [];
+              const uniqueSourcesMap = new Map<string, string>();
+              rawSources.forEach((s) => {
+                if (s.server_name) {
+                  uniqueSourcesMap.set(s.server_id || s.server_name, s.server_name);
+                }
+              });
+              const uniqueNames = Array.from(uniqueSourcesMap.values());
+              const namesStr = uniqueNames.join(" • ");
+
+              if (uniqueNames.length > 1) {
+                return (
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      fontSize: "12px",
+                      background: "rgba(191, 9, 94, 0.15)",
+                      border: "1px solid rgba(191, 9, 94, 0.35)",
+                      color: "#ff4d94",
+                      padding: "6px 14px",
+                      borderRadius: "14px",
+                      fontWeight: 600,
+                    }}
+                    title={`Available on: ${namesStr}`}
+                  >
+                    🌐 Libraries - {namesStr}
+                  </span>
+                );
+              }
+              const displayServer = uniqueNames[0] || albumData.server_name;
+              if (displayServer) {
+                return (
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      fontSize: "12px",
+                      background: "rgba(191, 9, 94, 0.15)",
+                      border: "1px solid rgba(191, 9, 94, 0.35)",
+                      color: "#ff4d94",
+                      padding: "4px 12px",
+                      borderRadius: "14px",
+                      fontWeight: 600,
+                    }}
+                  >
+                    📍 {displayServer}
+                  </span>
+                );
+              }
+              return null;
+            })()}
+          </div>
+
+          {albumData && (
+            <Button
+              variant="contained"
+              className="add-album-btn"
+              onClick={addAlbumToQueue}
+              style={{
+                background: "linear-gradient(135deg, #0077b6 0%, #bf095e 100%)",
+                color: "#fff",
+                fontWeight: "bold",
+                borderRadius: "20px",
+                padding: "8px 20px",
+                textTransform: "none"
+              }}
+            >
+              <span className="material-symbols-outlined" style={{ marginRight: "6px", fontSize: "20px" }}>playlist_add</span>
+              Add Entire Album to Queue
+            </Button>
+          )}
         </div>
         {loading ? (
           <Typography variant="h6">Loading...</Typography>
@@ -310,25 +331,6 @@ function TrackList() {
                   className="album-banner"
                 />
               )}
-
-              <div style={{ marginTop: "16px", marginBottom: "20px" }}>
-                <Button
-                  variant="contained"
-                  className="add-album-btn"
-                  onClick={addAlbumToQueue}
-                  style={{
-                    background: "linear-gradient(135deg, #0077b6 0%, #bf095e 100%)",
-                    color: "#fff",
-                    fontWeight: "bold",
-                    borderRadius: "20px",
-                    padding: "8px 20px",
-                    textTransform: "none"
-                  }}
-                >
-                  <span className="material-symbols-outlined" style={{ marginRight: "6px", fontSize: "20px" }}>playlist_add</span>
-                  Add Entire Album to Queue
-                </Button>
-              </div>
 
               <div className="track-list">
                 {albumData.tracks.map((track, idx, tracks) => {

@@ -89,7 +89,7 @@ function ArtistAlbums() {
             }}
             title={`Available on: ${artistSourcesStr}`}
           >
-            🌐 {uniqueArtistSources.length} Connected Libraries ({artistSourcesStr})
+            🌐 Libraries - {artistSourcesStr}
           </span>
         ) : uniqueArtistSources.length === 1 ? (
           <span
