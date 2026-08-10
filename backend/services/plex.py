@@ -813,7 +813,7 @@ async def playback_orchestrator():
                 if cached_track and playback_active:
                     total_time = cached_track.get("duration", 0)
                     elapsed = track_time_tracker.elapsed_time if track_time_tracker.track_name == cached_track.get("title") else float(cached_track.get("elapsed_time", 0.0))
-                    if total_time > 0 and elapsed >= (total_time + 0.5):
+                    if total_time > 0 and elapsed >= total_time:
                         logger.info(
                             "Track %s finished. Advancing queue.",
                             cached_track["title"],
@@ -1049,7 +1049,7 @@ async def check_plexamp_resync(force_align: bool = False):
 
                 await send_current_playing()
 
-            # 2. Existing track: anchor memory tracker to PMS session viewOffset silently
+            # 2. Existing track: check for play/pause state change or major manual seeks (>8s)
             else:
                 state_changed = False
                 if session_state == "playing" and not track_time_tracker.is_playing:
@@ -1061,23 +1061,26 @@ async def check_plexamp_resync(force_align: bool = False):
                     track_time_tracker.pause()
                     state_changed = True
 
-                # Always anchor memory tracker to PMS viewOffset silently (prevents clock drift buildup)
-                track_time_tracker.track_name = session_title
-                track_time_tracker.accumulated_elapsed = float(plex_elapsed)
-                track_time_tracker.last_resume_time = (
-                    time.time() if session_state == "playing" else None
-                )
-                cached_track["elapsed_time"] = float(plex_elapsed)
-                cached_track["updated_at"] = time.time()
-                cached_track["track_state"] = session_state
-                cache_data("now_playing", cached_track)
-
-                # Only broadcast over WebSocket if play/pause state changed or major seek (>8s)
+                # ONLY adjust local timer if user manually SEEKED in Plexamp (>8.0s jump)
                 local_elapsed = track_time_tracker.elapsed_time
                 if force_align or abs(local_elapsed - plex_elapsed) > 8.0:
+                    logger.info(
+                        "Detected major seek of %.1fs on Plexamp (force_align=%s). Adjusting.",
+                        abs(local_elapsed - plex_elapsed),
+                        force_align,
+                    )
+                    track_time_tracker.track_name = session_title
+                    track_time_tracker.accumulated_elapsed = float(plex_elapsed)
+                    track_time_tracker.last_resume_time = (
+                        time.time() if session_state == "playing" else None
+                    )
                     state_changed = True
 
                 if state_changed:
+                    cached_track["elapsed_time"] = track_time_tracker.elapsed_time
+                    cached_track["updated_at"] = time.time()
+                    cached_track["track_state"] = session_state
+                    cache_data("now_playing", cached_track)
                     await send_current_playing()
 
         else:
