@@ -460,12 +460,6 @@ def play_song(player, song, server_token=None, server_url=None):
             invalidate_cached_player()
             raise PlexApiException(f"Player '{player.title}' unreachable: {ex2}") from ex2
 
-    if not playback_succeeded:
-        return
-
-    cmd_delay = max(time.time() - cmd_start_time, 0)
-    est_initial_elapsed = max(cmd_delay - 0.4, 0.0) if not settings.testing else 0.0
-
     # Store track details in Redis under "now_playing"
     eff_server_id = getattr(song, "server_id", None) or target_server_id
     eff_album_id = getattr(song, "parentRatingKey", None) or getattr(song, "album_id", None)
@@ -477,7 +471,7 @@ def play_song(player, song, server_token=None, server_url=None):
         "artist": getattr(song, "grandparentTitle", "Unknown Artist"),
         "album": getattr(song, "parentTitle", "Unknown Album"),
         "duration": milliseconds_to_seconds(song.duration) if song.duration else 0,
-        "elapsed_time": est_initial_elapsed,
+        "elapsed_time": 0.0,
         "updated_at": time.time(),
         "album_art": f"/api/music/track-art/{song.ratingKey}",
         "track_state": "playing",
@@ -486,9 +480,7 @@ def play_song(player, song, server_token=None, server_url=None):
     cache_data("now_playing", song_data)
 
     track_time_tracker.start(song.title, item_id=str(song.ratingKey))
-    track_time_tracker.accumulated_elapsed = est_initial_elapsed
-    track_time_tracker.last_resume_time = time.time()
-    logger.info("Song %s started playing on player: %s (network latency offset: %.2fs)", song.title, player.title, est_initial_elapsed)
+    logger.info("Song %s started playing on player: %s", song.title, player.title)
 
     from backend.websockets import broadcast_current_playing_threadsafe, broadcast_queue_threadsafe  # noqa: PLC0415
     broadcast_queue_threadsafe()
@@ -844,7 +836,35 @@ async def playback_orchestrator():
                         if remaining_queue:
                             next_song = remaining_queue[0]
                             logger.info("Immediately advancing queue to next song: %s", next_song.get("title"))
+                            eff_server_id = next_song.get("server_id") or target_server_id
+                            eff_album_id = next_song.get("album_id")
+                            next_song_data = {
+                                "item_id": str(next_song["item_id"]),
+                                "server_id": eff_server_id,
+                                "album_id": str(eff_album_id) if eff_album_id else None,
+                                "title": next_song.get("title", "Unknown Title"),
+                                "artist": next_song.get("artist", "Unknown Artist"),
+                                "album": next_song.get("album", "Unknown Album"),
+                                "duration": next_song.get("duration", 0),
+                                "elapsed_time": 0.0,
+                                "updated_at": time.time(),
+                                "album_art": f"/api/music/track-art/{next_song['item_id']}",
+                                "track_state": "playing",
+                                "server_name": next_song.get("server_name"),
+                            }
+                            cache_data("now_playing", next_song_data)
                             track_time_tracker.start(next_song.get("title"), item_id=str(next_song.get("item_id")))
+
+                            from backend.websockets import (
+                                send_current_playing,
+                                send_queue,
+                                reset_skip_votes,
+                            )  # noqa: PLC0415
+
+                            await reset_skip_votes()
+                            await send_queue()
+                            await send_current_playing()
+
                             try:
                                 player = await asyncio.to_thread(get_active_player)
                                 s_id = next_song.get("server_id")
@@ -874,15 +894,15 @@ async def playback_orchestrator():
                                 )
                                 await asyncio.to_thread(stop_playback)
 
-                        from backend.websockets import (
-                            send_current_playing,
-                            send_queue,
-                            reset_skip_votes,
-                        )  # noqa: PLC0415
+                            from backend.websockets import (
+                                send_current_playing,
+                                send_queue,
+                                reset_skip_votes,
+                            )  # noqa: PLC0415
 
-                        await reset_skip_votes()
-                        await send_queue()
-                        await send_current_playing()
+                            await reset_skip_votes()
+                            await send_queue()
+                            await send_current_playing()
 
             # 3. Perform low-frequency resync check
             tick_count += 1
