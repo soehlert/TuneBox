@@ -2289,7 +2289,7 @@ def fetch_art_bytes(item_id: int | str, item_type: str, server_id: str | None = 
         )
         return transparent_png, "image/jpeg"
 
-    cache_bytes_key = f"art_bytes:{item_type}:{item_id}"
+    cache_bytes_key = f"art_bytes:{item_type}:{item_id}:{server_id or 'default'}"
 
     # 1. Check Python RAM cache (0.0001 ms)
     if cache_bytes_key in _MEMORY_ART_CACHE:
