@@ -271,23 +271,30 @@ function TrackList() {
                   const names = sources.map((s) => s.server_name).filter(Boolean).join(" • ");
                   return (
                     <div style={{ marginTop: "6px" }}>
-                      <span
+                      <div
                         style={{
                           display: "inline-flex",
-                          alignItems: "center",
-                          gap: "6px",
+                          flexDirection: "column",
+                          gap: "3px",
                           fontSize: "12px",
                           background: "rgba(191, 9, 94, 0.15)",
                           border: "1px solid rgba(191, 9, 94, 0.35)",
                           color: "#ff4d94",
-                          padding: "4px 12px",
+                          padding: "6px 14px",
                           borderRadius: "14px",
                           fontWeight: 600,
+                          maxWidth: "max-content",
                         }}
                         title={`Available on: ${names}`}
                       >
-                        🌐 {sources.length} Connected Libraries ({names})
-                      </span>
+                        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                          <span>🌐</span>
+                          <span>{sources.length} Connected Libraries</span>
+                        </div>
+                        <div style={{ fontSize: "11px", opacity: 0.85, paddingLeft: "20px" }}>
+                          {names}
+                        </div>
+                      </div>
                     </div>
                   );
                 }
