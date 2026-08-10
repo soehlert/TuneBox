@@ -13,6 +13,7 @@ import theme from "./theme";
 import TuneBoxLogo from "../public/TuneBox.svg";
 import Stats from "./components/Stats";
 import TuneBoxDialog from "./components/TuneBoxDialog";
+import { MissingArtworkModal } from "./components/MissingArtworkModal";
 import "./App.css";
 import "./components/Queue.css";
 
@@ -382,6 +383,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
     }>;
   } | null>(null);
   const [loadingStats, setLoadingStats] = useState(false);
+  const [missingArtModalType, setMissingArtModalType] = useState<"artist" | "album" | null>(null);
 
   const fetchHealthStats = () => {
     setLoadingStats(true);
@@ -1444,8 +1446,28 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
                         </div>
                       </div>
 
-                      <div style={{ background: "rgba(255, 255, 255, 0.03)", border: "1px solid rgba(255, 255, 255, 0.06)", borderRadius: "8px", padding: "10px", textAlign: "center" }}>
-                        <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.5)", textTransform: "uppercase", fontWeight: "bold" }}>Missing Artist Art</span>
+                      <div
+                        onClick={() => setMissingArtModalType("artist")}
+                        title="Click to inspect missing artist artwork on primary server"
+                        style={{
+                          background: "rgba(255, 255, 255, 0.03)",
+                          border: "1px solid rgba(255, 255, 255, 0.06)",
+                          borderRadius: "8px",
+                          padding: "10px",
+                          textAlign: "center",
+                          cursor: "pointer",
+                          transition: "border-color 0.2s, background-color 0.2s",
+                        }}
+                        onMouseOver={(e) => {
+                          e.currentTarget.style.borderColor = "var(--color-primary, #f5a623)";
+                          e.currentTarget.style.backgroundColor = "rgba(245, 166, 35, 0.05)";
+                        }}
+                        onMouseOut={(e) => {
+                          e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.06)";
+                          e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.03)";
+                        }}
+                      >
+                        <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.5)", textTransform: "uppercase", fontWeight: "bold" }}>Missing Artist Art 🔍</span>
                         <div style={{ fontSize: "18px", fontWeight: "800", color: libraryStats.missing_artist_art > 0 ? "#ff6b6b" : "#44d7b6", marginTop: "4px" }}>
                           {libraryStats.missing_artist_art.toLocaleString()}
                         </div>
@@ -1454,8 +1476,28 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
                         </div>
                       </div>
 
-                      <div style={{ background: "rgba(255, 255, 255, 0.03)", border: "1px solid rgba(255, 255, 255, 0.06)", borderRadius: "8px", padding: "10px", textAlign: "center" }}>
-                        <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.5)", textTransform: "uppercase", fontWeight: "bold" }}>Missing Album Art</span>
+                      <div
+                        onClick={() => setMissingArtModalType("album")}
+                        title="Click to inspect missing album artwork on primary server"
+                        style={{
+                          background: "rgba(255, 255, 255, 0.03)",
+                          border: "1px solid rgba(255, 255, 255, 0.06)",
+                          borderRadius: "8px",
+                          padding: "10px",
+                          textAlign: "center",
+                          cursor: "pointer",
+                          transition: "border-color 0.2s, background-color 0.2s",
+                        }}
+                        onMouseOver={(e) => {
+                          e.currentTarget.style.borderColor = "var(--color-primary, #f5a623)";
+                          e.currentTarget.style.backgroundColor = "rgba(245, 166, 35, 0.05)";
+                        }}
+                        onMouseOut={(e) => {
+                          e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.06)";
+                          e.currentTarget.style.backgroundColor = "rgba(255, 255, 255, 0.03)";
+                        }}
+                      >
+                        <span style={{ fontSize: "10px", color: "rgba(255,255,255,0.5)", textTransform: "uppercase", fontWeight: "bold" }}>Missing Album Art 🔍</span>
                         <div style={{ fontSize: "18px", fontWeight: "800", color: libraryStats.missing_album_art > 0 ? "#ff6b6b" : "#44d7b6", marginTop: "4px" }}>
                           {libraryStats.missing_album_art.toLocaleString()}
                         </div>
@@ -1574,6 +1616,14 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
             {saving ? "Saving Settings..." : "Save Settings"}
           </button>
         </div>
+
+        {missingArtModalType && (
+          <MissingArtworkModal
+            type={missingArtModalType}
+            onClose={() => setMissingArtModalType(null)}
+            onRefreshed={fetchHealthStats}
+          />
+        )}
 
         <TuneBoxDialog
           open={showUnsavedDialog}

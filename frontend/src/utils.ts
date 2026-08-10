@@ -19,3 +19,9 @@ export const getLocalUsername = (): string | null => {
   
   return null;
 };
+
+export const getApiUrl = (path: string) => {
+  const isDev = window.location.port === "5173";
+  const base = isDev ? `http://${window.location.hostname}:8000` : window.location.origin;
+  return `${base}${path}`;
+};

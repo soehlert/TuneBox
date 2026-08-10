@@ -1083,3 +1083,117 @@ def get_library_health_stats(db_path: str | None = None) -> dict:
     finally:
         conn.close()
 
+
+def get_missing_artwork_items(item_type: str, query: str | None = None, limit: int = 200, db_path: str | None = None) -> list[dict]:
+    """Retrieve list of artists or albums on the primary server lacking custom/remote artwork."""
+    conn = get_db_connection(db_path)
+    try:
+        params: list = []
+
+        if item_type == "artist":
+            sql = """
+                SELECT DISTINCT a.artist_id AS id, a.name AS title, '' AS subtitle
+                FROM artists a
+                JOIN artist_sources src ON a.artist_id = src.artist_id
+                JOIN servers srv ON src.server_id = srv.server_id
+                WHERE srv.is_primary = 1 AND (a.thumb IS NULL OR a.thumb = '' OR a.thumb LIKE '/api/music/%')
+            """
+            if query and query.strip():
+                sql += " AND LOWER(a.name) LIKE ?"
+                params.append(f"%{query.strip().lower()}%")
+            sql += " ORDER BY a.name ASC LIMIT ?"
+            params.append(limit)
+
+        elif item_type == "album":
+            sql = """
+                SELECT DISTINCT alb.album_id AS id, alb.title AS title, alb.artist_name AS subtitle
+                FROM albums alb
+                JOIN album_sources src ON alb.album_id = src.album_id
+                JOIN servers srv ON src.server_id = srv.server_id
+                WHERE srv.is_primary = 1 AND (alb.thumb IS NULL OR alb.thumb = '' OR alb.thumb LIKE '/api/music/%')
+            """
+            if query and query.strip():
+                sql += " AND (LOWER(alb.title) LIKE ? OR LOWER(alb.artist_name) LIKE ?)"
+                q_term = f"%{query.strip().lower()}%"
+                params.extend([q_term, q_term])
+            sql += " ORDER BY alb.title ASC LIMIT ?"
+            params.append(limit)
+        else:
+            return []
+
+        rows = conn.execute(sql, params).fetchall()
+        return [{"id": r["id"], "title": r["title"], "subtitle": r["subtitle"]} for r in rows]
+    finally:
+        conn.close()
+
+
+def refetch_item_artwork(item_type: str, item_id: int, db_path: str | None = None) -> bool:
+    """Attempt to re-sync thumbnail URL for an artist or album from the primary Plex server."""
+    conn = get_db_connection(db_path)
+    try:
+        if item_type == "artist":
+            row = conn.execute(
+                """
+                SELECT src.server_artist_id, src.server_id
+                FROM artist_sources src
+                JOIN servers srv ON src.server_id = srv.server_id
+                WHERE src.artist_id = ? AND srv.is_primary = 1
+                LIMIT 1
+                """,
+                (item_id,),
+            ).fetchone()
+            if not row:
+                return False
+            server_artist_id = row["server_artist_id"]
+            server_id = row["server_id"]
+
+            from backend.services.plex import get_target_plex_connection  # noqa: PLC0415
+            plex = get_target_plex_connection(server_id)
+            if not plex:
+                return False
+            try:
+                artist_item = plex.fetchItem(int(server_artist_id))
+                new_thumb = getattr(artist_item, "thumb", None)
+                if new_thumb:
+                    conn.execute("UPDATE artists SET thumb = ? WHERE artist_id = ?", (new_thumb, item_id))
+                    conn.commit()
+                    return True
+            except Exception as ex:
+                logger.debug("Failed to re-sync artist artwork from Plex: %s", ex)
+                return False
+
+        elif item_type == "album":
+            row = conn.execute(
+                """
+                SELECT src.server_album_id, src.server_id
+                FROM album_sources src
+                JOIN servers srv ON src.server_id = srv.server_id
+                WHERE src.album_id = ? AND srv.is_primary = 1
+                LIMIT 1
+                """,
+                (item_id,),
+            ).fetchone()
+            if not row:
+                return False
+            server_album_id = row["server_album_id"]
+            server_id = row["server_id"]
+
+            from backend.services.plex import get_target_plex_connection  # noqa: PLC0415
+            plex = get_target_plex_connection(server_id)
+            if not plex:
+                return False
+            try:
+                album_item = plex.fetchItem(int(server_album_id))
+                new_thumb = getattr(album_item, "thumb", None)
+                if new_thumb:
+                    conn.execute("UPDATE albums SET thumb = ? WHERE album_id = ?", (new_thumb, item_id))
+                    conn.commit()
+                    return True
+            except Exception as ex:
+                logger.debug("Failed to re-sync album artwork from Plex: %s", ex)
+                return False
+
+        return False
+    finally:
+        conn.close()
+
