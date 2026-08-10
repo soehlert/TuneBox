@@ -532,11 +532,16 @@ async def add_album_to_queue_endpoint(
             item_id = t.get("server_track_id") or t.get("rating_key") or t.get("item_id") or t.get("track_id")
             t_server_id = t.get("server_id") or server_id
             song = get_track(item_id, server_id=t_server_id)
-            add_to_queue_redis(song, server_id=t_server_id, added_by=added_by)
-            added_count += 1
-            if added_by and added_by != "Guest":
-                from backend.services.stats import increment_adds
-                increment_adds(added_by)
+            try:
+                add_to_queue_redis(song, server_id=t_server_id, added_by=added_by)
+                added_count += 1
+                if added_by and added_by != "Guest":
+                    from backend.services.stats import increment_adds
+                    increment_adds(added_by)
+            except HTTPException as hex_err:
+                if hex_err.status_code == 400 and "already in the queue" in str(hex_err.detail).lower():
+                    continue
+                raise
 
         from backend.websockets import send_current_playing, send_queue
         await send_queue()
