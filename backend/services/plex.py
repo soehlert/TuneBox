@@ -2281,12 +2281,13 @@ def clear_art_memory_cache():
 
 def fetch_art_bytes(item_id: int | str, item_type: str, server_id: str | None = None) -> tuple[bytes, str]:
     """Fetch image bytes from fast in-memory cache, Redis cache, or Plex server, returning (content_bytes, media_type)."""
+    transparent_png = (
+        b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06"
+        b"\x00\x00\x00\x1f\x15c4\x00\x00\x00\rIDATx\x9cc`\x00\x01\x00\x00\x05\x00\x01"
+        b"\xa5\xf9\xd0\xb1\x00\x00\x00\x00IEND\xaeB`\x82"
+    )
+
     if settings.testing:
-        transparent_png = (
-            b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06"
-            b"\x00\x00\x00\x1f\x15c4\x00\x00\x00\rIDATx\x9cc`\x00\x01\x00\x00\x05\x00\x01"
-            b"\xa5\xf9\xd0\xb1\x00\x00\x00\x00IEND\xaeB`\x82"
-        )
         return transparent_png, "image/jpeg"
 
     cache_bytes_key = f"art_bytes:{item_type}:{item_id}:{server_id or 'default'}"
