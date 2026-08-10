@@ -112,7 +112,6 @@ function ArtistAlbums() {
       </div>
       <header className="page-header">
         <Typography variant="h1" className="gradient-text">{artistName}</Typography>
-        <Typography className="page-subtitle">Select an album to view tracks</Typography>
       </header>
       {loading ? (
         <Typography variant="h6">Loading...</Typography>
