@@ -60,10 +60,19 @@
 .track-card-left {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-width: 0;
+  flex: 1 1 auto;
+  margin-right: 20px;
+}
+
+.track-title-container {
+  display: flex;
+  align-items: center;
   gap: 12px;
   min-width: 0;
   flex: 1 1 auto;
-  margin-right: 16px;
 }
 
 .track-card-right {
@@ -128,11 +137,64 @@
   flex-shrink: 0;
 }
 
-@media (max-width: 600px) {
-  .track-card-right {
-    gap: 10px;
+@media (max-width: 768px) {
+  .track-card {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    padding: 12px 16px !important;
+    gap: 8px !important;
+    box-sizing: border-box !important;
   }
+
+  .track-card-left {
+    width: 100%;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-right: 0;
+  }
+
+  .track-title-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .track-card .track-duration {
+    text-align: right;
+    padding-right: 4px;
+    flex-shrink: 0;
+  }
+
+  .track-card-right {
+    width: 100%;
+    box-sizing: border-box;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding-top: 8px;
+    padding-left: 38px;
+    padding-right: 4px;
+    margin-top: 2px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
   .star-rating-cell {
     min-width: auto;
+  }
+
+  .star-rating-cell .material-symbols-outlined {
+    font-size: 17px !important;
+  }
+
+  .track-card .MuiButton-root {
+    padding: 4px 14px !important;
+    font-size: 0.8rem !important;
+    flex-shrink: 0;
   }
 }

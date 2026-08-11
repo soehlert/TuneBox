@@ -380,10 +380,15 @@ function TrackList() {
                       )}
                       <Card className="track-card">
                         <div className="track-card-left">
-                          <Typography className="track-number" style={{ opacity: 0.6, fontWeight: "bold", minWidth: "28px", flexShrink: 0 }}>
-                            {track.track_number ?? (idx + 1)}.
+                          <div className="track-title-container">
+                            <Typography className="track-number" style={{ opacity: 0.6, fontWeight: "bold", minWidth: "28px", flexShrink: 0 }}>
+                              {track.track_number ?? (idx + 1)}.
+                            </Typography>
+                            <Typography className="album-track-title">{track.title || `Track ${track.track_number ?? (idx + 1)}`}</Typography>
+                          </div>
+                          <Typography className="track-duration">
+                            {formatDuration(track.duration)}
                           </Typography>
-                          <Typography className="album-track-title">{track.title || `Track ${track.track_number ?? (idx + 1)}`}</Typography>
                         </div>
                         <div className="track-card-right">
                           <div className="star-rating-cell">
@@ -393,9 +398,6 @@ function TrackList() {
                               onRate={(newRating) => handleRateTrack(track.track_id, newRating)}
                             />
                           </div>
-                          <Typography className="track-duration">
-                            {formatDuration(track.duration)}
-                          </Typography>
                           <Button
                             variant="contained"
                             onClick={() => addToQueue(track)}

@@ -10,6 +10,8 @@
 - **Docker Log Verification**: Always check Docker logs (`docker compose logs backend --tail 50` or `docker compose logs -f backend`) when investigating errors, diagnosing behavior, or forming an execution plan.
 - **Global Imports Only**: NEVER import anything inside of a function or method. All imports MUST be placed globally at the top of the file. If circular import issues arise, alert the user immediately so we refactor module dependencies cleanly rather than adding local inline imports.
 - **No Backward Compatibility / Legacy Debt**: NEVER keep fallback code or legacy adapters to deal with old ways of doing things. This is an active local development project — make clean, direct, breaking/destructive schema & code updates as needed, and notify the user whenever destructive updates are performed.
+- **Browser Cache / Hard Reload**: `Cmd + Shift + R` does not reliably bypass cached JS/CSS bundles. Open DevTools with "Disable Cache" enabled or use private/incognito window when verifying frontend asset changes.
+- **Testing Scope**: Do NOT run backend tests (`uv run pytest`) when ONLY updating frontend JavaScript, TypeScript, or CSS files.
 
 
 
