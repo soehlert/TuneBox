@@ -274,6 +274,41 @@ const QueueComponent = () => {
     };
   }, [wsHost]);
 
+  const [availableVibes, setAvailableVibes] = useState<Array<{vibe: string, display: string, count: number}>>([
+    { vibe: "Party", display: "🎉 Party", count: 10 },
+    { vibe: "Energetic", display: "⚡ Energetic", count: 10 },
+    { vibe: "Chill", display: "☕ Chill", count: 10 },
+    { vibe: "Groovy", display: "🎷 Groovy", count: 10 },
+    { vibe: "Upbeat", display: "🕺 Upbeat", count: 10 },
+    { vibe: "Acoustic", display: "🎸 Acoustic", count: 10 },
+    { vibe: "Electronic", display: "🎧 Electronic", count: 10 },
+    { vibe: "Melancholic", display: "🌙 Melancholic", count: 10 },
+  ]);
+
+  useEffect(() => {
+    fetch(`${apiBase}/api/music/vibes`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setAvailableVibes(data);
+        }
+      })
+      .catch(() => {});
+  }, [apiBase]);
+
+  const handleSeedVibe = async (vibeName: string) => {
+    try {
+      const headers: Record<string, string> = {};
+      if (adminToken) headers["X-Admin-Token"] = adminToken;
+      await fetch(`${apiBase}/api/music/vibe/seed?vibe=${encodeURIComponent(vibeName)}&count=10`, {
+        method: "POST",
+        headers,
+      });
+    } catch (e) {
+      console.error("Failed to seed vibe:", e);
+    }
+  };
+
   useEffect(() => {
     fetchHistory();
     const interval = setInterval(fetchHistory, 15000);
@@ -306,54 +341,75 @@ const QueueComponent = () => {
         <Box 
           style={{
             display: "flex",
-            flexWrap: "wrap",
-            gap: "6px",
+            flexDirection: "column",
+            gap: "8px",
             padding: "0 12px 12px 12px",
             marginTop: "-4px"
           }}
         >
-          {((vibes && vibes.length > 0) ? vibes : ["Party", "Energetic", "Chill", "Groovy", "Rock", "Pop"]).map((vibe, idx) => (
-            <button
-              key={idx}
-              type="button"
-              onClick={async () => {
-                try {
-                  const headers: Record<string, string> = {};
-                  if (adminToken) headers["X-Admin-Token"] = adminToken;
-                  await fetch(`${apiBase}/api/music/vibe/seed?vibe=${encodeURIComponent(vibe)}&count=10`, {
-                    method: "POST",
-                    headers,
-                  });
-                } catch (e) {
-                  console.error("Failed to seed vibe:", e);
+          <Box style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+            <span style={{ fontSize: "11px", fontWeight: 700, color: "rgba(255, 255, 255, 0.7)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Room Party Vibe
+            </span>
+            <select
+              onChange={(e) => {
+                if (e.target.value) {
+                  handleSeedVibe(e.target.value);
+                  e.target.value = "";
                 }
               }}
-              title={`Click to seed 10 ${vibe} tracks into queue`}
+              defaultValue=""
               style={{
                 fontSize: "11px",
-                background: "rgba(51, 117, 173, 0.2)",
-                border: "1px solid #3376ad",
+                background: "rgba(255, 255, 255, 0.08)",
+                border: "1px solid rgba(255, 255, 255, 0.2)",
                 color: "#9bd0ff",
-                padding: "3px 10px",
-                borderRadius: "12px",
-                fontWeight: 600,
-                textTransform: "capitalize",
-                letterSpacing: "0.02em",
+                borderRadius: "6px",
+                padding: "2px 8px",
                 cursor: "pointer",
-                transition: "all 0.15s ease",
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.backgroundColor = "rgba(51, 117, 173, 0.4)";
-                e.currentTarget.style.color = "#ffffff";
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.backgroundColor = "rgba(51, 117, 173, 0.2)";
-                e.currentTarget.style.color = "#9bd0ff";
+                outline: "none",
               }}
             >
-              ✨ {vibe}
-            </button>
-          ))}
+              <option value="" disabled>Pick a Vibe/Genre...</option>
+              {availableVibes.map((item, idx) => (
+                <option key={idx} value={item.vibe} style={{ background: "#1e1e24", color: "#fff" }}>
+                  {item.display || item.vibe} ({item.count} tracks)
+                </option>
+              ))}
+            </select>
+          </Box>
+
+          <Box style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+            {availableVibes.slice(0, 6).map((item, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => handleSeedVibe(item.vibe)}
+                title={`Click to seed 10 ${item.vibe} tracks into queue (${item.count} matching tracks in library)`}
+                style={{
+                  fontSize: "11px",
+                  background: "rgba(51, 117, 173, 0.2)",
+                  border: "1px solid #3376ad",
+                  color: "#9bd0ff",
+                  padding: "3px 10px",
+                  borderRadius: "12px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  transition: "all 0.15s ease",
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.backgroundColor = "rgba(51, 117, 173, 0.4)";
+                  e.currentTarget.style.color = "#ffffff";
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.backgroundColor = "rgba(51, 117, 173, 0.2)";
+                  e.currentTarget.style.color = "#9bd0ff";
+                }}
+              >
+                {item.display || item.vibe}
+              </button>
+            ))}
+          </Box>
         </Box>
       )}
 

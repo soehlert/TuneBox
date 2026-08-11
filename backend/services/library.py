@@ -1359,68 +1359,147 @@ def refetch_item_artwork(item_type: str, item_id: int, db_path: str | None = Non
         conn.close()
 
 
+MOOD_MAPPINGS = {
+    "Party": {
+        "display": "🎉 Party",
+        "keywords": ["party", "dance", "fun", "celebration", "upbeat", "lively", "club"],
+        "genres": ["pop", "dance", "disco", "funk", "electronic", "hip-hop", "hip hop", "house", "r&b", "latin"],
+    },
+    "Energetic": {
+        "display": "⚡ Energetic",
+        "keywords": ["energetic", "hype", "intense", "fast", "powerful", "driving"],
+        "genres": ["rock", "metal", "punk", "hard rock", "edm", "techno", "drum and bass", "dubstep"],
+    },
+    "Chill": {
+        "display": "☕ Chill",
+        "keywords": ["chill", "relax", "mellow", "calm", "smooth", "soft", "peaceful", "lo-fi", "lofi"],
+        "genres": ["ambient", "chillout", "lo-fi", "downtempo", "acoustic", "indie", "jazz", "soul", "reggae", "folk"],
+    },
+    "Groovy": {
+        "display": "🎷 Groovy",
+        "keywords": ["groovy", "funky", "rhythm", "groove", "soulful", "boogie"],
+        "genres": ["funk", "disco", "soul", "r&b", "motown", "jazz", "reggae", "blues"],
+    },
+    "Upbeat": {
+        "display": "🕺 Upbeat",
+        "keywords": ["upbeat", "happy", "joyful", "bright", "sunny", "feel-good", "feel good"],
+        "genres": ["pop", "indie pop", "synthpop", "classic rock", "ska", "dance-pop"],
+    },
+    "Acoustic": {
+        "display": "🎸 Acoustic",
+        "keywords": ["acoustic", "unplugged", "singer-songwriter", "folk", "organic"],
+        "genres": ["acoustic", "folk", "indie folk", "country", "bluegrass", "singer-songwriter"],
+    },
+    "Electronic": {
+        "display": "🎧 Electronic",
+        "keywords": ["electronic", "synth", "techno", "electro", "beat"],
+        "genres": ["electronic", "electropop", "synthwave", "house", "trance", "techno", "ambient"],
+    },
+    "Melancholic": {
+        "display": "🌙 Melancholic",
+        "keywords": ["melancholic", "sad", "bittersweet", "emotional", "somber", "brooding"],
+        "genres": ["indie rock", "slowcore", "post-rock", "blues", "ballad", "alt-rock"],
+    },
+}
+
+
 def get_available_vibes_db(db_path: str | None = None) -> list[dict]:
-    """Fetch distinct party vibes and genres with track counts from SQLite."""
-    preset_vibes = ["Party", "Energetic", "Chill", "Groovy", "Rock", "Pop", "Electronic", "Acoustic"]
+    """Fetch distinct party vibes and genres mapped behind the scenes from SQLite."""
     conn = get_db_connection(db_path)
     try:
-        rows = conn.execute(
+        genre_rows = conn.execute(
             """
-            SELECT alb.genre, COUNT(t.track_id) as count
+            SELECT LOWER(alb.genre) as genre_lower, COUNT(t.track_id) as count
             FROM albums alb
             JOIN tracks t ON alb.album_id = t.album_id
             WHERE alb.genre IS NOT NULL AND TRIM(alb.genre) != '' AND alb.genre != 'Uncategorized'
-            GROUP BY alb.genre
-            ORDER BY count DESC
+            GROUP BY LOWER(alb.genre)
             """
         ).fetchall()
 
+        genre_counts = {r["genre_lower"]: r["count"] for r in genre_rows}
         results = []
-        seen = set()
 
-        for p in preset_vibes:
-            norm = p.lower()
-            matching_count = sum(r["count"] for r in rows if norm in r["genre"].lower())
-            if matching_count > 0:
-                results.append({"vibe": p, "count": matching_count, "preset": True})
-                seen.add(norm)
-            elif not rows:
-                results.append({"vibe": p, "count": 10, "preset": True})
+        for mood_key, meta in MOOD_MAPPINGS.items():
+            total_count = 0
+            for g in meta["genres"]:
+                for db_g, cnt in genre_counts.items():
+                    if g in db_g:
+                        total_count += cnt
+            if total_count == 0:
+                total_count = sum(genre_counts.values()) or 10
 
-        for r in rows:
-            g = r["genre"].strip()
-            if g.lower() not in seen:
-                results.append({"vibe": g, "count": r["count"], "preset": False})
-                seen.add(g.lower())
+            results.append({
+                "vibe": mood_key,
+                "display": meta["display"],
+                "count": total_count,
+                "preset": True,
+            })
+
+        for db_g, cnt in genre_counts.items():
+            g_title = db_g.title()
+            if not any(g_title.lower() in m["genres"] for m in MOOD_MAPPINGS.values()):
+                results.append({
+                    "vibe": g_title,
+                    "display": f"🎵 {g_title}",
+                    "count": cnt,
+                    "preset": False,
+                })
 
         return results
     except Exception as ex:
         logger.warning("Failed to fetch vibes from DB: %s", ex)
-        return [{"vibe": p, "count": 10, "preset": True} for p in preset_vibes]
+        return [{"vibe": k, "display": meta["display"], "count": 10, "preset": True} for k, meta in MOOD_MAPPINGS.items()]
     finally:
         conn.close()
 
 
 def get_tracks_by_vibe_db(vibe_name: str, count: int = 10, db_path: str | None = None) -> list[dict]:
-    """Retrieve random tracks from SQLite matching a targeted vibe or genre."""
+    """Retrieve random tracks from SQLite matching a targeted mood or genre mapping."""
     target_count = max(1, count)
     conn = get_db_connection(db_path)
     try:
         vibe_str = (vibe_name or "").strip()
-        if vibe_str and vibe_str.lower() != "all":
-            rows = conn.execute(
-                """
+        vibe_key = None
+        for k in MOOD_MAPPINGS:
+            if k.lower() == vibe_str.lower():
+                vibe_key = k
+                break
+
+        where_clauses = []
+        params = []
+
+        if vibe_key:
+            meta = MOOD_MAPPINGS[vibe_key]
+            for g in meta["genres"]:
+                where_clauses.append("LOWER(alb.genre) LIKE ?")
+                params.append(f"%{g}%")
+            for kw in meta["keywords"]:
+                where_clauses.append("LOWER(t.title) LIKE ?")
+                params.append(f"%{kw}%")
+                where_clauses.append("LOWER(t.artist_name) LIKE ?")
+                params.append(f"%{kw}%")
+        elif vibe_str and vibe_str.lower() != "all":
+            where_clauses.append("LOWER(alb.genre) LIKE ?")
+            params.append(f"%{vibe_str.lower()}%")
+            where_clauses.append("LOWER(t.title) LIKE ?")
+            params.append(f"%{vibe_str.lower()}%")
+            where_clauses.append("LOWER(t.artist_name) LIKE ?")
+            params.append(f"%{vibe_str.lower()}%")
+
+        if where_clauses:
+            query = f"""
                 SELECT t.track_id, t.album_id, t.server_id, t.server_track_id,
                        t.artist_name as artist, t.album_title as album, t.title,
                        t.duration, t.thumb
                 FROM tracks t
                 JOIN albums alb ON t.album_id = alb.album_id
-                WHERE LOWER(alb.genre) LIKE ? OR LOWER(t.title) LIKE ? OR LOWER(t.artist_name) LIKE ?
+                WHERE {" OR ".join(where_clauses)}
                 ORDER BY RANDOM()
                 LIMIT ?
-                """,
-                (f"%{vibe_str.lower()}%", f"%{vibe_str.lower()}%", f"%{vibe_str.lower()}%", target_count),
-            ).fetchall()
+            """
+            params.append(target_count)
+            rows = conn.execute(query, params).fetchall()
         else:
             rows = []
 
@@ -1437,6 +1516,8 @@ def get_tracks_by_vibe_db(vibe_name: str, count: int = 10, db_path: str | None =
                 (target_count,),
             ).fetchall()
 
+        display_name = MOOD_MAPPINGS[vibe_key]["display"] if vibe_key else vibe_str.capitalize()
+
         result = []
         for r in rows:
             result.append({
@@ -1451,7 +1532,7 @@ def get_tracks_by_vibe_db(vibe_name: str, count: int = 10, db_path: str | None =
                 "thumb": r["thumb"],
                 "album_id": r["album_id"],
                 "server_id": r["server_id"],
-                "moods": [vibe_str.capitalize()] if vibe_str else ["Party"],
+                "moods": [display_name] if display_name else ["Party"],
             })
         return result
     finally:
