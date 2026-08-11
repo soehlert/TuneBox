@@ -97,15 +97,8 @@ async def send_queue():
     }
     logger.debug("Sending play queue: %s", play_queue)
 
-    # Send the queue to all active connections of message_type 'queue_update'
-    for session_id in list(active_connections["queue_update"].keys()):
-        try:
-            logger.debug("Sending queue to connection %s", session_id)
-            await send_to_specific_client(session_id, message, "queue_update")
-        except Exception as e:
-            # ruff: noqa: TRY401
-            logger.exception("Failed to send to session %s: %s", session_id, e)
-            active_connections["queue_update"].pop(session_id, None)
+    # Send the queue to all active connections across categories
+    await send_json_to_all(message)
 
 
 async def send_current_playing():

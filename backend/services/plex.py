@@ -2615,21 +2615,8 @@ def seed_queue_from_playlist(playlist_id: int, count: int = 10):
         raise HTTPException(status_code=404, detail="Playlist not found")
         
     tracks = playlist.items()
-    # Store all playlist track internal track_ids in cache and SQLite as fallback pool for Autoplay
-    playlist_track_ids = []
-    try:
-        for t in tracks:
-            rk_str = str(t.ratingKey)
-            resolved = rating_key_to_track_id(rk_str)
-            if resolved:
-                playlist_track_ids.append(resolved)
 
-        get_redis_cache_client().set("last_seeded_playlist_tracks", json.dumps(playlist_track_ids))
-        save_preseed_playlist_tracks(playlist_track_ids, playlist_id=str(playlist_id))
-    except Exception as ex:
-        logger.warning("Failed to cache fallback pool: %s", ex)
-
-    # Select target_count random tracks (or entire playlist if count exceeds len(tracks))
+    # 1. Sample target_count random tracks FIRST to make queue addition instant
     sample_size = min(len(tracks), target_count)
     sampled_tracks = random.sample(tracks, sample_size)
     
@@ -2641,7 +2628,31 @@ def seed_queue_from_playlist(playlist_id: int, count: int = 10):
         except Exception:
             # Skip duplicates or tracks already in queue
             pass
-            
+
+    # 2. Store all playlist track internal track_ids using 1 batch SQL query for Autoplay fallback pool
+    playlist_track_ids = []
+    try:
+        rk_list = [str(getattr(t, "ratingKey", "")) for t in tracks if getattr(t, "ratingKey", None)]
+        if rk_list:
+            conn = get_db_connection()
+            placeholders = ",".join(["?"] * len(rk_list))
+            rows = conn.execute(
+                f"""
+                SELECT DISTINCT t.track_id
+                FROM tracks t
+                LEFT JOIN track_sources ts ON t.track_id = ts.track_id
+                WHERE ts.server_track_id IN ({placeholders}) OR t.server_track_id IN ({placeholders})
+                """,
+                rk_list + rk_list,
+            ).fetchall()
+            conn.close()
+            playlist_track_ids = [row["track_id"] for row in rows]
+
+        get_redis_cache_client().set("last_seeded_playlist_tracks", json.dumps(playlist_track_ids))
+        save_preseed_playlist_tracks(playlist_track_ids, playlist_id=str(playlist_id))
+    except Exception as ex:
+        logger.warning("Failed to cache fallback pool: %s", ex)
+
     return {"message": f"Successfully seeded {added_count} tracks from playlist '{playlist.title}'."}
 
 

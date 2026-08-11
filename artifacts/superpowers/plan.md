@@ -1,17 +1,17 @@
-# Implementation Plan - Fast Playlist Preseeding & Real-Time Queue Updates
+# Implementation Plan - Instant Playlist Preseeding & Full-Broadcast Queue Updates
 
-Eliminate the 35+ second latency during playlist queue pre-seeding by avoiding cascading network calls in track mood evaluation, and ensure immediate real-time WebSocket queue updates and toast notifications.
+Fix the 15-second preseed delay, event loop GIL freezing, missing toast notifications, and queue update delays by sampling preseed tracks upfront, replacing sequential SQLite loop queries with a single batch SQL query, and broadcasting queue updates to all active WebSocket connections.
 
 ## Proposed Changes
 
 ### Branch Creation
-- Branch `feature/fast-playlist-preseed` created.
+- Branch `feature/fast-playlist-preseed` active.
 
-### Backend Logic & Router Updates
-- Modify `backend/services/redis.py`:
-  - `add_to_queue_redis`: avoid cascading `song.album()` / `song.artist()` network calls when resolving moods.
-- Modify `backend/routers/music.py`:
-  - `@router.post("/playlists/{playlist_id}/seed")`: `await send_queue()` and `await send_current_playing()` directly.
+### Backend Services & WebSockets
+- Modify `backend/services/plex.py`:
+  - `seed_queue_from_playlist`: sample `target_count` tracks FIRST; resolve fallback pool with 1 batch SQL query (`WHERE server_track_id IN (...)`).
+- Modify `backend/websockets.py`:
+  - `send_queue`: broadcast queue payload to all active WebSocket connections via `send_json_to_all`.
 
 ### Automated Tests
-- Modify `backend/tests/test_queue_isolation.py`: Add test for fast playlist pre-seeding and WebSocket updates.
+- Modify `backend/tests/test_queue_isolation.py`: verify batch SQL preseed performance and WebSocket broadcasts.
