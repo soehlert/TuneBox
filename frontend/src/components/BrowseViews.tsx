@@ -210,7 +210,7 @@ interface Decade {
   album_count: number;
 }
 
-export type ViewMode = "artists" | "albums" | "genres" | "decades";
+export type ViewMode = "recently_added" | "artists" | "albums" | "genres" | "decades";
 
 interface BrowseTabsProps {
   currentMode: ViewMode;
@@ -221,6 +221,7 @@ export const BrowseTabs: React.FC<BrowseTabsProps> = ({ currentMode, onModeChang
   const tabs: { id: ViewMode; label: string; icon: string }[] = [
     { id: "artists", label: "Artists", icon: "mic" },
     { id: "albums", label: "Albums", icon: "album" },
+    { id: "recently_added", label: "Recently Added", icon: "auto_awesome" },
     { id: "genres", label: "Genres", icon: "music_note" },
     { id: "decades", label: "Decades", icon: "calendar_clock" },
   ];
@@ -631,6 +632,153 @@ export const DecadesGridView: React.FC<{ apiBase: string }> = ({ apiBase }) => {
           </Typography>
         </Card>
       ))}
+    </div>
+  );
+};
+
+interface RecentlyAddedAlbum {
+  album_id: number;
+  artist_id?: number;
+  artist?: string;
+  title: string;
+  year?: number;
+  genre?: string;
+  thumb?: string | null;
+  play_count?: number;
+  updated_at?: number;
+  server_names?: string;
+  server_count?: number;
+}
+
+export const RecentlyAddedGridView: React.FC<{ apiBase: string }> = ({ apiBase }) => {
+  const [albums, setAlbums] = useState<RecentlyAddedAlbum[]>([]);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    axios
+      .get(`${apiBase}/api/music/albums/recently-added`)
+      .then((res) => setAlbums(res.data))
+      .catch((err) => console.error("Error fetching recently added albums:", err))
+      .finally(() => setLoading(false));
+  }, [apiBase]);
+
+  const formatAddedTime = (updatedAt?: number) => {
+    if (!updatedAt) return "Recently";
+    const now = Math.floor(Date.now() / 1000);
+    const diff = now - updatedAt;
+    if (diff < 3600) return "Just added";
+    if (diff < 86400) {
+      const hours = Math.floor(diff / 3600);
+      return `${hours}h ago`;
+    }
+    const days = Math.floor(diff / 86400);
+    if (days === 1) return "Yesterday";
+    if (days < 30) return `${days}d ago`;
+    const months = Math.floor(days / 30);
+    return `${months}m ago`;
+  };
+
+  if (loading) {
+    return <div style={{ color: "#aaa", padding: "40px", textAlign: "center" }}>Loading Recently Added...</div>;
+  }
+
+  return (
+    <div style={{ width: "100%" }}>
+      {albums.length === 0 ? (
+        <div style={{ color: "rgba(255,255,255,0.5)", textAlign: "center", padding: "60px 20px" }}>
+          No recently added items found.
+        </div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "20px" }}>
+          {albums.map((alb) => (
+            <Card
+              key={alb.album_id}
+              onClick={() => navigate(`/albums/${alb.album_id}/tracks`)}
+              style={{
+                background: "var(--color-glass-bg)",
+                border: "1px solid var(--color-glass-border)",
+                borderRadius: "16px",
+                padding: "12px",
+                cursor: "pointer",
+                display: "flex",
+                flexDirection: "column",
+                gap: "8px",
+                position: "relative",
+                transition: "transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = "var(--color-primary)";
+                e.currentTarget.style.transform = "translateY(-4px)";
+                e.currentTarget.style.boxShadow = "0 8px 24px rgba(229, 149, 0, 0.2)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = "var(--color-glass-border)";
+                e.currentTarget.style.transform = "none";
+                e.currentTarget.style.boxShadow = "none";
+              }}
+            >
+              <div style={{ position: "relative", width: "100%", aspectRatio: "1/1", borderRadius: "12px", overflow: "hidden" }}>
+                <FallbackImage
+                  src={`${apiBase}/api/music/album-art/${alb.album_id}`}
+                  alt={alb.title}
+                  type="album"
+                  loading="lazy"
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+                <span
+                  style={{
+                    position: "absolute",
+                    top: "8px",
+                    right: "8px",
+                    background: "rgba(0, 0, 0, 0.75)",
+                    backdropFilter: "blur(6px)",
+                    color: "#f5a623",
+                    fontSize: "11px",
+                    fontWeight: 800,
+                    padding: "3px 8px",
+                    borderRadius: "10px",
+                    border: "1px solid rgba(245, 166, 35, 0.4)",
+                  }}
+                >
+                  {formatAddedTime(alb.updated_at)}
+                </span>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+                <Typography style={{ color: "#fff", fontWeight: 700, fontSize: "14px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {alb.title}
+                </Typography>
+                <Typography style={{ color: "rgba(255,255,255,0.6)", fontSize: "12px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {alb.artist || "Unknown Artist"} {alb.year ? `(${alb.year})` : ""}
+                </Typography>
+
+                {alb.server_names && (
+                  <span
+                    style={{
+                      display: "inline-block",
+                      marginTop: "6px",
+                      fontSize: "10px",
+                      fontWeight: 700,
+                      color: "#ff4d94",
+                      background: "rgba(191, 9, 94, 0.15)",
+                      border: "1px solid rgba(191, 9, 94, 0.3)",
+                      padding: "2px 8px",
+                      borderRadius: "10px",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                    title={`Source: ${alb.server_names}`}
+                  >
+                    📍 {alb.server_names}
+                  </span>
+                )}
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

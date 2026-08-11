@@ -58,6 +58,7 @@ from backend.services.library import (
     get_indexed_artists,
     get_albums_for_artist_db,
     get_indexed_albums,
+    get_recently_added_albums,
     get_all_genres_db,
     get_albums_by_genre_db,
     get_all_decades_db,
@@ -451,6 +452,15 @@ def get_all_albums_endpoint():
         return get_indexed_albums()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching all albums: {e}") from e
+
+
+@router.get("/albums/recently-added")
+def get_recently_added_endpoint(limit: int = 50):
+    """Fetch recently added albums across all currently enabled servers."""
+    try:
+        return get_recently_added_albums(limit=limit)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching recently added albums: {e}") from e
 
 
 # Fetch music genres with album counts

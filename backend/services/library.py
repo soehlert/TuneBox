@@ -555,6 +555,37 @@ def get_indexed_albums(sort_mode: str = "name_asc", db_path: str | None = None) 
         conn.close()
 
 
+def get_recently_added_albums(limit: int = 50, db_path: str | None = None) -> list[dict]:
+    """Fetch recently added albums across all currently enabled servers."""
+    conn = get_db_connection(db_path)
+    try:
+        query = """
+            SELECT 
+                alb.album_id, 
+                alb.artist_id, 
+                alb.artist_name as artist, 
+                alb.title, 
+                alb.year, 
+                alb.genre, 
+                alb.thumb, 
+                alb.play_count,
+                MAX(alb.updated_at) as updated_at,
+                GROUP_CONCAT(DISTINCT srv.name) as server_names,
+                COUNT(DISTINCT src.server_id) as server_count
+            FROM albums alb
+            JOIN album_sources src ON alb.album_id = src.album_id
+            JOIN servers srv ON src.server_id = srv.server_id
+            WHERE srv.enabled = 1 AND alb.title != '' AND alb.title IS NOT NULL
+            GROUP BY alb.album_id
+            ORDER BY alb.updated_at DESC, alb.album_id DESC
+            LIMIT ?
+        """
+        cursor = conn.execute(query, (limit,))
+        return [dict(r) for r in cursor.fetchall()]
+    finally:
+        conn.close()
+
+
 def increment_artist_play_count_db(artist_name: str, db_path: str | None = None):
     """Increment play_count in SQLite for an artist when a song finishes playing."""
     norm_name = _norm(artist_name)
