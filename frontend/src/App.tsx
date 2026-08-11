@@ -626,10 +626,10 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
         method: "POST",
         headers: { "x-admin-token": adminToken },
       });
-      setMsg("✓ Playback stopped & full queue cleared!");
+      setMsg("✓ Playback stopped & queue emptied!");
     } catch (err) {
       console.error("Error stopping queue:", err);
-      setMsg("✗ Failed to clear full queue.");
+      setMsg("✗ Failed to stop playback & empty queue.");
     }
   };
 
@@ -1154,14 +1154,14 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
                     <button
                       type="button"
                       onClick={() => setConfirmStopOpen(true)}
-                      title="Stops player immediately and clears the entire queue including the current song"
+                      title="Stops player immediately and empties the entire queue including the current song"
                       style={{
                         width: "100%",
                         height: "44px",
                         boxSizing: "border-box",
-                        background: "#ff4d4d",
-                        border: "1px solid transparent",
-                        color: "#ffffff",
+                        background: "rgba(255, 77, 77, 0.15)",
+                        border: "1px solid rgba(255, 77, 77, 0.4)",
+                        color: "#ff4d4d",
                         borderRadius: "8px",
                         padding: "0 14px",
                         fontSize: "13px",
@@ -1171,18 +1171,19 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
                         alignItems: "center",
                         justifyContent: "center",
                         gap: "6px",
-                        boxShadow: "0 4px 12px rgba(255, 77, 77, 0.25)",
                         transition: "all 0.2s ease-in-out",
                       }}
                       onMouseOver={(e) => {
-                        e.currentTarget.style.backgroundColor = "#e04343";
+                        e.currentTarget.style.backgroundColor = "rgba(255, 77, 77, 0.25)";
+                        e.currentTarget.style.borderColor = "#ff4d4d";
                       }}
                       onMouseOut={(e) => {
-                        e.currentTarget.style.backgroundColor = "#ff4d4d";
+                        e.currentTarget.style.backgroundColor = "rgba(255, 77, 77, 0.15)";
+                        e.currentTarget.style.borderColor = "rgba(255, 77, 77, 0.4)";
                       }}
                     >
                       <span className="material-symbols-outlined" style={{ fontSize: "18px" }}>stop_circle</span>
-                      Clear Full Queue
+                      Stop &amp; Empty Queue
                     </button>
                   </div>
                 </div>

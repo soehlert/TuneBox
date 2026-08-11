@@ -15,8 +15,25 @@ from backend.services.plex import generate_autoplay_tracks
 client = TestClient(app)
 
 
-def test_clear_queue_endpoint_removes_all_items_and_stops_playback(mocker):
-    """Verify POST /api/music/clear-queue completely empties the queue and stops playback."""
+def test_clear_queue_endpoint_clears_upcoming_and_preserves_active(mocker):
+    """Verify POST /api/music/clear-queue clears upcoming tracks while preserving active index 0 without stopping playback."""
+    mocker.patch("backend.services.redis.get_redis_queue_client")
+    mock_stop = mocker.patch("backend.routers.music.stop_playback")
+    mock_clear = mocker.patch("backend.routers.music.clear_redis_queue", return_value={"message": "The queue has been cleared."})
+    mocker.patch("backend.websockets.reset_skip_votes")
+    mocker.patch("backend.routers.music.send_queue")
+    mocker.patch("backend.routers.music.send_current_playing")
+
+    response = client.post("/api/music/clear-queue")
+    assert response.status_code == 200
+    assert response.json() == {"message": "The queue has been cleared."}
+
+    mock_stop.assert_not_called()
+    mock_clear.assert_called_once_with(force_all=False)
+
+
+def test_stop_queue_endpoint_stops_playback_and_clears_full_queue(mocker):
+    """Verify POST /api/music/stop-queue stops playback and completely empties the entire queue."""
     mocker.patch("backend.services.redis.get_redis_queue_client")
     mock_stop = mocker.patch("backend.routers.music.stop_playback")
     mock_clear = mocker.patch("backend.routers.music.clear_redis_queue", return_value={"message": "The queue has been cleared."})
@@ -25,9 +42,8 @@ def test_clear_queue_endpoint_removes_all_items_and_stops_playback(mocker):
     mocker.patch("backend.routers.music.send_queue")
     mocker.patch("backend.routers.music.send_current_playing")
 
-    response = client.post("/api/music/clear-queue")
+    response = client.post("/api/music/stop-queue", headers={"x-admin-token": settings.admin_token})
     assert response.status_code == 200
-    assert response.json() == {"message": "The queue has been cleared."}
 
     mock_stop.assert_called_once()
     mock_clear.assert_called_once_with(force_all=True)

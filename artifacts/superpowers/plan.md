@@ -1,25 +1,22 @@
-# Implementation Plan - Prevent Duplicate Tracks in Playback Queue
+# Implementation Plan - Admin Queue Clear Controls & Styling
 
-Fix duplicate track queueing by standardizing track IDs upfront. External Plex `ratingKey`s will be converted to internal SQLite `track_id`s before performing duplicate checks or storing items in the Redis queue.
+Refactor queue clearing behavior and UI controls in TuneBox Admin Settings so that **Clear Upcoming Queue** preserves the currently playing song (`queue[0]`), and **Stop & Empty Queue** halts playback and clears all tracks with matching semi-transparent button styling.
 
 ## Proposed Changes
 
 ### Branch Creation
-- Create and checkout a new branch `fix/prevent-duplicate-queue-tracks` from `main`.
+- Branch `feature/admin-queue-clear-controls` created.
 
-### Backend Logic & Utilities
-- Modify `backend/utils.py`:
-  - Global imports for `settings` and `rating_key_to_track_id`.
-  - Add helper `get_canonical_track_id(item)`.
-  - Update `is_song_in_queue(item, server_id=None)` to convert to canonical `track_id` upfront and compare against Redis queue items.
-- Modify `backend/services/redis.py`:
-  - Move resolution of `internal_track_id` to top of `add_to_queue_redis` before `is_song_in_queue`.
+### Backend Logic & API Routes
+- Modify `backend/routers/music.py`:
+  - `@router.post("/clear-queue")`: remove `stop_playback()` & `track_time_tracker.stop()`, call `clear_redis_queue(force_all=False)` to preserve `queue[0]`.
+  - `@router.post("/stop-queue")`: keep `stop_playback()`, `track_time_tracker.stop()`, call `clear_redis_queue(force_all=True)`.
+
+### Frontend UI & Admin Controls
+- Modify `frontend/src/App.tsx`:
+  - Rename button `"Clear Full Queue"` to `"Stop & Empty Queue"`.
+  - Style `"Stop & Empty Queue"` with semi-transparent red (`rgba(255, 77, 77, 0.15)`) background and border matching amber button layout.
+  - Update confirmation modal text and toast notifications.
 
 ### Automated Tests
-- Modify `backend/tests/test_utils.py`: Test `is_song_in_queue` with ratingKey conversion.
-- Modify `backend/tests/test_redis.py`: Test `add_to_queue_redis` raises HTTP 400 for duplicate tracks.
-- Modify `backend/tests/test_queue_mutations.py`: Test `POST /api/music/queue/{item_id}` returns 400 for duplicate tracks.
-
-### Stack Restart & Verification
-- Run `uv run python -m pytest`.
-- Restart Docker stack via `docker compose up -d --build`.
+- Modify `backend/tests/test_queue_isolation.py`: Update tests for `/clear-queue` preserving `queue[0]` and `/stop-queue` wiping all items.

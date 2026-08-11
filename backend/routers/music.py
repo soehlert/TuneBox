@@ -296,20 +296,13 @@ def get_queue_history():
 
 @router.post("/clear-queue")
 async def clear_the_queue(background_tasks: BackgroundTasks):
-    """Clear the entire Redis playback queue and stop active playback.
+    """Clear upcoming tracks in the Redis playback queue while preserving the active track at index 0.
 
     Returns:
-        The clearing of the queue.
+        The clearing of upcoming queue items.
     """
     try:
-        try:
-            stop_playback()
-        except Exception as stop_ex:
-            logger.debug("Error stopping playback during clear_the_queue: %s", stop_ex)
-
-        track_time_tracker.stop()
-        result = clear_redis_queue(force_all=True)
-        clear_cache("now_playing")
+        result = clear_redis_queue(force_all=False)
 
         await reset_skip_votes()
         await send_queue()
