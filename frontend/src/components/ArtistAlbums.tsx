@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import axios from "axios";
 import { Card, Typography } from "@mui/material";
 import { FallbackImage } from "./FallbackImage";
@@ -18,6 +18,7 @@ interface Album {
 function ArtistAlbums() {
   const { artistId } = useParams<{ artistId: string }>();
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const serverId = searchParams.get("server_id");
   const [albums, setAlbums] = useState<Album[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,8 +49,9 @@ function ArtistAlbums() {
 
   const sParam = serverId ? `?server_id=${serverId}` : "";
 
-  // Derive artist name and unique connected servers across all albums
-  const artistName = albums.length > 0 && (albums[0] as any).artist ? (albums[0] as any).artist : "Albums";
+  // Derive artist name from navigation state or fallback to album artist
+  const passedArtistName = location.state?.artistName;
+  const artistName = passedArtistName || (albums.length > 0 && (albums[0] as any).artist ? (albums[0] as any).artist : "Albums");
 
   const artistSourcesMap = new Map<string, string>();
   albums.forEach((alb) => {

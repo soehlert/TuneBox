@@ -101,3 +101,25 @@ def test_search_music_db_strict_title_track_matching(temp_db):
     assert len(album_matches) == 1
     assert album_matches[0]["title"] == "Foo Fighters"
     assert len(track_matches) == 0, "Tracks by Foo Fighters with different title must not match search query 'Foo Fighters'"
+
+
+def test_get_albums_for_artist_db_prevents_server_album_id_mismatch(temp_db):
+    """Verify get_albums_for_artist_db does not return albums of another artist matching server_album_id."""
+    from backend.services.library import get_albums_for_artist_db, upsert_server, upsert_artist, upsert_album
+
+    upsert_server("srv-1", "Alpha Server", enabled=True, db_path=temp_db)
+
+    # Artist 1: Weird Al
+    weird_al_id = upsert_artist("“Weird Al” Yankovic", server_id="srv-1", server_artist_id="19586", db_path=temp_db)
+    upsert_album("Bad Hair Day", "“Weird Al” Yankovic", artist_id=weird_al_id, server_id="srv-1", server_album_id="4991", db_path=temp_db)
+
+    # Artist 2: Eagles of Death Metal (has an album whose server_album_id equals weird_al_id)
+    eagles_id = upsert_artist("Eagles of Death Metal", server_id="srv-1", server_artist_id="1684", db_path=temp_db)
+    upsert_album("Zipper Down", "Eagles of Death Metal", artist_id=eagles_id, server_id="srv-1", server_album_id=str(weird_al_id), db_path=temp_db)
+
+    # Fetch albums for Weird Al using artist_id
+    albums = get_albums_for_artist_db(weird_al_id, db_path=temp_db)
+    album_titles = [a["title"] for a in albums]
+
+    assert "Bad Hair Day" in album_titles
+    assert "Zipper Down" not in album_titles, "Zipper Down (Eagles of Death Metal) must NOT be returned when querying Weird Al's artist_id"

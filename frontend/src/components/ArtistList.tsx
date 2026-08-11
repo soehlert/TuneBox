@@ -46,10 +46,10 @@ function ArtistList({
     message: "",
   });
 
-  const handleArtistClick = (artistId: number, serverId?: string) => {
+  const handleArtistClick = (artistId: number, artistName?: string, serverId?: string) => {
     sessionStorage.setItem("tunebox_artist_scroll_top", String(window.scrollY || document.querySelector('.main-content')?.scrollTop || 0));
     const sParam = serverId ? `?server_id=${serverId}` : "";
-    navigate(`/artists/${artistId}/albums${sParam}`);
+    navigate(`/artists/${artistId}/albums${sParam}`, { state: { artistName } });
   };
 
   // Restore scroll position when returning from album/track views
@@ -305,7 +305,7 @@ function ArtistList({
                     className="artist-card"
                     key={artist.artist_id}
                     id={`artist-${artist.artist_id}`}
-                    onClick={() => handleArtistClick(artist.artist_id, artist.server_id)}
+                    onClick={() => handleArtistClick(artist.artist_id, artist.name, artist.server_id)}
                   >
                     <FallbackImage
                       src={`${apiBase}/api/music/artist-image/${artist.artist_id}`}
@@ -620,7 +620,7 @@ function ArtistList({
                         variant="contained"
                         onClick={(e) => {
                           e.stopPropagation();
-                          addToQueue(track.server_track_id || track.item_id || track.track_id, track.server_id, track.server_name);
+                          addToQueue(track.track_id || track.item_id || track.server_track_id, track.server_id, track.server_name);
                         }}
                         style={{
                           background: "var(--color-primary)",
@@ -669,7 +669,7 @@ function ArtistList({
                 className="artist-card"
                 key={artist.artist_id}
                 id={`artist-${artist.artist_id}`}
-                onClick={() => handleArtistClick(artist.artist_id)}
+                onClick={() => handleArtistClick(artist.artist_id, artist.name)}
               >
                 <FallbackImage
                   src={`${apiBase}/api/music/artist-image/${artist.artist_id}`}

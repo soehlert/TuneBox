@@ -86,3 +86,20 @@ def test_search_music_db_includes_server_id_and_server_name(temp_library_db):
     first_track = tracks[0]
     assert first_track.get("server_id") == enabled_sid
     assert first_track.get("server_name") == "cc-ls-plex01"
+
+
+def test_disabled_server_filters_exclusive_catalog_items(temp_library_db):
+    """Verify setting servers.enabled = 0 excludes items exclusive to that server."""
+    from backend.services.library import get_indexed_artists
+    db_file, enabled_sid, _, _ = temp_library_db
+
+    # Add a disabled server with exclusive artist
+    disabled_sid = "srv-disabled-999"
+    upsert_server(disabled_sid, "Disabled Server", enabled=False, db_path=db_file)
+    upsert_artist("Exclusive Disabled Artist", server_id=disabled_sid, server_artist_id="99901", db_path=db_file)
+
+    artists = get_indexed_artists(db_path=db_file)
+    artist_names = [a["name"] for a in artists]
+
+    assert "David Bowie" in artist_names
+    assert "Exclusive Disabled Artist" not in artist_names

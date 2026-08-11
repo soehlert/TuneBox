@@ -49,3 +49,30 @@ def test_get_indexed_albums_ignores_the_prefix(test_db):
     titles = [a["title"] for a in albums]
 
     assert titles == ["Abbey Road", "The Dark Side of the Moon", "Eldorado"]
+
+
+def test_get_indexed_artists_and_albums_plays_sorting(test_db):
+    """Verify get_indexed_artists and get_indexed_albums respect plays_desc (Most Played) vs plays_asc (Least Played)."""
+    art1_id = upsert_artist("Artist High Plays", play_count=100, server_id="srv-1", server_artist_id="101", db_path=test_db)
+    art2_id = upsert_artist("Artist Low Plays", play_count=5, server_id="srv-1", server_artist_id="102", db_path=test_db)
+
+    upsert_album("Album High Plays", "Artist High Plays", artist_id=art1_id, play_count=100, server_id="srv-1", server_album_id="201", db_path=test_db)
+    upsert_album("Album Low Plays", "Artist Low Plays", artist_id=art2_id, play_count=5, server_id="srv-1", server_album_id="202", db_path=test_db)
+
+    # Most Played (desc)
+    artists_desc = get_indexed_artists(sort_mode="plays_desc", db_path=test_db)
+    assert artists_desc[0]["name"] == "Artist High Plays"
+    assert artists_desc[1]["name"] == "Artist Low Plays"
+
+    albums_desc = get_indexed_albums(sort_mode="plays_desc", db_path=test_db)
+    assert albums_desc[0]["title"] == "Album High Plays"
+    assert albums_desc[1]["title"] == "Album Low Plays"
+
+    # Least Played (asc)
+    artists_asc = get_indexed_artists(sort_mode="plays_asc", db_path=test_db)
+    assert artists_asc[0]["name"] == "Artist Low Plays"
+    assert artists_asc[1]["name"] == "Artist High Plays"
+
+    albums_asc = get_indexed_albums(sort_mode="plays_asc", db_path=test_db)
+    assert albums_asc[0]["title"] == "Album Low Plays"
+    assert albums_asc[1]["title"] == "Album High Plays"

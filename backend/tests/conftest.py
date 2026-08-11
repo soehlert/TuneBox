@@ -52,6 +52,7 @@ def mock_plex_track():
     """
     mock_track = MagicMock(spec=Track)
     mock_track.ratingKey = "12345"
+    mock_track.sqlite_track_id = "12345"
     mock_track.title = "Test Song"
     mock_track.duration = 180
     mock_track.thumb = "http://example.com/album_art.jpg"

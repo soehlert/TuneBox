@@ -39,6 +39,8 @@ def sample_track_json():
 def test_add_to_queue_redis(mock_redis, mock_plex_track, mocker):
     """Test adding a track to the Redis queue."""
     mocker.patch("backend.utils.is_track_object", return_value=True)
+    mock_plex_track.ratingKey = "999999"
+    mock_plex_track.sqlite_track_id = "999999"
     mock_redis_queue, _ = mock_redis
 
     with patch(
@@ -50,7 +52,7 @@ def test_add_to_queue_redis(mock_redis, mock_plex_track, mocker):
     called_args = mock_redis_queue.rpush.call_args[0]
     assert called_args[0] == "playback_queue"
     track_data = json.loads(called_args[1])
-    assert track_data["item_id"] == "12345"
+    assert track_data["item_id"] == "999999"
     assert track_data["album_id"] == "6789"
     assert track_data["title"] == "Test Song"
 

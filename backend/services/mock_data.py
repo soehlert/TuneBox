@@ -160,7 +160,7 @@ def seed_mock_library_db(db_path: str | None = None):
             thumb=f"/api/music/artist-image/{a['artist_id']}",
             play_count=a["play_count"],
             server_id=mock_server_id,
-            server_artist_id=str(a["artist_id"]),
+            server_artist_id=str(19586 + int(a["artist_id"])),
             db_path=db_path,
         )
 
@@ -176,7 +176,7 @@ def seed_mock_library_db(db_path: str | None = None):
                 play_count=alb["play_count"],
                 guid=f"mock://album/{alb['album_id']}",
                 server_id=mock_server_id,
-                server_album_id=str(alb["album_id"]),
+                server_album_id=str(28401 + int(alb["album_id"])),
                 db_path=db_path,
             )
 
@@ -185,7 +185,7 @@ def seed_mock_library_db(db_path: str | None = None):
                 upsert_track(
                     album_id=alb_db_id,
                     server_id=mock_server_id,
-                    server_track_id=str(trk["track_id"]),
+                    server_track_id=str(34910 + int(trk["track_id"])),
                     artist_name=trk["artist"],
                     album_title=trk["album"],
                     title=trk["title"],

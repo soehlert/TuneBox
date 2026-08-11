@@ -163,3 +163,34 @@ def test_get_albums_by_decade_endpoint():
         assert len(albums) > 0
     finally:
         settings.testing = orig_testing
+
+
+def test_decades_and_genres_include_top_album_id_and_prewarm():
+    """Verify get_all_genres_db and get_all_decades_db return top_album_id for cover art cards."""
+    import tempfile
+    import os
+    from backend.db.library_db import init_library_db
+    from backend.services.library import get_all_genres_db, get_all_decades_db, upsert_server, upsert_artist, upsert_album
+
+    fd, path = tempfile.mkstemp(suffix=".db")
+    os.close(fd)
+    try:
+        init_library_db(path)
+        upsert_server("srv-1", "Alpha Server", enabled=True, db_path=path)
+        art_id = upsert_artist("Daft Punk", server_id="srv-1", server_artist_id="101", db_path=path)
+        alb_id = upsert_album("Discovery", "Daft Punk", artist_id=art_id, year=2001, genre="Electronic", server_id="srv-1", server_album_id="201", db_path=path)
+
+        genres = get_all_genres_db(db_path=path)
+        assert len(genres) > 0
+        elec = next((g for g in genres if g["genre"] == "Electronic"), None)
+        assert elec is not None
+        assert elec["top_album_id"] == alb_id
+
+        decades = get_all_decades_db(db_path=path)
+        assert len(decades) > 0
+        d2000s = next((d for d in decades if d["decade"] == "2000s"), None)
+        assert d2000s is not None
+        assert d2000s["top_album_id"] == alb_id
+    finally:
+        if os.path.exists(path):
+            os.remove(path)

@@ -9,6 +9,7 @@ import "./TrackList.css";
 
 interface Track {
   track_id: number;
+  item_id?: number | string;
   server_track_id?: string | number;
   rating_key?: string | number;
   server_id?: string;
@@ -176,7 +177,7 @@ function TrackList() {
 
   const addToQueue = async (track: Track) => {
     try {
-      const targetId = track.server_track_id || track.rating_key || track.track_id;
+      const targetId = track.track_id || track.item_id || track.server_track_id;
       const targetServerId = track.server_id || serverId;
       const queueUrl = `${apiBase}/api/music/queue/${targetId}`;
       await axios.post(queueUrl, {
