@@ -1362,18 +1362,18 @@ def refetch_item_artwork(item_type: str, item_id: int, db_path: str | None = Non
 MOOD_MAPPINGS = {
     "Party": {
         "display": "🎉 Party",
-        "keywords": ["party", "dance", "club", "remix", "celebration", "lively", "banger", "dj", "anthem"],
-        "genres": ["dance", "disco", "funk", "house", "edm", "techno", "club", "dance-pop", "hip-hop", "hip hop", "rap", "r&b", "latin", "reggaeton", "electro"],
+        "keywords": ["party", "dance", "hangout", "jam", "fun", "celebration", "chill hang", "anthem"],
+        "genres": ["indie", "indie pop", "indie rock", "classic rock", "folk", "indie folk", "alternative", "pop", "dance", "disco", "funk"],
     },
     "Energetic": {
         "display": "⚡ Energetic",
-        "keywords": ["energetic", "hype", "intense", "fast", "powerful", "driving", "heavy", "furious", "rock"],
-        "genres": ["rock", "metal", "punk", "hard rock", "heavy metal", "alternative", "grunge", "edm", "techno", "drum and bass", "dubstep", "thrash", "skate punk", "garage"],
+        "keywords": ["energetic", "hype", "intense", "fast", "powerful", "driving", "heavy", "furious", "banger"],
+        "genres": ["hard rock", "heavy metal", "punk", "thrash", "skate punk", "garage rock", "edm", "techno", "drum and bass", "dubstep", "electro"],
     },
     "Chill": {
         "display": "☕ Chill",
         "keywords": ["chill", "relax", "mellow", "calm", "smooth", "soft", "peaceful", "lo-fi", "lofi", "lounge", "study", "quiet"],
-        "genres": ["ambient", "chillout", "lo-fi", "lofi", "downtempo", "trip-hop", "smooth jazz", "bossa nova", "lounge", "slowcore", "acoustic", "indie folk", "folk", "soft rock", "easy listening", "reggae"],
+        "genres": ["ambient", "chillout", "lo-fi", "lofi", "downtempo", "trip-hop", "smooth jazz", "bossa nova", "lounge", "slowcore", "americana", "acoustic", "soft rock", "easy listening", "reggae"],
     },
     "Groovy": {
         "display": "🎷 Groovy",
@@ -1383,7 +1383,7 @@ MOOD_MAPPINGS = {
     "Upbeat": {
         "display": "🕺 Upbeat",
         "keywords": ["upbeat", "happy", "joyful", "bright", "sunny", "feel-good", "feel good", "cheerful"],
-        "genres": ["pop", "indie pop", "synthpop", "dance-pop", "classic rock", "ska", "power pop", "sunshine pop", "bubblegum", "new wave"],
+        "genres": ["synthpop", "dance-pop", "ska", "indie pop", "power pop", "sunshine pop", "bubblegum", "new wave", "pop"],
     },
     "Acoustic": {
         "display": "🎸 Acoustic",
@@ -1398,7 +1398,7 @@ MOOD_MAPPINGS = {
     "Melancholic": {
         "display": "🌙 Melancholic",
         "keywords": ["melancholic", "sad", "bittersweet", "emotional", "somber", "brooding", "tear", "lonely"],
-        "genres": ["slowcore", "post-rock", "sadcore", "blues", "darkwave", "gothic", "shoegaze", "emo", "ballad", "indie rock", "alt-rock"],
+        "genres": ["slowcore", "post-rock", "sadcore", "blues", "darkwave", "gothic", "shoegaze", "emo", "ballad", "alt-rock"],
     },
 }
 
