@@ -190,6 +190,7 @@ def upsert_track(
     thumb: str | None = None,
     play_count: int = 0,
     user_rating: float = 0.0,
+    bpm: int = 0,
     bitrate: int = 0,
     codec: str | None = None,
     sample_rate: int = 0,
@@ -231,22 +232,23 @@ def upsert_track(
                 if existing_legacy:
                     track_id = existing_legacy["track_id"]
 
+        clean_bpm = int(bpm or 0)
         if track_id:
             cursor.execute(
                 """
                 UPDATE tracks
-                SET album_id = ?, artist_name = ?, album_title = ?, title = ?, duration = ?, url = COALESCE(?, url), thumb = COALESCE(?, thumb), play_count = MAX(play_count, ?), user_rating = ?, updated_at = ?
+                SET album_id = ?, artist_name = ?, album_title = ?, title = ?, duration = ?, url = COALESCE(?, url), thumb = COALESCE(?, thumb), play_count = MAX(play_count, ?), user_rating = ?, bpm = CASE WHEN ? > 0 THEN ? ELSE bpm END, updated_at = ?
                 WHERE track_id = ?
                 """,
-                (album_id, artist_name, album_title, title, duration, safe_url, thumb, play_count, float(user_rating or 0.0), now, track_id),
+                (album_id, artist_name, album_title, title, duration, safe_url, thumb, play_count, float(user_rating or 0.0), clean_bpm, clean_bpm, now, track_id),
             )
         else:
             cursor.execute(
                 """
-                INSERT INTO tracks (album_id, server_id, server_track_id, artist_name, album_title, title, duration, url, thumb, play_count, user_rating, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO tracks (album_id, server_id, server_track_id, artist_name, album_title, title, duration, url, thumb, play_count, user_rating, bpm, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
-                (album_id, server_id, str(server_track_id), artist_name, album_title, title, duration, safe_url, thumb, play_count, float(user_rating or 0.0), now),
+                (album_id, server_id, str(server_track_id), artist_name, album_title, title, duration, safe_url, thumb, play_count, float(user_rating or 0.0), clean_bpm, now),
             )
             track_id = cursor.lastrowid
 
@@ -1364,47 +1366,63 @@ MOOD_MAPPINGS = {
         "display": "🎉 Party",
         "keywords": ["party", "dance", "hangout", "jam", "fun", "celebration", "chill hang", "anthem"],
         "genres": ["indie", "indie pop", "indie rock", "classic rock", "folk", "indie folk", "alternative", "pop", "dance", "disco", "funk"],
+        "bpm_min": 105,
+        "bpm_max": 135,
     },
     "Energetic": {
         "display": "⚡ Energetic",
         "keywords": ["energetic", "hype", "intense", "fast", "powerful", "driving", "heavy", "furious", "banger"],
         "genres": ["hard rock", "heavy metal", "punk", "thrash", "skate punk", "garage rock", "edm", "techno", "drum and bass", "dubstep", "electro"],
+        "bpm_min": 125,
+        "bpm_max": 200,
     },
     "Chill": {
         "display": "☕ Chill",
         "keywords": ["chill", "relax", "mellow", "calm", "smooth", "soft", "peaceful", "lo-fi", "lofi", "lounge", "study", "quiet"],
         "genres": ["ambient", "chillout", "lo-fi", "lofi", "downtempo", "trip-hop", "smooth jazz", "bossa nova", "lounge", "slowcore", "americana", "acoustic", "soft rock", "easy listening", "reggae"],
+        "bpm_min": 50,
+        "bpm_max": 105,
     },
     "Groovy": {
         "display": "🎷 Groovy",
         "keywords": ["groovy", "funky", "rhythm", "groove", "soulful", "boogie", "jam", "motown"],
         "genres": ["funk", "disco", "soul", "motown", "r&b", "neo-soul", "afrobeat", "reggae", "dub", "blues", "jazz", "groove"],
+        "bpm_min": 90,
+        "bpm_max": 120,
     },
     "Upbeat": {
         "display": "🕺 Upbeat",
         "keywords": ["upbeat", "happy", "joyful", "bright", "sunny", "feel-good", "feel good", "cheerful"],
         "genres": ["synthpop", "dance-pop", "ska", "indie pop", "power pop", "sunshine pop", "bubblegum", "new wave", "pop"],
+        "bpm_min": 105,
+        "bpm_max": 135,
     },
     "Acoustic": {
         "display": "🎸 Acoustic",
         "keywords": ["acoustic", "unplugged", "singer-songwriter", "folk", "organic", "stripped"],
         "genres": ["acoustic", "folk", "indie folk", "bluegrass", "singer-songwriter", "americana", "country"],
+        "bpm_min": 50,
+        "bpm_max": 115,
     },
     "Electronic": {
         "display": "🎧 Electronic",
         "keywords": ["electronic", "synth", "techno", "electro", "beat", "digital", "edm"],
         "genres": ["electronic", "electropop", "synthwave", "synth-pop", "house", "trance", "techno", "electronica", "idm", "ambient", "edm"],
+        "bpm_min": 115,
+        "bpm_max": 145,
     },
     "Melancholic": {
         "display": "🌙 Melancholic",
         "keywords": ["melancholic", "sad", "bittersweet", "emotional", "somber", "brooding", "tear", "lonely"],
         "genres": ["slowcore", "post-rock", "sadcore", "blues", "darkwave", "gothic", "shoegaze", "emo", "ballad", "alt-rock"],
+        "bpm_min": 40,
+        "bpm_max": 100,
     },
 }
 
 
 def _build_vibe_where_clause(meta: dict) -> tuple[str, list[str]]:
-    """Build a natural SQL WHERE clause matching a target party vibe based on genres and keywords."""
+    """Build a natural SQL WHERE clause matching a target party vibe based on genres, keywords, and BPM."""
     parts = []
     params = []
 
@@ -1419,10 +1437,17 @@ def _build_vibe_where_clause(meta: dict) -> tuple[str, list[str]]:
         params.append(f"%{kw}%")
 
     if not parts:
-        return "1=0", []
+        base_clause = "1=1"
+    else:
+        base_clause = f"({' OR '.join(parts)})"
 
-    where_clause = f"({' OR '.join(parts)})"
-    return where_clause, params
+    bpm_min = meta.get("bpm_min")
+    bpm_max = meta.get("bpm_max")
+    if bpm_min is not None and bpm_max is not None:
+        bpm_clause = f"(t.bpm IS NULL OR t.bpm = 0 OR (t.bpm >= {bpm_min} AND t.bpm <= {bpm_max}))"
+        return f"({base_clause} AND {bpm_clause})", params
+
+    return base_clause, params
 
 
 def get_available_vibes_db(db_path: str | None = None) -> list[dict]:

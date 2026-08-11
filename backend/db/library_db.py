@@ -156,15 +156,20 @@ def init_library_db(db_path: str | None = None):
                 thumb TEXT,
                 play_count INTEGER DEFAULT 0,
                 user_rating REAL DEFAULT 0.0,
+                bpm INTEGER DEFAULT 0,
                 updated_at INTEGER NOT NULL,
                 FOREIGN KEY (album_id) REFERENCES albums(album_id) ON DELETE CASCADE
             )
             """
         )
 
-        # Migration for existing database schemas missing user_rating
+        # Migration for existing database schemas missing user_rating or bpm
         try:
             cursor.execute("ALTER TABLE tracks ADD COLUMN user_rating REAL DEFAULT 0.0;")
+        except Exception:
+            pass
+        try:
+            cursor.execute("ALTER TABLE tracks ADD COLUMN bpm INTEGER DEFAULT 0;")
         except Exception:
             pass
 
