@@ -800,14 +800,6 @@ def get_album_art(album_id: int, request: Request, server_id: str | None = None)
 @router.get("/track-art/{track_id}")
 def get_track_art(track_id: int, request: Request, server_id: str | None = None):
     """Fetch and proxy the track art from Plex."""
-    if not server_id and not settings.testing:
-        try:
-            _, res_sid, _ = get_art_source_info(track_id, "track")
-            if res_sid:
-                server_id = res_sid
-        except Exception:
-            pass
-
     content_bytes, media_type = fetch_art_bytes(track_id, "track", server_id=server_id)
     is_fallback = not content_bytes or len(content_bytes) < 100 or content_bytes.startswith(b"\x89PNG")
 
@@ -819,10 +811,9 @@ def get_track_art(track_id: int, request: Request, server_id: str | None = None)
                 (track_id,),
             ).fetchone()
             conn.close()
-            real_album_id = t_row["album_id"] if t_row else None
+            real_album_id = t_row["album_id"] if (t_row and t_row["album_id"]) else None
 
-            alb_sources = get_all_art_sources(real_album_id, "album")
-            if alb_sources and alb_sources[0][0]:
+            if real_album_id:
                 alb_bytes, alb_mime = fetch_art_bytes(real_album_id, "album", server_id=server_id)
                 if alb_bytes and len(alb_bytes) > 100 and not alb_bytes.startswith(b"\x89PNG"):
                     content_bytes, media_type = alb_bytes, alb_mime

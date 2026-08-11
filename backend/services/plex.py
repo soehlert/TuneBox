@@ -395,15 +395,12 @@ def get_track(track_id: int, server_id: str | None = None):
             return MockTrack()
         raise HTTPException(status_code=404, detail="Track not found")
 
-    if not hasattr(get_target_plex_connection, "mock_calls"):
-        resolved = track_id_to_rating_key(track_id)
-        if not resolved:
-            raise HTTPException(status_code=404, detail=f"Track {track_id} not found in library")
-        rk_str, srv_id = resolved
-        item_id_val = int(rk_str) if rk_str.isdigit() else rk_str
-        target_server_id = target_server_id or srv_id
-    else:
-        item_id_val = track_id
+    resolved = track_id_to_rating_key(track_id)
+    if not resolved:
+        raise HTTPException(status_code=404, detail=f"Track {track_id} not found in library")
+    rk_str, srv_id = resolved
+    item_id_val = int(rk_str) if rk_str.isdigit() else rk_str
+    target_server_id = target_server_id or srv_id
 
     plex = get_target_plex_connection(target_server_id)
     if not plex:
