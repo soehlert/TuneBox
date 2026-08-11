@@ -302,7 +302,7 @@ const QueueComponent = () => {
         </button>
       </Box>
 
-      {activeTab === 'queue' && vibes && vibes.length > 0 && (
+      {activeTab === 'queue' && (
         <Box 
           style={{
             display: "flex",
@@ -312,23 +312,47 @@ const QueueComponent = () => {
             marginTop: "-4px"
           }}
         >
-          {vibes.map((vibe, idx) => (
-            <span
+          {((vibes && vibes.length > 0) ? vibes : ["Party", "Energetic", "Chill", "Groovy", "Rock", "Pop"]).map((vibe, idx) => (
+            <button
               key={idx}
+              type="button"
+              onClick={async () => {
+                try {
+                  const headers: Record<string, string> = {};
+                  if (adminToken) headers["X-Admin-Token"] = adminToken;
+                  await fetch(`${apiBase}/api/music/vibe/seed?vibe=${encodeURIComponent(vibe)}&count=10`, {
+                    method: "POST",
+                    headers,
+                  });
+                } catch (e) {
+                  console.error("Failed to seed vibe:", e);
+                }
+              }}
+              title={`Click to seed 10 ${vibe} tracks into queue`}
               style={{
                 fontSize: "11px",
-                background: "rgba(51, 117, 173, 0.15)",
+                background: "rgba(51, 117, 173, 0.2)",
                 border: "1px solid #3376ad",
                 color: "#9bd0ff",
-                padding: "2px 8px",
+                padding: "3px 10px",
                 borderRadius: "12px",
                 fontWeight: 600,
                 textTransform: "capitalize",
-                letterSpacing: "0.02em"
+                letterSpacing: "0.02em",
+                cursor: "pointer",
+                transition: "all 0.15s ease",
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.backgroundColor = "rgba(51, 117, 173, 0.4)";
+                e.currentTarget.style.color = "#ffffff";
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.backgroundColor = "rgba(51, 117, 173, 0.2)";
+                e.currentTarget.style.color = "#9bd0ff";
               }}
             >
-              {vibe}
-            </span>
+              ✨ {vibe}
+            </button>
           ))}
         </Box>
       )}

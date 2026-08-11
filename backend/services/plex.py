@@ -46,6 +46,8 @@ from backend.services.library import (
     rating_key_to_track_id,
     track_id_to_rating_key,
     validate_track_id,
+    get_tracks_by_vibe_db,
+    get_available_vibes_db,
 )
 
 HEARTBEAT_INTERVAL = 5
@@ -2654,6 +2656,73 @@ def seed_queue_from_playlist(playlist_id: int, count: int = 10):
         logger.warning("Failed to cache fallback pool: %s", ex)
 
     return {"message": f"Successfully seeded {added_count} tracks from playlist '{playlist.title}'."}
+
+
+def seed_queue_from_vibe(vibe_name: str, count: int = 10):
+    """Import and add random tracks matching a target party vibe/genre to the Redis queue."""
+    target_count = max(1, count)
+
+    if settings.testing:
+        from backend.services.mock_data import MOCK_TRACKS
+        all_tracks = []
+        for album_tracks in MOCK_TRACKS.values():
+            all_tracks.extend(album_tracks)
+
+        sample_size = min(len(all_tracks), target_count)
+        sampled = random.sample(all_tracks, sample_size)
+
+        added_count = 0
+        for t in sampled:
+            class MockTrack:
+                type = "track"
+                ratingKey = t["track_id"]
+                title = t["title"]
+                grandparentTitle = t["artist"]
+                parentTitle = t["album"]
+                duration = t["duration"] * 1000
+                thumb = f"/api/music/album-art/{t['track_id']}"
+                moods = [vibe_name.capitalize()] if vibe_name else ["Party"]
+
+            try:
+                add_to_queue_redis(MockTrack(), is_fallback=True)
+                added_count += 1
+            except Exception as ex:
+                logger.debug("Failed adding mock track to queue: %s", ex)
+        return {"message": f"Successfully seeded {added_count} tracks for vibe '{vibe_name.capitalize() if vibe_name else 'Party'}'."}
+
+    matched_tracks = get_tracks_by_vibe_db(vibe_name, count=target_count)
+
+    added_count = 0
+    playlist_track_ids = []
+    for t in matched_tracks:
+        class DictTrack:
+            type = "track"
+            ratingKey = t["ratingKey"]
+            sqlite_track_id = t["track_id"]
+            title = t["title"]
+            grandparentTitle = t["artist"]
+            parentTitle = t["album"]
+            duration = t["duration"]
+            thumb = t["thumb"]
+            server_id = t["server_id"]
+            moods = t["moods"]
+
+        try:
+            add_to_queue_redis(DictTrack(), is_fallback=True)
+            added_count += 1
+            playlist_track_ids.append(t["track_id"])
+        except Exception as ex:
+            logger.debug("Failed adding vibe track to queue: %s", ex)
+
+    if playlist_track_ids:
+        try:
+            get_redis_cache_client().set("last_seeded_playlist_tracks", json.dumps(playlist_track_ids))
+            save_preseed_playlist_tracks(playlist_track_ids, playlist_id=f"vibe_{vibe_name}")
+        except Exception as ex:
+            logger.warning("Failed to cache vibe fallback pool: %s", ex)
+
+    v_label = vibe_name.capitalize() if vibe_name else "Party"
+    return {"message": f"Successfully seeded {added_count} tracks for vibe '{v_label}'."}
 
 
 def rate_track_in_plex(track_id: int, rating_stars: float) -> bool:

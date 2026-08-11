@@ -1,17 +1,20 @@
-# Implementation Plan - Instant Playlist Preseeding & Full-Broadcast Queue Updates
+# Implementation Plan - Party Vibe Selector & Dynamic Mood Queue Generator
 
-Fix the 15-second preseed delay, event loop GIL freezing, missing toast notifications, and queue update delays by sampling preseed tracks upfront, replacing sequential SQLite loop queries with a single batch SQL query, and broadcasting queue updates to all active WebSocket connections.
+Add an interactive **Party Vibe Selector** to TuneBox that allows hosts and guests to pick room vibes (*🎉 Party, ⚡ Energetic, ☕ Chill, 🎷 Groovy, 🎸 Rock, 🎧 Electronic*) and dynamically pre-seed or update the queue with matching tracks from the local music library, capped at a configurable track limit (10–50).
 
 ## Proposed Changes
 
 ### Branch Creation
-- Branch `feature/fast-playlist-preseed` active.
+- Branch `feature/party-vibe-selector` active.
 
-### Backend Services & WebSockets
-- Modify `backend/services/plex.py`:
-  - `seed_queue_from_playlist`: sample `target_count` tracks FIRST; resolve fallback pool with 1 batch SQL query (`WHERE server_track_id IN (...)`).
-- Modify `backend/websockets.py`:
-  - `send_queue`: broadcast queue payload to all active WebSocket connections via `send_json_to_all`.
+### Backend Services & Routers
+- `backend/services/library.py`: Add `get_tracks_by_vibe_db(vibe_name, count)` to sample matching tracks from SQLite.
+- `backend/services/plex.py`: Add `seed_queue_from_vibe(vibe_name, count)` to push fallback tracks to Redis.
+- `backend/routers/music.py`: Add `GET /api/music/vibes` and `POST /api/music/vibe/seed`.
+
+### Frontend Components
+- `frontend/src/components/Queue.tsx`: Add interactive Party Vibe chip bar above the Queue list.
+- `frontend/src/App.tsx`: Add "Preseed by Vibe" section in `SettingsModal` under Admin Controls.
 
 ### Automated Tests
-- Modify `backend/tests/test_queue_isolation.py`: verify batch SQL preseed performance and WebSocket broadcasts.
+- `backend/tests/test_vibe_seeding.py`: Unit tests for `GET /api/music/vibes` and `POST /api/music/vibe/seed`.

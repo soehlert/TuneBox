@@ -1358,3 +1358,102 @@ def refetch_item_artwork(item_type: str, item_id: int, db_path: str | None = Non
     finally:
         conn.close()
 
+
+def get_available_vibes_db(db_path: str | None = None) -> list[dict]:
+    """Fetch distinct party vibes and genres with track counts from SQLite."""
+    preset_vibes = ["Party", "Energetic", "Chill", "Groovy", "Rock", "Pop", "Electronic", "Acoustic"]
+    conn = get_db_connection(db_path)
+    try:
+        rows = conn.execute(
+            """
+            SELECT alb.genre, COUNT(t.track_id) as count
+            FROM albums alb
+            JOIN tracks t ON alb.album_id = t.album_id
+            WHERE alb.genre IS NOT NULL AND TRIM(alb.genre) != '' AND alb.genre != 'Uncategorized'
+            GROUP BY alb.genre
+            ORDER BY count DESC
+            """
+        ).fetchall()
+
+        results = []
+        seen = set()
+
+        for p in preset_vibes:
+            norm = p.lower()
+            matching_count = sum(r["count"] for r in rows if norm in r["genre"].lower())
+            if matching_count > 0:
+                results.append({"vibe": p, "count": matching_count, "preset": True})
+                seen.add(norm)
+            elif not rows:
+                results.append({"vibe": p, "count": 10, "preset": True})
+
+        for r in rows:
+            g = r["genre"].strip()
+            if g.lower() not in seen:
+                results.append({"vibe": g, "count": r["count"], "preset": False})
+                seen.add(g.lower())
+
+        return results
+    except Exception as ex:
+        logger.warning("Failed to fetch vibes from DB: %s", ex)
+        return [{"vibe": p, "count": 10, "preset": True} for p in preset_vibes]
+    finally:
+        conn.close()
+
+
+def get_tracks_by_vibe_db(vibe_name: str, count: int = 10, db_path: str | None = None) -> list[dict]:
+    """Retrieve random tracks from SQLite matching a targeted vibe or genre."""
+    target_count = max(1, count)
+    conn = get_db_connection(db_path)
+    try:
+        vibe_str = (vibe_name or "").strip()
+        if vibe_str and vibe_str.lower() != "all":
+            rows = conn.execute(
+                """
+                SELECT t.track_id, t.album_id, t.server_id, t.server_track_id,
+                       t.artist_name as artist, t.album_title as album, t.title,
+                       t.duration, t.thumb
+                FROM tracks t
+                JOIN albums alb ON t.album_id = alb.album_id
+                WHERE LOWER(alb.genre) LIKE ? OR LOWER(t.title) LIKE ? OR LOWER(t.artist_name) LIKE ?
+                ORDER BY RANDOM()
+                LIMIT ?
+                """,
+                (f"%{vibe_str.lower()}%", f"%{vibe_str.lower()}%", f"%{vibe_str.lower()}%", target_count),
+            ).fetchall()
+        else:
+            rows = []
+
+        if not rows:
+            rows = conn.execute(
+                """
+                SELECT t.track_id, t.album_id, t.server_id, t.server_track_id,
+                       t.artist_name as artist, t.album_title as album, t.title,
+                       t.duration, t.thumb
+                FROM tracks t
+                ORDER BY RANDOM()
+                LIMIT ?
+                """,
+                (target_count,),
+            ).fetchall()
+
+        result = []
+        for r in rows:
+            result.append({
+                "track_id": r["track_id"],
+                "ratingKey": str(r["track_id"]),
+                "title": r["title"],
+                "artist": r["artist"],
+                "grandparentTitle": r["artist"],
+                "parentTitle": r["album"],
+                "album": r["album"],
+                "duration": r["duration"],
+                "thumb": r["thumb"],
+                "album_id": r["album_id"],
+                "server_id": r["server_id"],
+                "moods": [vibe_str.capitalize()] if vibe_str else ["Party"],
+            })
+        return result
+    finally:
+        conn.close()
+

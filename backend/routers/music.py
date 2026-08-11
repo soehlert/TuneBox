@@ -36,6 +36,7 @@ from backend.services.plex import (
     skip_current_track,
     fetch_playlists,
     seed_queue_from_playlist,
+    seed_queue_from_vibe,
     track_time_tracker,
     rate_track_in_plex,
     prewarm_category_art,
@@ -71,6 +72,8 @@ from backend.services.library import (
     get_all_art_sources,
     is_track_on_primary_server,
     rate_track_db,
+    get_available_vibes_db,
+    get_tracks_by_vibe_db,
 )
 from backend.services.stats import increment_adds
 from backend.services.indexer import index_server, sync_all_servers
@@ -870,6 +873,41 @@ async def seed_playlist(
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Error seeding playlist: {e}"
+        ) from e
+
+
+@router.get("/vibes")
+def get_vibes():
+    """Fetch distinct party vibes and genres with track counts from SQLite."""
+    try:
+        return get_available_vibes_db()
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error fetching vibes: {e}"
+        ) from e
+
+
+@router.post("/vibe/seed")
+async def seed_vibe(
+    background_tasks: BackgroundTasks,
+    vibe: str = "Party",
+    count: int = 10,
+    x_admin_token: str | None = Header(None),
+):
+    """Import and add random tracks matching a party vibe/genre to the queue (restricted to admin)."""
+    if not settings.admin_token or x_admin_token != settings.admin_token:
+        raise HTTPException(status_code=401, detail="Unauthorized: Invalid admin token")
+    try:
+        result = seed_queue_from_vibe(vibe_name=vibe, count=count)
+        # Notify WebSocket clients immediately of queue and now playing updates
+        await send_queue()
+        await send_current_playing()
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error seeding vibe queue: {e}"
         ) from e
 
 

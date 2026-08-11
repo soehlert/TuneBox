@@ -443,6 +443,8 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
       .catch((err) => console.error("Failed to load autoplay status:", err));
   }, [adminToken]);
 
+  const [selectedVibe, setSelectedVibe] = useState<string>("Party");
+
   const handleSeedJukebox = async () => {
     if (!selectedPlaylistId) return;
     setSeeding(true);
@@ -458,6 +460,25 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
     } catch (err) {
       console.error("Failed to preseed TuneBox:", err);
       setMsg("✗ Failed to preseed TuneBox.");
+    } finally {
+      setSeeding(false);
+    }
+  };
+
+  const handleSeedVibeJukebox = async () => {
+    setSeeding(true);
+    setMsg(`Preseeding ${selectedVibe} vibe tracks...`);
+    const parsedCount = Math.max(1, parseInt(preseedCount, 10) || 10);
+    try {
+      const res = await axios.post(
+        getApiUrl(`/api/music/vibe/seed?vibe=${encodeURIComponent(selectedVibe)}&count=${parsedCount}`),
+        {},
+        { headers: { "x-admin-token": adminToken } }
+      );
+      setMsg(`✓ ${res.data.message || "Party vibe preseeded successfully!"}`);
+    } catch (err) {
+      console.error("Failed to preseed vibe queue:", err);
+      setMsg("✗ Failed to preseed vibe queue.");
     } finally {
       setSeeding(false);
     }
@@ -1073,6 +1094,47 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
                   </div>
                   <span style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "11px", display: "block", marginTop: "4px" }}>
                     Shuffles and preseeds playlist tracks from your primary server into the queue. Guest selections automatically take priority.
+                  </span>
+                </div>
+
+                {/* Party Vibe Pre-Seeding */}
+                <div>
+                  <label style={labelStyle}>🎉 Seed Party Vibe to Queue</label>
+                  <div style={{ display: "flex", gap: "8px", marginTop: "4px", alignItems: "center" }}>
+                    <select
+                      value={selectedVibe}
+                      onChange={(e) => setSelectedVibe(e.target.value)}
+                      style={{ ...inputStyle, flex: 2, cursor: "pointer" }}
+                    >
+                      {["Party", "Energetic", "Chill", "Groovy", "Rock", "Pop", "Electronic", "Acoustic"].map((v) => (
+                        <option key={v} value={v}>
+                          ✨ {v} Vibe
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={handleSeedVibeJukebox}
+                      disabled={seeding}
+                      style={{
+                        background: "linear-gradient(135deg, #8e44ad, #3498db)",
+                        color: "white",
+                        border: "none",
+                        borderRadius: "6px",
+                        padding: "0 16px",
+                        height: "36px",
+                        fontWeight: "bold",
+                        fontSize: "13px",
+                        cursor: seeding ? "not-allowed" : "pointer",
+                        opacity: seeding ? 0.5 : 1,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {seeding ? "Seeding Vibe..." : "Preseed Vibe"}
+                    </button>
+                  </div>
+                  <span style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "11px", display: "block", marginTop: "4px" }}>
+                    Generates a dynamic queue of tracks matching the selected party vibe.
                   </span>
                 </div>
 
