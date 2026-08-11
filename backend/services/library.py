@@ -1372,14 +1372,14 @@ MOOD_MAPPINGS = {
     "Chill Hang": {
         "display": "🛋️ Chill Hang",
         "moods": ["hangout", "chill hang", "mellow", "feel-good", "friendly", "upbeat"],
-        "genres": ["indie", "indie pop", "indie rock", "classic rock", "folk", "indie folk", "alternative", "alt-rock", "acoustic rock"],
+        "genres": ["indie", "indie pop", "indie rock", "classic rock", "folk", "indie folk", "alternative", "alt-rock", "acoustic rock", "soft rock"],
         "bpm_min": 105,
         "bpm_max": 135,
     },
     "Energetic": {
         "display": "⚡ Energetic",
         "moods": ["energetic", "intense", "driving", "powerful", "aggressive", "rowdy"],
-        "genres": ["hard rock", "heavy metal", "punk", "thrash", "skate punk", "garage rock", "edm", "techno", "drum and bass", "dubstep", "electro"],
+        "genres": ["hard rock", "heavy metal", "punk", "thrash", "skate punk", "garage rock", "rap"],
         "bpm_min": 125,
         "bpm_max": 200,
     },
@@ -1400,7 +1400,7 @@ MOOD_MAPPINGS = {
     "Electronic": {
         "display": "🎧 Electronic",
         "moods": ["electronic", "synth", "hypnotic", "futuristic", "atmospheric", "club"],
-        "genres": ["electronic", "electropop", "synthwave", "synth-pop", "house", "trance", "techno", "electronica", "idm", "ambient", "edm"],
+        "genres": ["electronic", "electropop", "synthwave", "synth-pop", "house", "trance", "techno", "electronica", "idm", "ambient", "edm", "dubstep", "drum and bass"],
         "bpm_min": 115,
         "bpm_max": 145,
     },
