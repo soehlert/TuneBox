@@ -109,6 +109,7 @@ def test_get_genres_endpoint():
 
 def test_get_albums_by_genre_endpoint():
     """Verify GET /api/music/genres/{genre}/albums returns filtered albums."""
+    from urllib.parse import quote  # noqa: PLC0415
     orig_testing = settings.testing
     settings.testing = True
     try:
@@ -118,7 +119,7 @@ def test_get_albums_by_genre_endpoint():
         genres = g_resp.json()
         target_genre = genres[0]["genre"]
 
-        response = client.get(f"/api/music/genres/{target_genre}/albums")
+        response = client.get(f"/api/music/genres/{quote(target_genre, safe='')}/albums")
         assert response.status_code == 200
         albums = response.json()
         assert isinstance(albums, list)

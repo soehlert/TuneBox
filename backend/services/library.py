@@ -1365,21 +1365,21 @@ MOOD_MAPPINGS = {
     "Party": {
         "display": "🎉 Party",
         "moods": ["party", "lively", "fun", "celebration", "festive", "upbeat"],
-        "genres": ["indie", "indie pop", "indie rock", "classic rock", "folk", "indie folk", "alternative", "pop", "dance", "disco", "funk"],
+        "genres": ["dance", "disco", "funk", "house", "edm", "techno", "club", "hip-hop", "rap", "r&b", "latin", "reggaeton", "classic rock", "indie pop", "indie rock"],
         "bpm_min": 105,
         "bpm_max": 135,
     },
     "Energetic": {
         "display": "⚡ Energetic",
         "moods": ["energetic", "intense", "driving", "powerful", "aggressive", "hypnotic", "rowdy"],
-        "genres": ["hard rock", "heavy metal", "punk", "thrash", "skate punk", "garage rock", "edm", "techno", "drum and bass", "dubstep", "electro"],
+        "genres": ["hard rock", "heavy metal", "punk", "thrash", "skate punk", "garage rock", "edm", "techno", "drum and bass", "dubstep", "electro", "rap"],
         "bpm_min": 125,
         "bpm_max": 200,
     },
     "Chill": {
         "display": "☕ Chill",
         "moods": ["chill", "relax", "mellow", "calm", "smooth", "peaceful", "dreamy", "ambient", "quiet"],
-        "genres": ["ambient", "chillout", "lo-fi", "lofi", "downtempo", "trip-hop", "smooth jazz", "bossa nova", "lounge", "slowcore", "americana", "acoustic", "soft rock", "easy listening", "reggae"],
+        "genres": ["ambient", "chillout", "lo-fi", "lofi", "downtempo", "trip-hop", "smooth jazz", "bossa nova", "lounge", "slowcore", "americana", "acoustic", "soft rock", "easy listening", "reggae", "folk"],
         "bpm_min": 50,
         "bpm_max": 105,
     },
@@ -1393,7 +1393,7 @@ MOOD_MAPPINGS = {
     "Upbeat": {
         "display": "🕺 Upbeat",
         "moods": ["upbeat", "happy", "joyful", "cheerful", "bright", "sunny", "feel-good", "playful"],
-        "genres": ["synthpop", "dance-pop", "ska", "indie pop", "power pop", "sunshine pop", "bubblegum", "new wave", "pop"],
+        "genres": ["dance", "disco", "funk", "ska", "synthpop", "classic rock", "reggae", "soul", "motown"],
         "bpm_min": 105,
         "bpm_max": 135,
     },

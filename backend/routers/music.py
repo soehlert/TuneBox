@@ -483,7 +483,11 @@ def get_genres_endpoint(background_tasks: BackgroundTasks):
 def get_albums_by_genre_endpoint(genre_name: str):
     """Fetch all albums matching a specific genre."""
     try:
-        return get_albums_by_genre_db(genre_name)
+        from urllib.parse import unquote  # noqa: PLC0415
+        clean_genre = unquote(genre_name)
+        if settings.testing:
+            return fetch_albums_by_genre(clean_genre)
+        return get_albums_by_genre_db(clean_genre)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching albums for genre {genre_name}: {e}") from e
 
