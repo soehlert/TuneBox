@@ -2183,7 +2183,8 @@ def fetch_art_bytes(item_id: int | str, item_type: str, server_id: str | None = 
     if settings.testing:
         return transparent_png, "image/jpeg"
 
-    cache_bytes_key = f"art_bytes:{item_type}:{item_id}:{server_id or 'default'}"
+    eff_server_id = server_id if (server_id and server_id != "all") else "default"
+    cache_bytes_key = f"art_bytes:{item_type}:{item_id}:{eff_server_id}"
 
     # 1. Check Python RAM cache (0.0001 ms)
     if cache_bytes_key in _MEMORY_ART_CACHE:
@@ -2203,7 +2204,8 @@ def fetch_art_bytes(item_id: int | str, item_type: str, server_id: str | None = 
         pass
 
     try:
-        resp = fetch_art(item_id, item_type, server_id=server_id)
+        req_sid = server_id if server_id != "all" else None
+        resp = fetch_art(item_id, item_type, server_id=req_sid)
         if hasattr(resp, "content"):
             content_bytes = resp.content
         elif hasattr(resp, "iter_content"):
@@ -2236,15 +2238,16 @@ def _prewarm_art_in_background(server_id: str, artist_ids: list[int], album_ids:
     """Pre-warm artist and album thumbnails into Redis in a parallel background thread pool."""
     def _worker():
         try:
-            logger.info("Pre-warming %d artist and %d album thumbnails into Redis for server %s...", len(artist_ids), len(album_ids), server_id)
-            with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
+            logger.info("Pre-warming %d artist and %d album thumbnails into Redis...", len(artist_ids), len(album_ids))
+            eff_sid = server_id if (server_id and server_id != "all") else None
+            with concurrent.futures.ThreadPoolExecutor(max_workers=16) as executor:
                 for a_id in artist_ids:
-                    executor.submit(fetch_art_bytes, a_id, "artist", server_id)
+                    executor.submit(fetch_art_bytes, a_id, "artist", eff_sid)
                 for alb_id in album_ids:
-                    executor.submit(fetch_art_bytes, alb_id, "album", server_id)
-            logger.info("Artwork pre-warming complete for server %s.", server_id)
+                    executor.submit(fetch_art_bytes, alb_id, "album", eff_sid)
+            logger.info("Artwork pre-warming complete.")
         except Exception as ex:
-            logger.debug("Art prewarming error for server %s: %s", server_id, ex)
+            logger.debug("Art prewarming error: %s", ex)
 
     threading.Thread(target=_worker, daemon=True).start()
 
