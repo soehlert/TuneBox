@@ -62,7 +62,7 @@ def test_websocket_queue_broadcast_schema_contract(client, mock_redis):
         "duration": 320000,
         "album_art": "/api/music/album-art/2001",
         "server_id": "plex-so",
-        "moods": ["Energetic", "Upbeat"],
+        "moods": ["Energetic", "Chill Hang"],
     }
     redis_store = [json.dumps(queue_item).encode()]
 
