@@ -861,8 +861,9 @@ async def seed_playlist(
         raise HTTPException(status_code=401, detail="Unauthorized: Invalid admin token")
     try:
         result = seed_queue_from_playlist(playlist_id, count=count)
-        # Notify WebSocket clients of queue change
-        background_tasks.add_task(send_queue)
+        # Notify WebSocket clients immediately of queue and now playing updates
+        await send_queue()
+        await send_current_playing()
         return result
     except HTTPException:
         raise

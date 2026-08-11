@@ -1,22 +1,17 @@
-# Implementation Plan - Admin Queue Clear Controls & Styling
+# Implementation Plan - Fast Playlist Preseeding & Real-Time Queue Updates
 
-Refactor queue clearing behavior and UI controls in TuneBox Admin Settings so that **Clear Upcoming Queue** preserves the currently playing song (`queue[0]`), and **Stop & Empty Queue** halts playback and clears all tracks with matching semi-transparent button styling.
+Eliminate the 35+ second latency during playlist queue pre-seeding by avoiding cascading network calls in track mood evaluation, and ensure immediate real-time WebSocket queue updates and toast notifications.
 
 ## Proposed Changes
 
 ### Branch Creation
-- Branch `feature/admin-queue-clear-controls` created.
+- Branch `feature/fast-playlist-preseed` created.
 
-### Backend Logic & API Routes
+### Backend Logic & Router Updates
+- Modify `backend/services/redis.py`:
+  - `add_to_queue_redis`: avoid cascading `song.album()` / `song.artist()` network calls when resolving moods.
 - Modify `backend/routers/music.py`:
-  - `@router.post("/clear-queue")`: remove `stop_playback()` & `track_time_tracker.stop()`, call `clear_redis_queue(force_all=False)` to preserve `queue[0]`.
-  - `@router.post("/stop-queue")`: keep `stop_playback()`, `track_time_tracker.stop()`, call `clear_redis_queue(force_all=True)`.
-
-### Frontend UI & Admin Controls
-- Modify `frontend/src/App.tsx`:
-  - Rename button `"Clear Full Queue"` to `"Stop & Empty Queue"`.
-  - Style `"Stop & Empty Queue"` with semi-transparent red (`rgba(255, 77, 77, 0.15)`) background and border matching amber button layout.
-  - Update confirmation modal text and toast notifications.
+  - `@router.post("/playlists/{playlist_id}/seed")`: `await send_queue()` and `await send_current_playing()` directly.
 
 ### Automated Tests
-- Modify `backend/tests/test_queue_isolation.py`: Update tests for `/clear-queue` preserving `queue[0]` and `/stop-queue` wiping all items.
+- Modify `backend/tests/test_queue_isolation.py`: Add test for fast playlist pre-seeding and WebSocket updates.

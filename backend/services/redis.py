@@ -61,22 +61,20 @@ def add_to_queue_redis(song, server_id=None, server_name=None, server_token=None
 
     moods = [m.tag if hasattr(m, "tag") else str(m) for m in getattr(song, "moods", [])] if hasattr(song, "moods") else []
 
-    # Cascade to Album and Artist level for moods if track level is empty
-    if not moods:
+    # Cascade to Album and Artist level for moods if track level is empty and attributes are pre-cached (not network calls)
+    if not moods and not is_fallback:
         try:
-            if hasattr(song, "album"):
-                album = song.album()
-                if album and hasattr(album, "moods") and album.moods:
-                    moods = [m.tag if hasattr(m, "tag") else str(m) for m in album.moods]
+            album_attr = getattr(song, "album", None)
+            if album_attr and not callable(album_attr) and hasattr(album_attr, "moods") and album_attr.moods:
+                moods = [m.tag if hasattr(m, "tag") else str(m) for m in album_attr.moods]
         except Exception:
             pass
 
-    if not moods:
+    if not moods and not is_fallback:
         try:
-            if hasattr(song, "artist"):
-                artist = song.artist()
-                if artist and hasattr(artist, "moods") and artist.moods:
-                    moods = [m.tag if hasattr(m, "tag") else str(m) for m in artist.moods]
+            artist_attr = getattr(song, "artist", None)
+            if artist_attr and not callable(artist_attr) and hasattr(artist_attr, "moods") and artist_attr.moods:
+                moods = [m.tag if hasattr(m, "tag") else str(m) for m in artist_attr.moods]
         except Exception:
             pass
 

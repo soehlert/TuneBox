@@ -1,64 +1,50 @@
-# Brainstorm: Critical Core Test Suite for TuneBox
+# Brainstorm - Fix Playlist Preseed Latency & Real-Time Queue Update Delay
 
 ## Goal
-Establish a comprehensive, highly reliable, and trustworthy suite of core integration tests covering essential TuneBox application features: queue management, playback controls, catalog resolution, server filtering, and real-time state sync.
+Eliminate the 35+ second latency when seeding playlist tracks into the playback queue, making preseed operations near-instant (under 500ms), and ensuring immediate real-time WebSocket queue updates and toast notifications without requiring a page refresh.
 
 ## Constraints
-- Focus on single-server operation by default, while supporting overridable `server_id` parameters for future multi-server tests.
-- Strictly forbid mock data or sample fallbacks outside of explicit automated test execution (`settings.testing`).
-- Maintain strict database and Redis state isolation between tests.
-- Never merge feature/test branches into `main` without explicit user approval.
+- **Strict Track ID Standardization**: Convert external Plex `ratingKey`s to internal SQLite `track_id`s upfront using `rating_key_to_track_id`.
+- Do NOT make unnecessary cascading external HTTP network calls to Plex during queue seeding.
+- Global imports only in backend Python files per project directives.
+- Preserve existing queue priority rules (guest tracks leapfrog fallback tracks, playing track at index 0 remains active).
 
-## Known Context & Currently Verified Tests (Phase 0)
-Currently on branch `feature/critical-core-tests`. The following 11 verified core tests are already in place and passing:
-
-1. **[test_core_playback_flow.py](file:///Users/soehlert/projects/testing/TuneBox/backend/tests/test_core_playback_flow.py)**:
-   - `test_1_adding_to_queue_works`: Adding tracks to queue via API.
-   - `test_2_playing_song_works`: Orchestrator starting track playback.
-   - `test_3_song_plays_til_end_and_moves_to_next_track`: Track finishing and advancing to next queued item.
-   - `test_4_force_skip_works`: Force skip / skip endpoint functionality.
-   - `test_5_play_pause_toggles_playback_preserving_queue`: Play/pause toggling without mutating queue.
-   - `test_6_stops_when_out_of_tracks_in_queue`: Stopped state transition when queue is empty.
-
-2. **[test_queue_isolation.py](file:///Users/soehlert/projects/testing/TuneBox/backend/tests/test_queue_isolation.py)**:
-   - `test_clear_queue_endpoint_removes_all_items_and_stops_playback`: Complete queue clearing + playback stop.
-   - `test_only_user_added_songs_exist_in_queue`: Queue isolation ensuring only explicitly added tracks exist.
-   - `test_autoplay_does_not_seed_when_disabled`: Autoplay exit when disabled.
-
-3. **[test_server_resolution.py](file:///Users/soehlert/projects/testing/TuneBox/backend/tests/test_server_resolution.py)**:
-   - `test_get_art_source_info_resolves_server_track_id`: Resolution of Plex ratingKeys (`server_track_id`).
-   - `test_search_music_db_includes_server_id_and_server_name`: Search results metadata (`server_id`, `server_name`).
+## Known Context
+- `POST /api/music/playlists/{playlist_id}/seed?count=10` currently takes 35+ seconds to complete 10 tracks.
+- **Root Cause 1 (Network Latency)**: `seed_queue_from_playlist` fetches Plex objects via `plexapi`. When `add_to_queue_redis` is called on each `plexapi.audio.Track` object, accessing lazy properties `song.moods`, `song.album()`, and `song.artist()` triggers 4–5 synchronous HTTP GET requests to Plex per track (40+ blocking network calls for 10 tracks). This completely blocks the FastAPI event loop for 35+ seconds.
+- **Root Cause 2 (UI/WebSocket Update Delay)**: In `backend/routers/music.py`, `seed_playlist` schedules `send_queue` via `background_tasks.add_task(send_queue)` without `await`. Furthermore, `send_current_playing()` is not called, causing WebSocket subscribers to miss immediate state updates until a manual page refresh.
+- **Root Cause 3 (UI Toast Scope)**: In `frontend/src/App.tsx`, `handleSeedJukebox` sets `setMsg(...)` which is rendered in the `SettingsModal` footer. Because the API hangs for 35 seconds, users close the modal or refresh before the response finishes.
 
 ## Risks
-- Synthetic mocks masking integration flaws between API endpoints, Redis queue storage, and Plex service layer.
-- Lingering Redis state or autoplay fallback loops polluting test runs if fixtures do not reset state completely.
+- If a playlist track is not yet indexed in local SQLite, falling back gracefully to basic Plex track attributes without triggering cascading `.album()` / `.artist()` network calls is required.
+- Ensuring `send_queue()` and `send_current_playing()` are awaited directly ensures all connected clients (web app, kiosk, player controls) update in real time.
 
-## Options & Next Steps (2–4)
-- **Option 1: Queue Mutation & Reordering Suite (`test_queue_mutations.py`)**
-  Focus on testing track removal, queue reordering ("Move to Top"), and queuing full albums in track order.
-- **Option 2: Playback Controls & Position Scrobbling Suite (`test_playback_controls.py`)**
-  Focus on testing pause/resume position preservation, seeking/scrobbling to specific offsets, and previous/restart track logic (>3s vs <3s).
-- **Option 3: Catalog Resolution & Server Filtering Suite (`test_catalog_filtering.py`)**
-  Focus on testing search/browse server filtering (enabled vs. disabled servers) and artwork proxying without dummy fallbacks.
-- **Option 4: Comprehensive Phased Rollout (Recommended)**
-  Implement Options 1 through 3 sequentially in focused modules, culminating in real-time WebSocket state verification.
+## Options
 
-## Recommendation & Roadmap
-Execute **Option 4** (Comprehensive Phased Rollout):
-1. **Phase 1 (COMPLETED & VERIFIED)**: Queue Mutation & Reordering ([test_queue_mutations.py](file:///Users/soehlert/projects/testing/TuneBox/backend/tests/test_queue_mutations.py))
-   - Track deletion from queue (`DELETE /api/music/queue/{item_id}`).
-   - Queue reordering and Move to Top (`POST /api/music/queue/reorder`).
-   - Adding entire albums to queue in track order using `server_track_id` Plex ratingKeys.
-2. **Phase 2 (COMPLETED & VERIFIED)**: Catalog Resolution & Server Filtering ([test_catalog_filtering.py](file:///Users/soehlert/projects/testing/TuneBox/backend/tests/test_catalog_filtering.py))
-   - Search & browse filtering by enabled servers (`srv.enabled = 1`).
-   - Artwork cache key isolation by `server_id` (`art_bytes:{item_type}:{item_id}:{server_id}`).
-   - Artwork proxying and track-to-album fallback without dummy file data.
-3. **Phase 3 (COMPLETED & VERIFIED)**: Real-Time WebSocket & State Sync ([test_websocket_state.py](file:///Users/soehlert/projects/testing/TuneBox/backend/tests/test_websocket_state.py))
-   - WebSocket queue broadcast updates (`send_queue`) & vibes tags matching [Queue.tsx](file:///Users/soehlert/projects/testing/TuneBox/frontend/src/components/Queue.tsx) schema.
-   - WebSocket current playing state sync (`send_current_playing`) matching [MusicControls.tsx](file:///Users/soehlert/projects/testing/TuneBox/frontend/src/components/MusicControls.tsx) schema.
-   - Stopped & empty-queue payload contracts and multi-client real-time synchronization.
+### Option 1: Optimize Track Property Extraction & Direct WebSocket Awaits (Recommended)
+- In `add_to_queue_redis`: Avoid triggering cascading `song.album()` / `song.artist()` network property lookups on `plexapi` objects when resolving moods, especially during fallback/preseed operations. Use direct attributes or local SQLite DB queries.
+- In `seed_queue_from_playlist`: Look up internal SQLite track details first using `rating_key_to_track_id`.
+- In `seed_playlist` (`music.py`): Explicitly `await send_queue()` and `await send_current_playing()` so WebSocket clients update instantly.
+- In `App.tsx`: Ensure toast state and queue state update immediately upon response.
 
-## Acceptance criteria
-- Each test module targets a single behavior per test with exact assertions.
-- Tests run against clean, isolated SQLite and Redis test contexts.
-- Full test suite passes via `uv run pytest` with zero warnings or unexpected side effects.
+### Option 2: Async Preseed Background Task with Item Streaming
+- Offload preseed seeding to a background worker and push WebSocket updates per item.
+- *Drawback*: Unnecessary complexity for 10–50 tracks when local DB lookup can execute synchronously in <100ms.
+
+### Option 3: Pure SQLite Playlist Track Seeding
+- Load playlist track IDs directly from `preseed_playlist_tracks` or `tracks` SQLite table, bypassing `plexapi` network calls completely during seeding.
+- *Drawback*: If a playlist was updated on Plex after the last library sync, newly added Plex tracks wouldn't appear until re-indexed.
+
+## Recommendation
+**Option 1** is recommended:
+1. Refactor `add_to_queue_redis` in `backend/services/redis.py` to prevent cascading network calls (`song.album()`, `song.artist()`) on `plexapi` objects.
+2. Refactor `seed_queue_from_playlist` in `backend/services/plex.py` to use local SQLite track data via `rating_key_to_track_id`.
+3. Update `seed_playlist` endpoint in `backend/routers/music.py` to `await send_queue()` and `await send_current_playing()`.
+4. Update `App.tsx` toast notification handling for preseed actions.
+
+## Acceptance Criteria
+- `POST /api/music/playlists/{id}/seed?count=10` completes in under 500ms (down from 35+ seconds).
+- No cascading HTTP requests to Plex per track during queue seeding.
+- Preseeding immediately updates the Queue UI in real-time over WebSocket without requiring a page refresh.
+- Settings modal displays the success toast ("✓ Successfully seeded 10 tracks...") immediately upon completion.
+- All unit and integration tests (`uv run python -m pytest`) pass.

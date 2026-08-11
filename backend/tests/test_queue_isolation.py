@@ -103,3 +103,20 @@ def test_autoplay_does_not_seed_when_disabled(mocker):
         mock_add.assert_not_called()
     finally:
         settings.testing = orig_testing
+
+
+def test_seed_playlist_endpoint_awaits_websocket_updates(mocker):
+    """Verify POST /api/music/playlists/{id}/seed directly awaits send_queue and send_current_playing."""
+    mocker.patch("backend.routers.music.seed_queue_from_playlist", return_value={"message": "Successfully seeded 10 tracks."})
+    mock_send_queue = mocker.patch("backend.routers.music.send_queue")
+    mock_send_playing = mocker.patch("backend.routers.music.send_current_playing")
+
+    response = client.post(
+        "/api/music/playlists/31516/seed?count=10",
+        headers={"x-admin-token": settings.admin_token},
+    )
+    assert response.status_code == 200
+    assert response.json() == {"message": "Successfully seeded 10 tracks."}
+
+    mock_send_queue.assert_called_once()
+    mock_send_playing.assert_called_once()

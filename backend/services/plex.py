@@ -33,7 +33,7 @@ from backend.services.redis import (
     get_album_play_counts,
 )
 from backend.utils import TrackTimeTracker, milliseconds_to_seconds
-from backend.db.library_db import get_db_connection, get_latest_preseed_playlist_tracks
+from backend.db.library_db import get_db_connection, get_latest_preseed_playlist_tracks, save_preseed_playlist_tracks
 from backend.services.library import (
     get_art_source_info,
     get_albums_for_artist_db,
@@ -2618,7 +2618,6 @@ def seed_queue_from_playlist(playlist_id: int, count: int = 10):
     # Store all playlist track internal track_ids in cache and SQLite as fallback pool for Autoplay
     playlist_track_ids = []
     try:
-        from backend.services.library import rating_key_to_track_id  # noqa: PLC0415
         for t in tracks:
             rk_str = str(t.ratingKey)
             resolved = rating_key_to_track_id(rk_str)
@@ -2626,7 +2625,6 @@ def seed_queue_from_playlist(playlist_id: int, count: int = 10):
                 playlist_track_ids.append(resolved)
 
         get_redis_cache_client().set("last_seeded_playlist_tracks", json.dumps(playlist_track_ids))
-        from backend.db.library_db import save_preseed_playlist_tracks  # noqa: PLC0415
         save_preseed_playlist_tracks(playlist_track_ids, playlist_id=str(playlist_id))
     except Exception as ex:
         logger.warning("Failed to cache fallback pool: %s", ex)
