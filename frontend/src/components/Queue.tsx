@@ -8,7 +8,6 @@ const QueueComponent = () => {
   const [queue, setQueue] = useState<any[]>([]);
   const [history, setHistory] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'queue' | 'history'>('queue');
-  const [vibes, setVibes] = useState<string[]>([]);
   const adminToken = localStorage.getItem("tunebox_admin_token") || "";
 
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
@@ -208,7 +207,6 @@ const QueueComponent = () => {
             const data = JSON.parse(event.data);
             if (data.message === "Queue update") {
               setQueue(data.queue);
-              setVibes(data.vibes || []);
               fetchHistory();
             } else if (
               data.message === "Track state update" ||
