@@ -479,21 +479,6 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
       .catch((err) => console.error("Failed to load guest vibe settings:", err));
   }, []);
 
-  const handleToggleGuestVibeChanging = async (enabled: boolean) => {
-    try {
-      const res = await axios.post(
-        getApiUrl("/api/music/vibe/settings"),
-        { enabled },
-        { headers: { "x-admin-token": adminToken } }
-      );
-      setGuestVibeChangingEnabled(res.data.guest_vibe_changing_enabled ?? enabled);
-      setMsg(`✓ ${enabled ? "Guest vibe changing enabled." : "Guest vibe changing disabled."}`);
-    } catch (err) {
-      console.error("Failed to toggle guest vibe changing:", err);
-      setMsg("✗ Failed to update guest vibe permissions.");
-    }
-  };
-
   const handleSeedJukebox = async () => {
     if (!selectedPlaylistId) return;
     setSeeding(true);
@@ -705,6 +690,17 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
 
 
 
+  const [localGuestVibeChangingEnabled, setLocalGuestVibeChangingEnabled] = useState<boolean>(guestVibeChangingEnabled);
+
+  useEffect(() => {
+    setLocalGuestVibeChangingEnabled(guestVibeChangingEnabled);
+  }, [guestVibeChangingEnabled]);
+
+  const handleToggleGuestVibeChanging = (enabled: boolean) => {
+    setLocalGuestVibeChangingEnabled(enabled);
+    setIsFormDirty(true);
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
@@ -730,6 +726,13 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
         { enabled_server_ids: enabledIds },
         { headers: { "x-admin-token": adminToken } }
       );
+
+      await axios.post(
+        getApiUrl("/api/music/vibe/settings"),
+        { enabled: localGuestVibeChangingEnabled },
+        { headers: { "x-admin-token": adminToken } }
+      );
+      setGuestVibeChangingEnabled(localGuestVibeChangingEnabled);
 
       setIsFormDirty(false);
       setMsg("✓ Settings saved!");
@@ -1207,7 +1210,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
                   </div>
                   <button
                     type="button"
-                    onClick={() => handleToggleGuestVibeChanging(!guestVibeChangingEnabled)}
+                    onClick={() => handleToggleGuestVibeChanging(!localGuestVibeChangingEnabled)}
                     style={{
                       padding: "6px 14px",
                       borderRadius: "6px",
@@ -1215,13 +1218,13 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
                       fontWeight: "bold",
                       fontSize: "12px",
                       cursor: "pointer",
-                      backgroundColor: guestVibeChangingEnabled ? "#2ecc71" : "rgba(255,255,255,0.1)",
-                      color: guestVibeChangingEnabled ? "#000" : "#aaa",
+                      backgroundColor: localGuestVibeChangingEnabled ? "#2ecc71" : "rgba(255,255,255,0.1)",
+                      color: localGuestVibeChangingEnabled ? "#000" : "#aaa",
                       transition: "all 0.2s ease",
                       whiteSpace: "nowrap",
                     }}
                   >
-                    {guestVibeChangingEnabled ? "Enabled" : "Disabled"}
+                    {localGuestVibeChangingEnabled ? "Enabled" : "Disabled"}
                   </button>
                 </div>
 

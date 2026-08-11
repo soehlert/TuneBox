@@ -2718,7 +2718,7 @@ def seed_queue_from_vibe(vibe_name: str, count: int = 10):
         except Exception as ex:
             logger.debug("Failed adding vibe track to queue: %s", ex)
 
-    if playlist_track_ids:
+    if playlist_track_ids and not settings.testing:
         try:
             get_redis_cache_client().set("last_seeded_playlist_tracks", json.dumps(playlist_track_ids))
             save_preseed_playlist_tracks(playlist_track_ids, playlist_id=f"vibe_{vibe_name}")
