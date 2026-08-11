@@ -132,29 +132,42 @@ async def status():
             "is_configured": is_configured,
             "testing": settings.testing,
         }
-    try:
-        plex = get_plex_connection()
-        username = plex.myPlexAccount().username
-        return {
-            "authenticated": True,
-            "username": username,
-            "plex_server_name": settings.plex_server_name,
-            "client_name": settings.client_name,
-            "instance_name": settings.instance_name,
-            "is_configured": is_configured,
-            "testing": settings.testing,
-        }
-    except Exception:  # noqa: BLE001
-        fallback_user = settings.plex_username or "Plex User"
-        return {
-            "authenticated": True,
-            "username": fallback_user,
-            "plex_server_name": settings.plex_server_name,
-            "client_name": settings.client_name,
-            "instance_name": settings.instance_name,
-            "is_configured": is_configured,
-            "testing": settings.testing,
-        }
+    username = settings.plex_username
+    if not username and settings.plex_token and not settings.testing:
+        try:
+            account = MyPlexAccount(token=settings.plex_token)
+            username = account.username
+            if username:
+                settings.plex_username = username
+                write_settings_to_env(
+                    settings.plex_token,
+                    settings.plex_server_name,
+                    settings.client_name,
+                    username,
+                    settings.admin_token,
+                    settings.instance_name,
+                )
+        except Exception as ex:  # noqa: BLE001
+            logger.debug("Failed fetching MyPlexAccount username: %s", ex)
+            try:
+                plex = get_plex_connection()
+                username = plex.myPlexAccount().username
+                if username:
+                    settings.plex_username = username
+            except Exception as ex2:  # noqa: BLE001
+                logger.debug("Failed fetching plex connection username: %s", ex2)
+
+    final_username = username or settings.plex_username or "Plex User"
+    return {
+        "authenticated": True,
+        "username": final_username,
+        "plex_username": final_username,
+        "plex_server_name": settings.plex_server_name,
+        "client_name": settings.client_name,
+        "instance_name": settings.instance_name,
+        "is_configured": is_configured,
+        "testing": settings.testing,
+    }
 
 
 @router.post("/pin")
@@ -246,7 +259,12 @@ async def check_pin(pin_id: int):
         active_pins.pop(str(pin_id), None)
         active_pins.pop(pin_id, None)
 
-        return {"authenticated": True, "token": token}
+        return {
+            "authenticated": True,
+            "token": token,
+            "username": settings.plex_username,
+            "plex_username": settings.plex_username,
+        }
 
     return {"authenticated": False}
 

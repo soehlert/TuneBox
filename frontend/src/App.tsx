@@ -2325,7 +2325,11 @@ function App() {
       setIsAuthenticated(res.data.authenticated);
       setIsConfigured(res.data.is_configured);
 
-      if (res.data.plex_username) setPlexUsername(res.data.plex_username);
+      const usernameVal = res.data.plex_username || res.data.username || "";
+      if (usernameVal) {
+        setPlexUsername(usernameVal);
+        localStorage.setItem("tunebox_admin_name", usernameVal);
+      }
       if (res.data.instance_name) {
         setInstanceName(res.data.instance_name);
         localStorage.setItem("tunebox_instance_name", res.data.instance_name);
@@ -2585,7 +2589,7 @@ function App() {
                     title="Admin Session — Click to open Settings"
                   >
                     <span className="material-symbols-outlined" style={{ fontSize: "15px" }}>admin_panel_settings</span>
-                    <span>{localStorage.getItem("tunebox_admin_name") || "Admin"}</span>
+                    <span>{plexUsername || localStorage.getItem("tunebox_admin_name") || "Admin"}</span>
                   </div>
                   <span style={{ width: "1px", height: "12px", background: "rgba(51, 118, 173, 0.3)" }}></span>
                   <span
