@@ -3,6 +3,11 @@
 import time
 import logging
 import concurrent.futures
+import threading
+import json
+import urllib.request
+import ssl
+
 from backend.config import settings
 from backend.services.library import (
     upsert_server,
@@ -10,8 +15,17 @@ from backend.services.library import (
     upsert_album,
     upsert_track,
 )
-
-import threading
+from backend.db.library_db import get_db_connection
+from backend.services.plex import (
+    get_target_plex_connection,
+    is_music_library_section,
+    milliseconds_to_seconds,
+    get_enabled_server_ids,
+    fetch_art_bytes,
+    fetch_accessible_plex_servers,
+)
+from backend.websockets import broadcast_indexing_status_threadsafe
+from backend.services.mock_data import seed_mock_library_db
 
 logger = logging.getLogger(__name__)
 
@@ -32,12 +46,9 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
     acc_token = server_info.get("access_token")
     upsert_server(s_id, s_name, server_url=s_url, is_primary=is_primary, enabled=None, access_token=acc_token, db_path=db_path)
 
-    from backend.services.plex import get_target_plex_connection, is_music_library_section, milliseconds_to_seconds
-
     # Check if this server is already indexed in SQLite
     server_track_count = 0
     try:
-        from backend.db.library_db import get_db_connection  # noqa: PLC0415
         conn = get_db_connection(db_path)
         cursor = conn.cursor()
         cursor.execute("SELECT COUNT(*) FROM tracks WHERE server_id = ?;", (s_id,))
@@ -53,7 +64,6 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
     is_initial = (server_track_count == 0)
 
     try:
-        from backend.websockets import broadcast_indexing_status_threadsafe  # noqa: PLC0415
         broadcast_indexing_status_threadsafe(is_indexing=True, is_initial=is_initial, server_name=s_name, message=f"Indexing artists on {s_name}")
     except Exception as ws_ex:
         logger.debug("Could not send indexing status start: %s", ws_ex)
@@ -63,7 +73,6 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
         if not plex:
             logger.warning("Failed to connect to Plex server %s (ID: %s) for indexing.", s_name, s_id)
             try:
-                from backend.websockets import broadcast_indexing_status_threadsafe  # noqa: PLC0415
                 broadcast_indexing_status_threadsafe(is_indexing=False, is_initial=is_initial, server_name=s_name, items_indexed=0, message=f"Plex server '{s_name}' is unreachable or offline.", is_error=True)
             except Exception:
                 pass
@@ -86,7 +95,6 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
         if not music_libs:
             logger.warning("No music library sections found on Plex server %s", s_name)
             try:
-                from backend.websockets import broadcast_indexing_status_threadsafe  # noqa: PLC0415
                 broadcast_indexing_status_threadsafe(is_indexing=False, is_initial=is_initial, server_name=s_name, items_indexed=0, message=f"No Music libraries found on Plex server '{s_name}'.", is_error=True)
             except Exception:
                 pass
@@ -95,15 +103,11 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
         items_indexed = 0
         now = int(time.time())
 
-        items_indexed = 0
-        from backend.db.library_db import get_db_connection  # noqa: PLC0415
-
         def _is_cancelled() -> bool:
-            from backend.services.plex import get_enabled_server_ids  # noqa: PLC0415
             if s_id not in get_enabled_server_ids():
                 logger.info("Indexing for server %s (ID: %s) was cancelled because server was disabled by user.", s_name, s_id)
                 try:
-                    from backend.websockets import broadcast_indexing_status_threadsafe  # noqa: PLC0415
+                    broadcast_indexing_status_threadsafe(is_indexing=False, is_initial=is_initial, server_name=s_name, items_indexed=0, message=f"Indexing cancelled for '{s_name}'.")
                     broadcast_indexing_status_threadsafe(is_indexing=False, is_initial=is_initial, server_name=s_name, items_indexed=0, message=f"Indexing cancelled for {s_name}.")
                 except Exception:
                     pass
@@ -502,10 +506,6 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
 def fetch_section_json_batched(plex_conn, music_lib, item_type: int = 10, batch_size: int = 5000) -> list[dict] | None:
     """Fetch all items from a music section using fast paginated JSON requests (5,000 items per batch)."""
     try:
-        import json
-        import urllib.request
-        import ssl
-
         server_url = getattr(plex_conn, "_baseurl", None)
         token = getattr(plex_conn, "_token", None)
         sec_key = getattr(music_lib, "key", None)
@@ -543,7 +543,6 @@ def _prewarm_art_in_background(server_id: str, artist_ids: list[int], album_ids:
     """Pre-warm artist and album thumbnails into Redis in a parallel background thread pool."""
     def _worker():
         try:
-            from backend.services.plex import fetch_art_bytes
             logger.info("Pre-warming %d artist and %d album thumbnails into Redis for server %s...", len(artist_ids), len(album_ids), server_id)
             
             with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
@@ -556,7 +555,6 @@ def _prewarm_art_in_background(server_id: str, artist_ids: list[int], album_ids:
         except Exception as ex:
             logger.debug("Art prewarming error for server %s: %s", server_id, ex)
 
-    import threading
     threading.Thread(target=_worker, daemon=True).start()
 
 
@@ -567,8 +565,6 @@ def sync_all_servers(db_path: str | None = None, force_full: bool = False):
         return
 
     try:
-        from backend.services.plex import fetch_accessible_plex_servers, get_enabled_server_ids
-
         enabled_ids = get_enabled_server_ids()
         all_accessible = fetch_accessible_plex_servers()
         enabled_set = {str(x).lower() for x in enabled_ids}
@@ -581,7 +577,6 @@ def sync_all_servers(db_path: str | None = None, force_full: bool = False):
 
         if not target_servers:
             if settings.testing:
-                from backend.services.mock_data import seed_mock_library_db  # noqa: PLC0415
                 seed_mock_library_db(db_path)
             else:
                 logger.info("No enabled target Plex servers found to index. Skipping background indexing.")
@@ -592,7 +587,7 @@ def sync_all_servers(db_path: str | None = None, force_full: bool = False):
             s_id = s.get("server_id")
             count = 0
             try:
-                from backend.db.library_db import get_db_connection  # noqa: PLC0415
+                conn = get_db_connection(db_path)
                 conn = get_db_connection(db_path)
                 cursor = conn.cursor()
                 cursor.execute("SELECT COUNT(*) FROM tracks WHERE server_id = ?;", (s_id,))

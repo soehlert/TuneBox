@@ -9,8 +9,11 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.config import settings
 from backend.routers import auth, music, stats
-from backend.websockets import router as websockets_router
-from backend.websockets import update_websocket_clients
+from backend.websockets import router as websockets_router, update_websocket_clients
+import backend.websockets
+from backend.services.plex import playback_orchestrator, pre_warm_all_caches
+from backend.services.library import clean_library_deduplication
+from backend.db.library_db import get_db_connection
 
 # Logging configuration
 logging.basicConfig(level=logging.DEBUG)
@@ -20,9 +23,6 @@ logging.getLogger("urllib3").setLevel(logging.WARNING)
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage application startup and shutdown lifecycle."""
-    from backend.services.plex import playback_orchestrator  # noqa: PLC0415
-
-    import backend.websockets  # noqa: PLC0415
     backend.websockets.main_loop = asyncio.get_running_loop()
 
     # Start background tasks
@@ -30,9 +30,6 @@ async def lifespan(app: FastAPI):
     orch_task = asyncio.create_task(playback_orchestrator())
 
     # Pre-warm caches asynchronously in a background thread
-    from backend.services.library import clean_library_deduplication  # noqa: PLC0415
-    from backend.services.plex import pre_warm_all_caches  # noqa: PLC0415
-
     clean_library_deduplication()
     asyncio.create_task(asyncio.to_thread(pre_warm_all_caches))
 
@@ -48,7 +45,6 @@ async def lifespan(app: FastAPI):
 
         # Checkpoint & flush SQLite WAL journal on container shutdown to prevent corruption
         try:
-            from backend.db.library_db import get_db_connection  # noqa: PLC0415
             conn = get_db_connection()
             conn.execute("PRAGMA wal_checkpoint(TRUNCATE);")
             conn.close()

@@ -1,8 +1,21 @@
 from fastapi import APIRouter, Header, HTTPException
-from backend.services import stats
+from pydantic import BaseModel
+
 from backend.config import settings
+from backend.services import stats
+from backend.services.library import (
+    get_library_health_stats as fetch_stats,
+    get_missing_artwork_items,
+    refetch_item_artwork,
+)
 
 router = APIRouter(prefix="/api/stats", tags=["stats"])
+
+
+class RefetchArtPayload(BaseModel):
+    type: str
+    id: int
+
 
 @router.get("")
 def get_leaderboards():
@@ -11,6 +24,7 @@ def get_leaderboards():
         "session": stats.get_session_stats(),
         "all_time": stats.get_alltime_stats()
     }
+
 
 @router.post("/reset")
 def reset_session_stats(x_admin_token: str | None = Header(None)):
@@ -24,16 +38,7 @@ def reset_session_stats(x_admin_token: str | None = Header(None)):
 @router.get("/library")
 def get_library_health_stats():
     """Retrieve catalog counts, missing artwork metrics, and per-server breakdown."""
-    from backend.services.library import get_library_health_stats as fetch_stats  # noqa: PLC0415
     return fetch_stats()
-
-
-from pydantic import BaseModel  # noqa: E402
-
-
-class RefetchArtPayload(BaseModel):
-    type: str
-    id: int
 
 
 @router.get("/missing-artwork")
@@ -41,7 +46,6 @@ def get_missing_artwork(type: str, query: str | None = None):
     """Retrieve primary server items missing artwork."""
     if type not in ("artist", "album"):
         raise HTTPException(status_code=400, detail="Invalid item type")
-    from backend.services.library import get_missing_artwork_items  # noqa: PLC0415
     return {"items": get_missing_artwork_items(item_type=type, query=query)}
 
 
@@ -50,7 +54,5 @@ def refetch_item_artwork_endpoint(payload: RefetchArtPayload):
     """Attempt to re-sync thumbnail URL from Plex for an item missing artwork."""
     if payload.type not in ("artist", "album"):
         raise HTTPException(status_code=400, detail="Invalid item type")
-    from backend.services.library import refetch_item_artwork  # noqa: PLC0415
     success = refetch_item_artwork(item_type=payload.type, item_id=payload.id)
     return {"success": success}
-

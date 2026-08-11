@@ -10,8 +10,20 @@ from plexapi.myplex import MyPlexAccount, MyPlexPinLogin
 from pydantic import BaseModel
 
 from backend.config import settings
-from backend.services.plex import get_plex_connection, pre_warm_all_caches, reinitialize_plex
+from backend.services.plex import (
+    get_plex_connection,
+    pre_warm_all_caches,
+    reinitialize_plex,
+    fetch_accessible_plex_servers,
+    get_enabled_server_ids,
+    set_enabled_server_ids,
+    _plex_connection_cache,
+    _failed_connection_cache,
+)
 from backend.services.redis import cache_data, get_cached_data
+from backend.services.indexer import sync_all_servers
+from backend.db.library_db import get_db_connection
+from backend.websockets import send_indexing_status, broadcast_json_threadsafe
 from backend import websockets as ws
 
 logger = logging.getLogger(__name__)
@@ -401,8 +413,6 @@ class LibrariesToggleRequest(BaseModel):
 @router.get("/libraries")
 async def get_libraries():
     """Get list of accessible Plex servers with enabled state for unified catalog (fast 0.5ms return)."""
-    from backend.services.plex import fetch_accessible_plex_servers, get_enabled_server_ids, _plex_connection_cache, _failed_connection_cache
-
     servers = await asyncio.to_thread(fetch_accessible_plex_servers)
     enabled_set = {str(x).lower() for x in get_enabled_server_ids()}
 
@@ -444,15 +454,10 @@ async def update_libraries(
     """Toggle enabled servers for the unified catalog and trigger indexing."""
     if not settings.admin_token or x_admin_token != settings.admin_token:
         raise HTTPException(status_code=401, detail="Unauthorized: Invalid admin token")
-    from backend.services.plex import set_enabled_server_ids  # noqa: PLC0415
     set_enabled_server_ids(req.enabled_server_ids)
 
     # Emit indexing status start for newly enabled servers right from the main event loop
     try:
-        from backend.services.plex import fetch_accessible_plex_servers  # noqa: PLC0415
-        from backend.db.library_db import get_db_connection  # noqa: PLC0415
-        from backend.websockets import send_indexing_status  # noqa: PLC0415
-
         all_servers = fetch_accessible_plex_servers()
         enabled_set = {str(x).lower() for x in req.enabled_server_ids}
 
@@ -472,12 +477,10 @@ async def update_libraries(
         logger.debug("Failed emitting instant indexing status start: %s", ex)
 
     # Trigger background indexing for newly enabled servers
-    from backend.services.indexer import sync_all_servers  # noqa: PLC0415
     asyncio.create_task(asyncio.to_thread(sync_all_servers))
 
     # Broadcast WebSocket event to all connected UI clients to trigger live dynamic library re-fetch
     try:
-        from backend.websockets import broadcast_json_threadsafe  # noqa: PLC0415
         broadcast_json_threadsafe({"type": "server_settings_updated", "enabled_server_ids": req.enabled_server_ids})
     except Exception as ws_ex:
         logger.debug("Failed sending server_settings_updated WS broadcast: %s", ws_ex)

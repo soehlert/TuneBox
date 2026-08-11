@@ -1,8 +1,8 @@
-"""Interact with our Plex server."""
-
 import asyncio
 import concurrent.futures
+import json
 import logging
+import random
 import re
 import time
 from functools import lru_cache
@@ -12,6 +12,7 @@ import urllib3
 from fastapi import HTTPException
 from plexapi.exceptions import PlexApiException
 from plexapi.myplex import MyPlexAccount
+from plexapi.server import PlexServer
 
 from backend.config import settings
 from backend.exceptions import PlexConnectionError
@@ -24,8 +25,24 @@ from backend.services.redis import (
     remove_from_redis_queue,
     add_to_history,
     is_autoplay_enabled,
+    get_playback_history_ids,
+    get_redis_cache_client,
+    add_to_queue_redis,
+    get_artist_play_counts,
+    get_album_play_counts,
 )
 from backend.utils import TrackTimeTracker, milliseconds_to_seconds
+from backend.db.library_db import get_db_connection, get_latest_preseed_playlist_tracks
+from backend.services.library import (
+    get_art_source_info,
+    get_albums_for_artist_db,
+    get_tracks_for_album_db,
+    search_music_db,
+    get_all_art_sources,
+    get_server_credentials,
+    clear_art_source_cache,
+    upsert_server,
+)
 
 HEARTBEAT_INTERVAL = 5
 DRIFT_THRESHOLD = 8.0
@@ -116,7 +133,6 @@ def reinitialize_plex():
     _cached_active_player = None
     _cached_active_player_name = None
     try:
-        from backend.services.redis import clear_cache
         clear_cache("artists")
         clear_cache("all_artists")
         clear_cache("accessible_plex_servers")
@@ -128,11 +144,6 @@ def reinitialize_plex():
 def pre_warm_all_caches():
     """Trigger cache pre-warming for resources, artists, and artwork thumbnails in background."""
     try:
-        from backend.config import settings
-        from backend.services.redis import clear_cache
-        from backend.services.indexer import _prewarm_art_in_background
-        from backend.db.library_db import get_db_connection
-
         # 1. Warm resources if plex token is configured
         if settings.plex_token:
             logger.info("Background warming Plex resources cache...")
@@ -216,12 +227,12 @@ def get_current_playing_track():
     )
 
     return {
-        "item_id": item_id,
+        "item_id": cached_track.get("item_id"),
         "server_id": cached_track.get("server_id"),
         "album_id": cached_track.get("album_id"),
-        "title": cached_track.get("title", "Unknown Title"),
-        "artist": cached_track.get("artist", "Unknown Artist"),
-        "album": cached_track.get("album", "Unknown Album"),
+        "title": cached_track.get("title"),
+        "artist": cached_track.get("artist"),
+        "album": cached_track.get("album"),
         "album_art": album_art,
         "track_state": track_state,
         "total_time": total_time,
@@ -229,6 +240,9 @@ def get_current_playing_track():
         "remaining_time": remaining_time,
         "remaining_percentage": remaining_percentage,
     }
+
+
+import backend.websockets as ws
 
 
 def get_all_players():
@@ -374,7 +388,6 @@ def get_track(item_id, server_id: str | None = None):
 
     if not settings.testing and not hasattr(get_target_plex_connection, "mock_calls"):
         try:
-            from backend.services.library import get_art_source_info
             _, resolved_server_id, rating_key = get_art_source_info(item_id, "track", server_id=server_id)
             if rating_key:
                 item_id_val = int(rating_key) if str(rating_key).isdigit() else rating_key
@@ -502,9 +515,8 @@ def play_song(player, song, server_token=None, server_url=None):
     track_time_tracker.start(song.title, item_id=str(song.ratingKey))
     logger.info("Song %s started playing on player: %s", song.title, player.title)
 
-    from backend.websockets import broadcast_current_playing_threadsafe, broadcast_queue_threadsafe  # noqa: PLC0415
-    broadcast_queue_threadsafe()
-    broadcast_current_playing_threadsafe()
+    ws.broadcast_queue_threadsafe()
+    ws.broadcast_current_playing_threadsafe()
 
 
 
@@ -539,8 +551,7 @@ async def play_queue_on_device():
                         await asyncio.to_thread(player.play)
 
                 track_time_tracker.resume()
-                from backend.websockets import send_current_playing  # noqa: PLC0415
-                await send_current_playing()
+                await ws.send_current_playing()
                 return
         except Exception as e:
             logger.warning("Failed to resume player: %s. Invalidating player cache...", e)
@@ -563,7 +574,6 @@ async def play_queue_on_device():
         s_token = top_item.get("server_token")
         if s_url and s_token and not settings.testing:
             try:
-                from plexapi.server import PlexServer
                 t_plex = PlexServer(s_url, s_token, timeout=5)
                 item_id_val = int(top_item["item_id"]) if str(top_item["item_id"]).isdigit() else top_item["item_id"]
                 song_obj = await asyncio.to_thread(t_plex.fetchItem, item_id_val)
@@ -810,31 +820,23 @@ async def playback_orchestrator():
                             else:
                                 await asyncio.to_thread(play_song, player, track)
 
-                            # Lazy import websockets to avoid circular imports
-                            from backend.websockets import (
-                                send_current_playing,
-                                send_queue,
-                            )  # noqa: PLC0415
-
-                            await send_queue()
-                            await send_current_playing()
+                            await ws.send_queue()
+                            await ws.send_current_playing()
                         except PlexApiException as pae:
                             logger.warning("Playback control disabled or no player active: %s. Pausing queue playback.", pae)
                             playback_active = False
                         except Exception as ex:
                             logger.exception("Error playing next song from queue: %s. Pausing queue playback to preserve queue.", ex)
                             playback_active = False
-                            from backend.websockets import send_queue  # noqa: PLC0415
 
-                            await send_queue()
+                            await ws.send_queue()
                     else:
                         # Queue finished
                         if playback_active:
                             playback_active = False
                             clear_cache("now_playing")
-                            from backend.websockets import send_current_playing, reset_skip_votes  # noqa: PLC0415
-                            await reset_skip_votes()
-                            await send_current_playing()
+                            await ws.reset_skip_votes()
+                            await ws.send_current_playing()
 
                 # 2. Check for natural track completion (remaining time <= 0.5s or elapsed >= total_time)
                 cached_track = get_cached_data("now_playing")
@@ -879,15 +881,9 @@ async def playback_orchestrator():
                             track_time_tracker.start(next_song.get("title"), item_id=str(next_song.get("item_id")))
                             playback_active = True
 
-                            from backend.websockets import (
-                                send_current_playing,
-                                send_queue,
-                                reset_skip_votes,
-                            )  # noqa: PLC0415
-
-                            await reset_skip_votes()
-                            await send_queue()
-                            await send_current_playing()
+                            await ws.reset_skip_votes()
+                            await ws.send_queue()
+                            await ws.send_current_playing()
 
                             try:
                                 player = await asyncio.to_thread(get_active_player)

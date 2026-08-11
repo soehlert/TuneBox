@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import threading
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Query, Request, Response, Header
 from fastapi.responses import StreamingResponse
@@ -9,6 +10,7 @@ from pydantic import BaseModel
 from plexapi.exceptions import PlexApiException
 
 from backend.config import settings
+from backend.services import library, plex, redis, stats
 from backend.services.plex import (
     fetch_accessible_plex_servers,
     fetch_albums_for_artist,
@@ -34,6 +36,9 @@ from backend.services.plex import (
     skip_current_track,
     fetch_playlists,
     seed_queue_from_playlist,
+    track_time_tracker,
+    rate_track_in_plex,
+    _failed_connection_cache,
 )
 from backend.services.redis import (
     add_to_queue_redis,
@@ -46,8 +51,28 @@ from backend.services.redis import (
     reorder_redis_queue,
     is_autoplay_enabled,
     set_autoplay_enabled,
+    get_redis_cache_client,
 )
-from backend.websockets import send_current_playing, send_queue
+from backend.services.library import (
+    get_art_source_info,
+    get_indexed_artists,
+    get_albums_for_artist_db,
+    get_indexed_albums,
+    get_all_genres_db,
+    get_albums_by_genre_db,
+    get_all_decades_db,
+    get_albums_by_decade_db,
+    get_tracks_for_album_db,
+    search_music_db,
+    _ART_SOURCE_MEM_CACHE,
+    get_all_art_sources,
+    is_track_on_primary_server,
+    rate_track_db,
+)
+from backend.services.stats import increment_adds
+from backend.services.indexer import index_server, sync_all_servers
+from backend.websockets import send_current_playing, send_queue, reset_skip_votes, current_indexing_status
+import backend.websockets as ws
 
 router = APIRouter(prefix="/api/music", tags=["Music"])
 logger = logging.getLogger(__name__)
@@ -130,7 +155,6 @@ async def add_to_queue(
 
         if not server_id and not settings.testing:
             try:
-                from backend.services.library import get_art_source_info  # noqa: PLC0415
                 _, res_sid, _ = get_art_source_info(item_id, "track")
                 if res_sid:
                     server_id = res_sid
@@ -177,9 +201,7 @@ async def add_to_queue(
             added_by=username,
         )
 
-        if username:
-            from backend.services.stats import increment_adds
-            increment_adds(username)
+
 
         background_tasks.add_task(send_queue)
 
@@ -217,7 +239,6 @@ async def remove_from_queue(
         result = remove_from_redis_queue(item_id)
 
         if is_active:
-            from backend.websockets import reset_skip_votes
             await reset_skip_votes()
 
         background_tasks.add_task(send_queue)
@@ -278,7 +299,6 @@ async def clear_the_queue(background_tasks: BackgroundTasks):
         The clearing of the queue.
     """
     try:
-        from backend.services.plex import track_time_tracker
         try:
             stop_playback()
         except Exception as stop_ex:
@@ -288,7 +308,6 @@ async def clear_the_queue(background_tasks: BackgroundTasks):
         result = clear_redis_queue(force_all=True)
         clear_cache("now_playing")
 
-        from backend.websockets import reset_skip_votes
         await reset_skip_votes()
         await send_queue()
         await send_current_playing()
@@ -307,9 +326,6 @@ async def stop_the_queue(background_tasks: BackgroundTasks, x_admin_token: str |
     if not settings.admin_token or x_admin_token != settings.admin_token:
         raise HTTPException(status_code=401, detail="Unauthorized: Invalid admin token")
     try:
-        from backend.services.plex import stop_playback, track_time_tracker
-        from backend.services.redis import clear_cache, get_redis_cache_client
-
         try:
             stop_playback()
         except Exception as p_ex:
@@ -391,7 +407,6 @@ async def skip_track(
     if x_admin_token and x_admin_token != settings.admin_token:
         raise HTTPException(status_code=401, detail="Unauthorized host operation.")
 
-    from backend.websockets import reset_skip_votes  # noqa: PLC0415
     await reset_skip_votes()
 
     result = skip_current_track()
@@ -406,9 +421,7 @@ def get_all_artists():
     """Fetch a list of all artists from enabled servers in SQLite."""
     try:
         if settings.testing:
-            from backend.services.plex import fetch_all_artists  # noqa: PLC0415
             return fetch_all_artists()
-        from backend.services.library import get_indexed_artists  # noqa: PLC0415
         return get_indexed_artists()
     except Exception as e:
         raise HTTPException(
@@ -423,7 +436,6 @@ def get_albums_for_artist(artist_id: int, server_id: str | None = None):
     try:
         if settings.testing:
             return fetch_albums_for_artist(artist_id, server_id=server_id)
-        from backend.services.library import get_albums_for_artist_db
         return get_albums_for_artist_db(artist_id)
     except Exception as e:
         raise HTTPException(
@@ -436,7 +448,6 @@ def get_albums_for_artist(artist_id: int, server_id: str | None = None):
 def get_all_albums_endpoint():
     """Fetch all unique albums from local SQLite index."""
     try:
-        from backend.services.library import get_indexed_albums
         return get_indexed_albums()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching all albums: {e}") from e
@@ -447,7 +458,6 @@ def get_all_albums_endpoint():
 def get_genres_endpoint():
     """Fetch all music genres with album counts from SQLite."""
     try:
-        from backend.services.library import get_all_genres_db
         return get_all_genres_db()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching genres: {e}") from e
@@ -458,7 +468,6 @@ def get_genres_endpoint():
 def get_albums_by_genre_endpoint(genre_name: str):
     """Fetch all albums matching a specific genre."""
     try:
-        from backend.services.library import get_albums_by_genre_db
         return get_albums_by_genre_db(genre_name)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching albums for genre {genre_name}: {e}") from e
@@ -471,7 +480,6 @@ def get_decades_endpoint():
     try:
         if settings.testing:
             return fetch_all_decades()
-        from backend.services.library import get_all_decades_db
         return get_all_decades_db()
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching decades: {e}") from e
@@ -484,7 +492,6 @@ def get_albums_by_decade_endpoint(year_start: int, year_end: int):
     try:
         if settings.testing:
             return fetch_albums_by_decade(year_start, year_end)
-        from backend.services.library import get_albums_by_decade_db
         return get_albums_by_decade_db(year_start, year_end)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching albums for decade {year_start}-{year_end}: {e}") from e
@@ -497,7 +504,6 @@ def get_tracks_for_album(album_id: int, server_id: str | None = None):
     try:
         if settings.testing:
             return fetch_tracks_for_album(album_id, server_id=server_id)
-        from backend.services.library import get_tracks_for_album_db
         res = get_tracks_for_album_db(album_id)
         if res is None:
             raise HTTPException(status_code=404, detail="Album tracks not found")
@@ -521,7 +527,6 @@ async def add_album_to_queue_endpoint(
         if settings.testing:
             album_data = fetch_tracks_for_album(album_id, server_id=server_id)
         else:
-            from backend.services.library import get_tracks_for_album_db
             album_data = get_tracks_for_album_db(album_id) or fetch_tracks_for_album(album_id, server_id=server_id)
         tracks = album_data.get("tracks", [])
         if not tracks:
@@ -538,16 +543,14 @@ async def add_album_to_queue_endpoint(
                 add_to_queue_redis(song, server_id=t_server_id, added_by=added_by)
                 added_count += 1
                 if added_by and added_by != "Guest":
-                    from backend.services.stats import increment_adds
                     increment_adds(added_by)
             except HTTPException as hex_err:
                 if hex_err.status_code == 400 and "already in the queue" in str(hex_err.detail).lower():
                     continue
                 raise
 
-        from backend.websockets import send_current_playing, send_queue
-        await send_queue()
-        await send_current_playing()
+        await ws.send_queue()
+        await ws.send_current_playing()
 
         return {
             "message": "Album added to queue successfully.",
@@ -568,9 +571,7 @@ def search_music_endpoint(query: str):
     """Search for music instantly in SQLite library database."""
     try:
         if settings.testing:
-            from backend.services.plex import search_music
             return search_music(query)
-        from backend.services.library import search_music_db
         return search_music_db(query)
     except Exception as e:
         raise HTTPException(
@@ -593,7 +594,6 @@ def get_accessible_servers():
 def get_indexing_status():
     """Fetch live library indexing status."""
     try:
-        from backend.websockets import current_indexing_status  # noqa: PLC0415
         return current_indexing_status
     except Exception as e:
         raise HTTPException(
@@ -605,21 +605,17 @@ def get_indexing_status():
 def trigger_reindex(server_id: str | None = Query(None)):
     """Clear negative connection caches and trigger re-indexing for a specific server or all enabled servers."""
     try:
-        from backend.services.plex import _failed_connection_cache  # noqa: PLC0415
         _failed_connection_cache.clear()
     except Exception:
         pass
 
     try:
-        from backend.services.library import _ART_SOURCE_MEM_CACHE  # noqa: PLC0415
         _ART_SOURCE_MEM_CACHE.clear()
     except Exception:
         pass
 
     def _bg_reindex():
         try:
-            from backend.services.indexer import index_server, sync_all_servers  # noqa: PLC0415
-            from backend.services.plex import fetch_accessible_plex_servers  # noqa: PLC0415
             if server_id:
                 servers = fetch_accessible_plex_servers()
                 srv = next((s for s in servers if s.get("server_id") == server_id or str(s.get("name")).lower() == str(server_id).lower()), None)
@@ -632,7 +628,6 @@ def trigger_reindex(server_id: str | None = Query(None)):
         except Exception as ex:
             logger.exception("Error in background reindex task: %s", ex)
 
-    import threading
     threading.Thread(target=_bg_reindex, daemon=True).start()
     return {"status": "ok", "message": "Re-indexing started in background."}
 
@@ -641,7 +636,6 @@ def trigger_reindex(server_id: str | None = Query(None)):
 async def unified_search_endpoint(query: str, server_ids: str | None = None):
     """Search for music instantly in local SQLite library database."""
     try:
-        from backend.services.library import search_music_db
         return search_music_db(query)
     except Exception as e:
         raise HTTPException(
@@ -784,7 +778,6 @@ def get_track_art(track_id: int | str, request: Request, server_id: str | None =
     """Fetch and proxy the track art from Plex."""
     if not server_id and not settings.testing:
         try:
-            from backend.services.library import get_art_source_info  # noqa: PLC0415
             _, res_sid, _ = get_art_source_info(track_id, "track")
             if res_sid:
                 server_id = res_sid
@@ -796,7 +789,6 @@ def get_track_art(track_id: int | str, request: Request, server_id: str | None =
 
     if is_fallback and not settings.testing:
         try:
-            from backend.services.library import get_all_art_sources  # noqa: PLC0415
             alb_sources = get_all_art_sources(track_id, "album")
             if alb_sources and alb_sources[0][0]:
                 alb_bytes, alb_mime = fetch_art_bytes(track_id, "album", server_id=server_id)
@@ -893,18 +885,15 @@ def rate_track_endpoint(
     if not settings.admin_token or x_admin_token != settings.admin_token:
         raise HTTPException(status_code=401, detail="Unauthorized: Invalid admin token")
 
-    from backend.services.library import is_track_on_primary_server, rate_track_db
-    from backend.services.plex import rate_track_in_plex
-
-    if not is_track_on_primary_server(track_id):
+    if not library.is_track_on_primary_server(track_id):
         raise HTTPException(
             status_code=403,
             detail="Forbidden: Star rating is only supported for tracks on your primary server",
         )
 
     rating = max(0.0, min(5.0, float(payload.rating)))
-    rate_track_db(track_id, rating)
-    rate_track_in_plex(track_id, rating)
+    library.rate_track_db(track_id, rating)
+    plex.rate_track_in_plex(track_id, rating)
     return {"status": "success", "track_id": track_id, "user_rating": rating}
 
 
