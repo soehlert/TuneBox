@@ -1422,32 +1422,37 @@ MOOD_MAPPINGS = {
 
 
 def _build_vibe_where_clause(meta: dict) -> tuple[str, list[str]]:
-    """Build a natural SQL WHERE clause matching a target party vibe based on genres, keywords, and BPM."""
-    parts = []
+    """Build a weighted SQL WHERE clause matching a target party vibe.
+
+    Genre matches add +2 weight.
+    Keyword matches add +1 weight.
+    BPM falling in target tempo window adds +1 bonus weight.
+    A track matches if its combined score >= 2.
+    """
+    score_parts = []
     params = []
 
     for g in meta["genres"]:
-        parts.append("LOWER(alb.genre) LIKE ?")
+        score_parts.append("(CASE WHEN LOWER(alb.genre) LIKE ? THEN 2 ELSE 0 END)")
         params.append(f"%{g}%")
 
     for kw in meta["keywords"]:
-        parts.append("LOWER(t.title) LIKE ?")
+        score_parts.append("(CASE WHEN LOWER(t.title) LIKE ? THEN 1 ELSE 0 END)")
         params.append(f"%{kw}%")
-        parts.append("LOWER(t.artist_name) LIKE ?")
+        score_parts.append("(CASE WHEN LOWER(t.artist_name) LIKE ? THEN 1 ELSE 0 END)")
         params.append(f"%{kw}%")
-
-    if not parts:
-        base_clause = "1=1"
-    else:
-        base_clause = f"({' OR '.join(parts)})"
 
     bpm_min = meta.get("bpm_min")
     bpm_max = meta.get("bpm_max")
     if bpm_min is not None and bpm_max is not None:
-        bpm_clause = f"(t.bpm IS NULL OR t.bpm = 0 OR (t.bpm >= {bpm_min} AND t.bpm <= {bpm_max}))"
-        return f"({base_clause} AND {bpm_clause})", params
+        score_parts.append(f"(CASE WHEN t.bpm >= {bpm_min} AND t.bpm <= {bpm_max} THEN 1 ELSE 0 END)")
 
-    return base_clause, params
+    if not score_parts:
+        return "1=0", []
+
+    score_expr = " + ".join(score_parts)
+    where_clause = f"({score_expr}) >= 2"
+    return where_clause, params
 
 
 def get_available_vibes_db(db_path: str | None = None) -> list[dict]:
