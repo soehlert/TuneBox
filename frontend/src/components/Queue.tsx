@@ -328,7 +328,7 @@ const QueueComponent = () => {
 
   return (
     <Box className="queue-wrapper">
-      {(guestVibeChangingEnabled || Boolean(adminToken)) && (
+      {guestVibeChangingEnabled && (
         <Box 
           style={{
             display: "flex",

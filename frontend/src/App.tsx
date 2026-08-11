@@ -1125,17 +1125,21 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
                       onClick={handleSeedJukebox}
                       disabled={seeding || !selectedPlaylistId}
                       style={{
-                        background: "#3375A8",
+                        background: "linear-gradient(135deg, #8e44ad, #3498db)",
                         color: "white",
                         border: "none",
                         borderRadius: "6px",
                         padding: "0 16px",
                         height: "36px",
+                        minWidth: "125px",
                         fontWeight: "bold",
                         fontSize: "13px",
                         cursor: seeding || !selectedPlaylistId ? "not-allowed" : "pointer",
                         opacity: seeding || !selectedPlaylistId ? 0.5 : 1,
                         whiteSpace: "nowrap",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
                       }}
                     >
                       {seeding ? "Preseeding..." : "Preseed Queue"}
@@ -1172,11 +1176,15 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
                         borderRadius: "6px",
                         padding: "0 16px",
                         height: "36px",
+                        minWidth: "125px",
                         fontWeight: "bold",
                         fontSize: "13px",
                         cursor: seeding ? "not-allowed" : "pointer",
                         opacity: seeding ? 0.5 : 1,
                         whiteSpace: "nowrap",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
                       }}
                     >
                       {seeding ? "Seeding Vibe..." : "Preseed Vibe"}
