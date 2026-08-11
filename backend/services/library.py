@@ -1363,71 +1363,65 @@ MOOD_MAPPINGS = {
     "Party": {
         "display": "🎉 Party",
         "keywords": ["party", "dance", "club", "remix", "celebration", "lively", "banger", "dj", "anthem"],
-        "genres": ["dance", "disco", "funk", "house", "edm", "techno", "club", "dance-pop", "hip-hop", "electro"],
+        "genres": ["dance", "disco", "funk", "house", "edm", "techno", "club", "dance-pop", "hip-hop", "hip hop", "rap", "r&b", "latin", "reggaeton", "electro"],
     },
     "Energetic": {
         "display": "⚡ Energetic",
-        "keywords": ["energetic", "hype", "intense", "fast", "powerful", "driving", "heavy", "furious"],
-        "genres": ["hard rock", "heavy metal", "punk", "thrash", "drum and bass", "dubstep", "techno", "edm", "skate punk", "garage rock"],
+        "keywords": ["energetic", "hype", "intense", "fast", "powerful", "driving", "heavy", "furious", "rock"],
+        "genres": ["rock", "metal", "punk", "hard rock", "heavy metal", "alternative", "grunge", "edm", "techno", "drum and bass", "dubstep", "thrash", "skate punk", "garage"],
     },
     "Chill": {
         "display": "☕ Chill",
         "keywords": ["chill", "relax", "mellow", "calm", "smooth", "soft", "peaceful", "lo-fi", "lofi", "lounge", "study", "quiet"],
-        "genres": ["ambient", "chillout", "lo-fi", "lofi", "downtempo", "trip-hop", "smooth jazz", "bossa nova", "lounge", "slowcore"],
+        "genres": ["ambient", "chillout", "lo-fi", "lofi", "downtempo", "trip-hop", "smooth jazz", "bossa nova", "lounge", "slowcore", "acoustic", "indie folk", "folk", "soft rock", "easy listening", "reggae"],
     },
     "Groovy": {
         "display": "🎷 Groovy",
         "keywords": ["groovy", "funky", "rhythm", "groove", "soulful", "boogie", "jam", "motown"],
-        "genres": ["funk", "disco", "soul", "motown", "r&b", "neo-soul", "afrobeat", "reggae", "dub", "acid jazz"],
+        "genres": ["funk", "disco", "soul", "motown", "r&b", "neo-soul", "afrobeat", "reggae", "dub", "blues", "jazz", "groove"],
     },
     "Upbeat": {
         "display": "🕺 Upbeat",
         "keywords": ["upbeat", "happy", "joyful", "bright", "sunny", "feel-good", "feel good", "cheerful"],
-        "genres": ["synthpop", "dance-pop", "ska", "indie pop", "power pop", "sunshine pop", "bubblegum"],
+        "genres": ["pop", "indie pop", "synthpop", "dance-pop", "classic rock", "ska", "power pop", "sunshine pop", "bubblegum", "new wave"],
     },
     "Acoustic": {
         "display": "🎸 Acoustic",
         "keywords": ["acoustic", "unplugged", "singer-songwriter", "folk", "organic", "stripped"],
-        "genres": ["acoustic", "folk", "indie folk", "bluegrass", "singer-songwriter", "americana"],
+        "genres": ["acoustic", "folk", "indie folk", "bluegrass", "singer-songwriter", "americana", "country"],
     },
     "Electronic": {
         "display": "🎧 Electronic",
         "keywords": ["electronic", "synth", "techno", "electro", "beat", "digital", "edm"],
-        "genres": ["electronic", "electropop", "synthwave", "synth-pop", "house", "trance", "techno", "electronica", "idm"],
+        "genres": ["electronic", "electropop", "synthwave", "synth-pop", "house", "trance", "techno", "electronica", "idm", "ambient", "edm"],
     },
     "Melancholic": {
         "display": "🌙 Melancholic",
         "keywords": ["melancholic", "sad", "bittersweet", "emotional", "somber", "brooding", "tear", "lonely"],
-        "genres": ["slowcore", "post-rock", "sadcore", "blues", "darkwave", "gothic", "shoegaze", "emo"],
+        "genres": ["slowcore", "post-rock", "sadcore", "blues", "darkwave", "gothic", "shoegaze", "emo", "ballad", "indie rock", "alt-rock"],
     },
 }
 
 
 def _build_vibe_where_clause(meta: dict) -> tuple[str, list[str]]:
-    """Build a weighted SQL WHERE clause for a target party vibe.
-
-    Specific subgenres provide primary matching signals (+2 weight).
-    Title and artist keywords provide secondary matching signals (+1 weight).
-    A track matches if its combined score >= 2.
-    """
-    score_parts = []
+    """Build a natural SQL WHERE clause matching a target party vibe based on genres and keywords."""
+    parts = []
     params = []
 
     for g in meta["genres"]:
-        score_parts.append("(CASE WHEN LOWER(alb.genre) LIKE ? THEN 2 ELSE 0 END)")
+        parts.append("LOWER(alb.genre) LIKE ?")
         params.append(f"%{g}%")
 
     for kw in meta["keywords"]:
-        score_parts.append("(CASE WHEN LOWER(t.title) LIKE ? THEN 1 ELSE 0 END)")
+        parts.append("LOWER(t.title) LIKE ?")
         params.append(f"%{kw}%")
-        score_parts.append("(CASE WHEN LOWER(t.artist_name) LIKE ? THEN 1 ELSE 0 END)")
+        parts.append("LOWER(t.artist_name) LIKE ?")
         params.append(f"%{kw}%")
 
-    if not score_parts:
+    if not parts:
         return "1=0", []
 
-    score_expr = " + ".join(score_parts)
-    where_clause = f"({score_expr}) >= 2"
+    where_clause = f"({' OR '.join(parts)})"
     return where_clause, params
 
 
