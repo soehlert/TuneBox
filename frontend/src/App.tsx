@@ -518,21 +518,6 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
     }
   };
 
-  const handleToggleAutoplay = async (enabled: boolean) => {
-    try {
-      const res = await axios.post(
-        getApiUrl("/api/music/autoplay"),
-        { enabled },
-        { headers: { "x-admin-token": adminToken } }
-      );
-      setAutoplayEnabled(res.data.autoplay_enabled ?? false);
-      setMsg(`✓ Autoplay is now ${enabled ? "enabled" : "disabled"}!`);
-    } catch (err) {
-      console.error("Failed to toggle autoplay:", err);
-      setMsg("✗ Failed to toggle autoplay.");
-    }
-  };
-
   const handleRefreshResources = async () => {
     setRefreshing(true);
     setMsg("Refreshing devices...");
@@ -691,13 +676,23 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
 
 
   const [localGuestVibeChangingEnabled, setLocalGuestVibeChangingEnabled] = useState<boolean>(guestVibeChangingEnabled);
+  const [localAutoplayEnabled, setLocalAutoplayEnabled] = useState<boolean>(autoplayEnabled);
 
   useEffect(() => {
     setLocalGuestVibeChangingEnabled(guestVibeChangingEnabled);
   }, [guestVibeChangingEnabled]);
 
+  useEffect(() => {
+    setLocalAutoplayEnabled(autoplayEnabled);
+  }, [autoplayEnabled]);
+
   const handleToggleGuestVibeChanging = (enabled: boolean) => {
     setLocalGuestVibeChangingEnabled(enabled);
+    setIsFormDirty(true);
+  };
+
+  const handleToggleAutoplay = (enabled: boolean) => {
+    setLocalAutoplayEnabled(enabled);
     setIsFormDirty(true);
   };
 
@@ -733,6 +728,13 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
         { headers: { "x-admin-token": adminToken } }
       );
       setGuestVibeChangingEnabled(localGuestVibeChangingEnabled);
+
+      await axios.post(
+        getApiUrl("/api/music/autoplay"),
+        { enabled: localAutoplayEnabled },
+        { headers: { "x-admin-token": adminToken } }
+      );
+      setAutoplayEnabled(localAutoplayEnabled);
 
       setIsFormDirty(false);
       setMsg("✓ Settings saved!");
@@ -1208,42 +1210,12 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
                       When enabled, guests can click Room Party Vibe buttons to adjust the room mood.
                     </span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => handleToggleGuestVibeChanging(!localGuestVibeChangingEnabled)}
-                    style={{
-                      padding: "6px 14px",
-                      borderRadius: "6px",
-                      border: "none",
-                      fontWeight: "bold",
-                      fontSize: "12px",
-                      cursor: "pointer",
-                      backgroundColor: localGuestVibeChangingEnabled ? "#2ecc71" : "rgba(255,255,255,0.1)",
-                      color: localGuestVibeChangingEnabled ? "#000" : "#aaa",
-                      transition: "all 0.2s ease",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {localGuestVibeChangingEnabled ? "Enabled" : "Disabled"}
-                  </button>
-                </div>
-
-                {/* Smart Autoplay toggle */}
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(255,255,255,0.03)", padding: "12px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.05)" }}>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "4px", paddingRight: "16px" }}>
-                    <span style={{ color: "#fff", fontSize: "14px", fontWeight: "bold", display: "flex", alignItems: "center", gap: "6px" }}>
-                      📻 Smart Autoplay Mode
-                    </span>
-                    <span style={{ color: "rgba(255, 255, 255, 0.5)", fontSize: "11px", lineHeight: "1.4" }}>
-                      Keep music playing based on recent vibe when queue falls to 5 or fewer tracks. Guest tracks automatically leapfrog fallback tracks.
-                    </span>
-                  </div>
                   <div
-                    onClick={() => handleToggleAutoplay(!autoplayEnabled)}
+                    onClick={() => handleToggleGuestVibeChanging(!localGuestVibeChangingEnabled)}
                     style={{
                       width: "50px",
                       height: "26px",
-                      backgroundColor: autoplayEnabled ? "var(--color-primary)" : "rgba(255, 255, 255, 0.2)",
+                      backgroundColor: localGuestVibeChangingEnabled ? "var(--color-primary)" : "rgba(255, 255, 255, 0.2)",
                       borderRadius: "13px",
                       position: "relative",
                       cursor: "pointer",
@@ -1258,7 +1230,43 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
                       borderRadius: "50%",
                       position: "absolute",
                       top: "3px",
-                      left: autoplayEnabled ? "27px" : "3px",
+                      left: localGuestVibeChangingEnabled ? "27px" : "3px",
+                      transition: "left 0.2s",
+                    }} />
+                  </div>
+                </div>
+
+                {/* Smart Autoplay toggle */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(255,255,255,0.03)", padding: "12px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.05)" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "4px", paddingRight: "16px" }}>
+                    <span style={{ color: "#fff", fontSize: "14px", fontWeight: "bold", display: "flex", alignItems: "center", gap: "6px" }}>
+                      📻 Smart Autoplay Mode
+                    </span>
+                    <span style={{ color: "rgba(255, 255, 255, 0.5)", fontSize: "11px", lineHeight: "1.4" }}>
+                      Keep music playing based on recent vibe when queue falls to 5 or fewer tracks. Guest tracks automatically leapfrog fallback tracks.
+                    </span>
+                  </div>
+                  <div
+                    onClick={() => handleToggleAutoplay(!localAutoplayEnabled)}
+                    style={{
+                      width: "50px",
+                      height: "26px",
+                      backgroundColor: localAutoplayEnabled ? "var(--color-primary)" : "rgba(255, 255, 255, 0.2)",
+                      borderRadius: "13px",
+                      position: "relative",
+                      cursor: "pointer",
+                      flexShrink: 0,
+                      transition: "background-color 0.2s",
+                    }}
+                  >
+                    <div style={{
+                      width: "20px",
+                      height: "20px",
+                      backgroundColor: "#0e0e0f",
+                      borderRadius: "50%",
+                      position: "absolute",
+                      top: "3px",
+                      left: localAutoplayEnabled ? "27px" : "3px",
                       transition: "left 0.2s",
                     }} />
                   </div>
