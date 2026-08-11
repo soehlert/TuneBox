@@ -839,13 +839,15 @@ async def playback_orchestrator():
                             await ws.reset_skip_votes()
                             await ws.send_current_playing()
 
-                # 2. Check for natural track completion (remaining time <= 0.5s or elapsed >= total_time)
+                # 2. Check for natural track completion
                 cached_track = get_cached_data("now_playing")
                 if cached_track:
                     total_time = float(cached_track.get("duration", 0))
                     elapsed = track_time_tracker.elapsed_time
                     remaining = total_time - elapsed if total_time > 0 else 999.0
-                    if total_time > 0 and (elapsed >= total_time or remaining <= 0.5):
+                    curr_queue = get_redis_queue()
+                    advance_threshold = 0.5 if len(curr_queue) > 1 else 0.1
+                    if total_time > 0 and (elapsed >= total_time or remaining <= advance_threshold):
                         logger.info(
                             "Track '%s' reached end (elapsed=%.1fs, total=%.1fs). Advancing queue.",
                             cached_track["title"],
