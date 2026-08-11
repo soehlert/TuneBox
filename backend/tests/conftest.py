@@ -89,5 +89,9 @@ def mock_redis(mocker, mock_settings):
         "backend.services.redis.get_redis_queue_client",
         return_value=mock_redis_queue,
     )
+    mocker.patch(
+        "backend.utils.get_redis_queue_client",
+        return_value=mock_redis_queue,
+    )
 
     return mock_redis_queue, mock_redis_cache

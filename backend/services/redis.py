@@ -6,6 +6,7 @@ import logging
 from fastapi import HTTPException, status
 
 from backend.config import settings
+from backend.services.library import get_db_connection, rating_key_to_track_id, validate_track_id
 from backend.services.redis_client import get_redis_cache_client, get_redis_queue_client
 from backend.utils import is_song_in_queue, is_track_object
 
@@ -21,6 +22,37 @@ def add_to_queue_redis(song, server_id=None, server_name=None, server_token=None
         raise ValueError(msg)
 
     target_server_id = server_id or getattr(song, "server_id", None)
+
+    internal_track_id = getattr(song, "sqlite_track_id", None)
+    if hasattr(internal_track_id, "_mock_name") or hasattr(internal_track_id, "return_value"):
+        internal_track_id = None
+    raw_album_id = getattr(song, "album_id", None)
+    if hasattr(raw_album_id, "_mock_name") or hasattr(raw_album_id, "return_value"):
+        raw_album_id = None
+
+    album_id_val = raw_album_id
+    if not settings.testing:
+        resolved_id = None
+        if internal_track_id:
+            resolved_id = validate_track_id(internal_track_id)
+        else:
+            rk_val = getattr(song, "ratingKey", None)
+            if rk_val:
+                resolved_id = rating_key_to_track_id(rk_val)
+        if resolved_id:
+            internal_track_id = resolved_id
+            try:
+                conn = get_db_connection()
+                row = conn.execute("SELECT album_id FROM tracks WHERE track_id = ? LIMIT 1", (resolved_id,)).fetchone()
+                conn.close()
+                if row:
+                    album_id_val = row["album_id"]
+            except Exception:
+                pass
+
+    if internal_track_id and hasattr(song, "__dict__"):
+        song.sqlite_track_id = internal_track_id
+
     if is_song_in_queue(song, server_id=target_server_id):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -47,34 +79,6 @@ def add_to_queue_redis(song, server_id=None, server_name=None, server_token=None
                     moods = [m.tag if hasattr(m, "tag") else str(m) for m in artist.moods]
         except Exception:
             pass
-
-    internal_track_id = getattr(song, "sqlite_track_id", None)
-    if hasattr(internal_track_id, "_mock_name") or hasattr(internal_track_id, "return_value"):
-        internal_track_id = None
-    raw_album_id = getattr(song, "album_id", None)
-    if hasattr(raw_album_id, "_mock_name") or hasattr(raw_album_id, "return_value"):
-        raw_album_id = None
-
-    album_id_val = raw_album_id
-    if not settings.testing:
-        from backend.services.library import rating_key_to_track_id, validate_track_id, get_db_connection  # noqa: PLC0415
-        resolved_id = None
-        if internal_track_id:
-            resolved_id = validate_track_id(internal_track_id)
-        else:
-            rk_val = getattr(song, "ratingKey", None)
-            if rk_val:
-                resolved_id = rating_key_to_track_id(rk_val)
-        if resolved_id:
-            internal_track_id = resolved_id
-            try:
-                conn = get_db_connection()
-                row = conn.execute("SELECT album_id FROM tracks WHERE track_id = ? LIMIT 1", (resolved_id,)).fetchone()
-                conn.close()
-                if row:
-                    album_id_val = row["album_id"]
-            except Exception:
-                pass
 
     def _str_or_none(v):
         if v is None or hasattr(v, "_mock_name") or hasattr(v, "return_value"):

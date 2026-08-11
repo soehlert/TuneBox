@@ -3,6 +3,7 @@
 import json
 from unittest.mock import patch
 
+from fastapi import HTTPException
 import pytest
 
 from backend.services.redis import (
@@ -302,5 +303,28 @@ def test_move_to_top_redis_queue(mock_redis):
 
     assert response == {"message": "Queue reordered successfully."}
     mock_redis_queue.rpush.assert_called_once_with("playback_queue", item_0, item_2, item_1)
+
+
+def test_add_to_queue_redis_prevents_duplicate_tracks(mock_redis, mock_plex_track, mocker):
+    """Verify add_to_queue_redis raises HTTP 400 Bad Request when attempting to add a song already in queue."""
+    mock_redis_queue, _ = mock_redis
+    mocker.patch("backend.utils.is_track_object", return_value=True)
+
+    # Put matching track in queue
+    existing_item = json.dumps({
+        "item_id": "12345",
+        "title": "Test Song",
+        "artist": "Test Artist",
+        "server_id": None,
+    })
+    mock_redis_queue.lrange.return_value = [existing_item]
+
+    with patch("backend.services.redis.get_redis_queue_client", return_value=mock_redis_queue):
+        with pytest.raises(HTTPException) as exc_info:
+            add_to_queue_redis(mock_plex_track)
+
+        assert exc_info.value.status_code == 400
+        assert "already in the queue" in exc_info.value.detail
+
 
 

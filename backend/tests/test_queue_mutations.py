@@ -1,7 +1,9 @@
 """Tests verifying queue mutation operations: individual track removal, reordering, and album queuing."""
 
+import json
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
-from unittest.mock import MagicMock, AsyncMock
 from fastapi.testclient import TestClient
 
 from backend.config import settings
@@ -156,3 +158,25 @@ def test_add_album_to_queue_in_track_order(mocker):
     assert response.status_code == 200
     assert response.json()["message"] == "Album added to queue successfully."
     assert mock_add.call_count == 2
+
+
+def test_post_queue_duplicate_returns_400(mocker, mock_redis):
+    """Verify POST /api/music/queue/{item_id} returns HTTP 400 when track is already in queue."""
+    mock_queue_client, _ = mock_redis
+    t1 = make_track("401", "Learn to Fly")
+    mocker.patch("backend.routers.music.get_track", return_value=t1)
+    mocker.patch("backend.routers.music.fetch_accessible_plex_servers", return_value=[])
+    mocker.patch("backend.routers.music.get_target_plex_connection", return_value=MagicMock())
+
+    stored_item = json.dumps({
+        "item_id": "401",
+        "title": "Learn to Fly",
+        "artist": "Foo Fighters",
+        "server_id": "plex-so",
+    })
+    mock_queue_client.lrange.return_value = [stored_item]
+
+    response = client.post("/api/music/queue/401", json={"server_id": "plex-so"})
+    assert response.status_code == 400
+    assert "already in the queue" in response.json()["detail"]
+

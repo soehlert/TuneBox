@@ -1,47 +1,25 @@
-# Plan - RatingKey Isolation & Test Suite Expansion
+# Implementation Plan - Prevent Duplicate Tracks in Playback Queue
 
-## Goal
-Enforce strict separation between internal SQLite primary keys (`artist_id`, `album_id`, `track_id`) and external Plex ratingKeys (`server_artist_id`, `server_album_id`, `server_track_id`), and expand test coverage into domain test files.
+Fix duplicate track queueing by standardizing track IDs upfront. External Plex `ratingKey`s will be converted to internal SQLite `track_id`s before performing duplicate checks or storing items in the Redis queue.
 
-## Plan Steps
+## Proposed Changes
 
-### Step 1: Update Mock Data Seeder with Realistic Distinct RatingKeys
-- **Files**: `backend/services/mock_data.py`
-- **Change**: Update mock `server_artist_id`, `server_album_id`, `server_track_id` to realistic distinct 5-digit numeric strings (`"19586"`, `"28401"`, `"34910"`), while internal primary keys remain auto-incrementing integers (`1`, `2`, `3`).
-- **Verify**: `uv run python -m pytest`
+### Branch Creation
+- Create and checkout a new branch `fix/prevent-duplicate-queue-tracks` from `main`.
 
-### Step 2: Add Dedicated ID Isolation Unit Test Suite
-- **Files**: `backend/tests/test_id_isolation.py` (NEW)
-- **Change**: Add unit tests verifying:
-  1. `get_albums_for_artist_db` rejects ratingKey strings and queries strictly `WHERE artist_id = ?`.
-  2. `get_art_source_info` translates internal SQL IDs to `server_track_id` ratingKeys without falling back to internal SQL IDs.
-  3. Play/queue endpoints accept internal `track_id` strictly.
-- **Verify**: `uv run python -m pytest backend/tests/test_id_isolation.py`
+### Backend Logic & Utilities
+- Modify `backend/utils.py`:
+  - Global imports for `settings` and `rating_key_to_track_id`.
+  - Add helper `get_canonical_track_id(item)`.
+  - Update `is_song_in_queue(item, server_id=None)` to convert to canonical `track_id` upfront and compare against Redis queue items.
+- Modify `backend/services/redis.py`:
+  - Move resolution of `internal_track_id` to top of `add_to_queue_redis` before `is_song_in_queue`.
 
-### Step 3: Add Domain Tests for Feature Gaps in Existing Test Files
-- **Files**: `backend/tests/test_homepage_views.py`, `backend/tests/test_the_sorting.py`, `backend/tests/test_server_resolution.py`
-- **Change**:
-  1. `test_homepage_views.py`: Assert `top_album_id` in Decades & Genres DB responses and test `prewarm_category_art`.
-  2. `test_the_sorting.py`: Assert `plays_asc` (Least Played) sorting for artists and albums.
-  3. `test_server_resolution.py`: Assert `servers.enabled = 0` hides server-exclusive items while preserving shared items.
-- **Verify**: `uv run python -m pytest backend/tests/test_homepage_views.py backend/tests/test_the_sorting.py backend/tests/test_server_resolution.py`
+### Automated Tests
+- Modify `backend/tests/test_utils.py`: Test `is_song_in_queue` with ratingKey conversion.
+- Modify `backend/tests/test_redis.py`: Test `add_to_queue_redis` raises HTTP 400 for duplicate tracks.
+- Modify `backend/tests/test_queue_mutations.py`: Test `POST /api/music/queue/{item_id}` returns 400 for duplicate tracks.
 
-### Step 4: Refactor Library Services (`library.py`)
-- **Files**: `backend/services/library.py`
-- **Change**: Remove `COALESCE(rating_key, internal_id)` fallbacks from `get_art_source_info`. Update `get_tracks_for_album_db` to set `item_id = r["track_id"]`.
-- **Verify**: `uv run python -m pytest backend/tests/test_library_db.py backend/tests/test_id_isolation.py`
-
-### Step 5: Refactor Plex Translation & Routers (`plex.py` & `music.py`)
-- **Files**: `backend/services/plex.py`, `backend/routers/music.py`
-- **Change**: Translate internal SQL IDs to server ratingKeys strictly via source tables (`track_sources`, `album_sources`, `artist_sources`).
-- **Verify**: `uv run python -m pytest backend/tests/test_plex.py backend/tests/test_track_rating.py`
-
-### Step 6: Refactor Frontend Track Payload Selection (`TrackList.tsx`)
-- **Files**: `frontend/src/components/TrackList.tsx`
-- **Change**: Use `track.track_id` (internal SQL ID) strictly for all frontend play/queue actions.
-- **Verify**: `docker compose build --no-cache frontend && docker compose up -d`
-
-### Step 7: Full Suite Verification & Docker Deployment
-- **Files**: N/A
-- **Change**: Run full backend test suite and rebuild Docker stack.
-- **Verify**: `uv run python -m pytest` and `docker compose up -d --build`
+### Stack Restart & Verification
+- Run `uv run python -m pytest`.
+- Restart Docker stack via `docker compose up -d --build`.

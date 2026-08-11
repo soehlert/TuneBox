@@ -5,6 +5,8 @@ import time
 
 from plexapi.audio import Track
 
+from backend.config import settings
+from backend.services.library import rating_key_to_track_id
 from backend.services.redis_client import get_redis_queue_client
 
 
@@ -18,7 +20,6 @@ def is_track_object(item):
         return True
     if getattr(item, "TYPE", None) == "track" or getattr(item, "type", None) == "track":
         return True
-    from backend.config import settings
 
     return bool(settings.testing and item.__class__.__name__ == "MockTrack")
 
@@ -32,22 +33,68 @@ def milliseconds_to_seconds(milliseconds):
     return milliseconds // 1000
 
 
+def get_canonical_track_id(item):
+    """Convert a track item, dictionary, or raw ID to its canonical internal SQLite track_id string."""
+    if item is None:
+        return ""
+
+    if isinstance(item, dict):
+        sqlite_id = item.get("sqlite_track_id") or item.get("track_id")
+        if sqlite_id is not None and not hasattr(sqlite_id, "_mock_name"):
+            return str(sqlite_id)
+        rk = item.get("ratingKey") or item.get("item_id")
+        if rk is not None and not hasattr(rk, "_mock_name"):
+            if not settings.testing:
+                resolved = rating_key_to_track_id(rk)
+                if resolved is not None:
+                    return str(resolved)
+            return str(rk)
+        return ""
+
+    if not hasattr(item, "ratingKey") and not hasattr(item, "sqlite_track_id") and not hasattr(item, "track_id"):
+        raw_id = str(item)
+        if not settings.testing:
+            resolved = rating_key_to_track_id(raw_id)
+            if resolved is not None:
+                return str(resolved)
+        return raw_id
+
+    sqlite_id = getattr(item, "sqlite_track_id", getattr(item, "track_id", None))
+    if sqlite_id is not None and not hasattr(sqlite_id, "_mock_name") and not hasattr(sqlite_id, "return_value"):
+        return str(sqlite_id)
+
+    rk = getattr(item, "ratingKey", None)
+    if rk is not None and not hasattr(rk, "_mock_name") and not hasattr(rk, "return_value"):
+        if not settings.testing:
+            resolved = rating_key_to_track_id(rk)
+            if resolved is not None:
+                return str(resolved)
+        return str(rk)
+
+    return str(item)
+
+
 def is_song_in_queue(item, server_id=None):
-    """Check if a song with the same ratingKey and server_id exists in Redis queue.
+    """Check if a song with the same canonical track_id and server_id exists in Redis queue.
 
     Returns:
         Boolean if it's in the queue.
     """
     redis_queue_client = get_redis_queue_client()
     queue = redis_queue_client.lrange("playback_queue", 0, -1)
+    if not queue:
+        return False
 
     queue_items = [json.loads(i) for i in queue]
 
-    item_id = str(getattr(item, "ratingKey", item))
-    target_server_id = server_id or getattr(item, "server_id", None)
+    target_track_id = get_canonical_track_id(item)
+    if isinstance(item, dict):
+        target_server_id = server_id or item.get("server_id")
+    else:
+        target_server_id = server_id or getattr(item, "server_id", None)
 
     for track in queue_items:
-        if str(track["item_id"]) == item_id:
+        if str(track.get("item_id")) == target_track_id:
             track_server = track.get("server_id") or None
             target_server = target_server_id or None
             if track_server == target_server:

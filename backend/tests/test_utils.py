@@ -1,5 +1,6 @@
 """Test utils functions."""
 
+import json
 import time
 from unittest.mock import MagicMock, patch
 
@@ -99,6 +100,26 @@ def test_multiple_items_in_queue(mock_redis, mock_plex_track):
             '{"item_id": "22222", "title": "Song 2"}',
         ]
         assert is_song_in_queue(mock_plex_track) is True
+
+
+def test_is_song_in_queue_with_rating_key_conversion(mock_redis, mocker):
+    """Verify is_song_in_queue converts ratingKey to internal track_id via rating_key_to_track_id upfront."""
+    mock_redis_queue, _ = mock_redis
+    mocker.patch("backend.config.settings.testing", False)
+    mocker.patch("backend.utils.rating_key_to_track_id", return_value=6945)
+
+    track_obj = MagicMock()
+    track_obj.ratingKey = "7957"
+    track_obj.server_id = "plex-so"
+    del track_obj.sqlite_track_id
+
+    mock_redis_queue.lrange.return_value = [
+        json.dumps({"item_id": "6945", "title": "Misfits", "server_id": "plex-so"})
+    ]
+
+    with patch("backend.utils.get_redis_queue_client", return_value=mock_redis_queue):
+        assert is_song_in_queue(track_obj) is True
+
 
 
 def test_tracker_start(tracker):
