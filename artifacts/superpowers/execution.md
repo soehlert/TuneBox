@@ -1,31 +1,20 @@
-# Execution Log: Ignore "The " when Sorting Artists and Albums
+# Execution Log: Two-Way Star Rating Sync with Primary Plex Server
 
-- **Branch**: `feat/ignore-the-sorting`
+- **Branch**: `fix/two-way-star-rating-sync`
 - **Plan**: `artifacts/superpowers/plan.md`
 
 ---
 
-### Step 1: Backend Database & Query Engine (Completed)
+### Step 1 & 2: Star Rating Sync Fix (Completed)
 - **Files changed**:
   - [`backend/services/library.py`](file:///Users/soehlert/projects/testing/TuneBox/backend/services/library.py)
-  - [`backend/tests/test_the_sorting.py`](file:///Users/soehlert/projects/testing/TuneBox/backend/tests/test_the_sorting.py)
+  - [`backend/services/plex.py`](file:///Users/soehlert/projects/testing/TuneBox/backend/services/plex.py)
+  - [`backend/tests/test_track_rating.py`](file:///Users/soehlert/projects/testing/TuneBox/backend/tests/test_track_rating.py)
 - **Changes**:
-  - Updated SQL `ORDER BY` clauses in `get_indexed_artists`, `get_indexed_albums`, and `get_albums_by_genre_db` to ignore leading `"The "` (case-insensitive).
-  - Added unit test suite `test_the_sorting.py` testing artist and album order.
-- **Verification**: `env GIT_CONFIG_GLOBAL=/dev/null uv run python -m pytest backend/tests/test_the_sorting.py`
-- **Result**: PASSED (2/2 passed in 0.16s).
-
-### Step 2: Frontend UI & Alphabet Fast-Scroll Rail (Completed)
-- **Files changed**:
-  - [`frontend/src/utils.ts`](file:///Users/soehlert/projects/testing/TuneBox/frontend/src/utils.ts)
-  - [`frontend/src/components/ArtistList.tsx`](file:///Users/soehlert/projects/testing/TuneBox/frontend/src/components/ArtistList.tsx)
-  - [`frontend/src/components/BrowseViews.tsx`](file:///Users/soehlert/projects/testing/TuneBox/frontend/src/components/BrowseViews.tsx)
-  - [`backend/tests/test_homepage_views.py`](file:///Users/soehlert/projects/testing/TuneBox/backend/tests/test_homepage_views.py)
-- **Changes**:
-  - Added export helper function `getSortKey(text)` to `utils.ts` to strip leading `"The "` (case-insensitive).
-  - Updated `ArtistList.tsx` and `BrowseViews.tsx` `useMemo` sort functions and alphabet rail fast-scroll matching to use `getSortKey()`.
-  - Updated `test_homepage_views.py` sorting test assertion.
-- **Verification**: `npx tsc --noEmit` & `env GIT_CONFIG_GLOBAL=/dev/null uv run python -m pytest`
-- **Result**: PASSED (0 TypeScript errors, 132/132 backend pytest tests passed in 17.90s).
-
-
+  - Fixed `upsert_track` SQL `UPDATE` statement in `library.py` to set `user_rating = ?` directly instead of skipping 0 ratings (`CASE WHEN ? > 0`).
+  - Updated `get_all_art_sources` for `item_type == "track"` to use `LEFT JOIN track_sources ts` and `COALESCE` to resolve the primary server ID and Plex ratingKey cleanly.
+  - Updated `rate_track_in_plex` in `plex.py` to resolve the track's Plex ratingKey (`server_track_id`) and convert 0.5-5.0 half-stars in TuneBox to 1-10 integers in Plex (or 0 for cleared rating).
+  - Maintained strict `is_track_on_primary_server` enforcement.
+  - Added unit test cases verifying half-star conversion and zero rating updates.
+- **Verification**: `env GIT_CONFIG_GLOBAL=/dev/null uv run python -m pytest` & `npx tsc --noEmit` & `docker compose up -d --build`
+- **Result**: PASSED (134/134 backend pytest tests passed in 18.48s, 0 TypeScript errors, Docker containers running live).

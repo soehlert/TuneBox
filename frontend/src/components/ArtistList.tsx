@@ -99,7 +99,7 @@ function ArtistList({
       const sortKey = getSortKey(artist.name);
       const firstChar = sortKey[0] || "";
       if (targetChar === "0-9") {
-        return /^\d/.test(firstChar);
+        return !/^[A-Z]/i.test(firstChar);
       }
       return firstChar.toUpperCase() === targetChar.toUpperCase();
     });
@@ -205,7 +205,7 @@ function ArtistList({
               const firstChar = sortKey[0];
               if (firstChar) {
                 let letter = firstChar.toUpperCase();
-                if (/^\d/.test(letter)) letter = "0-9";
+                if (!/^[A-Z]/.test(letter)) letter = "0-9";
                 if (!firstLetter) firstLetter = letter;
                 letterCounts[letter] = (letterCounts[letter] || 0) + 1;
               }

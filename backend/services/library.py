@@ -235,10 +235,10 @@ def upsert_track(
             cursor.execute(
                 """
                 UPDATE tracks
-                SET album_id = ?, artist_name = ?, album_title = ?, title = ?, duration = ?, url = COALESCE(?, url), thumb = COALESCE(?, thumb), play_count = MAX(play_count, ?), user_rating = CASE WHEN ? > 0 THEN ? ELSE user_rating END, updated_at = ?
+                SET album_id = ?, artist_name = ?, album_title = ?, title = ?, duration = ?, url = COALESCE(?, url), thumb = COALESCE(?, thumb), play_count = MAX(play_count, ?), user_rating = ?, updated_at = ?
                 WHERE track_id = ?
                 """,
-                (album_id, artist_name, album_title, title, duration, safe_url, thumb, play_count, float(user_rating or 0.0), float(user_rating or 0.0), now, track_id),
+                (album_id, artist_name, album_title, title, duration, safe_url, thumb, play_count, float(user_rating or 0.0), now, track_id),
             )
         else:
             cursor.execute(
@@ -774,25 +774,19 @@ def search_music_db(query_str: str, db_path: str | None = None) -> list[dict]:
 def get_all_art_sources(item_id: int | str, item_type: str, server_id: str | None = None, db_path: str | None = None) -> list[tuple[str | None, str | None, str | None]]:
     """Resolve all (stored_thumb, server_id, rating_key) sources for a given item, prioritizing primary server."""
     conn = get_db_connection(db_path)
-    sources = []
     try:
-        resolved_id = item_id
-        if item_type == "artist":
-            r_row = conn.execute(
-                "SELECT a.artist_id FROM artists a LEFT JOIN artist_sources src ON a.artist_id = src.artist_id WHERE a.artist_id = ? OR src.server_artist_id = ? OR a.norm_name = ? LIMIT 1",
-                (item_id, str(item_id), str(item_id).lower()),
-            ).fetchone()
-            if r_row:
-                resolved_id = r_row["artist_id"]
+        sources = []
+        resolved_id = int(item_id) if str(item_id).isdigit() else item_id
 
+        if item_type == "artist":
             cursor = conn.execute(
                 """
-                SELECT COALESCE(src.thumb, a.thumb) as thumb, src.server_id, src.server_artist_id as rating_key, COALESCE(srv.is_primary, 0) as is_primary
+                SELECT COALESCE(src.thumb, a.thumb) as thumb, src.server_id, COALESCE(src.server_artist_id, a.guid) as rating_key, COALESCE(srv.is_primary, 0) as is_primary
                 FROM artists a
                 LEFT JOIN artist_sources src ON a.artist_id = src.artist_id
                 LEFT JOIN servers srv ON src.server_id = srv.server_id
                 WHERE a.artist_id = ? AND (srv.enabled = 1 OR srv.enabled IS NULL)
-                ORDER BY (CASE WHEN srv.server_id NOT LIKE 'mock%' THEN 0 ELSE 1 END), is_primary DESC
+                ORDER BY (CASE WHEN srv.is_primary = 1 THEN 0 ELSE 1 END)
                 """,
                 (resolved_id,),
             )
@@ -810,28 +804,14 @@ def get_all_art_sources(item_id: int | str, item_type: str, server_id: str | Non
                 sources.append((thumb_val, row["server_id"], row["rating_key"]))
 
         elif item_type == "album":
-            r_row = conn.execute(
-                "SELECT alb.album_id FROM albums alb LEFT JOIN album_sources src ON alb.album_id = src.album_id WHERE alb.album_id = ? OR src.server_album_id = ? LIMIT 1",
-                (item_id, str(item_id)),
-            ).fetchone()
-            if r_row:
-                resolved_id = r_row["album_id"]
-            else:
-                tr_row = conn.execute(
-                    "SELECT t.album_id FROM tracks t LEFT JOIN track_sources ts ON t.track_id = ts.track_id WHERE t.track_id = ? OR ts.server_track_id = ? OR t.server_track_id = ? LIMIT 1",
-                    (item_id, str(item_id), str(item_id)),
-                ).fetchone()
-                if tr_row:
-                    resolved_id = tr_row["album_id"]
-
             cursor = conn.execute(
                 """
-                SELECT COALESCE(src.thumb, alb.thumb) as thumb, src.server_id, src.server_album_id as rating_key, COALESCE(srv.is_primary, 0) as is_primary
+                SELECT COALESCE(src.thumb, alb.thumb) as thumb, COALESCE(src.server_id, (SELECT server_id FROM tracks WHERE album_id = alb.album_id LIMIT 1)) as server_id, COALESCE(src.server_album_id, alb.album_id) as rating_key, COALESCE(srv.is_primary, 0) as is_primary
                 FROM albums alb
                 LEFT JOIN album_sources src ON alb.album_id = src.album_id
                 LEFT JOIN servers srv ON src.server_id = srv.server_id
                 WHERE alb.album_id = ? AND (srv.enabled = 1 OR srv.enabled IS NULL)
-                ORDER BY (CASE WHEN srv.server_id NOT LIKE 'mock%' THEN 0 ELSE 1 END), is_primary DESC
+                ORDER BY (CASE WHEN srv.is_primary = 1 THEN 0 ELSE 1 END)
                 """,
                 (resolved_id,),
             )
@@ -849,52 +829,14 @@ def get_all_art_sources(item_id: int | str, item_type: str, server_id: str | Non
                 sources.append((thumb_val, row["server_id"], row["rating_key"]))
 
         elif item_type == "track":
-            if server_id:
-                r_row = conn.execute(
-                    """
-                    SELECT t.track_id, t.album_id
-                    FROM tracks t
-                    LEFT JOIN track_sources ts ON t.track_id = ts.track_id
-                    LEFT JOIN servers srv ON t.server_id = srv.server_id
-                    WHERE (srv.enabled = 1 OR srv.enabled IS NULL)
-                      AND (
-                        ((t.server_track_id = ? OR ts.server_track_id = ?) AND (t.server_id = ? OR ts.server_id = ?))
-                        OR t.track_id = ?
-                      )
-                    ORDER BY (CASE WHEN (t.server_track_id = ? OR ts.server_track_id = ?) AND (t.server_id = ? OR ts.server_id = ?) THEN 0 ELSE 1 END)
-                    LIMIT 1
-                    """,
-                    (str(item_id), str(item_id), server_id, server_id, item_id, str(item_id), str(item_id), server_id, server_id),
-                ).fetchone()
-            else:
-                r_row = conn.execute(
-                    """
-                    SELECT t.track_id, t.album_id
-                    FROM tracks t
-                    LEFT JOIN track_sources ts ON t.track_id = ts.track_id
-                    LEFT JOIN servers srv ON t.server_id = srv.server_id
-                    WHERE (srv.enabled = 1 OR srv.enabled IS NULL)
-                      AND (t.server_track_id = ? OR ts.server_track_id = ? OR t.track_id = ?)
-                    ORDER BY (CASE WHEN t.server_track_id = ? OR ts.server_track_id = ? THEN 0 ELSE 1 END)
-                    LIMIT 1
-                    """,
-                    (str(item_id), str(item_id), item_id, str(item_id), str(item_id)),
-                ).fetchone()
-
-            if r_row:
-                resolved_id = r_row["track_id"]
-                track_album_id = r_row["album_id"]
-            else:
-                track_album_id = None
-
             cursor = conn.execute(
                 """
-                SELECT COALESCE(ts.thumb, t.thumb) as thumb, ts.server_id, ts.server_track_id as rating_key, COALESCE(srv.is_primary, 0) as is_primary, t.album_id
+                SELECT COALESCE(ts.thumb, t.thumb) as thumb, COALESCE(ts.server_id, t.server_id) as server_id, COALESCE(NULLIF(ts.server_track_id, ''), NULLIF(t.server_track_id, '')) as rating_key, COALESCE(srv.is_primary, 0) as is_primary, t.album_id
                 FROM tracks t
-                JOIN track_sources ts ON t.track_id = ts.track_id
-                JOIN servers srv ON ts.server_id = srv.server_id
-                WHERE t.track_id = ? AND srv.enabled = 1
-                ORDER BY (CASE WHEN srv.is_primary = 1 THEN 0 ELSE 1 END), ts.bitrate DESC
+                LEFT JOIN track_sources ts ON t.track_id = ts.track_id
+                LEFT JOIN servers srv ON COALESCE(ts.server_id, t.server_id) = srv.server_id
+                WHERE t.track_id = ? AND (srv.enabled = 1 OR srv.enabled IS NULL)
+                ORDER BY (CASE WHEN srv.is_primary = 1 THEN 0 ELSE 1 END)
                 """,
                 (resolved_id,),
             )
@@ -911,32 +853,6 @@ def get_all_art_sources(item_id: int | str, item_type: str, server_id: str | Non
                     if alb_row:
                         thumb_val = alb_row["thumb"]
                 sources.append((thumb_val, row["server_id"], row["rating_key"]))
-
-            if not sources:
-                cursor_base = conn.execute(
-                    """
-                    SELECT t.thumb, t.server_id, t.server_track_id as rating_key, COALESCE(srv.is_primary, 0) as is_primary, t.album_id
-                    FROM tracks t
-                    LEFT JOIN servers srv ON t.server_id = srv.server_id
-                    WHERE t.track_id = ? AND (srv.enabled = 1 OR srv.enabled IS NULL)
-                    ORDER BY (CASE WHEN srv.is_primary = 1 THEN 0 ELSE 1 END)
-                    """,
-                    (resolved_id,),
-                )
-                for row in cursor_base.fetchall():
-                    thumb_val = row["thumb"]
-                    if thumb_val and thumb_val.startswith("/api/music/"):
-                        thumb_val = None
-                    r_dict = dict(row)
-                    eff_album_id = r_dict.get("album_id") or track_album_id
-                    if not thumb_val and eff_album_id:
-                        alb_row = conn.execute(
-                            "SELECT thumb FROM albums WHERE album_id = ? AND thumb IS NOT NULL AND thumb != '' AND thumb NOT LIKE '/api/music/%' LIMIT 1",
-                            (eff_album_id,),
-                        ).fetchone()
-                        if alb_row:
-                            thumb_val = alb_row["thumb"]
-                    sources.append((thumb_val, row["server_id"], row["rating_key"]))
 
         return sources if sources else [(None, None, None)]
     finally:
@@ -1028,10 +944,10 @@ def get_tracks_for_album_db(album_id: int | str, db_path: str | None = None) -> 
             FROM albums alb
             LEFT JOIN album_sources src ON alb.album_id = src.album_id
             LEFT JOIN servers srv ON src.server_id = srv.server_id
-            WHERE (alb.album_id = ? OR src.server_album_id = ?) AND (srv.enabled = 1 OR srv.enabled IS NULL)
+            WHERE alb.album_id = ? AND (srv.enabled = 1 OR srv.enabled IS NULL)
             ORDER BY COALESCE(srv.is_primary, 0) DESC
             """,
-            (album_id, str(album_id)),
+            (album_id,),
         )
         alb_rows = cursor.fetchall()
         if not alb_rows:

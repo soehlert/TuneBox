@@ -2613,23 +2613,94 @@ def seed_queue_from_playlist(playlist_id: int, count: int = 10):
 def rate_track_in_plex(track_id: int | str, rating_stars: float) -> bool:
     """Send user rating (0.0 to 5.0 stars -> converted to Plex 0-10 scale) to target Plex Media Server."""
     try:
-        from backend.services.library import get_art_source_info
+        from backend.services.library import get_art_source_info, get_db_connection
         stored_thumb, server_id, rating_key = get_art_source_info(track_id, "track")
 
-        target_key = rating_key or track_id
-        if target_key and str(target_key).isdigit():
-            target_key = int(target_key)
+        if not rating_key:
+            conn = get_db_connection()
+            try:
+                row = conn.execute("SELECT server_track_id, server_id FROM tracks WHERE track_id = ?", (track_id,)).fetchone()
+                if row:
+                    rating_key = row["server_track_id"]
+                    if not server_id:
+                        server_id = row["server_id"]
+            finally:
+                conn.close()
 
+        if not rating_key:
+            logger.warning("Could not resolve Plex ratingKey for track %s", track_id)
+            return False
+
+        target_key = int(rating_key) if str(rating_key).isdigit() else rating_key
         plex = get_target_plex_connection(server_id)
         if plex:
             item = plex.fetchItem(target_key)
-            plex_rating = max(0.0, min(10.0, float(rating_stars) * 2.0))
-            if plex_rating == 0:
-                item.rate(0)
-            else:
-                item.rate(int(plex_rating) if plex_rating.is_integer() else plex_rating)
-            logger.info("Successfully set Plex userRating = %s for track %s on server %s", plex_rating, track_id, server_id)
+            plex_rating = int(round(max(0.0, min(10.0, float(rating_stars) * 2.0))))
+            item.rate(plex_rating)
+            logger.info("Successfully set Plex userRating = %d for track %s (Plex ratingKey %s) on server %s", plex_rating, track_id, target_key, server_id)
             return True
     except Exception as e:
         logger.warning("Failed to update rating in Plex for track %s: %s", track_id, e)
     return False
+
+
+def sync_album_ratings_from_plex(album_id: int | str) -> bool:
+    """Sync live track ratings from primary Plex server into SQLite for a given album."""
+    if settings.testing:
+        return False
+    try:
+        from backend.services.library import get_db_connection
+        conn = get_db_connection()
+        try:
+            alb_row = conn.execute(
+                """
+                SELECT alb.album_id, COALESCE(src.server_album_id, alb.album_id) as rating_key, COALESCE(src.server_id, (SELECT server_id FROM tracks WHERE album_id = alb.album_id LIMIT 1)) as server_id
+                FROM albums alb
+                LEFT JOIN album_sources src ON alb.album_id = src.album_id
+                LEFT JOIN servers srv ON src.server_id = srv.server_id
+                WHERE alb.album_id = ?
+                ORDER BY (CASE WHEN srv.is_primary = 1 THEN 0 ELSE 1 END)
+                LIMIT 1
+                """,
+                (album_id,),
+            ).fetchone()
+        finally:
+            conn.close()
+
+        if not alb_row or not alb_row["server_id"] or not alb_row["rating_key"]:
+            return False
+
+        server_id = alb_row["server_id"]
+        rating_key = alb_row["rating_key"]
+
+        plex = get_target_plex_connection(server_id)
+        if not plex:
+            return False
+
+        target_key = int(rating_key) if str(rating_key).isdigit() else rating_key
+        album_item = plex.fetchItem(target_key)
+        if not album_item:
+            return False
+
+        plex_tracks = album_item.tracks()
+        if not plex_tracks:
+            return False
+
+        conn = get_db_connection()
+        try:
+            for trk in plex_tracks:
+                trk_key = str(getattr(trk, "ratingKey", ""))
+                raw_user_rating = getattr(trk, "userRating", 0.0) or 0.0
+                user_stars = float(raw_user_rating) / 2.0 if raw_user_rating else 0.0
+                if trk_key:
+                    conn.execute(
+                        "UPDATE tracks SET user_rating = ? WHERE (server_track_id = ? OR track_id = ?) AND server_id = ?",
+                        (user_stars, trk_key, trk_key, server_id),
+                    )
+            conn.commit()
+            return True
+        finally:
+            conn.close()
+    except Exception as e:
+        logger.debug("Failed to sync album ratings from Plex for album %s: %s", album_id, e)
+        return False

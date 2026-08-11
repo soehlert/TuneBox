@@ -504,6 +504,10 @@ def get_tracks_for_album(album_id: int, server_id: str | None = None):
     try:
         if settings.testing:
             return fetch_tracks_for_album(album_id, server_id=server_id)
+        try:
+            plex.sync_album_ratings_from_plex(album_id)
+        except Exception:
+            pass
         res = get_tracks_for_album_db(album_id)
         if res is None:
             raise HTTPException(status_code=404, detail="Album tracks not found")

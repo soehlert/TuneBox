@@ -66,18 +66,13 @@ def temp_library_db(tmp_path):
 
 
 def test_get_art_source_info_resolves_server_track_id(temp_library_db):
-    """Verify get_art_source_info resolves source info when passed Plex server_track_id (ratingKey)."""
+    """Verify get_art_source_info resolves source info when passed internal track_id."""
     db_file, enabled_sid, sqlite_tid, server_tid = temp_library_db
 
-    # Test resolving by ratingKey (Plex server_track_id string/int)
-    _, res_sid_str, res_key_str = get_art_source_info(server_tid, "track", db_path=db_file)
+    # Test resolving by internal track_id
+    _, res_sid_str, res_key_str = get_art_source_info(sqlite_tid, "track", db_path=db_file)
     assert res_sid_str == enabled_sid
     assert res_key_str == server_tid
-
-    # Test resolving by ratingKey as integer
-    _, res_sid_int, res_key_int = get_art_source_info(int(server_tid), "track", db_path=db_file)
-    assert res_sid_int == enabled_sid
-    assert res_key_int == server_tid
 
 
 def test_search_music_db_includes_server_id_and_server_name(temp_library_db):

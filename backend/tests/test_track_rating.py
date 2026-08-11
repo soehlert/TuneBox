@@ -99,3 +99,36 @@ def test_rate_track_admin_and_primary_server_success(setup_test_db):
         assert response.status_code == 200
         assert response.json()["status"] == "success"
         assert response.json()["user_rating"] == 4.5
+
+
+def test_rate_track_in_plex_converts_half_stars_and_uses_rating_key(setup_test_db):
+    db_file, primary_track_id, _ = setup_test_db
+    mock_item = MagicMock()
+    mock_plex = MagicMock()
+    mock_plex.fetchItem.return_value = mock_item
+
+    with patch("backend.services.plex.get_target_plex_connection", return_value=mock_plex), \
+         patch("backend.services.library.get_art_source_info", return_value=(None, "primary-server-1", "301")):
+        from backend.services.plex import rate_track_in_plex
+        success = rate_track_in_plex(primary_track_id, 4.5)
+
+        assert success is True
+        mock_plex.fetchItem.assert_called_once_with(301)
+        mock_item.rate.assert_called_once_with(9)
+
+
+def test_upsert_track_updates_zero_user_rating(setup_test_db):
+    db_file, primary_track_id, _ = setup_test_db
+    conn = get_db_connection(db_file)
+    try:
+        # First set 4.0 stars
+        upsert_track(1, "primary-server-1", "301", "Test Artist", "Test Album", "Primary Track", 200, user_rating=4.0, db_path=db_file, conn=conn)
+        row = conn.execute("SELECT user_rating FROM tracks WHERE track_id = ?", (primary_track_id,)).fetchone()
+        assert row["user_rating"] == 4.0
+
+        # Now clear rating in Plex -> 0.0 stars
+        upsert_track(1, "primary-server-1", "301", "Test Artist", "Test Album", "Primary Track", 200, user_rating=0.0, db_path=db_file, conn=conn)
+        row = conn.execute("SELECT user_rating FROM tracks WHERE track_id = ?", (primary_track_id,)).fetchone()
+        assert row["user_rating"] == 0.0
+    finally:
+        conn.close()

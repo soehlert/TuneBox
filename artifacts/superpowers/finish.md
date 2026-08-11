@@ -1,21 +1,24 @@
-# Superpowers Execution Summary: Ignore "The " when Sorting Artists & Albums
+# Superpowers Execution Summary: Two-Way Star Rating Sync with Primary Plex Server
 
 ## Verification Results
-1. **Backend Unit Test Suite**: `env GIT_CONFIG_GLOBAL=/dev/null uv run python -m pytest backend/tests/test_the_sorting.py` -> **2/2 PASSED**
-2. **Full Backend Test Suite**: `env GIT_CONFIG_GLOBAL=/dev/null uv run python -m pytest` -> **132/132 PASSED** in 17.90s
+1. **Track Rating Unit Test Suite**: `env GIT_CONFIG_GLOBAL=/dev/null uv run python -m pytest backend/tests/test_track_rating.py` -> **6/6 PASSED**
+2. **Full Backend Test Suite**: `env GIT_CONFIG_GLOBAL=/dev/null uv run python -m pytest` -> **134/134 PASSED** in 18.48s
 3. **Frontend TypeScript Compilation**: `npx tsc --noEmit` -> **0 errors**
 4. **Docker Stack Deployment**: Rebuilt & restarted (`docker compose up -d --build`) -> **Containers updated & running live**
 
 ---
 
 ## Summary of Changes
-- **Backend Database Query Engine**:
-  - [`backend/services/library.py`](file:///Users/soehlert/projects/testing/TuneBox/backend/services/library.py): Updated SQL `ORDER BY` clauses for `get_indexed_artists`, `get_indexed_albums`, and `get_albums_by_genre_db` to evaluate `CASE WHEN LOWER(title) LIKE 'the %' THEN SUBSTR(title, 5) ELSE title END`.
-  - [`backend/tests/test_the_sorting.py`](file:///Users/soehlert/projects/testing/TuneBox/backend/tests/test_the_sorting.py): Created new unit test suite testing artist and album order without leading "The ".
-- **Frontend UI & Fast-Scroll Rail**:
-  - [`frontend/src/utils.ts`](file:///Users/soehlert/projects/testing/TuneBox/frontend/src/utils.ts): Added helper function `getSortKey(text)` to strip leading `"The "` (case-insensitive).
-  - [`frontend/src/components/ArtistList.tsx`](file:///Users/soehlert/projects/testing/TuneBox/frontend/src/components/ArtistList.tsx): Updated `useMemo` sorting, alphabet rail index matching, and manual scroll observer to use `getSortKey()`.
-  - [`frontend/src/components/BrowseViews.tsx`](file:///Users/soehlert/projects/testing/TuneBox/frontend/src/components/BrowseViews.tsx): Updated `useMemo` sorting, alphabet rail index matching, and manual scroll observer to use `getSortKey()`.
+- [`backend/services/library.py`](file:///Users/soehlert/projects/testing/TuneBox/backend/services/library.py):
+  - Updated `upsert_track` SQL `UPDATE` statement to set `user_rating = ?` directly, allowing 0-star (cleared) ratings from Plex to populate TuneBox DB during indexing.
+  - Updated `get_all_art_sources` for tracks using `LEFT JOIN track_sources ts` and `COALESCE` so primary server ID and Plex ratingKey resolve cleanly even when `track_sources` is unpopulated.
+- [`backend/services/plex.py`](file:///Users/soehlert/projects/testing/TuneBox/backend/services/plex.py):
+  - Updated `rate_track_in_plex` to resolve the primary server's `server_track_id` (Plex ratingKey) instead of internal SQLite IDs.
+  - Updated half-star mapping so 0.5-star steps in TuneBox convert to 1-10 integers in Plex (`4.5 stars -> 9`, `0.5 stars -> 1`, `0 stars -> 0`).
+- [`backend/routers/music.py`](file:///Users/soehlert/projects/testing/TuneBox/backend/routers/music.py):
+  - Retained strict `is_track_on_primary_server` enforcement so rating sync only targets your primary owned server.
+- [`backend/tests/test_track_rating.py`](file:///Users/soehlert/projects/testing/TuneBox/backend/tests/test_track_rating.py):
+  - Added unit test cases for half-star Plex ratingKey resolution and zero rating updates.
 
 ---
 
@@ -28,8 +31,10 @@
 ---
 
 ## Manual Verification Steps
-1. Open TuneBox in your browser.
-2. Navigate to **Artists** view:
-   - Verify `"The Beatles"`, `"The Beach Boys"`, and `"The Clash"` display under **B** and **C** instead of **T**.
-3. Click **B** on the alphabet rail:
-   - Verify the view smooth-scrolls directly to `"The Beach Boys"` / `"The Beatles"`.
+1. Open TuneBox as Admin and navigate to an album on your Primary Server.
+2. Rate a track **4.5 stars**:
+   - Check container logs (`docker compose logs backend --tail 20`): verify `Successfully set Plex userRating = 9 for track ... (Plex ratingKey ...)`.
+   - Open Plex Web UI: verify the track now displays 4.5 stars (9/10).
+3. In TuneBox UI: Click 0 stars on a rated track:
+   - Check container logs: verify `Successfully set Plex userRating = 0 for track ...`.
+   - Open Plex Web UI: verify the rating is cleared.
