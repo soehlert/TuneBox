@@ -2183,8 +2183,17 @@ def fetch_art_bytes(item_id: int | str, item_type: str, server_id: str | None = 
     if settings.testing:
         return transparent_png, "image/jpeg"
 
-    eff_server_id = server_id if (server_id and server_id != "all") else "default"
-    cache_bytes_key = f"art_bytes:{item_type}:{item_id}:{eff_server_id}"
+    resolved_sid = server_id
+    if not resolved_sid or resolved_sid == "all":
+        try:
+            from backend.services.library import get_art_source_info  # noqa: PLC0415
+            _, db_sid, _ = get_art_source_info(item_id, item_type)
+            if db_sid:
+                resolved_sid = db_sid
+        except Exception:
+            pass
+
+    cache_bytes_key = f"art_bytes:{item_type}:{item_id}:{resolved_sid or 'primary'}"
 
     # 1. Check Python RAM cache (0.0001 ms)
     if cache_bytes_key in _MEMORY_ART_CACHE:
