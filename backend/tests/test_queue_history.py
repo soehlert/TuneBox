@@ -99,3 +99,51 @@ def test_requeue_history_track_endpoint(mock_redis, mocker):
         assert "Added" in response.json().get("message", "")
     finally:
         settings.testing = orig_testing
+
+
+def test_add_to_history_deduplicates_existing_item(mock_redis):
+    """Re-adding a track with an existing item_id must remove the old entry and move track to top."""
+    mock_queue_client, _ = mock_redis
+    key_storage = {}
+
+    def fake_lpush(key, value):
+        if key not in key_storage:
+            key_storage[key] = []
+        key_storage[key].insert(0, value)
+
+    def fake_lrem(key, count, value):
+        if key in key_storage and value in key_storage[key]:
+            key_storage[key].remove(value)
+
+    def fake_ltrim(key, start, end):
+        if key in key_storage:
+            del key_storage[key][end + 1:]
+
+    def fake_lrange(key, start, end):
+        return key_storage.get(key, [])
+
+    mock_queue_client.lpush.side_effect = fake_lpush
+    mock_queue_client.lrem.side_effect = fake_lrem
+    mock_queue_client.ltrim.side_effect = fake_ltrim
+    mock_queue_client.lrange.side_effect = fake_lrange
+
+    t1 = {"item_id": 101, "title": "Track One", "artist": "Artist 1"}
+    t2 = {"item_id": 102, "title": "Track Two", "artist": "Artist 2"}
+
+    add_to_history(t1)
+    add_to_history(t2)
+    # Re-play Track One
+    add_to_history(t1)
+
+    history = get_playback_history()
+    # Should contain 2 entries total, with Track One at index 0 (top of history)
+    assert len(history) == 2
+    assert history[0]["item_id"] == 101
+    assert history[1]["item_id"] == 102
+
+
+def test_add_to_history_handles_invalid_non_dict_input(mock_redis, caplog):
+    """Passing a non-dict input to add_to_history must log a warning and handle gracefully without crashing."""
+    add_to_history(12345)  # Invalid non-dict
+    assert "Failed to update playback history" in caplog.text
+
