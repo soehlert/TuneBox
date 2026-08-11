@@ -9,6 +9,8 @@
 - **No Mock Data Outside Tests**: NEVER return or display mock data, sample fallback datasets, or mock artists/albums/tracks outside of automated test execution (`settings.testing`). Always return real empty states (`[]` / `None`) when no data exists.
 - **Docker Log Verification**: Always check Docker logs (`docker compose logs backend --tail 50` or `docker compose logs -f backend`) when investigating errors, diagnosing behavior, or forming an execution plan.
 - **Global Imports Only**: NEVER import anything inside of a function or method. All imports MUST be placed globally at the top of the file. If circular import issues arise, alert the user immediately so we refactor module dependencies cleanly rather than adding local inline imports.
+- **No Backward Compatibility / Legacy Debt**: NEVER keep fallback code or legacy adapters to deal with old ways of doing things. This is an active local development project — make clean, direct, breaking/destructive schema & code updates as needed, and notify the user whenever destructive updates are performed.
+
 
 
 

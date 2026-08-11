@@ -82,7 +82,7 @@ def test_auth_status_authenticated(client):
     assert response.status_code == 200
     data = response.json()
     assert data["authenticated"] is True
-    assert data["username"] == "TestUser"
+    assert data["plex_username"] == "TestUser"
 
 
 def test_simulation_auth_flow(client, mock_redis):

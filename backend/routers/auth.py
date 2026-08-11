@@ -160,7 +160,6 @@ async def status():
     final_username = username or settings.plex_username or "Plex User"
     return {
         "authenticated": True,
-        "username": final_username,
         "plex_username": final_username,
         "plex_server_name": settings.plex_server_name,
         "client_name": settings.client_name,
@@ -262,7 +261,6 @@ async def check_pin(pin_id: int):
         return {
             "authenticated": True,
             "token": token,
-            "username": settings.plex_username,
             "plex_username": settings.plex_username,
         }
 

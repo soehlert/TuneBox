@@ -2325,10 +2325,9 @@ function App() {
       setIsAuthenticated(res.data.authenticated);
       setIsConfigured(res.data.is_configured);
 
-      const usernameVal = res.data.plex_username || res.data.username || "";
-      if (usernameVal) {
-        setPlexUsername(usernameVal);
-        localStorage.setItem("tunebox_admin_name", usernameVal);
+      if (res.data.plex_username) {
+        setPlexUsername(res.data.plex_username);
+        localStorage.setItem("tunebox_admin_name", res.data.plex_username);
       }
       if (res.data.instance_name) {
         setInstanceName(res.data.instance_name);
