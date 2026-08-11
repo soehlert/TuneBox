@@ -1,5 +1,7 @@
 """Tests for homepage views: all albums, genres, and decades."""
 
+import re
+
 import pytest
 from fastapi.testclient import TestClient
 from backend.config import settings
@@ -48,7 +50,7 @@ def test_get_all_albums_alphabetically_sorted():
         assert response.status_code == 200
         albums = response.json()
         titles = [a["title"] for a in albums if "title" in a]
-        assert titles == sorted(titles, key=lambda x: x.lower())
+        assert titles == sorted(titles, key=lambda x: re.sub(r"^the\s+", "", x, flags=re.IGNORECASE).lower())
     finally:
         settings.testing = orig_testing
 

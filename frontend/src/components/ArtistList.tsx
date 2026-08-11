@@ -5,7 +5,7 @@ import { Card, Typography, Button, Snackbar, Alert } from "@mui/material"; // MU
 import { FallbackImage } from "./FallbackImage";
 import { TuneBoxDialog } from "./TuneBoxDialog";
 import axios from "axios";
-import { getLocalUsername } from "../utils";
+import { getLocalUsername, getSortKey } from "../utils";
 import "../App.css";
 import "./ArtistList.css";
 
@@ -72,13 +72,15 @@ function ArtistList({
 
   const sortedArtists = useMemo(() => {
     return [...filteredArtists].sort((a, b) => {
+      const keyA = getSortKey(a.name);
+      const keyB = getSortKey(b.name);
       if (sortBy === "plays") {
         const playsA = (a as any).play_count || 0;
         const playsB = (b as any).play_count || 0;
         if (playsB !== playsA) return playsB - playsA;
-        return a.name.localeCompare(b.name);
+        return keyA.localeCompare(keyB);
       }
-      const cmp = a.name.localeCompare(b.name);
+      const cmp = keyA.localeCompare(keyB);
       return sortOrder === "asc" ? cmp : -cmp;
     });
   }, [filteredArtists, sortBy, sortOrder]);
@@ -94,7 +96,8 @@ function ArtistList({
     const targetChar = scrollTargetLetter.letter;
     const targetIndex = sortedArtists.findIndex((artist) => {
       if (!artist.name) return false;
-      const firstChar = artist.name[0];
+      const sortKey = getSortKey(artist.name);
+      const firstChar = sortKey[0] || "";
       if (targetChar === "0-9") {
         return /^\d/.test(firstChar);
       }
@@ -198,7 +201,8 @@ function ArtistList({
           if (rect.bottom >= targetY && rect.top <= targetY + 250) {
             const nameEl = cards[i].querySelector(".artist-card-name");
             if (nameEl && nameEl.textContent) {
-              const firstChar = nameEl.textContent.trim()[0];
+              const sortKey = getSortKey(nameEl.textContent);
+              const firstChar = sortKey[0];
               if (firstChar) {
                 let letter = firstChar.toUpperCase();
                 if (/^\d/.test(letter)) letter = "0-9";

@@ -1,27 +1,35 @@
-# Superpowers Execution Summary: End-to-End Simulation & Regression Testing
+# Superpowers Execution Summary: Ignore "The " when Sorting Artists & Albums
 
-## Verification Summary
-- **Unit, Integration, & Full Lifecycle E2E Test Suite**:
-  - `env GIT_CONFIG_GLOBAL=/dev/null uv run python -m pytest` (**130 passed**, 0 failures)
-- **Container Environment**:
-  - `docker compose restart backend` executed successfully (backend restarted & live).
+## Verification Results
+1. **Backend Unit Test Suite**: `env GIT_CONFIG_GLOBAL=/dev/null uv run python -m pytest backend/tests/test_the_sorting.py` -> **2/2 PASSED**
+2. **Full Backend Test Suite**: `env GIT_CONFIG_GLOBAL=/dev/null uv run python -m pytest` -> **132/132 PASSED** in 17.90s
+3. **Frontend TypeScript Compilation**: `npx tsc --noEmit` -> **0 errors**
+4. **Docker Stack Deployment**: Rebuilt & restarted (`docker compose up -d --build`) -> **Containers updated & running live**
 
-## New End-to-End Test Suite Added (`backend/tests/test_full_lifecycle_e2e.py`)
-1. **`test_e2e_queue_addition_no_autoplay_when_stopped`**:
-   - Enqueues a track via `/api/music/queue/7970`.
-   - Asserts `playback_active` remains `False`, `track_time_tracker.state == "stopped"`, and `get_current_playing_track()` returns `None`.
-2. **`test_e2e_single_song_completion_and_queue_exhaustion`**:
-   - Starts track "Dial Up" (44s).
-   - Verifies 0s state: `elapsed_time = 0.0`, `remaining_time = 44.0`.
-   - Advances simulated time to mid-song (22s): asserts `elapsed_time = 22.0`, `remaining_time = 22.0`.
-   - Advances simulated time past completion (45s): runs `playback_orchestrator()` 1 tick.
-   - Asserts `playback_active` becomes `False`, `track_time_tracker.state == "stopped"`, item is removed from queue, added to history, and player is stopped cleanly.
-3. **`test_e2e_multi_song_natural_queue_advancement`**:
-   - Queues 2 tracks ("Track A" 30s, "Track B" 45s).
-   - Advances "Track A" past completion (31s). Runs `playback_orchestrator()` 1 tick.
-   - Asserts "Track A" moves to history, "Track A" is removed from queue, "Track B" becomes `now_playing`, and `play_song()` is invoked for "Track B".
+---
 
-## Artifacts Confirmation
-- `artifacts/superpowers/plan.md`
-- `artifacts/superpowers/execution.md`
-- `artifacts/superpowers/finish.md`
+## Summary of Changes
+- **Backend Database Query Engine**:
+  - [`backend/services/library.py`](file:///Users/soehlert/projects/testing/TuneBox/backend/services/library.py): Updated SQL `ORDER BY` clauses for `get_indexed_artists`, `get_indexed_albums`, and `get_albums_by_genre_db` to evaluate `CASE WHEN LOWER(title) LIKE 'the %' THEN SUBSTR(title, 5) ELSE title END`.
+  - [`backend/tests/test_the_sorting.py`](file:///Users/soehlert/projects/testing/TuneBox/backend/tests/test_the_sorting.py): Created new unit test suite testing artist and album order without leading "The ".
+- **Frontend UI & Fast-Scroll Rail**:
+  - [`frontend/src/utils.ts`](file:///Users/soehlert/projects/testing/TuneBox/frontend/src/utils.ts): Added helper function `getSortKey(text)` to strip leading `"The "` (case-insensitive).
+  - [`frontend/src/components/ArtistList.tsx`](file:///Users/soehlert/projects/testing/TuneBox/frontend/src/components/ArtistList.tsx): Updated `useMemo` sorting, alphabet rail index matching, and manual scroll observer to use `getSortKey()`.
+  - [`frontend/src/components/BrowseViews.tsx`](file:///Users/soehlert/projects/testing/TuneBox/frontend/src/components/BrowseViews.tsx): Updated `useMemo` sorting, alphabet rail index matching, and manual scroll observer to use `getSortKey()`.
+
+---
+
+## Review Pass
+- **Blocker**: None
+- **Major**: None
+- **Minor**: None
+- **Nit**: None
+
+---
+
+## Manual Verification Steps
+1. Open TuneBox in your browser.
+2. Navigate to **Artists** view:
+   - Verify `"The Beatles"`, `"The Beach Boys"`, and `"The Clash"` display under **B** and **C** instead of **T**.
+3. Click **B** on the alphabet rail:
+   - Verify the view smooth-scrolls directly to `"The Beach Boys"` / `"The Beatles"`.

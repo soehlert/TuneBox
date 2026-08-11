@@ -1,46 +1,45 @@
-## Goal
-Eliminate external Plexamp resync interference, fix natural track queue advancement, and ensure clean stopped state when the queue exhausts.
+# Implementation Plan: Ignore "The " when Sorting Artists and Albums
 
-## Assumptions
-- TuneBox is the sole controller; users do not interact directly with Plexamp.
-- Complex external Plexamp resync polling is removed so `check_plexamp_resync()` no longer overwrites TuneBox playback state or re-starts tracks.
-- Monotonic wall-clock progress bar (`track_time_tracker.elapsed_time`) and 1-click play/pause remain intact.
-- Tests will be run via `env GIT_CONFIG_GLOBAL=/dev/null uv run python -m pytest`.
-- Container will be restarted via `docker compose restart backend`.
+Ignore leading "The " (case-insensitive) when sorting artists and albums across TuneBox so bands like "The Beatles" appear under **B** instead of **T** in both the backend database queries and frontend UI views / alphabet fast-scroll rail.
 
-## Plan
+## Proposed Changes
 
-### Step 1: Remove External Plexamp Resync Interference
-- **Files**: [backend/services/plex.py](file:///Users/soehlert/projects/testing/TuneBox/backend/services/plex.py)
-- **Change**:
-  - Make `check_plexamp_resync()` a safe no-op or pass-through when `playback_active` is `True` or when queue is empty/stopped.
-  - Stop `check_plexamp_resync()` from overwriting `now_playing` in Redis or restarting `track_time_tracker` from stale PMS session data.
-- **Verify**: `env GIT_CONFIG_GLOBAL=/dev/null uv run python -m pytest backend/tests/test_plex.py`
+### Backend Database & Query Engine
 
-### Step 2: Ensure Clean Natural Queue Advancement
-- **Files**: [backend/services/plex.py](file:///Users/soehlert/projects/testing/TuneBox/backend/services/plex.py)
-- **Change**:
-  - In `playback_orchestrator()` (when `elapsed >= total_time`), safely construct `next_song_data` using `next_song.get("server_id")` and `next_song.get("album_id")`.
-  - Advance playback to `next_song` cleanly and update `now_playing` / `track_time_tracker`.
-- **Verify**: `env GIT_CONFIG_GLOBAL=/dev/null uv run python -m pytest backend/tests/test_core_playback_flow.py`
+#### [MODIFY] [`backend/services/library.py`](file:///Users/soehlert/projects/testing/TuneBox/backend/services/library.py)
+- Update `get_indexed_artists` SQL query `ORDER BY` clause to ignore leading `"The "` when sorting alphabetically (`CASE WHEN LOWER(a.name) LIKE 'the %' THEN SUBSTR(a.name, 5) ELSE a.name END COLLATE NOCASE`).
+- Update `get_indexed_albums` SQL query `ORDER BY` clause to ignore leading `"The "` when sorting alphabetically (`CASE WHEN LOWER(alb.title) LIKE 'the %' THEN SUBSTR(alb.title, 5) ELSE alb.title END COLLATE NOCASE`).
+- Update `get_albums_by_genre_db` SQL query `ORDER BY` clause to ignore leading `"The "`.
 
-### Step 3: Clean Stopped State & Queue Exhaustion
-- **Files**: [backend/services/plex.py](file:///Users/soehlert/projects/testing/TuneBox/backend/services/plex.py), [backend/services/redis.py](file:///Users/soehlert/projects/testing/TuneBox/backend/services/redis.py)
-- **Change**:
-  - When remaining time reaches 0 (or `elapsed >= total_time`) and the queue is empty, `playback_orchestrator()` sets `playback_active = False`, stops `track_time_tracker`, and purges `now_playing` from Redis.
-  - In `get_current_playing_track()`, return `None` when `playback_active` is `False` and queue is empty so WebSocket broadcasts `current_track: null`.
-- **Verify**: `env GIT_CONFIG_GLOBAL=/dev/null uv run python -m pytest backend/tests/test_websocket_state.py backend/tests/test_redis.py`
+#### [NEW] [`backend/tests/test_the_sorting.py`](file:///Users/soehlert/projects/testing/TuneBox/backend/tests/test_the_sorting.py)
+- Add unit tests verifying `get_indexed_artists` places `"The Beatles"` in the **B** position (between `"Beach Boys"` and `"Blink-182"`).
+- Add unit tests verifying `get_indexed_albums` places `"The Dark Side of the Moon"` in the **D** position.
 
-### Step 4: Full Suite & Container Verification
-- **Files**: Entire backend test suite
-- **Change**: Run full test suite and restart backend container.
-- **Verify**:
-  - `env GIT_CONFIG_GLOBAL=/dev/null uv run python -m pytest` (128 passed)
-  - `docker compose restart backend`
+---
 
-## Risks & mitigations
-- **Risk**: Disabling resync polling might affect tests that mock PMS sessions.
-  - **Mitigation**: Keep signature and no-op compatibility for tests while disabling state-overwriting logic.
+### Frontend UI & Alphabet Fast-Scroll Rail
 
-## Rollback plan
-- Revert via `git checkout backend/services/plex.py backend/services/redis.py` and restart backend container.
+#### [MODIFY] [`frontend/src/utils.ts`](file:///Users/soehlert/projects/testing/TuneBox/frontend/src/utils.ts)
+- Add helper function `getSortKey(text: string): string` that strips leading `"The "` / `"the "` (case-insensitive) from names and titles.
+
+#### [MODIFY] [`frontend/src/components/ArtistList.tsx`](file:///Users/soehlert/projects/testing/TuneBox/frontend/src/components/ArtistList.tsx)
+- Use `getSortKey(artist.name)` in `sortedArtists` `localeCompare` array sorting.
+- Use `getSortKey(artist.name)` in alphabet rail fast-scroll `sortedArtists.findIndex` matching so clicking **B** jumps directly to `"The Beatles"`.
+
+#### [MODIFY] [`frontend/src/components/BrowseViews.tsx`](file:///Users/soehlert/projects/testing/TuneBox/frontend/src/components/BrowseViews.tsx)
+- Use `getSortKey(alb.title)` in `sortedAlbums` `localeCompare` array sorting.
+- Use `getSortKey(alb.title)` in alphabet rail fast-scroll `sortedAlbums.findIndex` matching and manual scroll observer matching so clicking **D** jumps directly to `"The Dark Side of the Moon"`.
+
+---
+
+## Verification Plan
+
+### Automated Tests
+- Run `env GIT_CONFIG_GLOBAL=/dev/null uv run python -m pytest backend/tests/test_the_sorting.py`
+- Run full backend test suite: `env GIT_CONFIG_GLOBAL=/dev/null uv run python -m pytest`
+- Run frontend TypeScript compilation check: `npx tsc --noEmit`
+
+### Manual Verification
+- Rebuild & restart Docker stack (`docker compose up -d --build`).
+- Open Artist view: Verify `"The Beatles"` appears under **B** instead of **T**.
+- Click **B** on the alphabet rail: Verify the page smooth-scrolls directly to `"The Beatles"`.

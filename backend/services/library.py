@@ -513,8 +513,9 @@ def get_indexed_artists(sort_mode: str = "name_asc", db_path: str | None = None)
     from backend.config import settings  # noqa: PLC0415
     conn = get_db_connection(db_path)
     try:
-        order_clause = "a.play_count DESC, a.name COLLATE NOCASE ASC" if sort_mode == "plays_desc" else (
-            "a.name COLLATE NOCASE DESC" if sort_mode == "name_desc" else "a.name COLLATE NOCASE ASC"
+        sort_expr = "(CASE WHEN LOWER(a.name) LIKE 'the %' THEN SUBSTR(a.name, 5) ELSE a.name END)"
+        order_clause = f"a.play_count DESC, {sort_expr} COLLATE NOCASE ASC" if sort_mode == "plays_desc" else (
+            f"{sort_expr} COLLATE NOCASE DESC" if sort_mode == "name_desc" else f"{sort_expr} COLLATE NOCASE ASC"
         )
         query = f"""
             SELECT a.artist_id, a.name, a.guid, a.thumb, a.play_count
@@ -535,8 +536,9 @@ def get_indexed_albums(sort_mode: str = "name_asc", db_path: str | None = None) 
     """Fetch all unique albums linked to currently enabled servers."""
     conn = get_db_connection(db_path)
     try:
-        order_clause = "alb.play_count DESC, alb.title COLLATE NOCASE ASC" if sort_mode == "plays_desc" else (
-            "alb.title COLLATE NOCASE DESC" if sort_mode == "name_desc" else "alb.title COLLATE NOCASE ASC"
+        sort_expr = "(CASE WHEN LOWER(alb.title) LIKE 'the %' THEN SUBSTR(alb.title, 5) ELSE alb.title END)"
+        order_clause = f"alb.play_count DESC, {sort_expr} COLLATE NOCASE ASC" if sort_mode == "plays_desc" else (
+            f"{sort_expr} COLLATE NOCASE DESC" if sort_mode == "name_desc" else f"{sort_expr} COLLATE NOCASE ASC"
         )
         query = f"""
             SELECT alb.album_id, alb.artist_id, alb.artist_name as artist, alb.title, alb.year, alb.genre, alb.thumb, alb.play_count
@@ -626,7 +628,7 @@ def get_albums_by_genre_db(genre_name: str, db_path: str | None = None) -> list[
             WHERE srv.enabled = 1 AND alb.title != '' AND alb.title IS NOT NULL
               AND (LOWER(COALESCE(NULLIF(TRIM(alb.genre), ''), 'Uncategorized')) = LOWER(?))
             GROUP BY alb.album_id
-            ORDER BY alb.title COLLATE NOCASE ASC
+            ORDER BY (CASE WHEN LOWER(alb.title) LIKE 'the %' THEN SUBSTR(alb.title, 5) ELSE alb.title END) COLLATE NOCASE ASC
             """,
             (genre_name.strip(),),
         )

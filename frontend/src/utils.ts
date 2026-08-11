@@ -25,3 +25,12 @@ export const getApiUrl = (path: string) => {
   const base = isDev ? `http://${window.location.hostname}:8000` : window.location.origin;
   return `${base}${path}`;
 };
+
+export const getSortKey = (name: string): string => {
+  if (!name) return "";
+  const trimmed = name.trim();
+  if (/^the\s+/i.test(trimmed)) {
+    return trimmed.replace(/^the\s+/i, "").trim();
+  }
+  return trimmed;
+};

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Card, Typography, Button } from "@mui/material";
 import axios from "axios";
 import { FallbackImage } from "./FallbackImage";
-import { getLocalUsername } from "../utils";
+import { getLocalUsername, getSortKey } from "../utils";
 
 interface Album {
   album_id: number;
@@ -244,6 +244,17 @@ export const BrowseTabs: React.FC<BrowseTabsProps> = ({ currentMode, onModeChang
   );
 };
 
+interface Album {
+  album_id: number;
+  title: string;
+  artist?: string;
+  artist_id?: number;
+  year?: number;
+  genre?: string;
+  thumb?: string | null;
+  play_count?: number;
+}
+
 export const AlbumsGridView: React.FC<{
   apiBase: string;
   selectedLetter?: string;
@@ -273,13 +284,15 @@ export const AlbumsGridView: React.FC<{
 
   const sortedAlbums = useMemo(() => {
     return [...albums].sort((a, b) => {
+      const keyA = getSortKey(a.title);
+      const keyB = getSortKey(b.title);
       if (sortBy === "plays") {
         const playsA = (a as any).play_count || 0;
         const playsB = (b as any).play_count || 0;
         if (playsB !== playsA) return playsB - playsA;
-        return a.title.localeCompare(b.title);
+        return keyA.localeCompare(keyB);
       }
-      const cmp = a.title.localeCompare(b.title);
+      const cmp = keyA.localeCompare(keyB);
       return sortOrder === "asc" ? cmp : -cmp;
     });
   }, [albums, sortBy, sortOrder]);
@@ -295,7 +308,8 @@ export const AlbumsGridView: React.FC<{
     const targetChar = scrollTargetLetter.letter;
     const targetIndex = sortedAlbums.findIndex((alb) => {
       if (!alb.title) return false;
-      const firstChar = alb.title.trim()[0];
+      const sortKey = getSortKey(alb.title);
+      const firstChar = sortKey[0] || "";
       if (targetChar === "0-9") {
         return /^\d/.test(firstChar);
       }
@@ -364,7 +378,8 @@ export const AlbumsGridView: React.FC<{
             const albId = parseInt(albIdStr, 10);
             const foundAlb = sortedAlbums.find((a) => a.album_id === albId);
             if (foundAlb && foundAlb.title) {
-              const firstChar = foundAlb.title.trim()[0];
+              const sortKey = getSortKey(foundAlb.title);
+              const firstChar = sortKey[0];
               if (firstChar) {
                 let letter = firstChar.toUpperCase();
                 if (/^\d/.test(letter)) letter = "0-9";
