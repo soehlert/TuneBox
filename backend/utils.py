@@ -34,36 +34,17 @@ def milliseconds_to_seconds(milliseconds):
 
 
 def get_canonical_track_id(item):
-    """Convert a track item, dictionary, or raw ID to its canonical internal SQLite track_id string."""
+    """Get canonical SQLite track_id for a track object or ID."""
     if item is None:
         return ""
 
-    if isinstance(item, dict):
-        sqlite_id = item.get("sqlite_track_id") or item.get("track_id")
-        if sqlite_id is not None and not hasattr(sqlite_id, "_mock_name"):
-            return str(sqlite_id)
-        rk = item.get("ratingKey") or item.get("item_id")
-        if rk is not None and not hasattr(rk, "_mock_name"):
-            if not settings.testing:
-                resolved = rating_key_to_track_id(rk)
-                if resolved is not None:
-                    return str(resolved)
-            return str(rk)
-        return ""
-
-    if not hasattr(item, "ratingKey") and not hasattr(item, "sqlite_track_id") and not hasattr(item, "track_id"):
-        raw_id = str(item)
-        if not settings.testing:
-            resolved = rating_key_to_track_id(raw_id)
-            if resolved is not None:
-                return str(resolved)
-        return raw_id
-
-    sqlite_id = getattr(item, "sqlite_track_id", getattr(item, "track_id", None))
+    # Check for direct internal track_id
+    sqlite_id = item.get("sqlite_track_id") or item.get("track_id") if isinstance(item, dict) else getattr(item, "sqlite_track_id", getattr(item, "track_id", None))
     if sqlite_id is not None and not hasattr(sqlite_id, "_mock_name") and not hasattr(sqlite_id, "return_value"):
         return str(sqlite_id)
 
-    rk = getattr(item, "ratingKey", None)
+    # Check for external ratingKey or raw ID
+    rk = (item.get("ratingKey") or item.get("item_id")) if isinstance(item, dict) else getattr(item, "ratingKey", item)
     if rk is not None and not hasattr(rk, "_mock_name") and not hasattr(rk, "return_value"):
         if not settings.testing:
             resolved = rating_key_to_track_id(rk)
