@@ -431,7 +431,7 @@ const QueueComponent = () => {
                   ) : (
                     <Typography className="queue-item-time">{formatDuration(track.duration)}</Typography>
                   )}
-                  {!isActive && (
+                  {!isActive && Boolean(adminToken) && (
                     <>
                       {index > 1 && (
                         <button
