@@ -1362,89 +1362,100 @@ def refetch_item_artwork(item_type: str, item_id: int, db_path: str | None = Non
 MOOD_MAPPINGS = {
     "Party": {
         "display": "🎉 Party",
-        "keywords": ["party", "dance", "fun", "celebration", "upbeat", "lively", "club"],
-        "genres": ["pop", "dance", "disco", "funk", "electronic", "hip-hop", "hip hop", "house", "r&b", "latin"],
+        "keywords": ["party", "dance", "club", "remix", "celebration", "lively", "banger", "dj", "anthem"],
+        "genres": ["dance", "disco", "funk", "house", "edm", "techno", "club", "dance-pop", "hip-hop", "electro"],
     },
     "Energetic": {
         "display": "⚡ Energetic",
-        "keywords": ["energetic", "hype", "intense", "fast", "powerful", "driving"],
-        "genres": ["rock", "metal", "punk", "hard rock", "edm", "techno", "drum and bass", "dubstep"],
+        "keywords": ["energetic", "hype", "intense", "fast", "powerful", "driving", "heavy", "furious"],
+        "genres": ["hard rock", "heavy metal", "punk", "thrash", "drum and bass", "dubstep", "techno", "edm", "skate punk", "garage rock"],
     },
     "Chill": {
         "display": "☕ Chill",
-        "keywords": ["chill", "relax", "mellow", "calm", "smooth", "soft", "peaceful", "lo-fi", "lofi"],
-        "genres": ["ambient", "chillout", "lo-fi", "downtempo", "acoustic", "indie", "jazz", "soul", "reggae", "folk"],
+        "keywords": ["chill", "relax", "mellow", "calm", "smooth", "soft", "peaceful", "lo-fi", "lofi", "lounge", "study", "quiet"],
+        "genres": ["ambient", "chillout", "lo-fi", "lofi", "downtempo", "trip-hop", "smooth jazz", "bossa nova", "lounge", "slowcore"],
     },
     "Groovy": {
         "display": "🎷 Groovy",
-        "keywords": ["groovy", "funky", "rhythm", "groove", "soulful", "boogie"],
-        "genres": ["funk", "disco", "soul", "r&b", "motown", "jazz", "reggae", "blues"],
+        "keywords": ["groovy", "funky", "rhythm", "groove", "soulful", "boogie", "jam", "motown"],
+        "genres": ["funk", "disco", "soul", "motown", "r&b", "neo-soul", "afrobeat", "reggae", "dub", "acid jazz"],
     },
     "Upbeat": {
         "display": "🕺 Upbeat",
-        "keywords": ["upbeat", "happy", "joyful", "bright", "sunny", "feel-good", "feel good"],
-        "genres": ["pop", "indie pop", "synthpop", "classic rock", "ska", "dance-pop"],
+        "keywords": ["upbeat", "happy", "joyful", "bright", "sunny", "feel-good", "feel good", "cheerful"],
+        "genres": ["synthpop", "dance-pop", "ska", "indie pop", "power pop", "sunshine pop", "bubblegum"],
     },
     "Acoustic": {
         "display": "🎸 Acoustic",
-        "keywords": ["acoustic", "unplugged", "singer-songwriter", "folk", "organic"],
-        "genres": ["acoustic", "folk", "indie folk", "country", "bluegrass", "singer-songwriter"],
+        "keywords": ["acoustic", "unplugged", "singer-songwriter", "folk", "organic", "stripped"],
+        "genres": ["acoustic", "folk", "indie folk", "bluegrass", "singer-songwriter", "americana"],
     },
     "Electronic": {
         "display": "🎧 Electronic",
-        "keywords": ["electronic", "synth", "techno", "electro", "beat"],
-        "genres": ["electronic", "electropop", "synthwave", "house", "trance", "techno", "ambient"],
+        "keywords": ["electronic", "synth", "techno", "electro", "beat", "digital", "edm"],
+        "genres": ["electronic", "electropop", "synthwave", "synth-pop", "house", "trance", "techno", "electronica", "idm"],
     },
     "Melancholic": {
         "display": "🌙 Melancholic",
-        "keywords": ["melancholic", "sad", "bittersweet", "emotional", "somber", "brooding"],
-        "genres": ["indie rock", "slowcore", "post-rock", "blues", "ballad", "alt-rock"],
+        "keywords": ["melancholic", "sad", "bittersweet", "emotional", "somber", "brooding", "tear", "lonely"],
+        "genres": ["slowcore", "post-rock", "sadcore", "blues", "darkwave", "gothic", "shoegaze", "emo"],
     },
 }
 
 
+def _build_vibe_where_clause(meta: dict) -> tuple[str, list[str]]:
+    """Build a weighted SQL WHERE clause for a target party vibe.
+
+    Specific subgenres provide primary matching signals (+2 weight).
+    Title and artist keywords provide secondary matching signals (+1 weight).
+    A track matches if its combined score >= 2.
+    """
+    score_parts = []
+    params = []
+
+    for g in meta["genres"]:
+        score_parts.append("(CASE WHEN LOWER(alb.genre) LIKE ? THEN 2 ELSE 0 END)")
+        params.append(f"%{g}%")
+
+    for kw in meta["keywords"]:
+        score_parts.append("(CASE WHEN LOWER(t.title) LIKE ? THEN 1 ELSE 0 END)")
+        params.append(f"%{kw}%")
+        score_parts.append("(CASE WHEN LOWER(t.artist_name) LIKE ? THEN 1 ELSE 0 END)")
+        params.append(f"%{kw}%")
+
+    if not score_parts:
+        return "1=0", []
+
+    score_expr = " + ".join(score_parts)
+    where_clause = f"({score_expr}) >= 2"
+    return where_clause, params
+
+
 def get_available_vibes_db(db_path: str | None = None) -> list[dict]:
-    """Fetch distinct party vibes and genres mapped behind the scenes from SQLite."""
+    """Fetch distinct party vibes with exact matching track counts from SQLite."""
     conn = get_db_connection(db_path)
     try:
-        genre_rows = conn.execute(
-            """
-            SELECT LOWER(alb.genre) as genre_lower, COUNT(t.track_id) as count
-            FROM albums alb
-            JOIN tracks t ON alb.album_id = t.album_id
-            WHERE alb.genre IS NOT NULL AND TRIM(alb.genre) != '' AND alb.genre != 'Uncategorized'
-            GROUP BY LOWER(alb.genre)
-            """
-        ).fetchall()
-
-        genre_counts = {r["genre_lower"]: r["count"] for r in genre_rows}
         results = []
-
         for mood_key, meta in MOOD_MAPPINGS.items():
-            total_count = 0
-            for g in meta["genres"]:
-                for db_g, cnt in genre_counts.items():
-                    if g in db_g:
-                        total_count += cnt
-            if total_count == 0:
-                total_count = sum(genre_counts.values()) or 10
+            where_clause, params = _build_vibe_where_clause(meta)
+            query = f"""
+                SELECT COUNT(t.track_id) as count
+                FROM tracks t
+                JOIN albums alb ON t.album_id = alb.album_id
+                WHERE {where_clause}
+            """
+            row = conn.execute(query, params).fetchone()
+            count = row["count"] if row else 0
+
+            if count == 0:
+                count = 10
 
             results.append({
                 "vibe": mood_key,
                 "display": meta["display"],
-                "count": total_count,
+                "count": count,
                 "preset": True,
             })
-
-        for db_g, cnt in genre_counts.items():
-            g_title = db_g.title()
-            if not any(g_title.lower() in m["genres"] for m in MOOD_MAPPINGS.values()):
-                results.append({
-                    "vibe": g_title,
-                    "display": f"🎵 {g_title}",
-                    "count": cnt,
-                    "preset": False,
-                })
 
         return results
     except Exception as ex:
@@ -1455,7 +1466,7 @@ def get_available_vibes_db(db_path: str | None = None) -> list[dict]:
 
 
 def get_tracks_by_vibe_db(vibe_name: str, count: int = 10, db_path: str | None = None) -> list[dict]:
-    """Retrieve random tracks from SQLite matching a targeted mood or genre mapping."""
+    """Retrieve random tracks from SQLite matching a targeted mood via weighted scoring."""
     target_count = max(1, count)
     conn = get_db_connection(db_path)
     try:
@@ -1466,35 +1477,16 @@ def get_tracks_by_vibe_db(vibe_name: str, count: int = 10, db_path: str | None =
                 vibe_key = k
                 break
 
-        where_clauses = []
-        params = []
-
         if vibe_key:
             meta = MOOD_MAPPINGS[vibe_key]
-            for g in meta["genres"]:
-                where_clauses.append("LOWER(alb.genre) LIKE ?")
-                params.append(f"%{g}%")
-            for kw in meta["keywords"]:
-                where_clauses.append("LOWER(t.title) LIKE ?")
-                params.append(f"%{kw}%")
-                where_clauses.append("LOWER(t.artist_name) LIKE ?")
-                params.append(f"%{kw}%")
-        elif vibe_str and vibe_str.lower() != "all":
-            where_clauses.append("LOWER(alb.genre) LIKE ?")
-            params.append(f"%{vibe_str.lower()}%")
-            where_clauses.append("LOWER(t.title) LIKE ?")
-            params.append(f"%{vibe_str.lower()}%")
-            where_clauses.append("LOWER(t.artist_name) LIKE ?")
-            params.append(f"%{vibe_str.lower()}%")
-
-        if where_clauses:
+            where_clause, params = _build_vibe_where_clause(meta)
             query = f"""
                 SELECT t.track_id, t.album_id, t.server_id, t.server_track_id,
                        t.artist_name as artist, t.album_title as album, t.title,
                        t.duration, t.thumb
                 FROM tracks t
                 JOIN albums alb ON t.album_id = alb.album_id
-                WHERE {" OR ".join(where_clauses)}
+                WHERE {where_clause}
                 ORDER BY RANDOM()
                 LIMIT ?
             """
