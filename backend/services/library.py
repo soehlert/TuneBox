@@ -1364,56 +1364,56 @@ def refetch_item_artwork(item_type: str, item_id: int, db_path: str | None = Non
 MOOD_MAPPINGS = {
     "Party": {
         "display": "🎉 Party",
-        "keywords": ["party", "dance", "hangout", "jam", "fun", "celebration", "chill hang", "anthem"],
+        "moods": ["party", "lively", "fun", "celebration", "festive", "upbeat"],
         "genres": ["indie", "indie pop", "indie rock", "classic rock", "folk", "indie folk", "alternative", "pop", "dance", "disco", "funk"],
         "bpm_min": 105,
         "bpm_max": 135,
     },
     "Energetic": {
         "display": "⚡ Energetic",
-        "keywords": ["energetic", "hype", "intense", "fast", "powerful", "driving", "heavy", "furious", "banger"],
+        "moods": ["energetic", "intense", "driving", "powerful", "aggressive", "hypnotic", "rowdy"],
         "genres": ["hard rock", "heavy metal", "punk", "thrash", "skate punk", "garage rock", "edm", "techno", "drum and bass", "dubstep", "electro"],
         "bpm_min": 125,
         "bpm_max": 200,
     },
     "Chill": {
         "display": "☕ Chill",
-        "keywords": ["chill", "relax", "mellow", "calm", "smooth", "soft", "peaceful", "lo-fi", "lofi", "lounge", "study", "quiet"],
+        "moods": ["chill", "relax", "mellow", "calm", "smooth", "peaceful", "dreamy", "ambient", "quiet"],
         "genres": ["ambient", "chillout", "lo-fi", "lofi", "downtempo", "trip-hop", "smooth jazz", "bossa nova", "lounge", "slowcore", "americana", "acoustic", "soft rock", "easy listening", "reggae"],
         "bpm_min": 50,
         "bpm_max": 105,
     },
     "Groovy": {
         "display": "🎷 Groovy",
-        "keywords": ["groovy", "funky", "rhythm", "groove", "soulful", "boogie", "jam", "motown"],
+        "moods": ["groovy", "funky", "rhythmic", "soulful", "boogie", "smooth", "sensual"],
         "genres": ["funk", "disco", "soul", "motown", "r&b", "neo-soul", "afrobeat", "reggae", "dub", "blues", "jazz", "groove"],
         "bpm_min": 90,
         "bpm_max": 120,
     },
     "Upbeat": {
         "display": "🕺 Upbeat",
-        "keywords": ["upbeat", "happy", "joyful", "bright", "sunny", "feel-good", "feel good", "cheerful"],
+        "moods": ["upbeat", "happy", "joyful", "cheerful", "bright", "sunny", "feel-good", "playful"],
         "genres": ["synthpop", "dance-pop", "ska", "indie pop", "power pop", "sunshine pop", "bubblegum", "new wave", "pop"],
         "bpm_min": 105,
         "bpm_max": 135,
     },
     "Acoustic": {
         "display": "🎸 Acoustic",
-        "keywords": ["acoustic", "unplugged", "singer-songwriter", "folk", "organic", "stripped"],
+        "moods": ["acoustic", "unplugged", "intimate", "organic", "warm", "folk"],
         "genres": ["acoustic", "folk", "indie folk", "bluegrass", "singer-songwriter", "americana", "country"],
         "bpm_min": 50,
         "bpm_max": 115,
     },
     "Electronic": {
         "display": "🎧 Electronic",
-        "keywords": ["electronic", "synth", "techno", "electro", "beat", "digital", "edm"],
+        "moods": ["electronic", "synth", "hypnotic", "futuristic", "atmospheric", "club"],
         "genres": ["electronic", "electropop", "synthwave", "synth-pop", "house", "trance", "techno", "electronica", "idm", "ambient", "edm"],
         "bpm_min": 115,
         "bpm_max": 145,
     },
     "Melancholic": {
         "display": "🌙 Melancholic",
-        "keywords": ["melancholic", "sad", "bittersweet", "emotional", "somber", "brooding", "tear", "lonely"],
+        "moods": ["melancholic", "sad", "bittersweet", "somber", "brooding", "gloomy", "mournful", "emotional"],
         "genres": ["slowcore", "post-rock", "sadcore", "blues", "darkwave", "gothic", "shoegaze", "emo", "ballad", "alt-rock"],
         "bpm_min": 40,
         "bpm_max": 100,
@@ -1424,24 +1424,26 @@ MOOD_MAPPINGS = {
 def _build_vibe_where_clause(meta: dict) -> tuple[str, list[str]]:
     """Build a weighted SQL WHERE clause matching a target party vibe.
 
-    Genre matches add +2 weight.
-    Keyword matches add +1 weight.
-    BPM falling in target tempo window adds +1 bonus weight.
+    1. Mood tag match (Highest weight: +3)
+    2. Genre match (Medium weight: +2)
+    3. BPM match (Lower weight: +1)
+
     A track matches if its combined score >= 2.
     """
     score_parts = []
     params = []
 
-    for g in meta["genres"]:
+    # 1. Moods (+3 weight)
+    for m in meta.get("moods", []):
+        score_parts.append("(CASE WHEN LOWER(alb.genre) LIKE ? THEN 3 ELSE 0 END)")
+        params.append(f"%{m}%")
+
+    # 2. Genres (+2 weight)
+    for g in meta.get("genres", []):
         score_parts.append("(CASE WHEN LOWER(alb.genre) LIKE ? THEN 2 ELSE 0 END)")
         params.append(f"%{g}%")
 
-    for kw in meta["keywords"]:
-        score_parts.append("(CASE WHEN LOWER(t.title) LIKE ? THEN 1 ELSE 0 END)")
-        params.append(f"%{kw}%")
-        score_parts.append("(CASE WHEN LOWER(t.artist_name) LIKE ? THEN 1 ELSE 0 END)")
-        params.append(f"%{kw}%")
-
+    # 3. BPM (+1 bonus weight)
     bpm_min = meta.get("bpm_min")
     bpm_max = meta.get("bpm_max")
     if bpm_min is not None and bpm_max is not None:
