@@ -54,14 +54,42 @@ def test_seed_queue_from_vibe(mock_redis):
     assert queue[0]["is_fallback"] is True
 
 
-def test_vibes_endpoint_unauthorized():
-    """Verify POST /api/music/vibe/seed requires admin token."""
+def test_vibe_settings_endpoint(mock_redis):
+    """Verify GET and POST /api/music/vibe/settings."""
+    get_res = client.get("/api/music/vibe/settings")
+    assert get_res.status_code == 200
+    assert "guest_vibe_changing_enabled" in get_res.json()
+
+    post_unauth = client.post("/api/music/vibe/settings", json={"enabled": False})
+    assert post_unauth.status_code == 401
+
+    post_auth = client.post(
+        "/api/music/vibe/settings",
+        json={"enabled": False},
+        headers={"x-admin-token": settings.admin_token},
+    )
+    assert post_auth.status_code == 200
+    assert post_auth.json()["guest_vibe_changing_enabled"] is False
+
+
+def test_vibes_endpoint_disabled_guest(mock_redis):
+    """Verify POST /api/music/vibe/seed returns 403 for non-admins when guest changing is disabled."""
+    client.post(
+        "/api/music/vibe/settings",
+        json={"enabled": False},
+        headers={"x-admin-token": settings.admin_token},
+    )
     response = client.post("/api/music/vibe/seed?vibe=Party&count=5")
-    assert response.status_code == 401
+    assert response.status_code == 403
 
 
-def test_vibes_endpoint_success(mocker):
+def test_vibes_endpoint_success(mock_redis, mocker):
     """Verify POST /api/music/vibe/seed succeeds with valid admin token."""
+    client.post(
+        "/api/music/vibe/settings",
+        json={"enabled": True},
+        headers={"x-admin-token": settings.admin_token},
+    )
     mocker.patch("backend.routers.music.send_queue")
     mocker.patch("backend.routers.music.send_current_playing")
 

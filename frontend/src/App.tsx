@@ -466,6 +466,34 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
       .catch(() => {});
   }, []);
 
+  const [guestVibeChangingEnabled, setGuestVibeChangingEnabled] = useState<boolean>(true);
+
+  useEffect(() => {
+    axios
+      .get(getApiUrl("/api/music/vibe/settings"))
+      .then((res) => {
+        if (typeof res.data.guest_vibe_changing_enabled === "boolean") {
+          setGuestVibeChangingEnabled(res.data.guest_vibe_changing_enabled);
+        }
+      })
+      .catch((err) => console.error("Failed to load guest vibe settings:", err));
+  }, []);
+
+  const handleToggleGuestVibeChanging = async (enabled: boolean) => {
+    try {
+      const res = await axios.post(
+        getApiUrl("/api/music/vibe/settings"),
+        { enabled },
+        { headers: { "x-admin-token": adminToken } }
+      );
+      setGuestVibeChangingEnabled(res.data.guest_vibe_changing_enabled ?? enabled);
+      setMsg(`✓ ${enabled ? "Guest vibe changing enabled." : "Guest vibe changing disabled."}`);
+    } catch (err) {
+      console.error("Failed to toggle guest vibe changing:", err);
+      setMsg("✗ Failed to update guest vibe permissions.");
+    }
+  };
+
   const handleSeedJukebox = async () => {
     if (!selectedPlaylistId) return;
     setSeeding(true);
@@ -1157,6 +1185,36 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
                   <span style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "11px", display: "block", marginTop: "4px" }}>
                     Generates a dynamic queue of tracks matching the selected party vibe.
                   </span>
+                </div>
+
+                {/* Guest Vibe Changing Permission toggle */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(255,255,255,0.03)", padding: "12px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.05)" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "4px", paddingRight: "16px" }}>
+                    <span style={{ color: "#fff", fontSize: "14px", fontWeight: "bold", display: "flex", alignItems: "center", gap: "6px" }}>
+                      ✨ Allow Guests to Change Room Vibe
+                    </span>
+                    <span style={{ color: "rgba(255, 255, 255, 0.5)", fontSize: "11px", lineHeight: "1.4" }}>
+                      When enabled, guests can click Room Party Vibe buttons to adjust the room mood.
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleToggleGuestVibeChanging(!guestVibeChangingEnabled)}
+                    style={{
+                      padding: "6px 14px",
+                      borderRadius: "6px",
+                      border: "none",
+                      fontWeight: "bold",
+                      fontSize: "12px",
+                      cursor: "pointer",
+                      backgroundColor: guestVibeChangingEnabled ? "#2ecc71" : "rgba(255,255,255,0.1)",
+                      color: guestVibeChangingEnabled ? "#000" : "#aaa",
+                      transition: "all 0.2s ease",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {guestVibeChangingEnabled ? "Enabled" : "Disabled"}
+                  </button>
                 </div>
 
                 {/* Smart Autoplay toggle */}

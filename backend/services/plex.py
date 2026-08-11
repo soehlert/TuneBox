@@ -29,6 +29,7 @@ from backend.services.redis import (
     get_playback_history_ids,
     get_redis_cache_client,
     add_to_queue_redis,
+    clear_redis_queue,
     get_artist_play_counts,
     get_album_play_counts,
 )
@@ -2661,6 +2662,9 @@ def seed_queue_from_playlist(playlist_id: int, count: int = 10):
 def seed_queue_from_vibe(vibe_name: str, count: int = 10):
     """Import and add random tracks matching a target party vibe/genre to the Redis queue."""
     target_count = max(1, count)
+
+    # Clear upcoming fallback tracks so the new room vibe takes effect immediately on next track
+    clear_redis_queue(force_all=False, fallback_only=True)
 
     if settings.testing:
         from backend.services.mock_data import MOCK_TRACKS

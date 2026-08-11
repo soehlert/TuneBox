@@ -53,6 +53,8 @@ from backend.services.redis import (
     reorder_redis_queue,
     is_autoplay_enabled,
     set_autoplay_enabled,
+    is_guest_vibe_changing_enabled,
+    set_guest_vibe_changing_enabled,
     get_redis_cache_client,
 )
 from backend.services.library import (
@@ -876,6 +878,25 @@ async def seed_playlist(
         ) from e
 
 
+class GuestVibeSettingsRequest(BaseModel):
+    enabled: bool
+
+
+@router.get("/vibe/settings")
+def get_vibe_settings():
+    """Get whether guests are allowed to change room party vibe."""
+    return {"guest_vibe_changing_enabled": is_guest_vibe_changing_enabled()}
+
+
+@router.post("/vibe/settings")
+def set_vibe_settings(req: GuestVibeSettingsRequest, x_admin_token: str | None = Header(None)):
+    """Set whether guests are allowed to change room party vibe (restricted to admin)."""
+    if not settings.admin_token or x_admin_token != settings.admin_token:
+        raise HTTPException(status_code=401, detail="Unauthorized: Invalid admin token")
+    set_guest_vibe_changing_enabled(req.enabled)
+    return {"message": "Updated guest vibe changing permissions.", "guest_vibe_changing_enabled": req.enabled}
+
+
 @router.get("/vibes")
 def get_vibes():
     """Fetch distinct party vibes and genres with track counts from SQLite."""
@@ -894,9 +915,10 @@ async def seed_vibe(
     count: int = 10,
     x_admin_token: str | None = Header(None),
 ):
-    """Import and add random tracks matching a party vibe/genre to the queue (restricted to admin)."""
-    if not settings.admin_token or x_admin_token != settings.admin_token:
-        raise HTTPException(status_code=401, detail="Unauthorized: Invalid admin token")
+    """Import and add random tracks matching a party vibe/genre to the queue."""
+    is_admin = bool(settings.admin_token and x_admin_token == settings.admin_token)
+    if not is_admin and not is_guest_vibe_changing_enabled():
+        raise HTTPException(status_code=403, detail="Guest vibe changing is currently disabled by the host.")
     try:
         result = seed_queue_from_vibe(vibe_name=vibe, count=count)
         # Notify WebSocket clients immediately of queue and now playing updates

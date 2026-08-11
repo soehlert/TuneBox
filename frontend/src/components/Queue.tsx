@@ -283,6 +283,19 @@ const QueueComponent = () => {
     { vibe: "Melancholic", display: "🌙 Melancholic", count: 10 },
   ]);
 
+  const [guestVibeChangingEnabled, setGuestVibeChangingEnabled] = useState<boolean>(true);
+
+  useEffect(() => {
+    fetch(`${apiBase}/api/music/vibe/settings`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (typeof data.guest_vibe_changing_enabled === "boolean") {
+          setGuestVibeChangingEnabled(data.guest_vibe_changing_enabled);
+        }
+      })
+      .catch(() => {});
+  }, [apiBase]);
+
   useEffect(() => {
     fetch(`${apiBase}/api/music/vibes`)
       .then((res) => res.json())
@@ -315,15 +328,16 @@ const QueueComponent = () => {
 
   return (
     <Box className="queue-wrapper">
-      <Box 
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          gap: "8px",
-          padding: "12px 12px 8px 12px",
-          borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
-        }}
-      >
+      {(guestVibeChangingEnabled || Boolean(adminToken)) && (
+        <Box 
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "8px",
+            padding: "12px 12px 8px 12px",
+            borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+          }}
+        >
         <Box style={{ display: "flex", alignItems: "center" }}>
           <span style={{ fontSize: "11px", fontWeight: 700, color: "rgba(255, 255, 255, 0.7)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
             Room Party Vibe
@@ -362,6 +376,7 @@ const QueueComponent = () => {
           ))}
         </Box>
       </Box>
+      )}
 
       <Box className="queue-tabs-container">
         <button

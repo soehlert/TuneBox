@@ -188,11 +188,12 @@ def get_redis_queue():
     return queue_items
 
 
-def clear_redis_queue(force_all: bool = False):
+def clear_redis_queue(force_all: bool = False, fallback_only: bool = False):
     """Clear the Redis playback queue, saving a before_clear snapshot of user tracks first.
 
     If force_all is True, delete the entire queue including index 0.
-    If force_all is False and a track is active, preserve index 0.
+    If fallback_only is True, remove upcoming fallback tracks (is_fallback=True) while preserving index 0 and guest requested tracks.
+    If force_all is False and fallback_only is False, preserve index 0.
 
     Returns:
         A cleared redis queue message.
@@ -201,12 +202,29 @@ def clear_redis_queue(force_all: bool = False):
     from backend.services.plex import track_time_tracker, clear_cache  # noqa: PLC0415
 
     # Perform queue clear
-    if force_all or (not track_time_tracker.is_playing and track_time_tracker.state != "paused"):
+    if force_all or (not track_time_tracker.is_playing and track_time_tracker.state != "paused" and not fallback_only):
         client.delete("playback_queue")
         if force_all:
             clear_cache("now_playing")
             track_time_tracker.stop()
         logger.info("The Redis playback queue has been completely cleared.")
+    elif fallback_only:
+        queue = client.lrange("playback_queue", 0, -1)
+        if queue:
+            items = [json.loads(item_str) for item_str in queue]
+            kept_items = []
+            for idx, item in enumerate(items):
+                if idx == 0:
+                    kept_items.append(queue[0])
+                elif not item.get("is_fallback", False):
+                    kept_items.append(queue[idx])
+
+            client.delete("playback_queue")
+            for raw_item in kept_items:
+                client.rpush("playback_queue", raw_item)
+            logger.info("Cleared upcoming fallback tracks, preserving active track and guest requests.")
+        else:
+            client.delete("playback_queue")
     else:
         queue = client.lrange("playback_queue", 0, -1)
         if queue:
@@ -219,6 +237,31 @@ def clear_redis_queue(force_all: bool = False):
             logger.info("The Redis playback queue was empty and has been cleared.")
 
     return {"message": "The queue has been cleared."}
+
+
+_guest_vibe_changing_memory_state: bool = True
+
+
+def is_guest_vibe_changing_enabled() -> bool:
+    """Check if guests are allowed to change the room party vibe."""
+    global _guest_vibe_changing_memory_state
+    try:
+        val = get_redis_cache_client().get("guest_vibe_changing_enabled")
+        if val is None or not isinstance(val, (str, bytes)):
+            return _guest_vibe_changing_memory_state
+        return bool(json.loads(val))
+    except Exception:
+        return _guest_vibe_changing_memory_state
+
+
+def set_guest_vibe_changing_enabled(enabled: bool):
+    """Set whether guests are allowed to change the room party vibe."""
+    global _guest_vibe_changing_memory_state
+    _guest_vibe_changing_memory_state = bool(enabled)
+    try:
+        get_redis_cache_client().set("guest_vibe_changing_enabled", json.dumps(bool(enabled)))
+    except Exception:
+        pass
 
 
 def reorder_redis_queue(from_index: int, to_index: int):
