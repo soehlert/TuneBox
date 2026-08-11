@@ -667,29 +667,48 @@ def get_albums_by_genre_db(genre_name: str, db_path: str | None = None) -> list[
     finally:
         conn.close()
 def get_all_decades_db(db_path: str | None = None) -> list[dict]:
-    """Fetch decade breakdown (e.g. 1960s, 1970s...) with album counts from enabled servers in SQLite."""
+    """Fetch decade breakdown (e.g. 1960s, 1970s...) with album counts and top album artwork ID from enabled servers in SQLite."""
     conn = get_db_connection(db_path)
     try:
         cursor = conn.execute(
             """
+            WITH ranked_albums AS (
+                SELECT 
+                    CASE 
+                        WHEN alb.year IS NULL OR alb.year < 1920 OR alb.year > 2030 THEN 0
+                        ELSE (alb.year / 10) * 10 
+                    END as year_start,
+                    CASE 
+                        WHEN alb.year IS NULL OR alb.year < 1920 OR alb.year > 2030 THEN 0
+                        ELSE ((alb.year / 10) * 10) + 9 
+                    END as year_end,
+                    CASE 
+                        WHEN alb.year IS NULL OR alb.year < 1920 OR alb.year > 2030 THEN 'Unknown Era'
+                        ELSE CAST((alb.year / 10) * 10 AS TEXT) || 's'
+                    END as decade,
+                    alb.album_id,
+                    alb.play_count,
+                    ROW_NUMBER() OVER (
+                        PARTITION BY (
+                            CASE 
+                                WHEN alb.year IS NULL OR alb.year < 1920 OR alb.year > 2030 THEN 0
+                                ELSE (alb.year / 10) * 10 
+                            END
+                        )
+                        ORDER BY (CASE WHEN alb.thumb IS NOT NULL AND alb.thumb != '' THEN 1 ELSE 0 END) DESC, alb.play_count DESC, alb.album_id ASC
+                    ) as rn
+                FROM albums alb
+                JOIN album_sources src ON alb.album_id = src.album_id
+                JOIN servers srv ON src.server_id = srv.server_id
+                WHERE srv.enabled = 1 AND alb.title != '' AND alb.title IS NOT NULL
+            )
             SELECT 
-                CASE 
-                    WHEN alb.year IS NULL OR alb.year < 1920 OR alb.year > 2030 THEN 0
-                    ELSE (alb.year / 10) * 10 
-                END as year_start,
-                CASE 
-                    WHEN alb.year IS NULL OR alb.year < 1920 OR alb.year > 2030 THEN 0
-                    ELSE ((alb.year / 10) * 10) + 9 
-                END as year_end,
-                CASE 
-                    WHEN alb.year IS NULL OR alb.year < 1920 OR alb.year > 2030 THEN 'Unknown Era'
-                    ELSE CAST((alb.year / 10) * 10 AS TEXT) || 's'
-                END as decade,
-                COUNT(DISTINCT alb.album_id) as album_count
-            FROM albums alb
-            JOIN album_sources src ON alb.album_id = src.album_id
-            JOIN servers srv ON src.server_id = srv.server_id
-            WHERE srv.enabled = 1 AND alb.title != '' AND alb.title IS NOT NULL
+                year_start,
+                year_end,
+                decade,
+                COUNT(DISTINCT album_id) as album_count,
+                MAX(CASE WHEN rn = 1 THEN album_id END) as top_album_id
+            FROM ranked_albums
             GROUP BY year_start, year_end, decade
             ORDER BY year_start ASC
             """

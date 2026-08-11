@@ -11,7 +11,13 @@
 - **Global Imports Only**: NEVER import anything inside of a function or method. All imports MUST be placed globally at the top of the file. If circular import issues arise, alert the user immediately so we refactor module dependencies cleanly rather than adding local inline imports.
 - **No Backward Compatibility / Legacy Debt**: NEVER keep fallback code or legacy adapters to deal with old ways of doing things. This is an active local development project — make clean, direct, breaking/destructive schema & code updates as needed, and notify the user whenever destructive updates are performed.
 - **Browser Cache / Hard Reload**: `Cmd + Shift + R` does not reliably bypass cached JS/CSS bundles. Open DevTools with "Disable Cache" enabled or use private/incognito window when verifying frontend asset changes.
-- **Testing Scope**: Do NOT run backend tests (`uv run pytest`) when ONLY updating frontend JavaScript, TypeScript, or CSS files.
+- **Testing Principles**:
+  - Do NOT test vendor or third-party code — test only our own application code.
+  - Do NOT test trivial or obvious code (e.g. `2+2=4`).
+  - Test both the happy path and the broken/error path.
+  - Do NOT make network calls in tests; use a mock DB and Redis cache with `fakeredis` to get the truest representation of the real application.
+  - Write meaningful tests — if bad code could easily pass the test, design a more rigorous assertion.
+  - Ignore guarding against external infrastructure failures (hardware failure, network latency, etc.); focus strictly on our own application logic.
 
 
 

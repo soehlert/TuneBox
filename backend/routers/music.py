@@ -38,6 +38,7 @@ from backend.services.plex import (
     seed_queue_from_playlist,
     track_time_tracker,
     rate_track_in_plex,
+    prewarm_category_art,
     _failed_connection_cache,
 )
 from backend.services.redis import (
@@ -465,10 +466,15 @@ def get_recently_added_endpoint(limit: int = 50):
 
 # Fetch music genres with album counts
 @router.get("/genres")
-def get_genres_endpoint():
+def get_genres_endpoint(background_tasks: BackgroundTasks):
     """Fetch all music genres with album counts from SQLite."""
     try:
-        return get_all_genres_db()
+        if settings.testing:
+            return fetch_all_genres()
+        res = get_all_genres_db()
+        top_ids = [g.get("top_album_id") for g in res if g.get("top_album_id")]
+        background_tasks.add_task(prewarm_category_art, top_ids)
+        return res
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching genres: {e}") from e
 
@@ -485,12 +491,15 @@ def get_albums_by_genre_endpoint(genre_name: str):
 
 # Fetch decade breakdown with album counts
 @router.get("/decades")
-def get_decades_endpoint():
+def get_decades_endpoint(background_tasks: BackgroundTasks):
     """Fetch decade breakdown with album counts from enabled servers in SQLite."""
     try:
         if settings.testing:
             return fetch_all_decades()
-        return get_all_decades_db()
+        res = get_all_decades_db()
+        top_ids = [d.get("top_album_id") for d in res if d.get("top_album_id")]
+        background_tasks.add_task(prewarm_category_art, top_ids)
+        return res
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching decades: {e}") from e
 

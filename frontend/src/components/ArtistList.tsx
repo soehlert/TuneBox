@@ -77,7 +77,9 @@ function ArtistList({
       if (sortBy === "plays") {
         const playsA = (a as any).play_count || 0;
         const playsB = (b as any).play_count || 0;
-        if (playsB !== playsA) return playsB - playsA;
+        if (playsB !== playsA) {
+          return sortOrder === "desc" ? playsB - playsA : playsA - playsB;
+        }
         return keyA.localeCompare(keyB);
       }
       const cmp = keyA.localeCompare(keyB);
@@ -272,11 +274,16 @@ function ArtistList({
             <button
               className={`sort-pill-btn ${sortBy === "plays" ? "active" : ""}`}
               onClick={() => {
-                setSortBy((prev) => (prev === "plays" ? "alphabetical" : "plays"));
+                if (sortBy === "plays") {
+                  setSortOrder((prev) => (prev === "desc" ? "asc" : "desc"));
+                } else {
+                  setSortBy("plays");
+                  setSortOrder("desc");
+                }
               }}
             >
               <span className="material-symbols-outlined" style={{ fontSize: "15px" }}>local_fire_department</span>
-              <span>Most Played</span>
+              <span>{sortBy === "plays" ? (sortOrder === "desc" ? "Most Played" : "Least Played") : "Most Played"}</span>
             </button>
           </div>
         </div>

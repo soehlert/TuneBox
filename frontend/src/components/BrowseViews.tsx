@@ -208,6 +208,7 @@ interface Decade {
   year_start: number;
   year_end: number;
   album_count: number;
+  top_album_id?: number | null;
 }
 
 export type ViewMode = "recently_added" | "artists" | "albums" | "genres" | "decades";
@@ -290,7 +291,9 @@ export const AlbumsGridView: React.FC<{
       if (sortBy === "plays") {
         const playsA = (a as any).play_count || 0;
         const playsB = (b as any).play_count || 0;
-        if (playsB !== playsA) return playsB - playsA;
+        if (playsB !== playsA) {
+          return sortOrder === "desc" ? playsB - playsA : playsA - playsB;
+        }
         return keyA.localeCompare(keyB);
       }
       const cmp = keyA.localeCompare(keyB);
@@ -449,11 +452,16 @@ export const AlbumsGridView: React.FC<{
           <button
             className={`sort-pill-btn ${sortBy === "plays" ? "active" : ""}`}
             onClick={() => {
-              setSortBy((prev) => (prev === "plays" ? "alphabetical" : "plays"));
+              if (sortBy === "plays") {
+                setSortOrder((prev) => (prev === "desc" ? "asc" : "desc"));
+              } else {
+                setSortBy("plays");
+                setSortOrder("desc");
+              }
             }}
           >
             <span className="material-symbols-outlined" style={{ fontSize: "15px" }}>local_fire_department</span>
-            <span>Most Played</span>
+            <span>{sortBy === "plays" ? (sortOrder === "desc" ? "Most Played" : "Least Played") : "Most Played"}</span>
           </button>
         </div>
       </div>
@@ -602,36 +610,61 @@ export const DecadesGridView: React.FC<{ apiBase: string }> = ({ apiBase }) => {
   }
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "20px" }}>
-      {decades.map((d) => (
-        <Card
-          key={d.decade}
-          onClick={() => handleSelectDecade(d)}
-          style={{
-            background: "linear-gradient(135deg, rgba(0,119,182,0.15) 0%, rgba(191,9,94,0.1) 100%)",
-            border: "1px solid rgba(255, 255, 255, 0.08)",
-            borderRadius: "20px",
-            padding: "24px",
-            cursor: "pointer",
-            display: "flex",
-            flexDirection: "column",
-            gap: "16px",
-            transition: "transform 0.2s ease, border-color 0.2s ease",
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.borderColor = "#0077b6")}
-          onMouseLeave={(e) => (e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.08)")}
-        >
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span className="material-symbols-outlined" style={{ fontSize: "32px", color: "#0077b6" }}>calendar_clock</span>
-            <span style={{ background: "rgba(0, 119, 182, 0.2)", color: "#38b6ff", fontSize: "12px", fontWeight: 800, padding: "4px 10px", borderRadius: "12px" }}>
-              {d.album_count} Albums
-            </span>
-          </div>
-          <Typography variant="h5" style={{ color: "#fff", fontWeight: 800 }}>
-            {d.decade}
-          </Typography>
-        </Card>
-      ))}
+    <div style={{ width: "100%" }}>
+      <div className="view-sort-bar">
+        <span className="view-count-badge">
+          {decades.length} Decades
+        </span>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "20px" }}>
+        {decades.map((d) => (
+          <Card
+            key={d.decade}
+            onClick={() => handleSelectDecade(d)}
+            style={{
+              background: "linear-gradient(135deg, rgba(0,119,182,0.15) 0%, rgba(191,9,94,0.1) 100%)",
+              border: "1px solid rgba(255, 255, 255, 0.08)",
+              borderRadius: "20px",
+              padding: "16px",
+              cursor: "pointer",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "space-between",
+              gap: "12px",
+              transition: "transform 0.2s ease, border-color 0.2s ease",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.borderColor = "#0077b6")}
+            onMouseLeave={(e) => (e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.08)")}
+          >
+            {d.top_album_id ? (
+              <div style={{ width: "100%", height: "140px", borderRadius: "14px", overflow: "hidden", position: "relative" }}>
+                <FallbackImage
+                  src={`${apiBase}/api/music/album-art/${d.top_album_id}`}
+                  alt={d.decade}
+                  type="album"
+                  loading="lazy"
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+                <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, transparent 40%, rgba(0, 0, 0, 0.8) 100%)" }} />
+              </div>
+            ) : (
+              <div style={{ width: "100%", height: "140px", borderRadius: "14px", background: "rgba(255, 255, 255, 0.05)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <span className="material-symbols-outlined" style={{ fontSize: "48px", color: "#0077b6" }}>calendar_clock</span>
+              </div>
+            )}
+
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "4px" }}>
+              <Typography variant="h6" style={{ color: "#fff", fontWeight: 800, fontSize: "16px" }}>
+                {d.decade}
+              </Typography>
+              <span style={{ background: "rgba(0, 119, 182, 0.2)", color: "#38b6ff", fontSize: "12px", fontWeight: 800, padding: "4px 10px", borderRadius: "12px", whiteSpace: "nowrap" }}>
+                {d.album_count} {d.album_count === 1 ? "Album" : "Albums"}
+              </span>
+            </div>
+          </Card>
+        ))}
+      </div>
     </div>
   );
 };

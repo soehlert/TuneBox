@@ -160,7 +160,7 @@ def test_fetch_art_track_fallback(mock_get_target_conn):
     mock_plex._token = "mock-token"
     mock_get_target_conn.return_value = mock_plex
 
-    with patch("requests.get") as mock_req_get:
+    with patch("backend.services.plex._ART_HTTP_SESSION.get") as mock_req_get:
         mock_resp = MagicMock()
         mock_resp.ok = True
         mock_req_get.return_value = mock_resp

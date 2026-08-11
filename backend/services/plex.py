@@ -57,6 +57,11 @@ logger = logging.getLogger(__name__)
 
 _SERVER_CREDENTIALS_CACHE: dict[str, tuple[str, str]] = {}
 
+_ART_HTTP_SESSION = requests.Session()
+_adapter = requests.adapters.HTTPAdapter(pool_connections=25, pool_maxsize=50)
+_ART_HTTP_SESSION.mount("http://", _adapter)
+_ART_HTTP_SESSION.mount("https://", _adapter)
+
 
 track_time_tracker = TrackTimeTracker()
 # Declare the global variable to manage playback state
@@ -1741,9 +1746,10 @@ def fetch_albums_by_genre(genre_name: str) -> list[dict]:
 
 
 def fetch_all_decades() -> list[dict]:
-    """Fetch decade breakdown (e.g. 1960s, 1970s, 1980s...) with album counts."""
+    """Fetch decade breakdown (e.g. 1960s, 1970s, 1980s...) with album counts and top album ID."""
     albums = fetch_all_albums()
     decade_counts = {}
+    decade_top_albums = {}
 
     for alb in albums:
         year = alb.get("year")
@@ -1759,6 +1765,8 @@ def fetch_all_decades() -> list[dict]:
             end = start + 9
             decade_key = (start, end, f"{start}s")
         decade_counts[decade_key] = decade_counts.get(decade_key, 0) + 1
+        if decade_key not in decade_top_albums and alb.get("album_id"):
+            decade_top_albums[decade_key] = alb.get("album_id")
 
     result = []
     sorted_keys = sorted(decade_counts.keys(), key=lambda k: k[0])
@@ -1768,6 +1776,7 @@ def fetch_all_decades() -> list[dict]:
             "year_start": start,
             "year_end": end,
             "album_count": decade_counts[(start, end, label)],
+            "top_album_id": decade_top_albums.get((start, end, label)),
         })
 
     return result
@@ -2120,7 +2129,7 @@ def fetch_art(item_id: int, item_type: str, server_id: str | None = None):
                     image_url = f"{server_url}{thumb_path}?X-Plex-Token={token}"
 
                 try:
-                    response = requests.get(image_url, stream=True, verify=False, timeout=8)
+                    response = _ART_HTTP_SESSION.get(image_url, stream=True, verify=False, timeout=8)
                     if response.ok:
                         return response
                 except Exception:
@@ -2133,7 +2142,7 @@ def fetch_art(item_id: int, item_type: str, server_id: str | None = None):
                     alt_token = getattr(plex, "_token", "")
                     if alt_url and alt_token and alt_url != server_url:
                         retry_url = f"{alt_url}{thumb_path}?X-Plex-Token={alt_token}"
-                        response = requests.get(retry_url, stream=True, verify=False, timeout=8)
+                        response = _ART_HTTP_SESSION.get(retry_url, stream=True, verify=False, timeout=8)
                         if response.ok:
                             return response
                 except Exception:
@@ -2259,6 +2268,15 @@ def _prewarm_art_in_background(server_id: str, artist_ids: list[int], album_ids:
             logger.debug("Art prewarming error: %s", ex)
 
     threading.Thread(target=_worker, daemon=True).start()
+
+
+def prewarm_category_art(top_album_ids: list[int]):
+    """Background helper to pre-warm category top album cover artwork into Redis cache."""
+    if not top_album_ids or settings.testing:
+        return
+    valid_ids = [aid for aid in top_album_ids if aid]
+    if valid_ids:
+        _prewarm_art_in_background("all", [], valid_ids)
 
 
 def fetch_accessible_plex_servers():
