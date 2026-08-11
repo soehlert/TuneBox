@@ -345,36 +345,10 @@ const QueueComponent = () => {
             marginTop: "-4px"
           }}
         >
-          <Box style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+          <Box style={{ display: "flex", alignItems: "center", marginBottom: "2px" }}>
             <span style={{ fontSize: "11px", fontWeight: 700, color: "rgba(255, 255, 255, 0.7)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
               Room Party Vibe
             </span>
-            <select
-              onChange={(e) => {
-                if (e.target.value) {
-                  handleSeedVibe(e.target.value);
-                  e.target.value = "";
-                }
-              }}
-              defaultValue=""
-              style={{
-                fontSize: "11px",
-                background: "rgba(255, 255, 255, 0.08)",
-                border: "1px solid rgba(255, 255, 255, 0.2)",
-                color: "#9bd0ff",
-                borderRadius: "6px",
-                padding: "2px 8px",
-                cursor: "pointer",
-                outline: "none",
-              }}
-            >
-              <option value="" disabled>Pick a Vibe/Genre...</option>
-              {availableVibes.map((item, idx) => (
-                <option key={idx} value={item.vibe} style={{ background: "#1e1e24", color: "#fff" }}>
-                  {item.display || item.vibe} ({item.count} tracks)
-                </option>
-              ))}
-            </select>
           </Box>
 
           <Box style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
@@ -383,7 +357,7 @@ const QueueComponent = () => {
                 key={idx}
                 type="button"
                 onClick={() => handleSeedVibe(item.vibe)}
-                title={`Click to seed 10 ${item.vibe} tracks into queue (${item.count} matching tracks in library)`}
+                title={`Click to seed 10 ${item.vibe} tracks into queue`}
                 style={{
                   fontSize: "11px",
                   background: "rgba(51, 117, 173, 0.2)",
