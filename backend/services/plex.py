@@ -4,6 +4,7 @@ import json
 import logging
 import random
 import re
+import threading
 import time
 from functools import lru_cache
 
@@ -147,7 +148,7 @@ def pre_warm_all_caches():
         # 1. Warm resources if plex token is configured
         if settings.plex_token:
             logger.info("Background warming Plex resources cache...")
-            from backend.routers.auth import fetch_and_cache_resources
+            from backend.routers.auth import fetch_and_cache_resources  # noqa: PLC0415
             fetch_and_cache_resources(refresh=False)
 
         # 2. Warm artists for enabled servers
@@ -919,14 +920,9 @@ async def playback_orchestrator():
                             except Exception as stop_ex:
                                 logger.debug("stop_playback exception on queue exhaust: %s", stop_ex)
 
-                            from backend.websockets import (
-                                send_current_playing,
-                                send_queue,
-                                reset_skip_votes,
-                            )  # noqa: PLC0415
-
-                            await reset_skip_votes()
-                            await send_queue()
+                            await ws.reset_skip_votes()
+                            await ws.send_queue()
+                            await ws.send_current_playing()
         except Exception:
             logger.exception("Error in playback orchestrator")
 
@@ -2232,6 +2228,23 @@ def fetch_art_bytes(item_id: int | str, item_type: str, server_id: str | None = 
             pass
 
     return res
+
+
+def _prewarm_art_in_background(server_id: str, artist_ids: list[int], album_ids: list[int]):
+    """Pre-warm artist and album thumbnails into Redis in a parallel background thread pool."""
+    def _worker():
+        try:
+            logger.info("Pre-warming %d artist and %d album thumbnails into Redis for server %s...", len(artist_ids), len(album_ids), server_id)
+            with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
+                for a_id in artist_ids:
+                    executor.submit(fetch_art_bytes, a_id, "artist", server_id)
+                for alb_id in album_ids:
+                    executor.submit(fetch_art_bytes, alb_id, "album", server_id)
+            logger.info("Artwork pre-warming complete for server %s.", server_id)
+        except Exception as ex:
+            logger.debug("Art prewarming error for server %s: %s", server_id, ex)
+
+    threading.Thread(target=_worker, daemon=True).start()
 
 
 def fetch_accessible_plex_servers():

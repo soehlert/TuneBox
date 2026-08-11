@@ -116,8 +116,8 @@ async def test_e2e_single_song_completion_and_queue_exhaustion(mock_redis, mocke
     mock_remove = mocker.patch("backend.services.plex.remove_from_redis_queue")
     mock_stop_player = mocker.patch("backend.services.plex.stop_playback")
 
-    mocker.patch("backend.websockets.send_queue", new_callable=AsyncMock)
-    mocker.patch("backend.websockets.send_current_playing", new_callable=AsyncMock)
+    mock_send_queue = mocker.patch("backend.websockets.send_queue", new_callable=AsyncMock)
+    mock_send_current = mocker.patch("backend.websockets.send_current_playing", new_callable=AsyncMock)
     mocker.patch("backend.websockets.reset_skip_votes", new_callable=AsyncMock)
     mocker.patch("backend.services.plex.clear_cache")
 
@@ -131,6 +131,8 @@ async def test_e2e_single_song_completion_and_queue_exhaustion(mock_redis, mocke
     mock_remove.assert_called_once_with("9001")
     mock_history.assert_called_once()
     mock_stop_player.assert_called_once()
+    mock_send_queue.assert_called()
+    mock_send_current.assert_called()
 
 
 @pytest.mark.asyncio
