@@ -964,24 +964,24 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
                                 background: !lib.enabled
                                   ? "rgba(255, 255, 255, 0.08)"
                                   : lib.status === "connected"
-                                  ? "rgba(46, 204, 113, 0.15)"
-                                  : lib.status === "failed"
-                                  ? "rgba(231, 76, 60, 0.15)"
-                                  : "rgba(52, 152, 219, 0.15)",
+                                    ? "rgba(46, 204, 113, 0.15)"
+                                    : lib.status === "failed"
+                                      ? "rgba(231, 76, 60, 0.15)"
+                                      : "rgba(52, 152, 219, 0.15)",
                                 border: !lib.enabled
                                   ? "1px solid rgba(255, 255, 255, 0.2)"
                                   : lib.status === "connected"
-                                  ? "1px solid rgba(46, 204, 113, 0.4)"
-                                  : lib.status === "failed"
-                                  ? "1px solid rgba(231, 76, 60, 0.4)"
-                                  : "1px solid rgba(52, 152, 219, 0.4)",
+                                    ? "1px solid rgba(46, 204, 113, 0.4)"
+                                    : lib.status === "failed"
+                                      ? "1px solid rgba(231, 76, 60, 0.4)"
+                                      : "1px solid rgba(52, 152, 219, 0.4)",
                                 color: !lib.enabled
                                   ? "#aaa"
                                   : lib.status === "connected"
-                                  ? "#2ecc71"
-                                  : lib.status === "failed"
-                                  ? "#e74c3c"
-                                  : "#3498db",
+                                    ? "#2ecc71"
+                                    : lib.status === "failed"
+                                      ? "#e74c3c"
+                                      : "#3498db",
                               }}
                               title={!lib.enabled ? "Not connected (Unchecked)" : lib.status === "failed" ? lib.error || "Connection failed" : lib.status === "connected" ? "Successfully connected to server" : "Connecting to server..."}
                             >
@@ -1072,7 +1072,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
                     </button>
                   </div>
                   <span style={{ color: "rgba(255, 255, 255, 0.4)", fontSize: "11px", display: "block", marginTop: "4px" }}>
-                    Shuffles and preseeds playlist tracks into the queue. Guest selections automatically take priority.
+                    Shuffles and preseeds playlist tracks from your primary server into the queue. Guest selections automatically take priority.
                   </span>
                 </div>
 
@@ -2090,7 +2090,7 @@ function App() {
             setFilteredArtists(sortedArtists);
           }
         })
-        .catch(() => {});
+        .catch(() => { });
     }, 2500);
 
     return () => clearInterval(interval);
