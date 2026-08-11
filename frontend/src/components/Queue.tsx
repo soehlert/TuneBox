@@ -315,6 +315,54 @@ const QueueComponent = () => {
 
   return (
     <Box className="queue-wrapper">
+      <Box 
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: "8px",
+          padding: "12px 12px 8px 12px",
+          borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+        }}
+      >
+        <Box style={{ display: "flex", alignItems: "center" }}>
+          <span style={{ fontSize: "11px", fontWeight: 700, color: "rgba(255, 255, 255, 0.7)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            Room Party Vibe
+          </span>
+        </Box>
+
+        <Box style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+          {availableVibes.slice(0, 6).map((item, idx) => (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => handleSeedVibe(item.vibe)}
+              title={`Click to seed 10 ${item.vibe} tracks into queue`}
+              style={{
+                fontSize: "11px",
+                background: "rgba(51, 117, 173, 0.2)",
+                border: "1px solid #3376ad",
+                color: "#9bd0ff",
+                padding: "3px 10px",
+                borderRadius: "12px",
+                fontWeight: 600,
+                cursor: "pointer",
+                transition: "all 0.15s ease",
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.backgroundColor = "rgba(51, 117, 173, 0.4)";
+                e.currentTarget.style.color = "#ffffff";
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.backgroundColor = "rgba(51, 117, 173, 0.2)";
+                e.currentTarget.style.color = "#9bd0ff";
+              }}
+            >
+              {item.display || item.vibe}
+            </button>
+          ))}
+        </Box>
+      </Box>
+
       <Box className="queue-tabs-container">
         <button
           className={`queue-tab-btn ${activeTab === 'queue' ? 'active' : ''}`}
@@ -334,56 +382,6 @@ const QueueComponent = () => {
           <span>History ({history.length})</span>
         </button>
       </Box>
-
-      {activeTab === 'queue' && (
-        <Box 
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: "8px",
-            padding: "0 12px 12px 12px",
-            marginTop: "-4px"
-          }}
-        >
-          <Box style={{ display: "flex", alignItems: "center", marginBottom: "2px" }}>
-            <span style={{ fontSize: "11px", fontWeight: 700, color: "rgba(255, 255, 255, 0.7)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-              Room Party Vibe
-            </span>
-          </Box>
-
-          <Box style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-            {availableVibes.slice(0, 6).map((item, idx) => (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => handleSeedVibe(item.vibe)}
-                title={`Click to seed 10 ${item.vibe} tracks into queue`}
-                style={{
-                  fontSize: "11px",
-                  background: "rgba(51, 117, 173, 0.2)",
-                  border: "1px solid #3376ad",
-                  color: "#9bd0ff",
-                  padding: "3px 10px",
-                  borderRadius: "12px",
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  transition: "all 0.15s ease",
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.backgroundColor = "rgba(51, 117, 173, 0.4)";
-                  e.currentTarget.style.color = "#ffffff";
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.backgroundColor = "rgba(51, 117, 173, 0.2)";
-                  e.currentTarget.style.color = "#9bd0ff";
-                }}
-              >
-                {item.display || item.vibe}
-              </button>
-            ))}
-          </Box>
-        </Box>
-      )}
 
       {activeTab === 'queue' ? (
         <ul className="queue-list">
