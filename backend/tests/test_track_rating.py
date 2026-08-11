@@ -108,7 +108,7 @@ def test_rate_track_in_plex_converts_half_stars_and_uses_rating_key(setup_test_d
     mock_plex.fetchItem.return_value = mock_item
 
     with patch("backend.services.plex.get_target_plex_connection", return_value=mock_plex), \
-         patch("backend.services.library.get_art_source_info", return_value=(None, "primary-server-1", "301")):
+         patch("backend.services.plex.track_id_to_rating_key", return_value=("301", "primary-server-1")):
         from backend.services.plex import rate_track_in_plex
         success = rate_track_in_plex(primary_track_id, 4.5)
 

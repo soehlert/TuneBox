@@ -43,6 +43,9 @@ from backend.services.library import (
     get_server_credentials,
     clear_art_source_cache,
     upsert_server,
+    rating_key_to_track_id,
+    track_id_to_rating_key,
+    validate_track_id,
 )
 
 HEARTBEAT_INTERVAL = 5
@@ -366,15 +369,15 @@ def get_active_player(client_name: str | None = None):
     raise PlexApiException("No active Plex players found or resolvable.")
 
 
-def get_track(item_id, server_id: str | None = None):
-    """Get track object from Plex server based on item_id ratingKey."""
-    item_id_val = int(item_id) if str(item_id).isdigit() else item_id
+def get_track(track_id: int, server_id: str | None = None):
+    """Get track object from Plex server by internal SQLite track_id."""
+    target_server_id = server_id
 
     if settings.testing:
         found_track = None
         for album_id, tracks in MOCK_TRACKS.items():
             for t in tracks:
-                if str(t["track_id"]) == str(item_id_val):
+                if t["track_id"] == track_id:
                     found_track = t
                     break
             if found_track:
@@ -392,27 +395,27 @@ def get_track(item_id, server_id: str | None = None):
             return MockTrack()
         raise HTTPException(status_code=404, detail="Track not found")
 
-    if not settings.testing and not hasattr(get_target_plex_connection, "mock_calls"):
-        try:
-            _, resolved_server_id, rating_key = get_art_source_info(item_id, "track", server_id=server_id)
-            if rating_key:
-                item_id_val = int(rating_key) if str(rating_key).isdigit() else rating_key
-            if resolved_server_id:
-                server_id = server_id or resolved_server_id
-        except Exception as resolve_ex:
-            logger.debug("Failed resolving track source info for %s: %s", item_id, resolve_ex)
+    if not hasattr(get_target_plex_connection, "mock_calls"):
+        resolved = track_id_to_rating_key(track_id)
+        if not resolved:
+            raise HTTPException(status_code=404, detail=f"Track {track_id} not found in library")
+        rk_str, srv_id = resolved
+        item_id_val = int(rk_str) if rk_str.isdigit() else rk_str
+        target_server_id = target_server_id or srv_id
+    else:
+        item_id_val = track_id
 
-    plex = get_target_plex_connection(server_id)
+    plex = get_target_plex_connection(target_server_id)
     if not plex:
         plex = get_plex_connection()
     if not plex:
         raise HTTPException(status_code=404, detail="No active Plex server available")
 
-    logger.debug("Fetching track: %s (server_id=%s)", item_id_val, server_id)
+    logger.debug("Fetching track: %s (server_id=%s)", item_id_val, target_server_id)
     try:
         track = plex.fetchItem(item_id_val)
     except Exception as ex:
-        logger.debug("fetchItem failed on server %s for item %s: %s. Trying primary server connection.", server_id, item_id_val, ex)
+        logger.debug("fetchItem failed on server %s for item %s: %s. Trying primary server connection.", target_server_id, item_id_val, ex)
         primary_plex = get_plex_connection()
         if primary_plex and primary_plex != plex:
             track = primary_plex.fetchItem(item_id_val)
@@ -422,10 +425,7 @@ def get_track(item_id, server_id: str | None = None):
     logger.debug("Fetched track: %s", getattr(track, "title", "Track"))
 
     # Set sqlite_track_id attribute for queue serialization & frontend navigation
-    setattr(track, "sqlite_track_id", item_id)
-    if hasattr(track, "parentRatingKey") and track.parentRatingKey:
-        setattr(track, "album_id", track.parentRatingKey)
-
+    setattr(track, "sqlite_track_id", track_id)
     return track
 
 
@@ -500,25 +500,49 @@ def play_song(player, song, server_token=None, server_url=None):
         return
 
     # Store track details in Redis under "now_playing" and start tracker AFTER playback command sent
+    sqlite_tid = getattr(song, "sqlite_track_id", None)
+    sqlite_aid = None
+    if not settings.testing:
+        verified_tid = validate_track_id(sqlite_tid) if sqlite_tid else None
+        if not verified_tid:
+            logger.warning(
+                "play_song: song '%s' has no valid sqlite_track_id — cannot record now_playing accurately",
+                getattr(song, "title", "unknown"),
+            )
+        else:
+            sqlite_tid = verified_tid
+            conn = get_db_connection()
+            try:
+                row = conn.execute(
+                    "SELECT album_id FROM tracks WHERE track_id = ? LIMIT 1",
+                    (sqlite_tid,),
+                ).fetchone()
+                if row:
+                    sqlite_aid = row["album_id"]
+            finally:
+                conn.close()
+
+    eff_tid = str(sqlite_tid) if sqlite_tid else str(getattr(song, "ratingKey", ""))
+    eff_aid = str(sqlite_aid or getattr(song, "album_id", None) or getattr(song, "parentRatingKey", None) or "")
     eff_server_id = getattr(song, "server_id", None) or getattr(song, "server_name", None) or settings.plex_server_name
-    eff_album_id = getattr(song, "parentRatingKey", None) or getattr(song, "album_id", None)
+
     song_data = {
-        "item_id": str(song.ratingKey),
+        "item_id": eff_tid,
         "server_id": eff_server_id,
-        "album_id": str(eff_album_id) if eff_album_id else None,
+        "album_id": eff_aid if eff_aid else None,
         "title": song.title,
-        "artist": getattr(song, "grandparentTitle", "Unknown Artist"),
-        "album": getattr(song, "parentTitle", "Unknown Album"),
+        "artist": getattr(song, "grandparentTitle", getattr(song, "artist", "Unknown Artist")),
+        "album": getattr(song, "parentTitle", getattr(song, "album", "Unknown Album")),
         "duration": milliseconds_to_seconds(song.duration) if song.duration else 0,
         "elapsed_time": 0.0,
         "updated_at": time.time(),
-        "album_art": f"/api/music/track-art/{song.ratingKey}",
+        "album_art": f"/api/music/track-art/{eff_tid}",
         "track_state": "playing",
         "server_name": getattr(song, "server_name", None),
     }
     cache_data("now_playing", song_data)
 
-    track_time_tracker.start(song.title, item_id=str(song.ratingKey))
+    track_time_tracker.start(song.title, item_id=eff_tid)
     logger.info("Song %s started playing on player: %s", song.title, player.title)
 
     ws.broadcast_queue_threadsafe()
@@ -576,21 +600,13 @@ async def play_queue_on_device():
             logger.warning("No active player found for playback.")
             return
 
+        s_id = top_item.get("server_id")
         s_url = top_item.get("server_address")
         s_token = top_item.get("server_token")
+        song_obj = await asyncio.to_thread(get_track, top_item["item_id"], s_id)
         if s_url and s_token and not settings.testing:
-            try:
-                t_plex = PlexServer(s_url, s_token, timeout=5)
-                item_id_val = int(top_item["item_id"]) if str(top_item["item_id"]).isdigit() else top_item["item_id"]
-                song_obj = await asyncio.to_thread(t_plex.fetchItem, item_id_val)
-                song_obj.server_name = top_item.get("server_name")
-                await asyncio.to_thread(play_song, player, song_obj, s_token, s_url)
-            except Exception as ex:
-                logger.warning("Failed to load multi-server track %s from %s: %s", top_item["item_id"], s_url, ex)
-                song_obj = await asyncio.to_thread(get_track, top_item["item_id"])
-                await asyncio.to_thread(play_song, player, song_obj)
+            await asyncio.to_thread(play_song, player, song_obj, s_token, s_url)
         else:
-            song_obj = await asyncio.to_thread(get_track, top_item["item_id"])
             await asyncio.to_thread(play_song, player, song_obj)
 
         from backend.websockets import send_current_playing, send_queue  # noqa: PLC0415
@@ -813,19 +829,12 @@ async def playback_orchestrator():
                             s_url = next_song.get("server_address")
                             s_token = next_song.get("server_token")
 
-                            if s_id and not settings.testing:
-                                t_plex = await asyncio.to_thread(get_target_plex_connection, s_id)
-                                item_id_val = int(next_song["item_id"]) if str(next_song["item_id"]).isdigit() else next_song["item_id"]
-                                track = await asyncio.to_thread(t_plex.fetchItem, item_id_val)
-                                track.server_name = next_song.get("server_name")
-                            else:
-                                track = await asyncio.to_thread(get_track, next_song["item_id"])
+                            track = await asyncio.to_thread(get_track, next_song["item_id"], s_id)
 
                             if s_url and s_token and not settings.testing:
                                 await asyncio.to_thread(play_song, player, track, s_token, s_url)
                             else:
                                 await asyncio.to_thread(play_song, player, track)
-
                             await ws.send_queue()
                             await ws.send_current_playing()
                         except PlexApiException as pae:
@@ -899,13 +908,7 @@ async def playback_orchestrator():
                                 s_url = next_song.get("server_address")
                                 s_token = next_song.get("server_token")
 
-                                if s_id and not settings.testing:
-                                    t_plex = await asyncio.to_thread(get_target_plex_connection, s_id)
-                                    item_id_val = int(next_song["item_id"]) if str(next_song["item_id"]).isdigit() else next_song["item_id"]
-                                    track = await asyncio.to_thread(t_plex.fetchItem, item_id_val)
-                                    track.server_name = next_song.get("server_name")
-                                else:
-                                    track = await asyncio.to_thread(get_track, next_song["item_id"])
+                                track = await asyncio.to_thread(get_track, next_song["item_id"], s_id)
 
                                 if s_url and s_token and not settings.testing:
                                     await asyncio.to_thread(play_song, player, track, s_token, s_url)
@@ -2615,9 +2618,16 @@ def seed_queue_from_playlist(playlist_id: int, count: int = 10):
         raise HTTPException(status_code=404, detail="Playlist not found")
         
     tracks = playlist.items()
-    # Store all playlist track ratingKeys in cache and SQLite as fallback pool for Autoplay
-    playlist_track_ids = [int(t.ratingKey) for t in tracks]
+    # Store all playlist track internal track_ids in cache and SQLite as fallback pool for Autoplay
+    playlist_track_ids = []
     try:
+        from backend.services.library import rating_key_to_track_id  # noqa: PLC0415
+        for t in tracks:
+            rk_str = str(t.ratingKey)
+            resolved = rating_key_to_track_id(rk_str)
+            if resolved:
+                playlist_track_ids.append(resolved)
+
         get_redis_cache_client().set("last_seeded_playlist_tracks", json.dumps(playlist_track_ids))
         from backend.db.library_db import save_preseed_playlist_tracks  # noqa: PLC0415
         save_preseed_playlist_tracks(playlist_track_ids, playlist_id=str(playlist_id))
@@ -2640,28 +2650,16 @@ def seed_queue_from_playlist(playlist_id: int, count: int = 10):
     return {"message": f"Successfully seeded {added_count} tracks from playlist '{playlist.title}'."}
 
 
-def rate_track_in_plex(track_id: int | str, rating_stars: float) -> bool:
+def rate_track_in_plex(track_id: int, rating_stars: float) -> bool:
     """Send user rating (0.0 to 5.0 stars -> converted to Plex 0-10 scale) to target Plex Media Server."""
     try:
-        from backend.services.library import get_art_source_info, get_db_connection
-        stored_thumb, server_id, rating_key = get_art_source_info(track_id, "track")
-
-        if not rating_key:
-            conn = get_db_connection()
-            try:
-                row = conn.execute("SELECT server_track_id, server_id FROM tracks WHERE track_id = ?", (track_id,)).fetchone()
-                if row:
-                    rating_key = row["server_track_id"]
-                    if not server_id:
-                        server_id = row["server_id"]
-            finally:
-                conn.close()
-
-        if not rating_key:
+        resolved = track_id_to_rating_key(track_id)
+        if not resolved:
             logger.warning("Could not resolve Plex ratingKey for track %s", track_id)
             return False
 
-        target_key = int(rating_key) if str(rating_key).isdigit() else rating_key
+        rating_key_str, server_id = resolved
+        target_key = int(rating_key_str) if rating_key_str.isdigit() else rating_key_str
         plex = get_target_plex_connection(server_id)
         if plex:
             item = plex.fetchItem(target_key)
@@ -2684,7 +2682,7 @@ def sync_album_ratings_from_plex(album_id: int | str) -> bool:
         try:
             alb_row = conn.execute(
                 """
-                SELECT alb.album_id, COALESCE(src.server_album_id, alb.album_id) as rating_key, COALESCE(src.server_id, (SELECT server_id FROM tracks WHERE album_id = alb.album_id LIMIT 1)) as server_id
+                SELECT alb.album_id, src.server_album_id as rating_key, COALESCE(src.server_id, (SELECT server_id FROM tracks WHERE album_id = alb.album_id LIMIT 1)) as server_id
                 FROM albums alb
                 LEFT JOIN album_sources src ON alb.album_id = src.album_id
                 LEFT JOIN servers srv ON src.server_id = srv.server_id
@@ -2719,14 +2717,18 @@ def sync_album_ratings_from_plex(album_id: int | str) -> bool:
         conn = get_db_connection()
         try:
             for trk in plex_tracks:
-                trk_key = str(getattr(trk, "ratingKey", ""))
+                rating_key = str(getattr(trk, "ratingKey", ""))
                 raw_user_rating = getattr(trk, "userRating", 0.0) or 0.0
                 user_stars = float(raw_user_rating) / 2.0 if raw_user_rating else 0.0
-                if trk_key:
-                    conn.execute(
-                        "UPDATE tracks SET user_rating = ? WHERE (server_track_id = ? OR track_id = ?) AND server_id = ?",
-                        (user_stars, trk_key, trk_key, server_id),
-                    )
+                if rating_key:
+                    internal_id = rating_key_to_track_id(rating_key)
+                    if internal_id:
+                        conn.execute(
+                            "UPDATE tracks SET user_rating = ? WHERE track_id = ?",
+                            (user_stars, internal_id),
+                        )
+                    else:
+                        logger.debug("sync_album_ratings: ratingKey %s not found in library, skipping", rating_key)
             conn.commit()
             return True
         finally:

@@ -275,7 +275,7 @@ def upsert_track(
             conn.close()
 
 
-def rate_track_db(track_id: int | str, rating: float, db_path: str | None = None):
+def rate_track_db(track_id: int, rating: float, db_path: str | None = None):
     """Update user_rating (0.0 - 5.0) for a track in SQLite."""
     conn = get_db_connection(db_path)
     try:
@@ -288,7 +288,7 @@ def rate_track_db(track_id: int | str, rating: float, db_path: str | None = None
         conn.close()
 
 
-def is_track_on_primary_server(track_id: int | str, db_path: str | None = None) -> bool:
+def is_track_on_primary_server(track_id: int, db_path: str | None = None) -> bool:
     """Check if a track is hosted on an enabled primary Plex server."""
     conn = get_db_connection(db_path)
     try:
@@ -320,7 +320,7 @@ def is_track_on_primary_server(track_id: int | str, db_path: str | None = None) 
         conn.close()
 
 
-def log_playback_event_db(track_id: int | str, username: str = "Admin", db_path: str | None = None):
+def log_playback_event_db(track_id: int, username: str = "Admin", db_path: str | None = None):
     """Append a playback event to the historical playback_history log in SQLite."""
     now = int(time.time())
     conn = get_db_connection(db_path)
@@ -514,8 +514,10 @@ def get_indexed_artists(sort_mode: str = "name_asc", db_path: str | None = None)
     conn = get_db_connection(db_path)
     try:
         sort_expr = "(CASE WHEN LOWER(a.name) LIKE 'the %' THEN SUBSTR(a.name, 5) ELSE a.name END)"
-        order_clause = f"a.play_count DESC, {sort_expr} COLLATE NOCASE ASC" if sort_mode == "plays_desc" else (
-            f"{sort_expr} COLLATE NOCASE DESC" if sort_mode == "name_desc" else f"{sort_expr} COLLATE NOCASE ASC"
+        order_clause = f"a.play_count ASC, {sort_expr} COLLATE NOCASE ASC" if sort_mode == "plays_asc" else (
+            f"a.play_count DESC, {sort_expr} COLLATE NOCASE ASC" if sort_mode == "plays_desc" else (
+                f"{sort_expr} COLLATE NOCASE DESC" if sort_mode == "name_desc" else f"{sort_expr} COLLATE NOCASE ASC"
+            )
         )
         query = f"""
             SELECT a.artist_id, a.name, a.guid, a.thumb, a.play_count
@@ -537,8 +539,10 @@ def get_indexed_albums(sort_mode: str = "name_asc", db_path: str | None = None) 
     conn = get_db_connection(db_path)
     try:
         sort_expr = "(CASE WHEN LOWER(alb.title) LIKE 'the %' THEN SUBSTR(alb.title, 5) ELSE alb.title END)"
-        order_clause = f"alb.play_count DESC, {sort_expr} COLLATE NOCASE ASC" if sort_mode == "plays_desc" else (
-            f"{sort_expr} COLLATE NOCASE DESC" if sort_mode == "name_desc" else f"{sort_expr} COLLATE NOCASE ASC"
+        order_clause = f"alb.play_count ASC, {sort_expr} COLLATE NOCASE ASC" if sort_mode == "plays_asc" else (
+            f"alb.play_count DESC, {sort_expr} COLLATE NOCASE ASC" if sort_mode == "plays_desc" else (
+                f"{sort_expr} COLLATE NOCASE DESC" if sort_mode == "name_desc" else f"{sort_expr} COLLATE NOCASE ASC"
+            )
         )
         query = f"""
             SELECT alb.album_id, alb.artist_id, alb.artist_name as artist, alb.title, alb.year, alb.genre, alb.thumb, alb.play_count
@@ -856,7 +860,7 @@ def get_all_art_sources(item_id: int | str, item_type: str, server_id: str | Non
         elif item_type == "album":
             cursor = conn.execute(
                 """
-                SELECT COALESCE(src.thumb, alb.thumb) as thumb, COALESCE(src.server_id, (SELECT server_id FROM tracks WHERE album_id = alb.album_id LIMIT 1)) as server_id, COALESCE(src.server_album_id, alb.album_id) as rating_key, COALESCE(srv.is_primary, 0) as is_primary
+                SELECT COALESCE(src.thumb, alb.thumb) as thumb, COALESCE(src.server_id, (SELECT server_id FROM tracks WHERE album_id = alb.album_id LIMIT 1)) as server_id, src.server_album_id as rating_key, COALESCE(srv.is_primary, 0) as is_primary
                 FROM albums alb
                 LEFT JOIN album_sources src ON alb.album_id = src.album_id
                 LEFT JOIN servers srv ON src.server_id = srv.server_id
@@ -918,6 +922,91 @@ def clear_art_source_cache():
     _ART_SOURCE_MEM_CACHE.clear()
 
 
+def rating_key_to_track_id(rating_key: str | int, db_path: str | None = None) -> int | None:
+    """Strictly convert a Plex server_track_id ratingKey to TuneBox's internal SQLite track_id integer.
+
+    Does NOT fall back to checking SQLite track_id. Fails fast (returns None) if unindexed.
+    """
+    if rating_key is None:
+        return None
+
+    rk_str = str(rating_key).strip()
+    if not rk_str:
+        return None
+
+    conn = get_db_connection(db_path)
+    try:
+        row = conn.execute(
+            """
+            SELECT t.track_id
+            FROM tracks t
+            LEFT JOIN track_sources ts ON t.track_id = ts.track_id
+            WHERE ts.server_track_id = ? OR t.server_track_id = ?
+            LIMIT 1
+            """,
+            (rk_str, rk_str),
+        ).fetchone()
+        return row["track_id"] if row else None
+    finally:
+        conn.close()
+
+
+def track_id_to_rating_key(track_id: int | str, db_path: str | None = None) -> tuple[str, str] | None:
+    """Strictly convert an internal SQLite track_id integer to external Plex (server_track_id, server_id) tuple.
+
+    Returns:
+        tuple[server_track_id: str, server_id: str] | None: The Plex ratingKey and server ID, or None if missing.
+    """
+    if track_id is None:
+        return None
+
+    conn = get_db_connection(db_path)
+    try:
+        tid_int = int(track_id) if str(track_id).isdigit() else -1
+        row = conn.execute(
+            """
+            SELECT COALESCE(ts.server_track_id, t.server_track_id) as rating_key,
+                   COALESCE(ts.server_id, t.server_id) as server_id
+            FROM tracks t
+            LEFT JOIN track_sources ts ON t.track_id = ts.track_id
+            LEFT JOIN servers srv ON COALESCE(ts.server_id, t.server_id) = srv.server_id
+            WHERE t.track_id = ? AND (srv.enabled = 1 OR srv.enabled IS NULL)
+            LIMIT 1
+            """,
+            (tid_int,),
+        ).fetchone()
+
+        if row and row["rating_key"]:
+            return str(row["rating_key"]), str(row["server_id"] or "")
+
+        return None
+    finally:
+        conn.close()
+
+
+def validate_track_id(track_id: int | str, db_path: str | None = None) -> int | None:
+    """Verify an internal SQLite track_id integer exists in the tracks table.
+
+    Does NOT fall back to checking Plex ratingKeys. Fails fast (returns None) if unindexed.
+    """
+    if track_id is None:
+        return None
+
+    val_str = str(track_id).strip()
+    if not val_str.isdigit():
+        return None
+
+    conn = get_db_connection(db_path)
+    try:
+        row = conn.execute(
+            "SELECT track_id FROM tracks WHERE track_id = ? LIMIT 1",
+            (int(val_str),),
+        ).fetchone()
+        return row["track_id"] if row else None
+    finally:
+        conn.close()
+
+
 def get_art_source_info(item_id: int | str, item_type: str, server_id: str | None = None, db_path: str | None = None) -> tuple[str | None, str | None, str | None]:
     """Resolve stored thumb URL, server_id, and Plex server ratingKey from SQLite for a given item_id or ratingKey."""
     cache_key = f"{item_type}:{item_id}:{server_id or 'all'}"
@@ -934,36 +1023,21 @@ def get_art_source_info(item_id: int | str, item_type: str, server_id: str | Non
 
 
 def get_albums_for_artist_db(artist_id: int | str, db_path: str | None = None) -> list[dict]:
-    """Fetch all albums belonging to an artist from SQLite database."""
+    """Fetch all albums belonging to an artist from SQLite database using internal artist_id."""
     conn = get_db_connection(db_path)
     try:
-        artist_name = None
-        if str(artist_id).isdigit():
-            row = conn.execute(
-                """
-                SELECT a.name FROM artists a
-                LEFT JOIN artist_sources src ON a.artist_id = src.artist_id
-                WHERE a.artist_id = ? OR src.server_artist_id = ?
-                LIMIT 1
-                """,
-                (int(artist_id), str(artist_id)),
-            ).fetchone()
-            if row:
-                artist_name = row["name"]
-
-        norm_name = _norm(artist_name) if artist_name else _norm(str(artist_id))
-
         query = """
             SELECT alb.album_id, alb.artist_id, alb.artist_name as artist, alb.title, alb.year, alb.genre, alb.thumb, alb.play_count,
                    GROUP_CONCAT(DISTINCT srv.server_id || '::' || srv.name) as sources_str
             FROM albums alb
             JOIN album_sources src ON alb.album_id = src.album_id
             JOIN servers srv ON src.server_id = srv.server_id
-            WHERE srv.enabled = 1 AND alb.title != '' AND alb.title IS NOT NULL AND (alb.artist_id = ? OR src.server_album_id = ? OR LOWER(alb.artist_name) = ? OR alb.norm_title_artist LIKE ?)
+            WHERE srv.enabled = 1 AND alb.title != '' AND alb.title IS NOT NULL
+              AND alb.artist_id = ?
             GROUP BY alb.album_id
             ORDER BY alb.year DESC, alb.title COLLATE NOCASE ASC
         """
-        cursor = conn.execute(query, (artist_id, str(artist_id), (artist_name or str(artist_id)).lower(), f"%::{norm_name}"))
+        cursor = conn.execute(query, (int(artist_id),))
         results = []
         for r in cursor.fetchall():
             item = dict(r)

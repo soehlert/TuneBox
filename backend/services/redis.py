@@ -5,6 +5,7 @@ import logging
 
 from fastapi import HTTPException, status
 
+from backend.config import settings
 from backend.services.redis_client import get_redis_cache_client, get_redis_queue_client
 from backend.utils import is_song_in_queue, is_track_object
 
@@ -47,36 +48,33 @@ def add_to_queue_redis(song, server_id=None, server_name=None, server_token=None
         except Exception:
             pass
 
+    internal_track_id = getattr(song, "sqlite_track_id", None)
+    if hasattr(internal_track_id, "_mock_name") or hasattr(internal_track_id, "return_value"):
+        internal_track_id = None
     raw_album_id = getattr(song, "album_id", None)
     if hasattr(raw_album_id, "_mock_name") or hasattr(raw_album_id, "return_value"):
         raw_album_id = None
 
-    album_id_val = raw_album_id or getattr(song, "parentRatingKey", None)
-    if hasattr(album_id_val, "_mock_name") or hasattr(album_id_val, "return_value"):
-        album_id_val = None
-
-    if not album_id_val and hasattr(song, "ratingKey") and not hasattr(getattr(song, "ratingKey"), "_mock_name"):
-        try:
-            from backend.services.library import get_db_connection  # noqa: PLC0415
-            conn = get_db_connection()
-            row = conn.execute(
-                """
-                SELECT t.album_id
-                FROM tracks t
-                LEFT JOIN track_sources ts ON t.track_id = ts.track_id
-                LEFT JOIN servers srv ON t.server_id = srv.server_id
-                WHERE (srv.enabled = 1 OR srv.enabled IS NULL)
-                  AND (t.server_track_id = ? OR ts.server_track_id = ? OR t.track_id = ?)
-                ORDER BY (CASE WHEN t.server_track_id = ? OR ts.server_track_id = ? THEN 0 ELSE 1 END)
-                LIMIT 1
-                """,
-                (str(song.ratingKey), str(song.ratingKey), song.ratingKey, str(song.ratingKey), str(song.ratingKey)),
-            ).fetchone()
-            conn.close()
-            if row:
-                album_id_val = row["album_id"]
-        except Exception:
-            pass
+    album_id_val = raw_album_id
+    if not settings.testing:
+        from backend.services.library import rating_key_to_track_id, validate_track_id, get_db_connection  # noqa: PLC0415
+        resolved_id = None
+        if internal_track_id:
+            resolved_id = validate_track_id(internal_track_id)
+        else:
+            rk_val = getattr(song, "ratingKey", None)
+            if rk_val:
+                resolved_id = rating_key_to_track_id(rk_val)
+        if resolved_id:
+            internal_track_id = resolved_id
+            try:
+                conn = get_db_connection()
+                row = conn.execute("SELECT album_id FROM tracks WHERE track_id = ? LIMIT 1", (resolved_id,)).fetchone()
+                conn.close()
+                if row:
+                    album_id_val = row["album_id"]
+            except Exception:
+                pass
 
     def _str_or_none(v):
         if v is None or hasattr(v, "_mock_name") or hasattr(v, "return_value"):
@@ -84,8 +82,8 @@ def add_to_queue_redis(song, server_id=None, server_name=None, server_token=None
         return str(v)
 
     song_data = {
-        "item_id": song.ratingKey,
-        "album_id": str(album_id_val) if album_id_val else str(song.ratingKey),
+        "item_id": str(internal_track_id or getattr(song, "ratingKey", "")),
+        "album_id": str(album_id_val) if album_id_val else str(getattr(song, "parentRatingKey", song.ratingKey)),
         "title": song.title,
         "artist": getattr(song, "grandparentTitle", getattr(song, "artist", "Unknown Artist")),
         "duration": song.duration,
@@ -393,14 +391,11 @@ def clear_cache(key: str):
     return {"message": f"Cache cleared for key: {key}"}
 
 
-def add_to_history(track: dict | int | str):
-    """Add a track object to playback history list in Redis (capped at 20 items, deduplicated)."""
+def add_to_history(track: dict):
+    """Add a track dict to playback history list in Redis (capped at 20 items, deduplicated)."""
     try:
         client = get_redis_queue_client()
-        if isinstance(track, (int, str)):
-            track_obj = {"item_id": int(track), "title": f"Track {track}"}
-        else:
-            track_obj = track
+        track_obj = track
 
         item_id = track_obj.get("item_id")
 

@@ -56,6 +56,7 @@ from backend.services.redis import (
 )
 from backend.services.library import (
     get_art_source_info,
+    get_db_connection,
     get_indexed_artists,
     get_albums_for_artist_db,
     get_indexed_albums,
@@ -222,7 +223,7 @@ async def add_to_queue(
 
 @router.delete("/queue/{item_id}")
 async def remove_from_queue(
-    item_id: int | str,
+    item_id: int,
     background_tasks: BackgroundTasks,
     x_admin_token: str | None = Header(None),
 ):
@@ -559,7 +560,7 @@ async def add_album_to_queue_endpoint(
         added_by = username or "Guest"
 
         for t in tracks:
-            item_id = t.get("server_track_id") or t.get("rating_key") or t.get("item_id") or t.get("track_id")
+            item_id = t.get("track_id") or t.get("item_id") or t.get("server_track_id")
             t_server_id = t.get("server_id") or server_id
             song = get_track(item_id, server_id=t_server_id)
             try:
@@ -743,7 +744,7 @@ async def clear_redis_cache(key: str):
 
 
 @router.get("/artist-image/{artist_id}")
-def get_artist_image(artist_id: int | str, request: Request, server_id: str | None = None):
+def get_artist_image(artist_id: int, request: Request, server_id: str | None = None):
     """Fetch and proxy the artist image from Plex."""
     content_bytes, media_type = fetch_art_bytes(artist_id, "artist", server_id=server_id)
     is_fallback = not content_bytes or len(content_bytes) < 100 or content_bytes.startswith(b"\x89PNG")
@@ -770,7 +771,7 @@ def get_artist_image(artist_id: int | str, request: Request, server_id: str | No
 
 
 @router.get("/album-art/{album_id}")
-def get_album_art(album_id: int | str, request: Request, server_id: str | None = None):
+def get_album_art(album_id: int, request: Request, server_id: str | None = None):
     """Fetch and proxy the album art from Plex."""
     content_bytes, media_type = fetch_art_bytes(album_id, "album", server_id=server_id)
     is_fallback = not content_bytes or len(content_bytes) < 100 or content_bytes.startswith(b"\x89PNG")
@@ -797,7 +798,7 @@ def get_album_art(album_id: int | str, request: Request, server_id: str | None =
 
 
 @router.get("/track-art/{track_id}")
-def get_track_art(track_id: int | str, request: Request, server_id: str | None = None):
+def get_track_art(track_id: int, request: Request, server_id: str | None = None):
     """Fetch and proxy the track art from Plex."""
     if not server_id and not settings.testing:
         try:
@@ -812,9 +813,17 @@ def get_track_art(track_id: int | str, request: Request, server_id: str | None =
 
     if is_fallback and not settings.testing:
         try:
-            alb_sources = get_all_art_sources(track_id, "album")
+            conn = get_db_connection()
+            t_row = conn.execute(
+                "SELECT album_id FROM tracks WHERE track_id = ? LIMIT 1",
+                (track_id,),
+            ).fetchone()
+            conn.close()
+            real_album_id = t_row["album_id"] if t_row else None
+
+            alb_sources = get_all_art_sources(real_album_id, "album")
             if alb_sources and alb_sources[0][0]:
-                alb_bytes, alb_mime = fetch_art_bytes(track_id, "album", server_id=server_id)
+                alb_bytes, alb_mime = fetch_art_bytes(real_album_id, "album", server_id=server_id)
                 if alb_bytes and len(alb_bytes) > 100 and not alb_bytes.startswith(b"\x89PNG"):
                     content_bytes, media_type = alb_bytes, alb_mime
                     is_fallback = False
