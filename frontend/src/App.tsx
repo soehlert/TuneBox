@@ -834,9 +834,9 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
         }}
       >
         {/* Sticky Header */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "16px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px", flexWrap: "nowrap", marginBottom: "16px" }}>
           <h2 style={{ margin: 0, color: "#f5a623", fontSize: "19px", display: "flex", alignItems: "center", gap: "8px", whiteSpace: "nowrap" }}>
-            <span className="material-symbols-outlined">settings</span> TuneBox Settings
+            <span className="material-symbols-outlined">settings</span> Settings
           </h2>
 
           <button
@@ -845,14 +845,14 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
             style={{
               display: "inline-flex",
               alignItems: "center",
-              gap: "6px",
-              padding: "4px 12px",
-              background: closingTimeMode ? "rgba(191, 9, 94, 0.25)" : "rgba(245, 166, 35, 0.2)",
-              border: closingTimeMode ? "1px solid #bf095e" : "1px solid #f5a623",
+              gap: "5px",
+              padding: "4px 10px",
+              background: closingTimeMode ? "rgba(191, 9, 94, 0.25)" : "rgba(51, 117, 173, 0.18)",
+              border: closingTimeMode ? "1px solid #bf095e" : "1px solid #3376ad",
               borderRadius: "14px",
               fontSize: "12px",
               fontWeight: 700,
-              color: closingTimeMode ? "#ff4d94" : "#f5a623",
+              color: closingTimeMode ? "#ff4d94" : "#9bd0ff",
               cursor: "pointer",
               transition: "all 0.2s ease",
               whiteSpace: "nowrap",

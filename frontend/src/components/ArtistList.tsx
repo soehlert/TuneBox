@@ -166,10 +166,13 @@ function ArtistList({
       });
       showSnackbar("Track added to queue!", "success");
     } catch (error: any) {
+      const errorMsg = error?.response?.data?.detail || error?.response?.data?.message;
       if (error.response && error.response.status === 400) {
-        showSnackbar("This song is already in the queue!", "warning");
+        showSnackbar(errorMsg || "This song is already in the queue!", "warning");
+      } else if (error.response && error.response.status === 403) {
+        showSnackbar(errorMsg || "🍸 Last Call active! The bar is closing — no new song requests allowed.", "warning");
       } else {
-        showSnackbar("An unexpected error occurred.", "error");
+        showSnackbar(errorMsg || "An unexpected error occurred.", "error");
       }
     }
   };

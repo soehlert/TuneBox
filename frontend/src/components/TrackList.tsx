@@ -208,10 +208,13 @@ function TrackList() {
       });
       showSnackbar("Track added to queue!", "success");
     } catch (error: any) {
+      const errorMsg = error?.response?.data?.detail || error?.response?.data?.message;
       if (error.response && error.response.status === 400) {
-        showSnackbar("This song is already in the queue!", "warning");
+        showSnackbar(errorMsg || "This song is already in the queue!", "warning");
+      } else if (error.response && error.response.status === 403) {
+        showSnackbar(errorMsg || "🍸 Last Call active! The bar is closing — no new song requests allowed.", "warning");
       } else {
-        showSnackbar("An unexpected error occurred.", "error");
+        showSnackbar(errorMsg || "An unexpected error occurred.", "error");
       }
     }
   };
@@ -232,7 +235,8 @@ function TrackList() {
       showSnackbar(`Added ${response.data.added_count || 'all'} tracks from album to queue!`, "success");
     } catch (error: any) {
       console.error("Error adding album to queue:", error);
-      showSnackbar("Failed to add album to queue.", "error");
+      const errorMsg = error?.response?.data?.detail || error?.response?.data?.message;
+      showSnackbar(errorMsg || "Failed to add album to queue.", "error");
     }
   };
 

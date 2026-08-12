@@ -435,7 +435,7 @@ const QueueComponent = () => {
             border: "1px solid rgba(255, 77, 148, 0.4)",
             borderRadius: "12px",
             padding: "10px 14px",
-            margin: "8px 12px 0px 12px",
+            margin: "12px 12px 14px 12px",
             display: "flex",
             alignItems: "center",
             gap: "10px",
