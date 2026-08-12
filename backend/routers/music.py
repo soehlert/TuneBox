@@ -41,6 +41,7 @@ from backend.services.plex import (
     rate_track_in_plex,
     prewarm_category_art,
     _failed_connection_cache,
+    trigger_closing_time_mode,
 )
 from backend.services.redis import (
     add_to_queue_redis,
@@ -53,6 +54,8 @@ from backend.services.redis import (
     reorder_redis_queue,
     is_autoplay_enabled,
     set_autoplay_enabled,
+    get_closing_time_mode,
+    set_closing_time_mode,
     is_guest_vibe_changing_enabled,
     set_guest_vibe_changing_enabled,
     get_redis_cache_client,
@@ -145,17 +148,39 @@ async def move_queue_top(
         raise HTTPException(status_code=500, detail=f"Error moving track to top of queue: {e}") from e
 
 
+@router.get("/closing-time")
+async def get_closing_time_endpoint():
+    """Get status of Closing Time / Last Call mode."""
+    return {"closing_time": get_closing_time_mode()}
+
+
+@router.post("/closing-time")
+async def trigger_closing_time_endpoint(x_admin_token: str | None = Header(None)):
+    """Trigger Closing Time / Last Call mode (Admin only)."""
+    if settings.admin_token and x_admin_token != settings.admin_token:
+        raise HTTPException(status_code=401, detail="Unauthorized: Invalid admin token")
+    return trigger_closing_time_mode()
+
+
 @router.post("/queue/{item_id}")
 async def add_to_queue(
     item_id: int,
     background_tasks: BackgroundTasks,
     payload: QueueAddRequest | None = None,
+    x_admin_token: str | None = Header(None),
 ):
     """Add an item to the playback queue in Redis with optional server connection info.
 
     Returns:
         A message that says we added to the queue.
     """
+    if get_closing_time_mode():
+        is_admin = bool(settings.admin_token and x_admin_token == settings.admin_token)
+        if not is_admin:
+            raise HTTPException(
+                status_code=403,
+                detail="🍸 Last Call! The bar is closing — no new song requests allowed."
+            )
     try:
         server_id = payload.server_id if payload else None
         server_name = payload.server_name if payload else None

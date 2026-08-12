@@ -32,6 +32,8 @@ from backend.services.redis import (
     clear_redis_queue,
     get_artist_play_counts,
     get_album_play_counts,
+    set_closing_time_mode,
+    get_closing_time_mode,
 )
 from backend.utils import TrackTimeTracker, milliseconds_to_seconds
 from backend.db.library_db import get_db_connection, get_latest_preseed_playlist_tracks, save_preseed_playlist_tracks
@@ -49,6 +51,7 @@ from backend.services.library import (
     validate_track_id,
     get_tracks_by_vibe_db,
     get_available_vibes_db,
+    find_closing_time_track_db,
 )
 
 HEARTBEAT_INTERVAL = 5
@@ -620,10 +623,10 @@ def generate_autoplay_tracks():
     """Analyze recent history, fetch related tracks from Plex, and seed the queue with fallback items."""
     import random
     import json
-    from backend.services.redis import get_playback_history_ids, get_redis_cache_client, add_to_queue_redis, is_autoplay_enabled
+    from backend.services.redis import get_playback_history_ids, get_redis_cache_client, add_to_queue_redis, is_autoplay_enabled, get_closing_time_mode
 
-    if not is_autoplay_enabled() and not settings.testing:
-        logger.info("Autoplay is disabled. Skipping automatic track generation.")
+    if (not is_autoplay_enabled() or get_closing_time_mode()) and not settings.testing:
+        logger.info("Autoplay is disabled or Closing Time mode is active. Skipping automatic track generation.")
         return
 
     logger.info("Triggering Autoplay track generation.")
@@ -2815,3 +2818,44 @@ def sync_album_ratings_from_plex(album_id: int | str) -> bool:
     except Exception as e:
         logger.debug("Failed to sync album ratings from Plex for album %s: %s", album_id, e)
         return False
+
+
+def trigger_closing_time_mode() -> dict:
+    """Activate Closing Time mode, search for 'Closing Time' finale track, and append it to queue."""
+    set_closing_time_mode(True)
+
+    closing_track = None
+    try:
+        closing_track = find_closing_time_track_db()
+    except Exception as ex:
+        logger.warning("Error finding Closing Time track in DB: %s", ex)
+
+    added_track_title = None
+    if closing_track:
+        try:
+            from unittest.mock import MagicMock
+            track_obj = MagicMock()
+            track_obj.title = closing_track["title"]
+            track_obj.artist = closing_track["artist"]
+            track_obj.grandparentTitle = closing_track["artist"]
+            track_obj.parentTitle = closing_track["album"]
+            track_obj.duration = closing_track["duration"]
+            track_obj.ratingKey = closing_track["ratingKey"]
+            track_obj.sqlite_track_id = closing_track["track_id"]
+            track_obj.album_id = closing_track["album_id"]
+            track_obj.server_id = closing_track["server_id"]
+            track_obj.thumb = closing_track["thumb"]
+
+            add_to_queue_redis(track_obj, added_by="Admin (Last Call)")
+            added_track_title = f"{closing_track['artist']} - {closing_track['title']}"
+        except Exception as ex:
+            logger.warning("Failed adding Closing Time track to queue: %s", ex)
+
+    msg = f"🍸 Last Call activated! '{added_track_title}' added as the final track." if added_track_title else "🍸 Last Call activated! No new guest requests allowed."
+    return {
+        "success": True,
+        "message": msg,
+        "closing_time": True,
+        "finale_track": added_track_title,
+    }
+

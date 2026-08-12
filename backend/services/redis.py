@@ -623,3 +623,21 @@ def get_album_play_counts() -> dict[str, int]:
         return {}
 
 
+def get_closing_time_mode() -> bool:
+    """Check if closing time mode is enabled in Redis."""
+    try:
+        val = get_redis_queue_client().get("closing_time_mode")
+        return val in ("true", b"true")
+    except Exception:
+        return False
+
+
+def set_closing_time_mode(enabled: bool):
+    """Set the closing time mode state in Redis."""
+    try:
+        get_redis_queue_client().set("closing_time_mode", "true" if enabled else "false")
+    except Exception as e:
+        logger.warning("Failed to set closing time mode state: %s", e)
+
+
+

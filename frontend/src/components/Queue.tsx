@@ -8,7 +8,45 @@ const QueueComponent = () => {
   const [queue, setQueue] = useState<any[]>([]);
   const [history, setHistory] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'queue' | 'history'>('queue');
+  const [closingTimeMode, setClosingTimeMode] = useState(false);
   const adminToken = localStorage.getItem("tunebox_admin_token") || "";
+
+  const fetchClosingTime = async () => {
+    try {
+      const response = await fetch(`${apiBase}/api/music/closing-time`);
+      if (response.ok) {
+        const data = await response.json();
+        setClosingTimeMode(Boolean(data.closing_time));
+      }
+    } catch (error) {
+      console.error("Error fetching closing time mode:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchClosingTime();
+  }, []);
+
+  const handleTriggerLastCall = async () => {
+    if (!adminToken) return;
+    try {
+      const response = await fetch(`${apiBase}/api/music/closing-time`, {
+        method: "POST",
+        headers: {
+          "X-Admin-Token": adminToken,
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setClosingTimeMode(true);
+        if (data.message) {
+          alert(data.message);
+        }
+      }
+    } catch (error) {
+      console.error("Error triggering Last Call:", error);
+    }
+  };
 
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
@@ -400,7 +438,61 @@ const QueueComponent = () => {
           <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>history</span>
           <span>History ({history.length})</span>
         </button>
+
+        {adminToken && (
+          <button
+            type="button"
+            onClick={handleTriggerLastCall}
+            style={{
+              background: closingTimeMode ? "rgba(191, 9, 94, 0.25)" : "rgba(245, 166, 35, 0.2)",
+              border: closingTimeMode ? "1px solid #bf095e" : "1px solid #f5a623",
+              color: closingTimeMode ? "#ff4d94" : "#f5a623",
+              padding: "4px 12px",
+              borderRadius: "14px",
+              fontWeight: 700,
+              fontSize: "11px",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: "4px",
+              marginLeft: "auto",
+              transition: "all 0.2s ease",
+            }}
+            title="Stop guest requests and append 'Closing Time' finale song"
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: "14px" }}>
+              {closingTimeMode ? "lock" : "nightlife"}
+            </span>
+            <span>{closingTimeMode ? "Last Call Active" : "Trigger Last Call"}</span>
+          </button>
+        )}
       </Box>
+
+      {closingTimeMode && (
+        <Box
+          style={{
+            background: "linear-gradient(135deg, rgba(191, 9, 94, 0.3) 0%, rgba(14, 14, 15, 0.85) 100%)",
+            border: "1px solid rgba(255, 77, 148, 0.4)",
+            borderRadius: "12px",
+            padding: "10px 14px",
+            margin: "8px 12px 0px 12px",
+            display: "flex",
+            alignItems: "center",
+            gap: "10px",
+            boxShadow: "0 0 16px rgba(191, 9, 94, 0.3)",
+          }}
+        >
+          <span style={{ fontSize: "20px" }}>🍸</span>
+          <Box style={{ display: "flex", flexDirection: "column" }}>
+            <span style={{ fontSize: "12px", fontWeight: 800, color: "#ff4d94", letterSpacing: "0.5px" }}>
+              LAST CALL ACTIVE
+            </span>
+            <span style={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.85)" }}>
+              Queue is closed to new guest requests — ending after remaining songs.
+            </span>
+          </Box>
+        </Box>
+      )}
 
       {activeTab === 'queue' ? (
         <ul className="queue-list">

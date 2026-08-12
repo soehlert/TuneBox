@@ -1550,6 +1550,60 @@ def get_tracks_by_vibe_db(vibe_name: str, count: int = 10, db_path: str | None =
                 "moods": [display_name] if display_name else ["Party"],
             })
         return result
+    except Exception as ex:
+        logger.warning("Failed fetching vibe tracks from DB: %s", ex)
+        return []
     finally:
         conn.close()
 
+
+def find_closing_time_track_db(db_path: str | None = None) -> dict | None:
+    """Find a track in the primary SQLite library titled 'Closing Time' (or similar finale track)."""
+    conn = get_db_connection(db_path)
+    try:
+        query = """
+            SELECT t.track_id, t.album_id, t.server_id, t.server_track_id,
+                   t.artist_name as artist, t.album_title as album, t.title,
+                   t.duration, t.thumb
+            FROM tracks t
+            JOIN servers s ON t.server_id = s.server_id
+            WHERE s.is_primary = 1 AND LOWER(t.title) LIKE '%closing time%'
+            ORDER BY RANDOM()
+            LIMIT 1
+        """
+        row = conn.execute(query).fetchone()
+        if not row:
+            query = """
+                SELECT t.track_id, t.album_id, t.server_id, t.server_track_id,
+                       t.artist_name as artist, t.album_title as album, t.title,
+                       t.duration, t.thumb
+                FROM tracks t
+                JOIN servers s ON t.server_id = s.server_id
+                WHERE s.is_primary = 1 AND LOWER(t.title) LIKE '%closing%'
+                ORDER BY RANDOM()
+                LIMIT 1
+            """
+            row = conn.execute(query).fetchone()
+
+        if not row:
+            return None
+
+        return {
+            "track_id": row["track_id"],
+            "ratingKey": str(row["track_id"]),
+            "title": row["title"],
+            "artist": row["artist"],
+            "grandparentTitle": row["artist"],
+            "parentTitle": row["album"],
+            "album": row["album"],
+            "duration": row["duration"],
+            "thumb": row["thumb"],
+            "album_id": row["album_id"],
+            "server_id": row["server_id"],
+            "moods": ["Closing Time"],
+        }
+    except Exception as ex:
+        logger.warning("Failed finding closing time track in DB: %s", ex)
+        return None
+    finally:
+        conn.close()
