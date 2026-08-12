@@ -959,8 +959,8 @@ export const TopPlayedTracksGridView: React.FC<{ apiBase: string }> = ({ apiBase
                     <span style={{ fontSize: "12px", color: "rgba(255,255,255,0.6)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                       {track.artist} {track.album ? `• ${track.album}` : ""}
                     </span>
-                    <span style={{ fontSize: "11px", fontWeight: 600, color: "#ff9500", marginTop: "2px", display: "flex", alignItems: "center", gap: "3px" }}>
-                      🔥 {track.play_count} {track.play_count === 1 ? "play" : "plays"}
+                    <span style={{ fontSize: "11px", fontWeight: 600, color: "#ff9500", marginTop: "2px" }}>
+                      {track.play_count} {track.play_count === 1 ? "play" : "plays"}
                     </span>
                   </div>
                 </div>
