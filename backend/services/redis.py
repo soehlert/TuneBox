@@ -488,6 +488,21 @@ def add_to_history(track: dict):
         client.lpush("playback_history", track_json)
         client.ltrim("playback_history", 0, 19)
 
+        # Log playback event to SQLite database
+        try:
+            from backend.services.library import log_playback_event_db, validate_track_id, rating_key_to_track_id
+            raw_id = track_obj.get("item_id")
+            resolved_id = validate_track_id(raw_id) if raw_id else None
+            if not resolved_id and raw_id:
+                resolved_id = rating_key_to_track_id(raw_id)
+            if resolved_id:
+                log_playback_event_db(
+                    track_id=resolved_id,
+                    username=track_obj.get("added_by") or "Guest"
+                )
+        except Exception as db_log_ex:
+            logger.debug("Failed logging playback event to SQLite: %s", db_log_ex)
+
         artist_name = track_obj.get("artist") or track_obj.get("grandparentTitle")
         if artist_name:
             client.zincrby("stats:artist_play_counts", 1, str(artist_name).lower())

@@ -366,26 +366,64 @@ def get_top_played_tracks_db(limit: int = 50, db_path: str | None = None) -> lis
             LIMIT ?
         """
         rows = conn.execute(query, (limit,)).fetchall()
-        top_tracks = []
-        for r in rows:
-            top_tracks.append({
-                "track_id": r["track_id"],
-                "album_id": r["album_id"],
-                "server_id": r["server_id"],
-                "artist": r["artist"] or "Unknown Artist",
-                "album": r["album"] or "Unknown Album",
-                "title": r["title"] or "Unknown Title",
-                "duration": r["duration"] or 0,
-                "thumb": r["thumb"],
-                "play_count": r["play_count"],
-                "last_played_at": r["last_played_at"],
-            })
-        return top_tracks
+        if rows:
+            top_tracks = []
+            for r in rows:
+                top_tracks.append({
+                    "track_id": r["track_id"],
+                    "album_id": r["album_id"],
+                    "server_id": r["server_id"],
+                    "artist": r["artist"] or "Unknown Artist",
+                    "album": r["album"] or "Unknown Album",
+                    "title": r["title"] or "Unknown Title",
+                    "duration": r["duration"] or 0,
+                    "thumb": r["thumb"],
+                    "play_count": r["play_count"],
+                    "last_played_at": r["last_played_at"],
+                })
+            return top_tracks
     except Exception as ex:
         logger.warning("Error fetching top played tracks from DB: %s", ex)
-        return []
     finally:
         conn.close()
+
+    try:
+        from backend.services.redis_client import get_redis_queue_client
+        client = get_redis_queue_client()
+        raw_history = client.lrange("playback_history", 0, -1)
+        if raw_history:
+            track_counts: dict[str, int] = {}
+            track_info: dict[str, dict] = {}
+            for item_bytes in raw_history:
+                item_str = item_bytes.decode("utf-8") if isinstance(item_bytes, bytes) else item_bytes
+                item = json.loads(item_str)
+                item_id = str(item.get("item_id") or "")
+                if not item_id:
+                    continue
+                track_counts[item_id] = track_counts.get(item_id, 0) + 1
+                if item_id not in track_info:
+                    track_info[item_id] = item
+
+            sorted_items = sorted(track_counts.items(), key=lambda x: x[1], reverse=True)[:limit]
+            res = []
+            for item_id, count in sorted_items:
+                t = track_info[item_id]
+                res.append({
+                    "track_id": int(item_id) if item_id.isdigit() else item_id,
+                    "album_id": int(t["album_id"]) if str(t.get("album_id", "")).isdigit() else t.get("album_id"),
+                    "server_id": t.get("server_id"),
+                    "artist": t.get("artist") or t.get("grandparentTitle") or "Unknown Artist",
+                    "album": t.get("album") or t.get("parentTitle") or "Unknown Album",
+                    "title": t.get("title") or "Unknown Title",
+                    "duration": t.get("duration") or 0,
+                    "thumb": t.get("album_art") or t.get("thumb"),
+                    "play_count": count,
+                })
+            return res
+    except Exception as redis_ex:
+        logger.warning("Error reading top played tracks from Redis fallback: %s", redis_ex)
+
+    return []
 
 
 def clean_library_deduplication(db_path: str | None = None) -> dict:
