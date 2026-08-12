@@ -593,6 +593,37 @@ const QueueComponent = () => {
                   ) : (
                     <Typography className="queue-item-time">{formatDuration(track.duration)}</Typography>
                   )}
+                  {!isActive && index > 1 && !track.is_bumped && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleBumpTrack(track.item_id);
+                      }}
+                      style={{
+                        background: "rgba(245, 166, 35, 0.15)",
+                        border: "1px solid rgba(245, 166, 35, 0.4)",
+                        color: "#f5a623",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "2px",
+                        padding: "3px 8px",
+                        borderRadius: "12px",
+                        fontSize: "11px",
+                        fontWeight: 700,
+                        transition: "all 0.15s ease",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = "rgba(245, 166, 35, 0.3)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = "rgba(245, 166, 35, 0.15)";
+                      }}
+                      title="Use your 1 per-session Play Next bump token"
+                    >
+                      ⚡ Bump
+                    </button>
+                  )}
                   {!isActive && Boolean(adminToken) && (
                     <>
                       {index > 1 && (

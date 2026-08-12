@@ -181,17 +181,19 @@ function ArtistList({
     return `${mins}:${remainingSecs < 10 ? "0" : ""}${remainingSecs}`;
   };
 
-  const addToQueue = async (trackId: number, serverId?: string, serverName?: string) => {
+  const addToQueue = async (trackId: number, serverId?: string, serverName?: string, bump = false) => {
     try {
       const queueUrl = `${apiBase}/api/music/queue/${trackId}`;
       const res = await axios.post(queueUrl, {
         server_id: serverId,
         server_name: serverName,
         username: getLocalUsername(),
+        bump,
       });
       const etaMin = res?.data?.estimated_wait_minutes;
       const etaStr = etaMin && etaMin > 0 ? ` (Estimated play in ~${etaMin} min)` : "";
-      showSnackbar(`Track added to queue!${etaStr}`, "success");
+      const bumpStr = bump ? " ⚡ Play Next" : "";
+      showSnackbar(`Track added to queue${bumpStr}!${etaStr}`, "success");
     } catch (error: any) {
       const errorMsg = error?.response?.data?.detail || error?.response?.data?.message;
       if (error.response && error.response.status === 400) {
@@ -653,25 +655,47 @@ function ArtistList({
                       <Typography style={{ color: "rgba(255,255,255,0.4)", fontSize: "0.85rem", fontFamily: "var(--font-body)" }}>
                         {formatDuration(track.duration)}
                       </Typography>
-                      <Button
-                        variant="contained"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          addToQueue(track.track_id || track.item_id || track.server_track_id, track.server_id, track.server_name);
-                        }}
-                        style={{
-                          background: "var(--color-primary)",
-                          color: "#0e0e0f",
-                          fontWeight: 700,
-                          textTransform: "none",
-                          borderRadius: "20px",
-                          padding: "6px 16px",
-                          fontFamily: "var(--font-body)",
-                          fontSize: "12px"
-                        }}
-                      >
-                        Add to Queue
-                      </Button>
+                      <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                        <Button
+                          variant="contained"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            addToQueue(track.track_id || track.item_id || track.server_track_id, track.server_id, track.server_name, false);
+                          }}
+                          style={{
+                            background: "var(--color-primary)",
+                            color: "#0e0e0f",
+                            fontWeight: 700,
+                            textTransform: "none",
+                            borderRadius: "20px",
+                            padding: "6px 14px",
+                            fontFamily: "var(--font-body)",
+                            fontSize: "12px"
+                          }}
+                        >
+                          Add to Queue
+                        </Button>
+                        <Button
+                          variant="outlined"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            addToQueue(track.track_id || track.item_id || track.server_track_id, track.server_id, track.server_name, true);
+                          }}
+                          style={{
+                            borderColor: "#f5a623",
+                            color: "#f5a623",
+                            fontWeight: 700,
+                            textTransform: "none",
+                            borderRadius: "20px",
+                            padding: "6px 12px",
+                            fontFamily: "var(--font-body)",
+                            fontSize: "12px"
+                          }}
+                          title="Use your 1 per-session Play Next bump token"
+                        >
+                          ⚡ Play Next
+                        </Button>
+                      </div>
                     </div>
                   </Card>
                 ))}
