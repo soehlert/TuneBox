@@ -170,7 +170,7 @@ function ArtistList({
       if (error.response && error.response.status === 400) {
         showSnackbar(errorMsg || "This song is already in the queue!", "warning");
       } else if (error.response && error.response.status === 403) {
-        showSnackbar(errorMsg || "🍸 Last Call active! The bar is closing — no new song requests allowed.", "warning");
+        showSnackbar(errorMsg || "🍸 Last Call active! Queue is closed to new guest requests.", "warning");
       } else {
         showSnackbar(errorMsg || "An unexpected error occurred.", "error");
       }
@@ -713,7 +713,7 @@ function ArtistList({
       {createPortal(
         <Snackbar
           open={snackbarOpen}
-          autoHideDuration={1500}
+          autoHideDuration={4000}
           onClose={() => setSnackbarOpen(false)}
           className="queue-toast-snackbar"
         >

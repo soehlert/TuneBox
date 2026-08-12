@@ -2876,7 +2876,7 @@ def cancel_closing_time_mode() -> dict:
     """Cancel Closing Time mode, unlock queue for guests, and broadcast event."""
     set_closing_time_mode(False)
 
-    msg = "🎉 Last Call cancelled! Party mode resumed — song requests unlocked."
+    msg = "🎉 Last Call cancelled! Party mode resumed, song requests unlocked."
     try:
         from backend.websockets import broadcast_json_threadsafe
         broadcast_json_threadsafe({

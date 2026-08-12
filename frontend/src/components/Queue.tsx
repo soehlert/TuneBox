@@ -428,34 +428,36 @@ const QueueComponent = () => {
         </button>
       </Box>
 
-      {closingTimeMode && (
-        <Box
-          style={{
-            background: "linear-gradient(135deg, rgba(191, 9, 94, 0.3) 0%, rgba(14, 14, 15, 0.85) 100%)",
-            border: "1px solid rgba(255, 77, 148, 0.4)",
-            borderRadius: "12px",
-            padding: "10px 14px",
-            margin: "12px 12px 14px 12px",
-            display: "flex",
-            alignItems: "center",
-            gap: "10px",
-            boxShadow: "0 0 16px rgba(191, 9, 94, 0.3)",
-          }}
-        >
-          <span style={{ fontSize: "20px" }}>🍸</span>
-          <Box style={{ display: "flex", flexDirection: "column" }}>
-            <span style={{ fontSize: "12px", fontWeight: 800, color: "#ff4d94", letterSpacing: "0.5px" }}>
-              LAST CALL ACTIVE
-            </span>
-            <span style={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.85)" }}>
-              Queue is closed to new guest requests — ending after remaining songs.
-            </span>
-          </Box>
-        </Box>
-      )}
-
       {activeTab === 'queue' ? (
         <ul className="queue-list">
+          {closingTimeMode && (
+            <li style={{ listStyle: "none", marginBottom: "4px" }}>
+              <Box
+                style={{
+                  background: "linear-gradient(135deg, rgba(191, 9, 94, 0.3) 0%, rgba(14, 14, 15, 0.85) 100%)",
+                  border: "1px solid rgba(255, 77, 148, 0.4)",
+                  borderRadius: "12px",
+                  padding: "10px 14px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px",
+                  boxShadow: "0 0 16px rgba(191, 9, 94, 0.3)",
+                  boxSizing: "border-box",
+                  width: "100%",
+                }}
+              >
+                <span style={{ fontSize: "20px" }}>🍸</span>
+                <Box style={{ display: "flex", flexDirection: "column" }}>
+                  <span style={{ fontSize: "12px", fontWeight: 800, color: "#ff4d94", letterSpacing: "0.5px" }}>
+                    LAST CALL ACTIVE
+                  </span>
+                  <span style={{ fontSize: "11px", color: "rgba(255, 255, 255, 0.85)" }}>
+                    Queue is closed to new guest requests.
+                  </span>
+                </Box>
+              </Box>
+            </li>
+          )}
           {queue.map((track, index) => {
             const isActive = index === 0;
             const isDragging = draggedIndex === index;

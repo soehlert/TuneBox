@@ -188,7 +188,7 @@ async def add_to_queue(
         if not is_admin:
             raise HTTPException(
                 status_code=403,
-                detail="🍸 Last Call! The bar is closing — no new song requests allowed."
+                detail="🍸 Last Call active! Queue is closed to new guest requests."
             )
     try:
         server_id = payload.server_id if payload else None
