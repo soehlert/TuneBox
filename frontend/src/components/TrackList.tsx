@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import axios from "axios";
-import { Button, Card, Typography, Snackbar, Alert } from "@mui/material";
+import { Button, Card, Typography } from "@mui/material";
 import { FallbackImage } from "./FallbackImage";
-import { getLocalUsername } from "../utils";
+import { getLocalUsername, triggerQueueToast } from "../utils";
 import "./TrackList.css";
 
 interface Track {
@@ -103,9 +102,6 @@ function TrackList() {
   const navigate = useNavigate();
   const [albumData, setAlbumData] = useState<AlbumData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState("");
-  const [severity, setSeverity] = useState<"success" | "warning" | "error">("success");
   const isDev = window.location.port === "5173";
   const apiBase = isDev ? `http://${window.location.hostname}:8000` : window.location.origin;
 
@@ -162,9 +158,7 @@ function TrackList() {
   };
 
   const showSnackbar = (message: string, severity: "success" | "warning" | "error") => {
-    setSnackbarMessage(message);
-    setSeverity(severity);
-    setSnackbarOpen(true);
+    triggerQueueToast(message, severity);
   };
 
   const handleRateTrack = async (trackId: number, rating: number) => {
@@ -460,34 +454,6 @@ function TrackList() {
             <Typography variant="h6">No tracks found.</Typography>
           )}
       </div>
-      {createPortal(
-        <Snackbar
-          open={snackbarOpen}
-          autoHideDuration={4000}
-          onClose={() => setSnackbarOpen(false)}
-          className="queue-toast-snackbar"
-        >
-          <Alert
-            onClose={() => setSnackbarOpen(false)}
-            severity={severity}
-            sx={{
-              width: "100%",
-              background: severity === "success" ? "#1e4620" : severity === "warning" ? "#0077b6" : "#bf095e",
-              color: "white",
-              fontWeight: "bold",
-              borderRadius: "8px",
-              border: "1px solid rgba(255,255,255,0.2)",
-              boxShadow: "0 8px 32px rgba(0,0,0,0.8)",
-              "& .MuiAlert-icon": {
-                color: "#ffffff"
-              }
-            }}
-          >
-            {snackbarMessage}
-          </Alert>
-        </Snackbar>,
-        document.body
-      )}
     </div>
   );
 }

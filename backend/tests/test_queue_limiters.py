@@ -135,3 +135,25 @@ def test_calculate_queue_eta(mock_redis):
     # Sum of item 0 (180s) + item 1 (240s) = 420s (7 mins)
     assert tot_sec == 420
     assert est_mins == 7
+
+
+def test_play_next_fcfs_ordering(mock_redis, make_mock_track, mocker):
+    """Verify Play Next / bumped tracks preserve First-Come, First-Served order (User A first, User B second)."""
+    mock_queue_client, _ = mock_redis
+    mocker.patch("backend.services.redis.is_song_in_queue", return_value=False)
+    mocker.patch("backend.services.redis.is_song_on_cooldown", return_value=(False, 0))
+    mocker.patch("backend.services.redis.has_user_bumped", return_value=False)
+
+    item_0 = json.dumps({"item_id": "1", "title": "Playing Track", "is_fallback": False}).encode("utf-8")
+    item_1 = json.dumps({"item_id": "2", "title": "User A Track", "is_bumped": True, "added_by": "UserA"}).encode("utf-8")
+    item_2 = json.dumps({"item_id": "3", "title": "Fallback Track", "is_fallback": True}).encode("utf-8")
+    mock_queue_client.lrange.return_value = [item_0, item_1, item_2]
+
+    track_b = make_mock_track(track_id="302", title="User B Track")
+
+    with patch("backend.services.redis.get_redis_queue_client", return_value=mock_queue_client):
+        add_to_queue_redis(track_b, added_by="UserB", bump=True)
+
+    # User B's track MUST be inserted BEFORE item_2 (the fallback track), preserving User A's track at index 1!
+    mock_queue_client.linsert.assert_called_once_with("playback_queue", "BEFORE", item_2, ANY)
+

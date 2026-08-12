@@ -1,11 +1,10 @@
 import { useEffect, useState, useMemo, useRef } from "react";
-import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
-import { Card, Typography, Button, Snackbar, Alert } from "@mui/material"; // MUI components
+import { Card, Typography, Button } from "@mui/material"; // MUI components
 import { FallbackImage } from "./FallbackImage";
 import { TuneBoxDialog } from "./TuneBoxDialog";
 import axios from "axios";
-import { getLocalUsername, getSortKey } from "../utils";
+import { getLocalUsername, getSortKey, triggerQueueToast } from "../utils";
 import "../App.css";
 import "./ArtistList.css";
 
@@ -162,15 +161,10 @@ function ArtistList({
     }
   }, [scrollTargetLetter, sortedArtists, isSearching]);
 
-  // Snackbar alerts
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState("");
-  const [severity, setSeverity] = useState<"success" | "warning" | "error">("success");
+
 
   const showSnackbar = (message: string, type: "success" | "warning" | "error") => {
-    setSnackbarMessage(message);
-    setSeverity(type);
-    setSnackbarOpen(true);
+    triggerQueueToast(message, type);
   };
 
   const formatDuration = (secondsStr: string | number) => {
@@ -747,36 +741,6 @@ function ArtistList({
           })}
           </div>
         </div>
-      )}
-
-      {/* Snackbar Alert for Track Queueing */}
-      {createPortal(
-        <Snackbar
-          open={snackbarOpen}
-          autoHideDuration={4000}
-          onClose={() => setSnackbarOpen(false)}
-          className="queue-toast-snackbar"
-        >
-          <Alert
-            onClose={() => setSnackbarOpen(false)}
-            severity={severity}
-            sx={{
-              width: "100%",
-              background: severity === "success" ? "#1e4620" : severity === "warning" ? "#0077b6" : "#bf095e",
-              color: "white",
-              fontWeight: "bold",
-              borderRadius: "8px",
-              border: "1px solid rgba(255,255,255,0.2)",
-              boxShadow: "0 8px 32px rgba(0,0,0,0.8)",
-              "& .MuiAlert-icon": {
-                color: "#ffffff"
-              }
-            }}
-          >
-            {snackbarMessage}
-          </Alert>
-        </Snackbar>,
-        document.body
       )}
 
       <TuneBoxDialog

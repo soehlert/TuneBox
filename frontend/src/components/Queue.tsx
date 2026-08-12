@@ -48,8 +48,17 @@ const QueueComponent = () => {
         fetchClosingTime();
       }
     };
+    const handleToastEvent = (e: any) => {
+      if (e && e.detail) {
+        showSnackbar(e.detail.message, e.detail.severity || "success");
+      }
+    };
     window.addEventListener("tunebox_closing_time_updated", handleClosingTimeEvent);
-    return () => window.removeEventListener("tunebox_closing_time_updated", handleClosingTimeEvent);
+    window.addEventListener("tunebox_queue_toast", handleToastEvent);
+    return () => {
+      window.removeEventListener("tunebox_closing_time_updated", handleClosingTimeEvent);
+      window.removeEventListener("tunebox_queue_toast", handleToastEvent);
+    };
   }, []);
 
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
@@ -639,9 +648,9 @@ const QueueComponent = () => {
                       onMouseLeave={(e) => {
                         e.currentTarget.style.backgroundColor = "rgba(245, 166, 35, 0.15)";
                       }}
-                      title="Use your 1 per-session Plays Next bump token"
+                      title="Use your 1 per-session Play Next token"
                     >
-                      ⚡ Bump
+                      ⚡ Play Next
                     </button>
                   )}
                   {!isActive && Boolean(adminToken) && (

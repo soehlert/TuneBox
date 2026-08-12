@@ -152,6 +152,7 @@ def bump_existing_queue_item(item_id: int | str, username: str) -> bool:
             break
 
     target_item["is_bumped"] = True
+    target_item["is_fallback"] = False
     if insert_idx < len(raw_queue_after):
         ref_item = raw_queue_after[insert_idx]
         client.linsert("playback_queue", "BEFORE", ref_item, json.dumps(target_item))
@@ -272,6 +273,8 @@ def add_to_queue_redis(song, server_id=None, server_name=None, server_token=None
 
     client = get_redis_queue_client()
     if bump:
+        song_data["is_bumped"] = True
+        song_data["is_fallback"] = False
         queue = client.lrange("playback_queue", 0, -1)
         target_idx = 1
         for i in range(1, len(queue)):
@@ -294,31 +297,25 @@ def add_to_queue_redis(song, server_id=None, server_name=None, server_token=None
         client.rpush("playback_queue", json.dumps(song_data))
         logger.info("Added fallback track %s to Redis queue.", song.title)
     else:
-        # If it's a guest song, check if fallback songs exist in the queue
+        # If it's a guest song, check if automated / non-human songs exist in the queue
         queue = client.lrange("playback_queue", 0, -1)
-        fallback_indices = []
+        non_human_indices = []
         for i, item_bytes in enumerate(queue):
-            item = json.loads(item_bytes)
-            if item.get("is_fallback"):
-                fallback_indices.append(i)
+            if i >= 1:
+                item = json.loads(item_bytes)
+                if item.get("is_fallback") or any(k in str(item.get("added_by", "")).lower() for k in ["autoplay", "vibe seed", "seed", "tunebox", "smart", "system"]):
+                    non_human_indices.append(i)
 
-        if fallback_indices:
-            # Only allow leapfrogging fallback tracks that are not currently playing (index >= 1)
-            candidate_indices = [idx for idx in fallback_indices if idx >= 1]
-            if candidate_indices:
-                first_fallback_idx = candidate_indices[0]
-                first_fallback_data = queue[first_fallback_idx]
-                client.linsert("playback_queue", "BEFORE", first_fallback_data, json.dumps(song_data))
+        if non_human_indices:
+            first_non_human_idx = non_human_indices[0]
+            ref_data = queue[first_non_human_idx]
+            client.linsert("playback_queue", "BEFORE", ref_data, json.dumps(song_data))
 
-                # Drop the last fallback track in the queue to maintain queue size
-                last_fallback_idx = fallback_indices[-1]
-                last_fallback_data = queue[last_fallback_idx]
-                client.lrem("playback_queue", -1, last_fallback_data)
-                logger.info("Inserted guest song %s before first non-playing fallback and dropped last fallback.", song.title)
-            else:
-                # If the only fallback track is at index 0 (currently playing), append to the end
-                client.rpush("playback_queue", json.dumps(song_data))
-                logger.info("Added guest song %s to end of Redis queue (playing track is fallback).", song.title)
+            # Drop the last non-human track in the queue to maintain queue size
+            last_non_human_idx = non_human_indices[-1]
+            last_non_human_data = queue[last_non_human_idx]
+            client.lrem("playback_queue", -1, last_non_human_data)
+            logger.info("Inserted guest song %s before first non-playing automated track and dropped last fallback.", song.title)
         else:
             # If no fallback tracks exist, just append to the end as normal
             client.rpush("playback_queue", json.dumps(song_data))

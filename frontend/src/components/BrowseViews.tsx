@@ -1,10 +1,9 @@
 import React, { useEffect, useState, useMemo, useRef, useCallback } from "react";
-import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
-import { Card, Typography, Button, Snackbar, Alert } from "@mui/material";
+import { Card, Typography, Button } from "@mui/material";
 import axios from "axios";
 import { FallbackImage } from "./FallbackImage";
-import { getLocalUsername, getSortKey } from "../utils";
+import { getLocalUsername, getSortKey, triggerQueueToast } from "../utils";
 
 interface Album {
   album_id: number;
@@ -835,9 +834,6 @@ interface TopPlayedTrack {
 export const TopPlayedTracksGridView: React.FC<{ apiBase: string }> = ({ apiBase }) => {
   const [tracks, setTracks] = useState<TopPlayedTrack[]>([]);
   const [loading, setLoading] = useState(true);
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState("");
-  const [severity, setSeverity] = useState<"success" | "error" | "warning">("success");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -849,9 +845,7 @@ export const TopPlayedTracksGridView: React.FC<{ apiBase: string }> = ({ apiBase
   }, [apiBase]);
 
   const showSnackbar = (msg: string, sev: "success" | "error" | "warning" = "success") => {
-    setSnackbarMessage(msg);
-    setSeverity(sev);
-    setSnackbarOpen(true);
+    triggerQueueToast(msg, sev);
   };
 
   const handleQueueTrack = async (track: TopPlayedTrack, e: React.MouseEvent) => {
@@ -1010,34 +1004,6 @@ export const TopPlayedTracksGridView: React.FC<{ apiBase: string }> = ({ apiBase
         </div>
       )}
 
-      {createPortal(
-        <Snackbar
-          open={snackbarOpen}
-          autoHideDuration={4000}
-          onClose={() => setSnackbarOpen(false)}
-          className="queue-toast-snackbar"
-        >
-          <Alert
-            onClose={() => setSnackbarOpen(false)}
-            severity={severity}
-            sx={{
-              width: "100%",
-              background: severity === "success" ? "#1e4620" : severity === "warning" ? "#0077b6" : "#bf095e",
-              color: "white",
-              fontWeight: "bold",
-              borderRadius: "8px",
-              border: "1px solid rgba(255,255,255,0.2)",
-              boxShadow: "0 8px 32px rgba(0,0,0,0.8)",
-              "& .MuiAlert-icon": {
-                color: "#ffffff"
-              }
-            }}
-          >
-            {snackbarMessage}
-          </Alert>
-        </Snackbar>,
-        document.body
-      )}
     </div>
   );
 };

@@ -34,3 +34,7 @@ export const getSortKey = (name: string): string => {
   }
   return trimmed;
 };
+
+export const triggerQueueToast = (message: string, severity: "success" | "warning" | "error" = "success") => {
+  window.dispatchEvent(new CustomEvent("tunebox_queue_toast", { detail: { message, severity } }));
+};
