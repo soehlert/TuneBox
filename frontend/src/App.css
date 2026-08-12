@@ -726,27 +726,22 @@
   }
 }
 
-/* Toast Notifications: Positioned over bottom of Queue panel on Desktop, centered above Player Bar on Mobile */
-.queue-toast-snackbar {
-  position: fixed !important;
-  bottom: 106px !important;
-  right: 22px !important;
-  left: auto !important;
-  top: auto !important;
-  transform: none !important;
-  z-index: 99999 !important;
-  width: 316px !important;
-  max-width: calc(100vw - 32px) !important;
+/* Mobile Toast Notifications (reactive padding right above playback bar) */
+.mobile-toast-container {
+  display: none;
 }
 
 @media (max-width: 1023px) {
-  .queue-toast-snackbar {
+  .mobile-toast-container {
+    display: block;
+    position: fixed !important;
     bottom: 96px !important;
-    left: 50% !important;
-    right: auto !important;
-    transform: translateX(-50%) !important;
-    width: calc(100vw - 32px) !important;
-    max-width: 400px !important;
+    left: 16px !important;
+    right: 16px !important;
+    max-width: 440px !important;
+    margin: 0 auto !important;
+    z-index: 99999 !important;
+    pointer-events: none;
   }
 }
 

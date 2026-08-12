@@ -3057,6 +3057,54 @@ function App() {
             {/* Sidebar: Queue + QR Code (non-admin shared display) */}
             <div className="queue-container">
               <Queue />
+              {/* Desktop Toast Notification (reactively bounded inside queue-container) */}
+              {toastOpen && (
+                <div
+                  style={{
+                    position: "absolute",
+                    bottom: "16px",
+                    left: "12px",
+                    right: "12px",
+                    zIndex: 9999,
+                    pointerEvents: "none",
+                  }}
+                >
+                  <Alert
+                    onClose={() => setToastOpen(false)}
+                    severity={toastSeverity}
+                    sx={{
+                      width: "100%",
+                      pointerEvents: "auto",
+                      background: toastSeverity === "success" 
+                        ? "rgba(18, 45, 26, 0.88)" 
+                        : toastSeverity === "warning" 
+                        ? "rgba(12, 38, 58, 0.88)" 
+                        : "rgba(60, 18, 30, 0.88)",
+                      backdropFilter: "blur(16px)",
+                      color: "#ffffff",
+                      fontWeight: "bold",
+                      fontSize: "0.85rem",
+                      borderRadius: "12px",
+                      border: toastSeverity === "success" 
+                        ? "1px solid #4caf50" 
+                        : toastSeverity === "warning" 
+                        ? "1px solid #0077b6" 
+                        : "1px solid #bf095e",
+                      boxShadow: toastSeverity === "success"
+                        ? "0 8px 32px rgba(0, 0, 0, 0.75), 0 0 16px rgba(76, 175, 80, 0.35)"
+                        : toastSeverity === "warning"
+                        ? "0 8px 32px rgba(0, 0, 0, 0.75), 0 0 16px rgba(0, 119, 182, 0.4)"
+                        : "0 8px 32px rgba(0, 0, 0, 0.75), 0 0 16px rgba(191, 9, 94, 0.4)",
+                      alignItems: "center",
+                      "& .MuiAlert-icon": {
+                        color: toastSeverity === "success" ? "#4caf50" : toastSeverity === "warning" ? "#0077b6" : "#bf095e"
+                      }
+                    }}
+                  >
+                    {toastMessage}
+                  </Alert>
+                </div>
+              )}
               {isDisplay && (
                 <div
                   className="glass-panel"
@@ -3220,9 +3268,9 @@ function App() {
 
           {isStatsOpen && <Stats apiBase={apiBase} />}
 
-          {/* Global Toast Notification */}
+          {/* Mobile Toast Notification (reactively bounded above playback bar) */}
           {toastOpen && (
-            <div className="queue-toast-snackbar">
+            <div className="mobile-toast-container">
               <Alert
                 onClose={() => setToastOpen(false)}
                 severity={toastSeverity}
