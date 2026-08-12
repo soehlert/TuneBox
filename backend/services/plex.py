@@ -2871,3 +2871,26 @@ def trigger_closing_time_mode() -> dict:
         "finale_track": added_track_title,
     }
 
+
+def cancel_closing_time_mode() -> dict:
+    """Cancel Closing Time mode, unlock queue for guests, and broadcast event."""
+    set_closing_time_mode(False)
+
+    msg = "🎉 Last Call cancelled! Party mode resumed — song requests unlocked."
+    try:
+        from backend.websockets import broadcast_json_threadsafe
+        broadcast_json_threadsafe({
+            "type": "closing_time_cancelled",
+            "message": msg,
+            "closing_time": False,
+        })
+    except Exception as ws_ex:
+        logger.debug("Failed sending closing_time_cancelled WS broadcast: %s", ws_ex)
+
+    return {
+        "success": True,
+        "message": msg,
+        "closing_time": False,
+    }
+
+

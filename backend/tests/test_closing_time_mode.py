@@ -102,3 +102,22 @@ def test_admin_trigger_closing_time_endpoint():
         assert response.status_code == 200
         assert response.json()["closing_time"] is True
         mock_trigger.assert_called_once()
+
+
+def test_admin_cancel_closing_time_endpoint():
+    """Test DELETE /api/music/closing-time endpoint to cancel Last Call."""
+    admin_headers = {"X-Admin-Token": "test-admin-secret"}
+
+    with patch("backend.config.settings.admin_token", "test-admin-secret"), \
+         patch("backend.routers.music.cancel_closing_time_mode") as mock_cancel:
+
+        mock_cancel.return_value = {
+            "success": True,
+            "message": "🎉 Last Call cancelled! Party mode resumed.",
+            "closing_time": False,
+        }
+
+        response = client.delete("/api/music/closing-time", headers=admin_headers)
+        assert response.status_code == 200
+        assert response.json()["closing_time"] is False
+        mock_cancel.assert_called_once()

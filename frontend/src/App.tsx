@@ -2408,6 +2408,9 @@ function App() {
           } else if (data.type === "closing_time_triggered") {
             console.log("Received closing_time_triggered WS push:", data);
             window.dispatchEvent(new CustomEvent("tunebox_closing_time_updated", { detail: true }));
+          } else if (data.type === "closing_time_cancelled") {
+            console.log("Received closing_time_cancelled WS push:", data);
+            window.dispatchEvent(new CustomEvent("tunebox_closing_time_updated", { detail: false }));
           } else if (data.type === "indexing_status") {
             console.log("Received indexing_status WS push:", data);
             window.dispatchEvent(new CustomEvent("tunebox_refresh_albums"));

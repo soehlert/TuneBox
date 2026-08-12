@@ -42,6 +42,7 @@ from backend.services.plex import (
     prewarm_category_art,
     _failed_connection_cache,
     trigger_closing_time_mode,
+    cancel_closing_time_mode,
 )
 from backend.services.redis import (
     add_to_queue_redis,
@@ -160,6 +161,14 @@ async def trigger_closing_time_endpoint(x_admin_token: str | None = Header(None)
     if settings.admin_token and x_admin_token != settings.admin_token:
         raise HTTPException(status_code=401, detail="Unauthorized: Invalid admin token")
     return trigger_closing_time_mode()
+
+
+@router.delete("/closing-time")
+async def cancel_closing_time_endpoint(x_admin_token: str | None = Header(None)):
+    """Cancel Closing Time / Last Call mode and unlock guest queue (Admin only)."""
+    if settings.admin_token and x_admin_token != settings.admin_token:
+        raise HTTPException(status_code=401, detail="Unauthorized: Invalid admin token")
+    return cancel_closing_time_mode()
 
 
 @router.post("/queue/{item_id}")

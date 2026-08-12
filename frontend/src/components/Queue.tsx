@@ -39,21 +39,23 @@ const QueueComponent = () => {
   const handleTriggerLastCall = async () => {
     if (!adminToken) return;
     try {
+      const isCancelling = closingTimeMode;
+      const method = isCancelling ? "DELETE" : "POST";
       const response = await fetch(`${apiBase}/api/music/closing-time`, {
-        method: "POST",
+        method,
         headers: {
           "X-Admin-Token": adminToken,
         },
       });
       if (response.ok) {
         const data = await response.json();
-        setClosingTimeMode(true);
+        setClosingTimeMode(!isCancelling);
         if (data.message) {
           alert(data.message);
         }
       }
     } catch (error) {
-      console.error("Error triggering Last Call:", error);
+      console.error("Error toggling Last Call:", error);
     }
   };
 
@@ -453,9 +455,9 @@ const QueueComponent = () => {
             title="Stop guest requests and append 'Closing Time' finale song"
           >
             <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>
-              {closingTimeMode ? "lock" : "nightlife"}
+              {closingTimeMode ? "lock_open" : "nightlife"}
             </span>
-            <span>{closingTimeMode ? "Last Call Active (Queue Closed)" : "🍸 Trigger Last Call"}</span>
+            <span>{closingTimeMode ? "🔓 Cancel Last Call (Unlock Queue)" : "🍸 Trigger Last Call"}</span>
           </button>
         </Box>
       )}
