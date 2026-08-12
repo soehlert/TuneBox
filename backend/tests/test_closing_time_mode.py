@@ -156,3 +156,31 @@ def test_purge_non_human_tracks_from_queue_redis(mocker):
     assert remaining[0]["title"] == "Currently Playing"
     assert remaining[1]["title"] == "Human Guest Song"
     assert remaining[2]["title"] == "Human Admin Song"
+
+
+def test_trigger_closing_time_mode_adds_track(mocker):
+    """Test that trigger_closing_time_mode purges non-human tracks and appends Closing Time finale song."""
+    from backend.services.plex import trigger_closing_time_mode
+
+    mock_closing_track = {
+        "title": "Closing Time",
+        "artist": "Semisonic",
+        "album": "Feeling Strangely Fine",
+        "duration": 230000,
+        "ratingKey": "9999",
+        "track_id": 9999,
+        "album_id": 8888,
+        "server_id": "s1",
+        "thumb": "/thumb.jpg",
+    }
+
+    mock_add = mocker.patch("backend.services.plex.add_to_queue_redis")
+    mocker.patch("backend.services.plex.find_closing_time_track_db", return_value=mock_closing_track)
+    mocker.patch("backend.services.redis.purge_non_human_tracks_from_queue_redis")
+    mocker.patch("backend.websockets.broadcast_queue_threadsafe")
+    mocker.patch("backend.websockets.broadcast_json_threadsafe")
+
+    res = trigger_closing_time_mode()
+    assert res["success"] is True
+    assert "Closing Time" in res["finale_track"]
+    mock_add.assert_called_once()
