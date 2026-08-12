@@ -726,24 +726,7 @@
   }
 }
 
-/* Mobile Toast Notifications (reactive padding right above playback bar) */
-.mobile-toast-container {
-  display: none;
-}
 
-@media (max-width: 1023px) {
-  .mobile-toast-container {
-    display: block;
-    position: fixed !important;
-    bottom: 96px !important;
-    left: 16px !important;
-    right: 16px !important;
-    max-width: 440px !important;
-    margin: 0 auto !important;
-    z-index: 99999 !important;
-    pointer-events: none;
-  }
-}
 
 /* Kiosk Mode Hover Tooltip */
 .kiosk-help-container {

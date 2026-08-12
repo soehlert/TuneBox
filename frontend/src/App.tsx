@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Routes, Route, Link, useNavigate, useLocation } from "react-router-dom";
 import { ThemeProvider } from "@mui/material/styles";
-import { Alert } from "@mui/material";
+import { Alert, Snackbar } from "@mui/material";
 import axios from "axios";
 import { QRCodeSVG } from "qrcode.react";
 import ArtistList from "./components/ArtistList";
@@ -3057,54 +3057,6 @@ function App() {
             {/* Sidebar: Queue + QR Code (non-admin shared display) */}
             <div className="queue-container">
               <Queue />
-              {/* Desktop Toast Notification (reactively bounded inside queue-container) */}
-              {toastOpen && (
-                <div
-                  style={{
-                    position: "absolute",
-                    bottom: "16px",
-                    left: "12px",
-                    right: "12px",
-                    zIndex: 9999,
-                    pointerEvents: "none",
-                  }}
-                >
-                  <Alert
-                    onClose={() => setToastOpen(false)}
-                    severity={toastSeverity}
-                    sx={{
-                      width: "100%",
-                      pointerEvents: "auto",
-                      background: toastSeverity === "success" 
-                        ? "rgba(18, 45, 26, 0.88)" 
-                        : toastSeverity === "warning" 
-                        ? "rgba(12, 38, 58, 0.88)" 
-                        : "rgba(60, 18, 30, 0.88)",
-                      backdropFilter: "blur(16px)",
-                      color: "#ffffff",
-                      fontWeight: "bold",
-                      fontSize: "0.85rem",
-                      borderRadius: "12px",
-                      border: toastSeverity === "success" 
-                        ? "1px solid #4caf50" 
-                        : toastSeverity === "warning" 
-                        ? "1px solid #0077b6" 
-                        : "1px solid #bf095e",
-                      boxShadow: toastSeverity === "success"
-                        ? "0 8px 32px rgba(0, 0, 0, 0.75), 0 0 16px rgba(76, 175, 80, 0.35)"
-                        : toastSeverity === "warning"
-                        ? "0 8px 32px rgba(0, 0, 0, 0.75), 0 0 16px rgba(0, 119, 182, 0.4)"
-                        : "0 8px 32px rgba(0, 0, 0, 0.75), 0 0 16px rgba(191, 9, 94, 0.4)",
-                      alignItems: "center",
-                      "& .MuiAlert-icon": {
-                        color: toastSeverity === "success" ? "#4caf50" : toastSeverity === "warning" ? "#0077b6" : "#bf095e"
-                      }
-                    }}
-                  >
-                    {toastMessage}
-                  </Alert>
-                </div>
-              )}
               {isDisplay && (
                 <div
                   className="glass-panel"
@@ -3268,45 +3220,55 @@ function App() {
 
           {isStatsOpen && <Stats apiBase={apiBase} />}
 
-          {/* Mobile Toast Notification (reactively bounded above playback bar) */}
-          {toastOpen && (
-            <div className="mobile-toast-container">
-              <Alert
-                onClose={() => setToastOpen(false)}
-                severity={toastSeverity}
-                sx={{
-                  width: "100%",
-                  pointerEvents: "auto",
-                  background: toastSeverity === "success" 
-                    ? "rgba(18, 45, 26, 0.88)" 
-                    : toastSeverity === "warning" 
-                    ? "rgba(12, 38, 58, 0.88)" 
-                    : "rgba(60, 18, 30, 0.88)",
-                  backdropFilter: "blur(16px)",
-                  color: "#ffffff",
-                  fontWeight: "bold",
-                  fontSize: "0.85rem",
-                  borderRadius: "12px",
-                  border: toastSeverity === "success" 
-                    ? "1px solid #4caf50" 
-                    : toastSeverity === "warning" 
-                    ? "1px solid #0077b6" 
-                    : "1px solid #bf095e",
-                  boxShadow: toastSeverity === "success"
-                    ? "0 8px 32px rgba(0, 0, 0, 0.75), 0 0 16px rgba(76, 175, 80, 0.35)"
-                    : toastSeverity === "warning"
-                    ? "0 8px 32px rgba(0, 0, 0, 0.75), 0 0 16px rgba(0, 119, 182, 0.4)"
-                    : "0 8px 32px rgba(0, 0, 0, 0.75), 0 0 16px rgba(191, 9, 94, 0.4)",
-                  alignItems: "center",
-                  "& .MuiAlert-icon": {
-                    color: toastSeverity === "success" ? "#4caf50" : toastSeverity === "warning" ? "#0077b6" : "#bf095e"
-                  }
-                }}
-              >
-                {toastMessage}
-              </Alert>
-            </div>
-          )}
+          {/* Global Responsive Toast Notification */}
+          <Snackbar
+            open={toastOpen}
+            autoHideDuration={4000}
+            onClose={() => setToastOpen(false)}
+            anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+            sx={{
+              bottom: { xs: "90px", sm: "96px" },
+              right: { xs: "16px", sm: "24px" },
+              left: { xs: "16px", sm: "auto" },
+              maxWidth: { xs: "calc(100vw - 32px)", sm: "360px" },
+              width: "100%",
+              zIndex: 99999,
+            }}
+          >
+            <Alert
+              onClose={() => setToastOpen(false)}
+              severity={toastSeverity}
+              sx={{
+                width: "100%",
+                background: toastSeverity === "success" 
+                  ? "rgba(18, 45, 26, 0.88)" 
+                  : toastSeverity === "warning" 
+                  ? "rgba(12, 38, 58, 0.88)" 
+                  : "rgba(60, 18, 30, 0.88)",
+                backdropFilter: "blur(16px)",
+                color: "#ffffff",
+                fontWeight: "bold",
+                fontSize: "0.85rem",
+                borderRadius: "12px",
+                border: toastSeverity === "success" 
+                  ? "1px solid #4caf50" 
+                  : toastSeverity === "warning" 
+                  ? "1px solid #0077b6" 
+                  : "1px solid #bf095e",
+                boxShadow: toastSeverity === "success"
+                  ? "0 8px 32px rgba(0, 0, 0, 0.75), 0 0 16px rgba(76, 175, 80, 0.35)"
+                  : toastSeverity === "warning"
+                  ? "0 8px 32px rgba(0, 0, 0, 0.75), 0 0 16px rgba(0, 119, 182, 0.4)"
+                  : "0 8px 32px rgba(0, 0, 0, 0.75), 0 0 16px rgba(191, 9, 94, 0.4)",
+                alignItems: "center",
+                "& .MuiAlert-icon": {
+                  color: toastSeverity === "success" ? "#4caf50" : toastSeverity === "warning" ? "#0077b6" : "#bf095e"
+                }
+              }}
+            >
+              {toastMessage}
+            </Alert>
+          </Snackbar>
         </div>
       </ThemeProvider>
     );
