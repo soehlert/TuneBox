@@ -842,7 +842,7 @@ def get_albums_by_decade_db(year_start: int, year_end: int, db_path: str | None 
 
 def search_music_db(query_str: str, db_path: str | None = None) -> list[dict]:
     """Search artists, albums, and tracks in SQLite database instantly."""
-    if not query_str:
+    if not query_str or len(query_str.strip()) < 3:
         return []
     term = f"%{query_str.strip().lower()}%"
     conn = get_db_connection(db_path)
@@ -856,7 +856,7 @@ def search_music_db(query_str: str, db_path: str | None = None) -> list[dict]:
             JOIN artist_sources src ON a.artist_id = src.artist_id
             JOIN servers srv ON src.server_id = srv.server_id
             WHERE srv.enabled = 1 AND LOWER(a.name) LIKE ?
-            LIMIT 10
+            LIMIT 20
             """,
             (term,),
         )
@@ -872,7 +872,7 @@ def search_music_db(query_str: str, db_path: str | None = None) -> list[dict]:
             WHERE srv.enabled = 1 AND alb.title != '' AND alb.title IS NOT NULL
               AND LOWER(alb.title) LIKE ?
             ORDER BY alb.title COLLATE NOCASE ASC
-            LIMIT 30
+            LIMIT 60
             """,
             (term,),
         )
@@ -888,7 +888,7 @@ def search_music_db(query_str: str, db_path: str | None = None) -> list[dict]:
             FROM tracks t
             JOIN servers srv ON t.server_id = srv.server_id
             WHERE srv.enabled = 1 AND LOWER(t.title) LIKE ?
-            LIMIT 15
+            LIMIT 150
             """,
             (term,),
         )

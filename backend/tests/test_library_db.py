@@ -103,6 +103,21 @@ def test_search_music_db_strict_title_track_matching(temp_db):
     assert len(track_matches) == 0, "Tracks by Foo Fighters with different title must not match search query 'Foo Fighters'"
 
 
+def test_search_music_db_requires_minimum_three_characters(temp_db):
+    """Verify search_music_db returns empty list for queries shorter than 3 characters."""
+    from backend.services.library import search_music_db, upsert_server, upsert_artist
+
+    upsert_server("srv-1", "Alpha Server", enabled=True, db_path=temp_db)
+    upsert_artist("Abba", server_id="srv-1", server_artist_id="101", db_path=temp_db)
+
+    assert search_music_db("a", db_path=temp_db) == []
+    assert search_music_db("ab", db_path=temp_db) == []
+    results = search_music_db("abb", db_path=temp_db)
+    assert len(results) == 1
+    assert results[0]["name"] == "Abba"
+
+
+
 def test_get_albums_for_artist_db_prevents_server_album_id_mismatch(temp_db):
     """Verify get_albums_for_artist_db does not return albums of another artist matching server_album_id."""
     from backend.services.library import get_albums_for_artist_db, upsert_server, upsert_artist, upsert_album

@@ -2292,13 +2292,19 @@ function App() {
     return () => clearInterval(interval);
   }, [isConfigured, indexingStatus?.isIndexing, debouncedSearchTerm]);
 
-  // Debouncing hook logic
+  // Debouncing hook logic (requires at least 3 characters to search)
   useEffect(() => {
-    if (searchTerm) {
+    const trimmed = searchTerm.trim();
+    if (trimmed.length >= 3) {
       setLoadingArtists(true);
     }
     const handler = setTimeout(() => {
-      setDebouncedSearchTerm(searchTerm);
+      if (trimmed.length >= 3) {
+        setDebouncedSearchTerm(trimmed);
+      } else {
+        setDebouncedSearchTerm("");
+        setSearchResults([]);
+      }
     }, 300);
     return () => clearTimeout(handler);
   }, [searchTerm]);
@@ -2308,14 +2314,15 @@ function App() {
     if (!isConfigured) return;
     setLoadingArtists(true);
     try {
+      const isSearchActive = debouncedSearchTerm.length >= 3;
       const searchURL = getApiUrl(`/api/music/unified-search?query=${encodeURIComponent(debouncedSearchTerm)}`);
       const artistListURL = getApiUrl("/api/music/artists");
-      const endpoint = debouncedSearchTerm ? searchURL : artistListURL;
+      const endpoint = isSearchActive ? searchURL : artistListURL;
 
       const response = await axios.get(endpoint);
       let data = response.data;
 
-      if (debouncedSearchTerm) {
+      if (isSearchActive) {
         setSearchResults(data);
       } else {
         data = data.filter((item: any) => item.name);

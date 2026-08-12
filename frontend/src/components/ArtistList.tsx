@@ -46,6 +46,31 @@ function ArtistList({
     message: "",
   });
 
+  const [visibleTrackLimit, setVisibleTrackLimit] = useState(15);
+  const trackSentinelRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    setVisibleTrackLimit(15);
+  }, [searchResults]);
+
+  useEffect(() => {
+    const sentinel = trackSentinelRef.current;
+    if (!sentinel) return;
+
+    const totalTracks = searchResults.filter((i) => i.type === "track").length;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setVisibleTrackLimit((prev) => Math.min(prev + 15, totalTracks));
+        }
+      },
+      { rootMargin: "250px" }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [searchResults]);
+
   const handleArtistClick = (artistId: number, artistName?: string, serverId?: string) => {
     sessionStorage.setItem("tunebox_artist_scroll_top", String(window.scrollY || document.querySelector('.main-content')?.scrollTop || 0));
     const sParam = serverId ? `?server_id=${serverId}` : "";
@@ -513,17 +538,24 @@ function ArtistList({
           {/* 3. Tracks Section */}
           {searchTracks.length > 0 && (
             <div>
-              <Typography variant="h5" style={{ color: "#f5a623", marginBottom: "16px", fontFamily: "var(--font-title)", fontWeight: 700 }}>
-                Tracks
-              </Typography>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
+                <Typography variant="h5" style={{ color: "#f5a623", fontFamily: "var(--font-title)", fontWeight: 700 }}>
+                  Tracks
+                </Typography>
+                <span style={{ fontSize: "12px", color: "rgba(255,255,255,0.5)", fontWeight: 600 }}>
+                  Showing {Math.min(visibleTrackLimit, searchTracks.length)} of {searchTracks.length} tracks
+                </span>
+              </div>
               <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-                {searchTracks.map((track) => (
+                {searchTracks.slice(0, visibleTrackLimit).map((track) => (
                   <Card
                     key={track.track_id}
                     onClick={() => {
                       if (track.album_id) {
-                        const sParam = track.server_id ? `?server_id=${track.server_id}` : "";
-                        navigate(`/albums/${track.album_id}/tracks${sParam}`);
+                        const trackParam = track.track_id ? `highlight_track_id=${track.track_id}` : "";
+                        const serverParam = track.server_id ? `server_id=${track.server_id}` : "";
+                        const query = [trackParam, serverParam].filter(Boolean).join("&");
+                        navigate(`/albums/${track.album_id}/tracks${query ? `?${query}` : ""}`);
                       }
                     }}
                     style={{
@@ -642,6 +674,12 @@ function ArtistList({
                   </Card>
                 ))}
               </div>
+              {/* Scroll Sentinel for Auto Infinite Scroll */}
+              {visibleTrackLimit < searchTracks.length && (
+                <div ref={trackSentinelRef} style={{ height: "40px", display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.5)", fontSize: "13px", marginTop: "12px" }}>
+                  Loading more tracks...
+                </div>
+              )}
             </div>
           )}
 
