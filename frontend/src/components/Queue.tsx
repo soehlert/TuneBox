@@ -523,7 +523,7 @@ const QueueComponent = () => {
                     />
                   ) : null}
                   <Box className="queue-item-art-placeholder" style={{ display: track.item_id ? "none" : "flex" }}>🎵</Box>
-                  <Box className="queue-item-meta" style={{ display: "flex", flexDirection: "column", gap: "2px", minWidth: 0, width: "100%" }}>
+                  <Box className="queue-item-meta" style={{ display: "flex", flexDirection: "column", gap: "2px", minWidth: 0, flex: 1, overflow: "hidden" }}>
                     <Typography
                       className="queue-item-title"
                       title={track.title}
@@ -593,7 +593,7 @@ const QueueComponent = () => {
                   ) : (
                     <Typography className="queue-item-time">{formatDuration(track.duration)}</Typography>
                   )}
-                  {!isActive && index > 1 && !track.is_bumped && (
+                  {!isActive && index > 0 && !track.is_bumped && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation();

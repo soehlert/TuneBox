@@ -114,12 +114,21 @@ def bump_existing_queue_item(item_id: int | str, username: str) -> bool:
     if not raw_queue:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Queue is empty.")
 
+    target_track_id = str(item_id)
+    if not settings.testing:
+        resolved_id = validate_track_id(item_id)
+        if not resolved_id:
+            resolved_id = rating_key_to_track_id(item_id)
+        if resolved_id:
+            target_track_id = str(resolved_id)
+
     target_idx = None
     target_raw = None
     target_item = None
     for idx, item_bytes in enumerate(raw_queue):
         item = json.loads(item_bytes)
-        if str(item.get("item_id")) == str(item_id):
+        cur_id = str(item.get("item_id"))
+        if cur_id == target_track_id or cur_id == str(item_id):
             target_idx = idx
             target_raw = item_bytes
             target_item = item
