@@ -1451,17 +1451,18 @@ def _build_vibe_where_clause(meta: dict) -> tuple[str, list[str]]:
 
 
 def get_available_vibes_db(db_path: str | None = None) -> list[dict]:
-    """Fetch distinct party vibes with exact matching track counts from SQLite."""
+    """Fetch distinct party vibes with exact matching track counts from the primary server in SQLite."""
     conn = get_db_connection(db_path)
     try:
         results = []
         for mood_key, meta in MOOD_MAPPINGS.items():
             where_clause, params = _build_vibe_where_clause(meta)
             query = f"""
-                SELECT COUNT(t.track_id) as count
+                SELECT COUNT(DISTINCT t.track_id) as count
                 FROM tracks t
                 JOIN albums alb ON t.album_id = alb.album_id
-                WHERE {where_clause}
+                JOIN servers s ON t.server_id = s.server_id
+                WHERE s.is_primary = 1 AND ({where_clause})
             """
             row = conn.execute(query, params).fetchone()
             count = row["count"] if row else 0
@@ -1485,7 +1486,7 @@ def get_available_vibes_db(db_path: str | None = None) -> list[dict]:
 
 
 def get_tracks_by_vibe_db(vibe_name: str, count: int = 10, db_path: str | None = None) -> list[dict]:
-    """Retrieve random tracks from SQLite matching a targeted mood via weighted scoring."""
+    """Retrieve random tracks from SQLite matching a targeted mood from the primary server via weighted scoring."""
     target_count = max(1, count)
     conn = get_db_connection(db_path)
     try:
@@ -1505,7 +1506,8 @@ def get_tracks_by_vibe_db(vibe_name: str, count: int = 10, db_path: str | None =
                        t.duration, t.thumb
                 FROM tracks t
                 JOIN albums alb ON t.album_id = alb.album_id
-                WHERE {where_clause}
+                JOIN servers s ON t.server_id = s.server_id
+                WHERE s.is_primary = 1 AND ({where_clause})
                 ORDER BY RANDOM()
                 LIMIT ?
             """
@@ -1521,6 +1523,8 @@ def get_tracks_by_vibe_db(vibe_name: str, count: int = 10, db_path: str | None =
                        t.artist_name as artist, t.album_title as album, t.title,
                        t.duration, t.thumb
                 FROM tracks t
+                JOIN servers s ON t.server_id = s.server_id
+                WHERE s.is_primary = 1
                 ORDER BY RANDOM()
                 LIMIT ?
                 """,

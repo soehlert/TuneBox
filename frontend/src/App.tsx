@@ -1100,7 +1100,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
               <div style={{ display: "flex", flexDirection: "column", gap: "14px", padding: "4px 8px 12px 8px" }}>
                 {/* Playlist Selection & Seeding */}
                 <div>
-                  <label style={labelStyle}>Seed Playlist to Queue</label>
+                  <label style={labelStyle}>📜 Seed Playlist to Queue</label>
                   <div style={{ display: "flex", gap: "8px", marginTop: "4px", alignItems: "center" }}>
                     <select
                       value={selectedPlaylistId}
