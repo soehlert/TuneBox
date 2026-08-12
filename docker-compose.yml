@@ -26,6 +26,7 @@ services:
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}
       - TUNEBOX_URL=${TUNEBOX_URL:-backend:8000}
       - HOST_IP=${HOST_IP:-}
+      - INDEX_INTERVAL_HOURS=${INDEX_INTERVAL_HOURS:-24}
       - TESTING=${TESTING:-false}
     volumes:
       - ./backend:/app/backend

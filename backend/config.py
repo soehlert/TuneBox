@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     tunebox_url: str = ""
     testing: bool = False
     admin_token: str = ""
-    index_interval_hours: int = 24
+    index_interval_hours: float = 24.0
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
