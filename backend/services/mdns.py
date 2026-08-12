@@ -11,25 +11,40 @@ _service_info: ServiceInfo | None = None
 
 
 import os
+import ifaddr
 
 def get_lan_ip() -> str:
-    """Get the local LAN IP address of the host machine."""
+    """Get the local LAN IP address of the host machine, VM, or LXC container."""
     env_ip = os.getenv("HOST_IP")
-    if env_ip and not env_ip.startswith("127.") and not env_ip.startswith("172."):
+    if env_ip and not env_ip.startswith("127."):
         return env_ip
 
+    # 1. Try ifaddr to find a real IPv4 address on physical interfaces (eth0, en0, wlan0, br0)
+    try:
+        adapters = ifaddr.get_adapters()
+        for adapter in adapters:
+            name = adapter.name.lower()
+            if any(skip in name for skip in ["lo", "docker", "veth", "bridge", "utun", "tun", "tap", "virbr"]):
+                continue
+            for ip in adapter.ips:
+                if isinstance(ip.ip, str) and not ip.ip.startswith("127.") and not ip.ip.startswith("172."):
+                    return ip.ip
+    except Exception as ex:
+        logger.debug("ifaddr LAN IP lookup error: %s", ex)
+
+    # 2. Fallback socket lookup
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
         s.connect(("8.8.8.8", 80))
         ip = s.getsockname()[0]
-        if not ip.startswith("172.") and not ip.startswith("192.168.107."):
+        if not ip.startswith("172."):
             return ip
     except Exception:
         pass
     finally:
         s.close()
 
-    return env_ip or "127.0.0.1"
+    return "127.0.0.1"
 
 
 def register_mdns_service(hostname: str = "tunebox.local", port: int = 8000) -> bool:
