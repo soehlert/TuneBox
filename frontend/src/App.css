@@ -726,27 +726,26 @@
   }
 }
 
-/* Toast Notifications: Positioned over bottom of Queue panel on laptop */
+/* Toast Notifications: Positioned over bottom of Queue panel */
 .queue-toast-snackbar {
   position: fixed !important;
-  bottom: 96px !important;
+  bottom: 106px !important;
   right: 20px !important;
   left: auto !important;
   top: auto !important;
   transform: none !important;
   z-index: 99999 !important;
-  width: 340px !important;
+  width: 320px !important;
   max-width: calc(100vw - 32px) !important;
 }
 
 @media (max-width: 1023px) {
   .queue-toast-snackbar {
-    bottom: 90px !important;
+    bottom: 100px !important;
     left: 50% !important;
     right: auto !important;
     transform: translateX(-50%) !important;
-    width: calc(100vw - 32px) !important;
-    max-width: 400px !important;
+    width: auto !important;
   }
 }
 

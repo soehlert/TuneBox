@@ -762,29 +762,12 @@ function ArtistList({
             severity={severity}
             sx={{
               width: "100%",
-              background: severity === "success" 
-                ? "rgba(18, 42, 26, 0.96)" 
-                : severity === "warning" 
-                ? "rgba(16, 38, 58, 0.96)" 
-                : "rgba(45, 16, 22, 0.96)",
-              color: "#ffffff",
+              background: severity === "success" ? "#1e4620" : severity === "warning" ? "#663c00" : "#5f2120",
+              color: "white",
               fontWeight: "bold",
-              fontSize: "0.85rem",
-              fontFamily: "var(--font-body)",
-              borderRadius: "12px",
-              border: severity === "success" 
-                ? "1px solid rgba(76, 175, 80, 0.6)" 
-                : severity === "warning" 
-                ? "1px solid rgba(0, 119, 182, 0.6)" 
-                : "1px solid rgba(244, 67, 54, 0.6)",
-              boxShadow: severity === "warning"
-                ? "0 8px 32px rgba(0, 0, 0, 0.85), 0 0 16px rgba(0, 119, 182, 0.3)"
-                : "0 8px 32px rgba(0, 0, 0, 0.85)",
-              backdropFilter: "blur(16px)",
-              alignItems: "center",
-              "& .MuiAlert-icon": {
-                color: severity === "warning" ? "#9bd0ff" : severity === "success" ? "#4caf50" : "#f44336"
-              }
+              borderRadius: "8px",
+              border: "1px solid rgba(255,255,255,0.2)",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.8)"
             }}
           >
             {snackbarMessage}
