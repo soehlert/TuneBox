@@ -778,27 +778,27 @@ const QueueComponent = () => {
             sx={{
               width: "100%",
               background: severity === "success" 
-                ? "rgba(18, 38, 22, 0.94)" 
+                ? "rgba(18, 42, 26, 0.96)" 
                 : severity === "warning" 
-                ? "rgba(42, 28, 10, 0.95)" 
-                : "rgba(42, 14, 14, 0.94)",
+                ? "rgba(16, 38, 58, 0.96)" 
+                : "rgba(45, 16, 22, 0.96)",
               color: "#ffffff",
               fontWeight: "bold",
-              fontSize: "0.9rem",
+              fontSize: "0.85rem",
               fontFamily: "var(--font-body)",
               borderRadius: "12px",
               border: severity === "success" 
                 ? "1px solid rgba(76, 175, 80, 0.6)" 
                 : severity === "warning" 
-                ? "1px solid rgba(245, 166, 35, 0.7)" 
+                ? "1px solid rgba(0, 119, 182, 0.6)" 
                 : "1px solid rgba(244, 67, 54, 0.6)",
               boxShadow: severity === "warning"
-                ? "0 10px 32px rgba(0,0,0,0.85), 0 0 20px rgba(245, 166, 35, 0.25)"
-                : "0 10px 32px rgba(0,0,0,0.85)",
+                ? "0 8px 32px rgba(0, 0, 0, 0.85), 0 0 16px rgba(0, 119, 182, 0.3)"
+                : "0 8px 32px rgba(0, 0, 0, 0.85)",
               backdropFilter: "blur(16px)",
               alignItems: "center",
               "& .MuiAlert-icon": {
-                color: severity === "warning" ? "#f5a623" : severity === "success" ? "#4caf50" : "#f44336"
+                color: severity === "warning" ? "#9bd0ff" : severity === "success" ? "#4caf50" : "#f44336"
               }
             }}
           >
