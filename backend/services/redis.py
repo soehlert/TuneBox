@@ -106,7 +106,7 @@ def bump_existing_queue_item(item_id: int | str, username: str) -> bool:
     if has_user_bumped(effective_username):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="You have already used your 'Play Next' bump for this session.",
+            detail="You have used your one bump for this session!",
         )
 
     client = get_redis_queue_client()
@@ -226,7 +226,7 @@ def add_to_queue_redis(song, server_id=None, server_name=None, server_token=None
         if has_user_bumped(effective_added_by):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="You have already used your 'Play Next' bump for this session.",
+                detail="You have used your one bump for this session!",
             )
 
     moods = [m.tag if hasattr(m, "tag") else str(m) for m in getattr(song, "moods", [])] if hasattr(song, "moods") else []

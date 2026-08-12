@@ -99,7 +99,7 @@ def test_single_use_session_bump(mock_redis, make_mock_track, mocker):
             add_to_queue_redis(track2, added_by="PartyUser", bump=True)
 
         assert exc_info.value.status_code == 400
-        assert "already used your 'Play Next' bump" in exc_info.value.detail
+        assert "You have used your one bump" in exc_info.value.detail
 
 
 def test_human_leapfrog_over_fallback_tracks(mock_redis, make_mock_track, mocker):

@@ -1,6 +1,8 @@
 import { useEffect, useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { Box, Typography } from '@mui/material';
+import { Box, Typography, Snackbar, Alert } from '@mui/material';
+import { getLocalUsername } from '../utils';
 import "./Queue.css";
 
 const QueueComponent = () => {
@@ -10,6 +12,16 @@ const QueueComponent = () => {
   const [activeTab, setActiveTab] = useState<'queue' | 'history'>('queue');
   const [closingTimeMode, setClosingTimeMode] = useState(false);
   const adminToken = localStorage.getItem("tunebox_admin_token") || "";
+
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [severity, setSeverity] = useState<"success" | "error" | "warning">("success");
+
+  const showSnackbar = (msg: string, sev: "success" | "error" | "warning" = "success") => {
+    setSnackbarMessage(msg);
+    setSeverity(sev);
+    setSnackbarOpen(true);
+  };
 
   const fetchClosingTime = async () => {
     try {
@@ -140,13 +152,13 @@ const QueueComponent = () => {
       });
       const data = await response.json();
       if (!response.ok) {
-        showSnackbar(data.detail || "Could not bump track.", "warning");
+        showSnackbar(data.detail || "You have used your one bump for this session!", "warning");
       } else {
         showSnackbar("Track bumped to play next! ⚡", "success");
       }
     } catch (error) {
       console.error("Error bumping track:", error);
-      showSnackbar("Failed to bump track.", "error");
+      showSnackbar("You have used your one bump for this session!", "warning");
     }
   };
 
@@ -554,7 +566,7 @@ const QueueComponent = () => {
                           }}
                           title="Bumped to Play Next"
                         >
-                          ⚡ PLAY NEXT
+                          ⚡ PLAYS NEXT
                         </span>
                       </Box>
                     )}
@@ -587,13 +599,13 @@ const QueueComponent = () => {
                     })()}
                   </Box>
                 </Box>
-                <Box style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <Box style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
                   {isActive ? (
                     <span className="material-symbols-outlined queue-equalizer animate-pulse">equalizer</span>
                   ) : (
                     <Typography className="queue-item-time">{formatDuration(track.duration)}</Typography>
                   )}
-                  {!isActive && index > 0 && !track.is_bumped && (
+                  {!isActive && index > 0 && !track.is_bumped && !adminToken && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -604,13 +616,17 @@ const QueueComponent = () => {
                         border: "1px solid rgba(245, 166, 35, 0.4)",
                         color: "#f5a623",
                         cursor: "pointer",
-                        display: "flex",
+                        display: "inline-flex",
                         alignItems: "center",
+                        justifyContent: "center",
                         gap: "2px",
-                        padding: "3px 8px",
+                        padding: "3px 10px",
+                        height: "26px",
                         borderRadius: "12px",
                         fontSize: "11px",
                         fontWeight: 700,
+                        whiteSpace: "nowrap",
+                        flexShrink: 0,
                         transition: "all 0.15s ease",
                       }}
                       onMouseEnter={(e) => {
@@ -619,7 +635,7 @@ const QueueComponent = () => {
                       onMouseLeave={(e) => {
                         e.currentTarget.style.backgroundColor = "rgba(245, 166, 35, 0.15)";
                       }}
-                      title="Use your 1 per-session Play Next bump token"
+                      title="Use your 1 per-session Plays Next bump token"
                     >
                       ⚡ Bump
                     </button>
@@ -748,6 +764,31 @@ const QueueComponent = () => {
             ))
           )}
         </ul>
+      )}
+      {createPortal(
+        <Snackbar
+          open={snackbarOpen}
+          autoHideDuration={4000}
+          onClose={() => setSnackbarOpen(false)}
+          className="queue-toast-snackbar"
+        >
+          <Alert
+            onClose={() => setSnackbarOpen(false)}
+            severity={severity}
+            sx={{
+              width: "100%",
+              background: severity === "success" ? "#1e4620" : severity === "warning" ? "#663c00" : "#5f2120",
+              color: "white",
+              fontWeight: "bold",
+              borderRadius: "8px",
+              border: "1px solid rgba(255,255,255,0.2)",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.8)"
+            }}
+          >
+            {snackbarMessage}
+          </Alert>
+        </Snackbar>,
+        document.body
       )}
     </Box>
   );

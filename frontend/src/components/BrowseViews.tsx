@@ -854,18 +854,16 @@ export const TopPlayedTracksGridView: React.FC<{ apiBase: string }> = ({ apiBase
     setSnackbarOpen(true);
   };
 
-  const handleQueueTrack = async (track: TopPlayedTrack, e: React.MouseEvent, bump = false) => {
+  const handleQueueTrack = async (track: TopPlayedTrack, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
       const res = await axios.post(`${apiBase}/api/music/queue/${track.track_id}`, {
         server_id: track.server_id,
         username: getLocalUsername(),
-        bump,
       });
       const etaMin = res?.data?.estimated_wait_minutes;
       const etaStr = etaMin && etaMin > 0 ? ` (Estimated play in ~${etaMin} min)` : "";
-      const bumpStr = bump ? " ⚡ Play Next" : "";
-      showSnackbar(`"${track.title}" added to queue${bumpStr}!${etaStr}`, "success");
+      showSnackbar(`"${track.title}" added to queue!${etaStr}`, "success");
     } catch (error: any) {
       const errorMsg = error?.response?.data?.detail || error?.response?.data?.message;
       if (error.response && error.response.status === 400) {
@@ -976,65 +974,36 @@ export const TopPlayedTracksGridView: React.FC<{ apiBase: string }> = ({ apiBase
                   </div>
                 </div>
 
-                {/* Far Right: Queue & Bump Buttons */}
-                <div style={{ display: "flex", gap: "6px", alignItems: "center", flexShrink: 0 }}>
-                  <button
-                    onClick={(e) => handleQueueTrack(track, e, false)}
-                    style={{
-                      background: "rgba(51, 117, 173, 0.2)",
-                      border: "1px solid #3376ad",
-                      color: "#9bd0ff",
-                      borderRadius: "20px",
-                      padding: "6px 12px",
-                      fontSize: "12px",
-                      fontWeight: 700,
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "4px",
-                      transition: "background-color 0.2s, transform 0.15s",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "rgba(51, 117, 173, 0.4)";
-                      e.currentTarget.style.transform = "scale(1.05)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "rgba(51, 117, 173, 0.2)";
-                      e.currentTarget.style.transform = "none";
-                    }}
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>add</span>
-                    Queue
-                  </button>
-                  <button
-                    onClick={(e) => handleQueueTrack(track, e, true)}
-                    style={{
-                      background: "rgba(245, 166, 35, 0.2)",
-                      border: "1px solid #f5a623",
-                      color: "#f5a623",
-                      borderRadius: "20px",
-                      padding: "6px 12px",
-                      fontSize: "12px",
-                      fontWeight: 700,
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "4px",
-                      transition: "background-color 0.2s, transform 0.15s",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "rgba(245, 166, 35, 0.4)";
-                      e.currentTarget.style.transform = "scale(1.05)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "rgba(245, 166, 35, 0.2)";
-                      e.currentTarget.style.transform = "none";
-                    }}
-                    title="Use your 1 per-session Play Next bump token"
-                  >
-                    ⚡ Bump
-                  </button>
-                </div>
+                {/* Far Right: Queue Button */}
+                <button
+                  onClick={(e) => handleQueueTrack(track, e)}
+                  style={{
+                    background: "rgba(51, 117, 173, 0.2)",
+                    border: "1px solid #3376ad",
+                    color: "#9bd0ff",
+                    borderRadius: "20px",
+                    padding: "6px 14px",
+                    fontSize: "12px",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "4px",
+                    flexShrink: 0,
+                    transition: "background-color 0.2s, transform 0.15s",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "rgba(51, 117, 173, 0.4)";
+                    e.currentTarget.style.transform = "scale(1.05)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "rgba(51, 117, 173, 0.2)";
+                    e.currentTarget.style.transform = "none";
+                  }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>add</span>
+                  Queue
+                </button>
               </div>
             );
           })}
