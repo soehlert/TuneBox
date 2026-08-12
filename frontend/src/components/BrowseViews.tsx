@@ -904,22 +904,24 @@ export const TopPlayedTracksGridView: React.FC<{ apiBase: string }> = ({ apiBase
                   background: "var(--color-glass-bg)",
                   border: "1px solid var(--color-glass-border)",
                   borderRadius: "14px",
-                  padding: "12px 14px",
+                  padding: "10px 14px",
                   display: "flex",
-                  flexDirection: "column",
-                  gap: "10px",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "12px",
                   cursor: track.album_id ? "pointer" : "default",
                   transition: "background-color 0.2s, transform 0.2s, border-color 0.2s",
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.borderColor = "var(--color-primary)";
+                  e.currentTarget.style.transform = "translateX(4px)";
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.borderColor = "var(--color-glass-border)";
+                  e.currentTarget.style.transform = "none";
                 }}
               >
-                {/* Top Row: Rank Badge + Cover Art + Full Track Info */}
-                <div style={{ display: "flex", alignItems: "center", gap: "12px", width: "100%" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0, flex: 1 }}>
                   {/* Rank Badge */}
                   <div
                     style={{
@@ -949,7 +951,7 @@ export const TopPlayedTracksGridView: React.FC<{ apiBase: string }> = ({ apiBase
                     />
                   </div>
 
-                  {/* Track Info */}
+                  {/* Track Info (Title, Artist • Album, Play count subheader) */}
                   <div style={{ display: "flex", flexDirection: "column", minWidth: 0, flex: 1, overflow: "hidden" }}>
                     <span style={{ fontWeight: 700, fontSize: "14px", color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                       {track.title}
@@ -957,68 +959,42 @@ export const TopPlayedTracksGridView: React.FC<{ apiBase: string }> = ({ apiBase
                     <span style={{ fontSize: "12px", color: "rgba(255,255,255,0.6)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                       {track.artist} {track.album ? `• ${track.album}` : ""}
                     </span>
+                    <span style={{ fontSize: "11px", fontWeight: 600, color: "#ff9500", marginTop: "2px", display: "flex", alignItems: "center", gap: "3px" }}>
+                      🔥 {track.play_count} {track.play_count === 1 ? "play" : "plays"}
+                    </span>
                   </div>
                 </div>
 
-                {/* Bottom Row: Play Count Pill & Queue Button */}
-                <div
+                {/* Far Right: Queue Button */}
+                <button
+                  onClick={(e) => handleQueueTrack(track, e)}
                   style={{
+                    background: "rgba(51, 117, 173, 0.2)",
+                    border: "1px solid #3376ad",
+                    color: "#9bd0ff",
+                    borderRadius: "20px",
+                    padding: "6px 14px",
+                    fontSize: "12px",
+                    fontWeight: 700,
+                    cursor: "pointer",
                     display: "flex",
                     alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: "10px",
-                    width: "100%",
-                    paddingTop: "6px",
-                    borderTop: "1px solid rgba(255, 255, 255, 0.06)",
+                    gap: "4px",
+                    flexShrink: 0,
+                    transition: "background-color 0.2s, transform 0.15s",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "rgba(51, 117, 173, 0.4)";
+                    e.currentTarget.style.transform = "scale(1.05)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "rgba(51, 117, 173, 0.2)";
+                    e.currentTarget.style.transform = "none";
                   }}
                 >
-                  <div
-                    style={{
-                      padding: "4px 10px",
-                      borderRadius: "20px",
-                      background: "rgba(255, 149, 0, 0.15)",
-                      border: "1px solid rgba(255, 149, 0, 0.3)",
-                      color: "#ff9500",
-                      fontSize: "12px",
-                      fontWeight: 700,
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "4px",
-                      whiteSpace: "nowrap"
-                    }}
-                  >
-                    🔥 {track.play_count} {track.play_count === 1 ? "play" : "plays"}
-                  </div>
-
-                  <button
-                    onClick={(e) => handleQueueTrack(track, e)}
-                    style={{
-                      background: "rgba(51, 117, 173, 0.2)",
-                      border: "1px solid #3376ad",
-                      color: "#9bd0ff",
-                      borderRadius: "20px",
-                      padding: "6px 14px",
-                      fontSize: "12px",
-                      fontWeight: 700,
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "4px",
-                      transition: "background-color 0.2s, transform 0.15s",
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "rgba(51, 117, 173, 0.4)";
-                      e.currentTarget.style.transform = "scale(1.05)";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "rgba(51, 117, 173, 0.2)";
-                      e.currentTarget.style.transform = "none";
-                    }}
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>add</span>
-                    Queue
-                  </button>
-                </div>
+                  <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>add</span>
+                  Queue
+                </button>
               </div>
             );
           })}
