@@ -797,16 +797,23 @@ const QueueComponent = () => {
             sx={{
               width: "100%",
               pointerEvents: "auto",
-              background: severity === "success" ? "#1e4620" : severity === "warning" ? "#0077b6" : "#bf095e",
+              background: severity === "success" 
+                ? "rgba(20, 50, 30, 0.88)" 
+                : severity === "warning" 
+                ? "rgba(12, 38, 58, 0.88)" 
+                : "rgba(60, 18, 30, 0.88)",
+              backdropFilter: "blur(16px)",
               color: "#ffffff",
               fontWeight: "bold",
               fontSize: "0.85rem",
-              borderRadius: "10px",
-              border: "1px solid rgba(255, 255, 255, 0.25)",
-              boxShadow: "0 8px 24px rgba(0, 0, 0, 0.6)",
+              borderRadius: "12px",
+              border: severity === "warning" ? "1px solid #0077b6" : "1px solid rgba(255, 255, 255, 0.25)",
+              boxShadow: severity === "warning"
+                ? "0 8px 32px rgba(0, 0, 0, 0.75), 0 0 16px rgba(0, 119, 182, 0.4)"
+                : "0 8px 32px rgba(0, 0, 0, 0.75)",
               alignItems: "center",
               "& .MuiAlert-icon": {
-                color: "#ffffff"
+                color: severity === "warning" ? "#0077b6" : "#ffffff"
               }
             }}
           >
