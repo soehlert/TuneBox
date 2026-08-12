@@ -899,7 +899,14 @@ export const TopPlayedTracksGridView: React.FC<{ apiBase: string }> = ({ apiBase
             return (
               <div
                 key={`${track.track_id}-${idx}`}
-                onClick={() => track.album_id && navigate(`/albums/${track.album_id}/tracks`)}
+                onClick={() => {
+                  if (track.album_id) {
+                    const trackParam = track.track_id ? `highlight_track_id=${track.track_id}` : "";
+                    const serverParam = track.server_id ? `server_id=${track.server_id}` : "";
+                    const query = [trackParam, serverParam].filter(Boolean).join("&");
+                    navigate(`/albums/${track.album_id}/tracks${query ? `?${query}` : ""}`);
+                  }
+                }}
                 style={{
                   background: "var(--color-glass-bg)",
                   border: "1px solid var(--color-glass-border)",
