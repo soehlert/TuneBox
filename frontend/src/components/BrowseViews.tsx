@@ -904,24 +904,22 @@ export const TopPlayedTracksGridView: React.FC<{ apiBase: string }> = ({ apiBase
                   background: "var(--color-glass-bg)",
                   border: "1px solid var(--color-glass-border)",
                   borderRadius: "14px",
-                  padding: "10px 14px",
+                  padding: "12px 14px",
                   display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: "12px",
+                  flexDirection: "column",
+                  gap: "10px",
                   cursor: track.album_id ? "pointer" : "default",
                   transition: "background-color 0.2s, transform 0.2s, border-color 0.2s",
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.borderColor = "var(--color-primary)";
-                  e.currentTarget.style.transform = "translateX(4px)";
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.borderColor = "var(--color-glass-border)";
-                  e.currentTarget.style.transform = "none";
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: "14px", minWidth: 0, flex: 1 }}>
+                {/* Top Row: Rank Badge + Cover Art + Full Track Info */}
+                <div style={{ display: "flex", alignItems: "center", gap: "12px", width: "100%" }}>
                   {/* Rank Badge */}
                   <div
                     style={{
@@ -952,7 +950,7 @@ export const TopPlayedTracksGridView: React.FC<{ apiBase: string }> = ({ apiBase
                   </div>
 
                   {/* Track Info */}
-                  <div style={{ display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
+                  <div style={{ display: "flex", flexDirection: "column", minWidth: 0, flex: 1, overflow: "hidden" }}>
                     <span style={{ fontWeight: 700, fontSize: "14px", color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                       {track.title}
                     </span>
@@ -962,8 +960,18 @@ export const TopPlayedTracksGridView: React.FC<{ apiBase: string }> = ({ apiBase
                   </div>
                 </div>
 
-                {/* Right Column: Play Count Pill & Add Button */}
-                <div style={{ display: "flex", alignItems: "center", gap: "12px", flexShrink: 0 }}>
+                {/* Bottom Row: Play Count Pill & Queue Button */}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: "10px",
+                    width: "100%",
+                    paddingTop: "6px",
+                    borderTop: "1px solid rgba(255, 255, 255, 0.06)",
+                  }}
+                >
                   <div
                     style={{
                       padding: "4px 10px",
