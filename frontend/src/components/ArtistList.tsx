@@ -184,12 +184,14 @@ function ArtistList({
   const addToQueue = async (trackId: number, serverId?: string, serverName?: string) => {
     try {
       const queueUrl = `${apiBase}/api/music/queue/${trackId}`;
-      await axios.post(queueUrl, {
+      const res = await axios.post(queueUrl, {
         server_id: serverId,
         server_name: serverName,
         username: getLocalUsername(),
       });
-      showSnackbar("Track added to queue!", "success");
+      const etaMin = res?.data?.estimated_wait_minutes;
+      const etaStr = etaMin && etaMin > 0 ? ` (Estimated play in ~${etaMin} min)` : "";
+      showSnackbar(`Track added to queue!${etaStr}`, "success");
     } catch (error: any) {
       const errorMsg = error?.response?.data?.detail || error?.response?.data?.message;
       if (error.response && error.response.status === 400) {

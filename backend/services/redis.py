@@ -6,7 +6,14 @@ import logging
 from fastapi import HTTPException, status
 
 from backend.config import settings
-from backend.services.library import get_db_connection, rating_key_to_track_id, validate_track_id
+from backend.services.library import (
+    get_db_connection,
+    increment_album_play_count_db,
+    increment_artist_play_count_db,
+    log_playback_event_db,
+    rating_key_to_track_id,
+    validate_track_id,
+)
 from backend.services.redis_client import get_redis_cache_client, get_redis_queue_client
 from backend.utils import is_song_in_queue, is_track_object
 
@@ -15,7 +22,139 @@ logger = logging.getLogger(__name__)
 CACHE_TTL = 21600
 
 
-def add_to_queue_redis(song, server_id=None, server_name=None, server_token=None, server_address=None, is_fallback=False, added_by=None):
+def set_song_cooldown(track_id: int | str, ttl_seconds: int = 600):
+    """Set a 10-minute duplicate cooldown in Redis for a played track."""
+    if not track_id:
+        return
+    client = get_redis_queue_client()
+    try:
+        client.set(f"song_cooldown:{track_id}", "1", ex=ttl_seconds)
+    except Exception as e:
+        logger.warning("Failed setting song cooldown for track %s: %s", track_id, e)
+
+
+def is_song_on_cooldown(track_id: int | str) -> tuple[bool, int]:
+    """Check if a song is on duplicate cooldown. Returns (is_cooldown, remaining_minutes)."""
+    if not track_id:
+        return False, 0
+    client = get_redis_queue_client()
+    try:
+        if client.get(f"song_cooldown:{track_id}"):
+            ttl = client.ttl(f"song_cooldown:{track_id}")
+            remaining_mins = max(1, (ttl + 59) // 60) if (ttl and ttl > 0) else 10
+            return True, remaining_mins
+    except Exception as e:
+        logger.warning("Failed checking song cooldown for track %s: %s", track_id, e)
+    return False, 0
+
+
+def has_user_bumped(username: str) -> bool:
+    """Check if a user has already used their session bump token."""
+    if not username:
+        return False
+    client = get_redis_queue_client()
+    try:
+        val = client.get(f"session_user_bumps:{username}")
+        return bool(val)
+    except Exception as e:
+        logger.warning("Failed checking bump status for user %s: %s", username, e)
+        return False
+
+
+def consume_user_bump(username: str):
+    """Mark a user's session bump token as consumed."""
+    if not username:
+        return
+    client = get_redis_queue_client()
+    try:
+        client.set(f"session_user_bumps:{username}", "1")
+    except Exception as e:
+        logger.warning("Failed setting bump used for user %s: %s", username, e)
+
+
+def calculate_queue_eta(target_item_id: str | None = None) -> tuple[int, int]:
+    """Calculate estimated play wait time (seconds, minutes) for a target item in queue."""
+    client = get_redis_queue_client()
+    raw_queue = client.lrange("playback_queue", 0, -1)
+    if not raw_queue:
+        return 0, 0
+
+    queue = [json.loads(item) for item in raw_queue]
+    target_idx = len(queue) - 1
+    if target_item_id:
+        for idx, item in enumerate(queue):
+            if str(item.get("item_id")) == str(target_item_id):
+                target_idx = idx
+                break
+
+    total_seconds = 0
+    DEFAULT_DURATION_SEC = 210  # 3.5 mins default fallback if duration is missing
+
+    for idx in range(target_idx):
+        item = queue[idx]
+        duration_ms = item.get("duration") or 0
+        dur_sec = (duration_ms // 1000) if duration_ms > 0 else DEFAULT_DURATION_SEC
+        total_seconds += dur_sec
+
+    minutes = max(1, round(total_seconds / 60)) if total_seconds > 0 else 0
+    return total_seconds, minutes
+
+
+def bump_existing_queue_item(item_id: int | str, username: str) -> bool:
+    """Move an existing queue item to Index 1 using user's bump token."""
+    effective_username = username or "Guest"
+    if has_user_bumped(effective_username):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You have already used your 'Play Next' bump for this session.",
+        )
+
+    client = get_redis_queue_client()
+    raw_queue = client.lrange("playback_queue", 0, -1)
+    if not raw_queue:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Queue is empty.")
+
+    target_idx = None
+    target_raw = None
+    target_item = None
+    for idx, item_bytes in enumerate(raw_queue):
+        item = json.loads(item_bytes)
+        if str(item.get("item_id")) == str(item_id):
+            target_idx = idx
+            target_raw = item_bytes
+            target_item = item
+            break
+
+    if target_idx is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Song not found in queue.")
+
+    if target_idx == 0:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Currently playing song cannot be bumped.")
+
+    client.lrem("playback_queue", 1, target_raw)
+
+    raw_queue_after = client.lrange("playback_queue", 0, -1)
+    insert_idx = 1
+    for i in range(1, len(raw_queue_after)):
+        item = json.loads(raw_queue_after[i])
+        if item.get("is_bumped"):
+            insert_idx = i + 1
+        else:
+            break
+
+    target_item["is_bumped"] = True
+    if insert_idx < len(raw_queue_after):
+        ref_item = raw_queue_after[insert_idx]
+        client.linsert("playback_queue", "BEFORE", ref_item, json.dumps(target_item))
+    else:
+        client.rpush("playback_queue", json.dumps(target_item))
+
+    consume_user_bump(effective_username)
+    return True
+
+
+def add_to_queue_redis(song, server_id=None, server_name=None, server_token=None, server_address=None, is_fallback=False, added_by=None, bump=False):
+
     """Add a song to the Redis queue with optional multi-server connection metadata."""
     if not is_track_object(song):
         msg = "Only songs can be added to the queue."
@@ -59,6 +198,28 @@ def add_to_queue_redis(song, server_id=None, server_name=None, server_token=None
             detail=f"Song {song.title} is already in the queue.",
         )
 
+    if internal_track_id:
+        on_cooldown, remaining_mins = is_song_on_cooldown(internal_track_id)
+        if on_cooldown:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"This song was played recently. Duplicate cooldown active for ~{remaining_mins} more minutes.",
+            )
+
+    effective_added_by = added_by or ("System" if is_fallback else "Guest")
+
+    if bump:
+        if is_fallback:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Fallback tracks cannot be bumped.",
+            )
+        if has_user_bumped(effective_added_by):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="You have already used your 'Play Next' bump for this session.",
+            )
+
     moods = [m.tag if hasattr(m, "tag") else str(m) for m in getattr(song, "moods", [])] if hasattr(song, "moods") else []
 
     # Cascade to Album and Artist level for moods if track level is empty and attributes are pre-cached (not network calls)
@@ -95,12 +256,31 @@ def add_to_queue_redis(song, server_id=None, server_name=None, server_token=None
         "server_token": _str_or_none(server_token or getattr(song, "server_token", None)),
         "server_address": _str_or_none(server_address or getattr(song, "server_address", None)),
         "is_fallback": is_fallback,
+        "is_bumped": bump,
         "moods": moods,
-        "added_by": added_by or ("System" if is_fallback else "Guest"),
+        "added_by": effective_added_by,
     }
 
     client = get_redis_queue_client()
-    if is_fallback:
+    if bump:
+        queue = client.lrange("playback_queue", 0, -1)
+        target_idx = 1
+        for i in range(1, len(queue)):
+            item = json.loads(queue[i])
+            if item.get("is_bumped"):
+                target_idx = i + 1
+            else:
+                break
+
+        if target_idx < len(queue):
+            ref_item = queue[target_idx]
+            client.linsert("playback_queue", "BEFORE", ref_item, json.dumps(song_data))
+        else:
+            client.rpush("playback_queue", json.dumps(song_data))
+
+        consume_user_bump(effective_added_by)
+        logger.info("Bumped song %s to index %d for user %s.", song.title, target_idx, effective_added_by)
+    elif is_fallback:
         # If it's fallback, just append it to the end of the queue
         client.rpush("playback_queue", json.dumps(song_data))
         logger.info("Added fallback track %s to Redis queue.", song.title)
@@ -112,7 +292,7 @@ def add_to_queue_redis(song, server_id=None, server_name=None, server_token=None
             item = json.loads(item_bytes)
             if item.get("is_fallback"):
                 fallback_indices.append(i)
-        
+
         if fallback_indices:
             # Only allow leapfrogging fallback tracks that are not currently playing (index >= 1)
             candidate_indices = [idx for idx in fallback_indices if idx >= 1]
@@ -120,7 +300,7 @@ def add_to_queue_redis(song, server_id=None, server_name=None, server_token=None
                 first_fallback_idx = candidate_indices[0]
                 first_fallback_data = queue[first_fallback_idx]
                 client.linsert("playback_queue", "BEFORE", first_fallback_data, json.dumps(song_data))
-                
+
                 # Drop the last fallback track in the queue to maintain queue size
                 last_fallback_idx = fallback_indices[-1]
                 last_fallback_data = queue[last_fallback_idx]
@@ -484,13 +664,17 @@ def add_to_history(track: dict):
         client.lpush("playback_history", track_json)
         client.ltrim("playback_history", 0, 19)
 
-        # Log playback event to SQLite database
+        # Log playback event to SQLite database and set 10-minute duplicate cooldown
         try:
-            from backend.services.library import log_playback_event_db, validate_track_id, rating_key_to_track_id
             raw_id = track_obj.get("item_id")
             resolved_id = validate_track_id(raw_id) if raw_id else None
             if not resolved_id and raw_id:
                 resolved_id = rating_key_to_track_id(raw_id)
+
+            cooldown_target = resolved_id or raw_id
+            if cooldown_target:
+                set_song_cooldown(cooldown_target)
+
             if resolved_id:
                 log_playback_event_db(
                     track_id=resolved_id,
@@ -503,7 +687,6 @@ def add_to_history(track: dict):
         if artist_name:
             client.zincrby("stats:artist_play_counts", 1, str(artist_name).lower())
             try:
-                from backend.services.library import increment_artist_play_count_db
                 increment_artist_play_count_db(str(artist_name))
             except Exception as db_ex:
                 logger.debug("Failed to increment SQLite artist play count: %s", db_ex)
@@ -512,7 +695,6 @@ def add_to_history(track: dict):
         if album_title:
             client.zincrby("stats:album_play_counts", 1, str(album_title).lower())
             try:
-                from backend.services.library import increment_album_play_count_db
                 increment_album_play_count_db(str(album_title))
             except Exception as db_ex:
                 logger.debug("Failed to increment SQLite album play count: %s", db_ex)

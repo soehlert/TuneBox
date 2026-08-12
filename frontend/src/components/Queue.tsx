@@ -131,6 +131,25 @@ const QueueComponent = () => {
     }
   };
 
+  const handleBumpTrack = async (itemId: number | string) => {
+    try {
+      const response = await fetch(`${apiBase}/api/music/queue/${itemId}/bump`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: getLocalUsername() }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        showSnackbar(data.detail || "Could not bump track.", "warning");
+      } else {
+        showSnackbar("Track bumped to play next! ⚡", "success");
+      }
+    } catch (error) {
+      console.error("Error bumping track:", error);
+      showSnackbar("Failed to bump track.", "error");
+    }
+  };
+
   // Mouse Drag and Drop Handlers
   const handleDragStart = (e: React.DragEvent, index: number) => {
     if (index === 0 || !adminToken) return;
@@ -519,6 +538,26 @@ const QueueComponent = () => {
                     >
                       {track.artist}
                     </Typography>
+                    {track.is_bumped && (
+                      <Box style={{ display: "flex", marginTop: "2px" }}>
+                        <span
+                          style={{
+                            fontSize: "9px",
+                            background: "rgba(245, 166, 35, 0.25)",
+                            border: "1px solid rgba(245, 166, 35, 0.6)",
+                            color: "#f5a623",
+                            padding: "1px 6px",
+                            borderRadius: "8px",
+                            fontWeight: 800,
+                            lineHeight: 1.2,
+                            display: "inline-block",
+                          }}
+                          title="Bumped to Play Next"
+                        >
+                          ⚡ PLAY NEXT
+                        </span>
+                      </Box>
+                    )}
                     {(() => {
                       const sName = track.server_name;
                       if (!sName) return null;

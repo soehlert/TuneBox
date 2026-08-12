@@ -46,10 +46,13 @@ from backend.services.plex import (
 )
 from backend.services.redis import (
     add_to_queue_redis,
+    bump_existing_queue_item,
+    calculate_queue_eta,
     clear_cache,
     clear_redis_queue,
     get_redis_queue,
     get_playback_history,
+    has_user_bumped,
     move_to_top_redis_queue,
     remove_from_redis_queue,
     reorder_redis_queue,
@@ -104,6 +107,7 @@ class QueueAddRequest(BaseModel):
     server_id: str | None = None
     server_name: str | None = None
     username: str | None = None
+    bump: bool = False
 
 
 class AutoplayToggleRequest(BaseModel):
@@ -195,6 +199,7 @@ async def add_to_queue(
         server_id = payload.server_id if payload else None
         server_name = payload.server_name if payload else None
         username = payload.username if payload else None
+        bump = payload.bump if payload else False
 
         if not server_id and not settings.testing:
             try:
@@ -214,7 +219,7 @@ async def add_to_queue(
         target_res = next((s for s in all_servers if s.get("server_id") == server_id or str(s.get("name")).lower() == str(server_id).lower()), None)
 
         s_name = server_name or (target_res.get("name") if target_res else getattr(song, "server_name", None) or settings.plex_server_name or "plex-so")
-        
+
         codec = ""
         bitrate = 0
         if getattr(song, "media", None) and len(song.media) > 0:
@@ -242,9 +247,10 @@ async def add_to_queue(
             server_token=target_res.get("access_token") if target_res else None,
             server_address=getattr(t_plex, "_baseurl", target_res.get("server_url") if target_res else None),
             added_by=username,
+            bump=bump,
         )
 
-
+        total_sec, est_mins = calculate_queue_eta(target_item_id=str(getattr(song, "sqlite_track_id", None) or item_id))
 
         background_tasks.add_task(send_queue)
 
@@ -258,7 +264,36 @@ async def add_to_queue(
             status_code=500, detail=f"Error adding item to queue: {e}"
         ) from e
     else:
-        return {"message": f"Added {song.title} to the playback queue."}
+        return {
+            "message": f"Added {song.title} to the playback queue.",
+            "estimated_wait_seconds": total_sec,
+            "estimated_wait_minutes": est_mins,
+        }
+
+
+@router.post("/queue/{item_id}/bump")
+async def bump_queue_item(
+    item_id: int,
+    background_tasks: BackgroundTasks,
+    payload: QueueAddRequest | None = None,
+):
+    """Bump an existing song in the queue to Index 1 using the guest's 1-time session bump token."""
+    username = payload.username if payload else "Guest"
+    try:
+        bump_existing_queue_item(item_id, username)
+        background_tasks.add_task(send_queue)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error bumping queue item: {e}") from e
+    return {"message": "Track bumped to play next!"}
+
+
+@router.get("/queue/bump-status")
+async def get_bump_status(username: str = Query("Guest")):
+    """Check if the user has used their session bump token."""
+    used = has_user_bumped(username)
+    return {"username": username, "has_bumped": used, "bumps_remaining": 0 if used else 1}
 
 
 @router.delete("/queue/{item_id}")

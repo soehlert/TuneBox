@@ -857,11 +857,13 @@ export const TopPlayedTracksGridView: React.FC<{ apiBase: string }> = ({ apiBase
   const handleQueueTrack = async (track: TopPlayedTrack, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      await axios.post(`${apiBase}/api/music/queue/${track.track_id}`, {
+      const res = await axios.post(`${apiBase}/api/music/queue/${track.track_id}`, {
         server_id: track.server_id,
         username: getLocalUsername(),
       });
-      showSnackbar(`"${track.title}" added to queue!`, "success");
+      const etaMin = res?.data?.estimated_wait_minutes;
+      const etaStr = etaMin && etaMin > 0 ? ` (Estimated play in ~${etaMin} min)` : "";
+      showSnackbar(`"${track.title}" added to queue!${etaStr}`, "success");
     } catch (error: any) {
       const errorMsg = error?.response?.data?.detail || error?.response?.data?.message;
       if (error.response && error.response.status === 400) {

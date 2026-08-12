@@ -197,16 +197,20 @@ function TrackList() {
     }
   };
 
-  const addToQueue = async (track: Track) => {
+  const addToQueue = async (track: Track, bump = false) => {
     try {
       const targetId = track.track_id || track.item_id || track.server_track_id;
       const targetServerId = track.server_id || serverId;
       const queueUrl = `${apiBase}/api/music/queue/${targetId}`;
-      await axios.post(queueUrl, {
+      const res = await axios.post(queueUrl, {
         server_id: targetServerId,
         username: getLocalUsername(),
+        bump,
       });
-      showSnackbar("Track added to queue!", "success");
+      const etaMin = res?.data?.estimated_wait_minutes;
+      const etaStr = etaMin && etaMin > 0 ? ` (Estimated play in ~${etaMin} min)` : "";
+      const bumpStr = bump ? " ⚡ Play Next" : "";
+      showSnackbar(`Track added to queue${bumpStr}!${etaStr}`, "success");
     } catch (error: any) {
       const errorMsg = error?.response?.data?.detail || error?.response?.data?.message;
       if (error.response && error.response.status === 400) {
@@ -439,12 +443,22 @@ function TrackList() {
                               onRate={(newRating) => handleRateTrack(track.track_id, newRating)}
                             />
                           </div>
-                          <Button
-                            variant="contained"
-                            onClick={() => addToQueue(track)}
-                          >
-                            Add to Queue
-                          </Button>
+                          <div style={{ display: "flex", gap: "8px" }}>
+                            <Button
+                              variant="contained"
+                              onClick={() => addToQueue(track, false)}
+                            >
+                              Add to Queue
+                            </Button>
+                            <Button
+                              variant="outlined"
+                              style={{ borderColor: "#f5a623", color: "#f5a623", fontWeight: 700 }}
+                              onClick={() => addToQueue(track, true)}
+                              title="Use your 1 per-session Play Next bump token"
+                            >
+                              ⚡ Play Next
+                            </Button>
+                          </div>
                         </div>
                       </Card>
                         );
