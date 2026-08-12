@@ -50,11 +50,15 @@
   display: flex !important;
   flex-direction: row !important;
   align-items: center !important;
-  justify-content: space-between !important;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
   transition: border-color 0.25s, transform 0.25s, box-shadow 0.25s !important;
   cursor: default;
   box-sizing: border-box;
+}
+
+.track-card.highlighted-track {
+  border: 1px solid #f5a623 !important;
+  background: rgba(245, 166, 35, 0.14) !important;
+  box-shadow: 0 0 20px rgba(245, 166, 35, 0.45) !important;
 }
 
 .track-card-left {

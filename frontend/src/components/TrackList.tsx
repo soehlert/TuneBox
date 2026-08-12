@@ -112,6 +112,8 @@ function TrackList() {
   const adminToken = localStorage.getItem("tunebox_admin_token") || "";
   const isAdmin = Boolean(adminToken);
 
+  const highlightTrackId = searchParams.get("highlight_track_id") || searchParams.get("track_id");
+
   useEffect(() => {
     const fetchTracks = async () => {
       try {
@@ -128,6 +130,26 @@ function TrackList() {
 
     fetchTracks();
   }, [albumId, serverId, apiBase]);
+
+  useEffect(() => {
+    if (!loading && albumData && highlightTrackId) {
+      const timer = setTimeout(() => {
+        const matchingTrack = albumData.tracks.find(
+          (t) =>
+            String(t.track_id) === String(highlightTrackId) ||
+            String(t.item_id) === String(highlightTrackId) ||
+            String(t.server_track_id) === String(highlightTrackId) ||
+            String(t.rating_key) === String(highlightTrackId)
+        );
+        const targetId = matchingTrack ? `track-${matchingTrack.track_id}` : `track-${highlightTrackId}`;
+        const elem = document.getElementById(targetId);
+        if (elem) {
+          elem.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [loading, albumData, highlightTrackId]);
 
   const formatDuration = (duration: any) => {
     if (!duration) return "0:00";
@@ -379,7 +401,21 @@ function TrackList() {
                           </Typography>
                         </div>
                       )}
-                      <Card className="track-card">
+                      {(() => {
+                        const isHighlighted = Boolean(
+                          highlightTrackId &&
+                          (
+                            String(track.track_id) === String(highlightTrackId) ||
+                            String(track.item_id) === String(highlightTrackId) ||
+                            String(track.server_track_id) === String(highlightTrackId) ||
+                            String(track.rating_key) === String(highlightTrackId)
+                          )
+                        );
+                        return (
+                          <Card
+                            id={`track-${track.track_id}`}
+                            className={`track-card ${isHighlighted ? "highlighted-track" : ""}`}
+                          >
                         <div className="track-card-left">
                           <div className="track-title-container">
                             <Typography className="track-number" style={{ opacity: 0.6, fontWeight: "bold", minWidth: "28px", flexShrink: 0 }}>
@@ -407,6 +443,8 @@ function TrackList() {
                           </Button>
                         </div>
                       </Card>
+                        );
+                      })()}
                     </div>
                   );
                 })}

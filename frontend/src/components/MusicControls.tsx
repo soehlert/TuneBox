@@ -300,7 +300,12 @@ const MusicControlsComponent = ({
           className="player-left-section"
           onClick={() => {
             if (currentTrack && targetAlbumId) {
-              navigate(`/albums/${targetAlbumId}/tracks${sParam}`);
+              const trackId = currentTrack.track_id || currentTrack.item_id || currentTrack.server_track_id || currentTrack.rating_key;
+              const serverQuery = currentTrack.server_id ? `server_id=${currentTrack.server_id}` : "";
+              const trackQuery = trackId ? `highlight_track_id=${trackId}` : "";
+              const combinedQuery = [trackQuery, serverQuery].filter(Boolean).join("&");
+              const finalQuery = combinedQuery ? `?${combinedQuery}` : "";
+              navigate(`/albums/${targetAlbumId}/tracks${finalQuery}`);
             }
           }}
           style={{

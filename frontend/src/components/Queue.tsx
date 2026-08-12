@@ -28,8 +28,12 @@ const QueueComponent = () => {
 
   const handleTrackClick = (track: any) => {
     if (track && track.album_id) {
-      const sParam = track.server_id ? `?server_id=${track.server_id}` : "";
-      navigate(`/albums/${track.album_id}/tracks${sParam}`);
+      const trackId = track.track_id || track.item_id || track.server_track_id || track.rating_key;
+      const sParam = track.server_id ? `server_id=${track.server_id}` : "";
+      const trackParam = trackId ? `highlight_track_id=${trackId}` : "";
+      const combinedParam = [trackParam, sParam].filter(Boolean).join("&");
+      const finalQuery = combinedParam ? `?${combinedParam}` : "";
+      navigate(`/albums/${track.album_id}/tracks${finalQuery}`);
     }
   };
 
