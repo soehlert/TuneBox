@@ -10,8 +10,11 @@ export const getClientId = (): string => {
 };
 
 export const getLocalUsername = (): string => {
-  const adminName = localStorage.getItem("tunebox_admin_name");
-  if (adminName) return adminName;
+  const adminToken = localStorage.getItem("tunebox_admin_token");
+  if (adminToken) {
+    const adminName = localStorage.getItem("tunebox_admin_name");
+    return adminName || "Admin";
+  }
   
   const guestStr = localStorage.getItem("tunebox_guest");
   if (guestStr) {
@@ -21,11 +24,6 @@ export const getLocalUsername = (): string => {
     } catch {
       // ignore JSON parse error
     }
-  }
-  
-  const adminToken = localStorage.getItem("tunebox_admin_token");
-  if (adminToken) {
-    return "Admin";
   }
   
   return `Guest-${getClientId().substring(0, 6)}`;
