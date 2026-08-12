@@ -2202,6 +2202,13 @@ function App() {
   useEffect(() => {
     localStorage.setItem("tunebox_view_mode", viewMode);
   }, [viewMode]);
+
+  const handleTabModeChange = useCallback((newMode: ViewMode) => {
+    setViewMode(newMode);
+    setSearchTerm("");
+    setDebouncedSearchTerm("");
+    setSearchResults([]);
+  }, []);
   const [artists, setArtists] = useState<any[]>([]);
   const [loadingArtists, setLoadingArtists] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -2944,7 +2951,7 @@ function App() {
               )}
               <div className="header-gradient"></div>
               {(location.pathname === "/" || location.pathname === "/artists") && (
-                <BrowseTabs currentMode={viewMode} onModeChange={setViewMode} />
+                <BrowseTabs currentMode={viewMode} onModeChange={handleTabModeChange} />
               )}
               <Routes>
                 <Route
