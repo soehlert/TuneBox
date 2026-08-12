@@ -278,6 +278,7 @@ def add_to_queue_redis(song, server_id=None, server_name=None, server_token=None
         "server_token": _str_or_none(server_token or getattr(song, "server_token", None)),
         "server_address": _str_or_none(server_address or getattr(song, "server_address", None)),
         "is_fallback": is_fallback,
+        "is_closing_time": bool(getattr(song, "is_closing_time", False) or ("Last Call" in str(added_by))),
         "is_bumped": bump,
         "moods": moods,
         "added_by": effective_added_by,
@@ -403,6 +404,7 @@ def clear_redis_queue(force_all: bool = False, fallback_only: bool = False):
     if force_all or (not track_time_tracker.is_playing and track_time_tracker.state != "paused" and not fallback_only):
         client.delete("playback_queue")
         clear_all_user_bumps()
+        set_closing_time_mode(False)
         if force_all:
             clear_cache("now_playing")
             track_time_tracker.stop()

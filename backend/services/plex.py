@@ -2851,6 +2851,7 @@ def trigger_closing_time_mode() -> dict:
             track_obj.album_id = closing_track["album_id"]
             track_obj.server_id = closing_track["server_id"]
             track_obj.thumb = closing_track["thumb"]
+            track_obj.is_closing_time = True
 
             add_to_queue_redis(track_obj, added_by="Admin (Last Call)", is_fallback=False)
             added_track_title = f"{closing_track['artist']} - {closing_track['title']}"
@@ -2879,13 +2880,42 @@ def trigger_closing_time_mode() -> dict:
     }
 
 
+def remove_closing_time_track_from_queue():
+    """Remove any queued 'Closing Time' finale track from the playback queue."""
+    try:
+        from backend.services.redis import get_redis_queue_client
+        client = get_redis_queue_client()
+        raw_queue = client.lrange("playback_queue", 0, -1)
+        if not raw_queue:
+            return
+
+        for idx, item_bytes in enumerate(raw_queue):
+            if idx == 0:
+                continue  # Do not remove currently playing track if already playing
+            try:
+                item = json.loads(item_bytes)
+                added_by = str(item.get("added_by", ""))
+                title = str(item.get("title", ""))
+                is_closing = bool(item.get("is_closing_time")) or ("Last Call" in added_by) or (title.lower() == "closing time")
+
+                if is_closing:
+                    client.lrem("playback_queue", 1, item_bytes)
+                    logger.info("Unqueued Closing Time finale track '%s' from playback queue.", title)
+            except Exception as ex:
+                logger.warning("Error inspecting queue item during Closing Time removal: %s", ex)
+    except Exception as e:
+        logger.warning("Failed removing Closing Time track from queue: %s", e)
+
+
 def cancel_closing_time_mode() -> dict:
-    """Cancel Closing Time mode, unlock queue for guests, and broadcast event."""
+    """Cancel Closing Time mode, unlock queue for guests, unqueue Closing Time track, and broadcast event."""
     set_closing_time_mode(False)
+    remove_closing_time_track_from_queue()
 
     msg = "🎉 Last Call cancelled! Party mode resumed, song requests unlocked."
     try:
-        from backend.websockets import broadcast_json_threadsafe
+        from backend.websockets import broadcast_json_threadsafe, broadcast_queue_threadsafe
+        broadcast_queue_threadsafe()
         broadcast_json_threadsafe({
             "type": "closing_time_cancelled",
             "message": msg,

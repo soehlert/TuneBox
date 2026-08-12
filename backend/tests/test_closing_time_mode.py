@@ -184,3 +184,36 @@ def test_trigger_closing_time_mode_adds_track(mocker):
     assert res["success"] is True
     assert "Closing Time" in res["finale_track"]
     mock_add.assert_called_once()
+
+
+def test_cancel_closing_time_mode_unqueues_track(mocker):
+    """Test that cancelling Last Call mode unqueues the pending Closing Time track."""
+    import json
+    from backend.services.plex import cancel_closing_time_mode
+
+    item_0 = json.dumps({"title": "Currently Playing", "added_by": "Sam", "is_fallback": False})
+    item_1 = json.dumps({"title": "Closing Time", "added_by": "Admin (Last Call)", "is_closing_time": True})
+
+    class FakeListClient:
+        def __init__(self):
+            self.items = [item_0, item_1]
+
+        def lrange(self, name, start, end):
+            return self.items
+
+        def lrem(self, name, count, value):
+            if value in self.items:
+                self.items.remove(value)
+                return 1
+            return 0
+
+    fake_client = FakeListClient()
+    mocker.patch("backend.services.redis.get_redis_queue_client", return_value=fake_client)
+    mocker.patch("backend.websockets.broadcast_queue_threadsafe")
+    mocker.patch("backend.websockets.broadcast_json_threadsafe")
+
+    res = cancel_closing_time_mode()
+    assert res["success"] is True
+    assert res["closing_time"] is False
+    assert len(fake_client.items) == 1
+    assert json.loads(fake_client.items[0])["title"] == "Currently Playing"
