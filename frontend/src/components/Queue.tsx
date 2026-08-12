@@ -1,7 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
-import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { Box, Typography, Snackbar, Alert } from '@mui/material';
+import { Box, Typography, Alert } from '@mui/material';
 import { getLocalUsername } from '../utils';
 import "./Queue.css";
 
@@ -16,11 +15,16 @@ const QueueComponent = () => {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [severity, setSeverity] = useState<"success" | "error" | "warning">("success");
+  const snackbarTimerRef = useRef<any>(null);
 
   const showSnackbar = (msg: string, sev: "success" | "error" | "warning" = "success") => {
     setSnackbarMessage(msg);
     setSeverity(sev);
     setSnackbarOpen(true);
+    if (snackbarTimerRef.current) clearTimeout(snackbarTimerRef.current);
+    snackbarTimerRef.current = setTimeout(() => {
+      setSnackbarOpen(false);
+    }, 4000);
   };
 
   const fetchClosingTime = async () => {
@@ -765,30 +769,41 @@ const QueueComponent = () => {
           )}
         </ul>
       )}
-      {createPortal(
-        <Snackbar
-          open={snackbarOpen}
-          autoHideDuration={4000}
-          onClose={() => setSnackbarOpen(false)}
-          className="queue-toast-snackbar"
+      {snackbarOpen && (
+        <Box
+          style={{
+            position: "absolute",
+            bottom: "16px",
+            left: "12px",
+            right: "12px",
+            zIndex: 9999,
+            display: "flex",
+            justifyContent: "center",
+            pointerEvents: "none"
+          }}
         >
           <Alert
             onClose={() => setSnackbarOpen(false)}
             severity={severity}
             sx={{
               width: "100%",
-              background: severity === "success" ? "#1e4620" : severity === "warning" ? "#663c00" : "#5f2120",
-              color: "white",
+              pointerEvents: "auto",
+              background: severity === "success" ? "#1e4620" : severity === "warning" ? "#0077b6" : "#bf095e",
+              color: "#ffffff",
               fontWeight: "bold",
-              borderRadius: "8px",
-              border: "1px solid rgba(255,255,255,0.2)",
-              boxShadow: "0 8px 32px rgba(0,0,0,0.8)"
+              fontSize: "0.85rem",
+              borderRadius: "10px",
+              border: "1px solid rgba(255, 255, 255, 0.25)",
+              boxShadow: "0 8px 24px rgba(0, 0, 0, 0.6)",
+              alignItems: "center",
+              "& .MuiAlert-icon": {
+                color: "#ffffff"
+              }
             }}
           >
             {snackbarMessage}
           </Alert>
-        </Snackbar>,
-        document.body
+        </Box>
       )}
     </Box>
   );

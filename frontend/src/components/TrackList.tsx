@@ -472,12 +472,15 @@ function TrackList() {
             severity={severity}
             sx={{
               width: "100%",
-              background: severity === "success" ? "#1e4620" : severity === "warning" ? "#663c00" : "#5f2120",
+              background: severity === "success" ? "#1e4620" : severity === "warning" ? "#0077b6" : "#bf095e",
               color: "white",
               fontWeight: "bold",
               borderRadius: "8px",
               border: "1px solid rgba(255,255,255,0.2)",
-              boxShadow: "0 8px 32px rgba(0,0,0,0.8)"
+              boxShadow: "0 8px 32px rgba(0,0,0,0.8)",
+              "& .MuiAlert-icon": {
+                color: "#ffffff"
+              }
             }}
           >
             {snackbarMessage}
