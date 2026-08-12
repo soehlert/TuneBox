@@ -33,9 +33,14 @@ async def lifespan(app: FastAPI):
     clean_library_deduplication()
     asyncio.create_task(asyncio.to_thread(pre_warm_all_caches))
 
+    # Register mDNS zeroconf local discovery (tunebox.local)
+    from backend.services.mdns import register_mdns_service, unregister_mdns_service  # noqa: PLC0415
+    asyncio.create_task(asyncio.to_thread(register_mdns_service, "tunebox.local", 8000))
+
     try:
         yield
     finally:
+        unregister_mdns_service()
         # Cleanup tasks on shutdown
         ws_task.cancel()
         orch_task.cancel()
@@ -49,7 +54,7 @@ async def lifespan(app: FastAPI):
             conn.execute("PRAGMA wal_checkpoint(TRUNCATE);")
             conn.close()
         except Exception as wal_ex:
-            logger.debug("WAL checkpoint on shutdown: %s", wal_ex)
+            logging.getLogger(__name__).debug("WAL checkpoint on shutdown: %s", wal_ex)
 
 
 # Initialize the FastAPI backend
@@ -66,8 +71,12 @@ app.add_middleware(
         "http://frontend:80",
         "http://localhost",
         "http://localhost:5173",
+        "http://tunebox.local",
+        "http://tunebox.local:8000",
+        "http://tunebox.local:80",
         settings.tunebox_url,
     ],
+    allow_origin_regex=r"http://.*\.local(:[0-9]+)?",
     allow_methods=["*"],
     allow_headers=["*"],
 )
