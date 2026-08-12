@@ -2821,8 +2821,14 @@ def sync_album_ratings_from_plex(album_id: int | str) -> bool:
 
 
 def trigger_closing_time_mode() -> dict:
-    """Activate Closing Time mode, search for 'Closing Time' finale track, and append it to queue."""
+    """Activate Closing Time mode, purge non-human tracks, append 'Closing Time' finale song, and broadcast updates."""
     set_closing_time_mode(True)
+
+    try:
+        from backend.services.redis import purge_non_human_tracks_from_queue_redis
+        purge_non_human_tracks_from_queue_redis()
+    except Exception as purge_ex:
+        logger.warning("Error purging non-human tracks during Last Call: %s", purge_ex)
 
     closing_track = None
     try:
@@ -2846,15 +2852,16 @@ def trigger_closing_time_mode() -> dict:
             track_obj.server_id = closing_track["server_id"]
             track_obj.thumb = closing_track["thumb"]
 
-            add_to_queue_redis(track_obj, added_by="Admin (Last Call)")
+            add_to_queue_redis(track_obj, added_by="Admin (Last Call)", is_fallback=False)
             added_track_title = f"{closing_track['artist']} - {closing_track['title']}"
         except Exception as ex:
             logger.warning("Failed adding Closing Time track to queue: %s", ex)
 
-    msg = f"🍸 Last Call activated! '{added_track_title}' added as the final track." if added_track_title else "🍸 Last Call activated! No new guest requests allowed."
+    msg = f"🍸 Last Call activated! '{added_track_title}' added as final track." if added_track_title else "🍸 Last Call activated! Queue closed to guest requests."
 
     try:
-        from backend.websockets import broadcast_json_threadsafe
+        from backend.websockets import broadcast_queue_threadsafe, broadcast_json_threadsafe
+        broadcast_queue_threadsafe()
         broadcast_json_threadsafe({
             "type": "closing_time_triggered",
             "message": msg,
@@ -2862,7 +2869,7 @@ def trigger_closing_time_mode() -> dict:
             "finale_track": added_track_title,
         })
     except Exception as ws_ex:
-        logger.debug("Failed sending closing_time_triggered WS broadcast: %s", ws_ex)
+        logger.debug("Failed sending WS broadcasts during Last Call: %s", ws_ex)
 
     return {
         "success": True,

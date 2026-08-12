@@ -121,3 +121,38 @@ def test_admin_cancel_closing_time_endpoint():
         assert response.status_code == 200
         assert response.json()["closing_time"] is False
         mock_cancel.assert_called_once()
+
+
+def test_purge_non_human_tracks_from_queue_redis(mocker):
+    """Test purging autoplay/seeded tracks while retaining human-requested tracks."""
+    import json
+    from backend.services.redis import purge_non_human_tracks_from_queue_redis
+
+    item_0 = json.dumps({"title": "Currently Playing", "added_by": "TuneBox Autoplay", "is_fallback": True})
+    item_1 = json.dumps({"title": "Human Guest Song", "added_by": "Sam", "is_fallback": False})
+    item_2 = json.dumps({"title": "Smart Seed Song", "added_by": "Vibe Seed", "is_fallback": True})
+    item_3 = json.dumps({"title": "Human Admin Song", "added_by": "Admin", "is_fallback": False})
+
+    class FakeListClient:
+        def __init__(self):
+            self.items = [item_0, item_1, item_2, item_3]
+
+        def lrange(self, name, start, end):
+            return self.items
+
+        def delete(self, name):
+            self.items = []
+
+        def rpush(self, name, *values):
+            self.items.extend(values)
+
+    fake_client = FakeListClient()
+    mocker.patch("backend.services.redis.get_redis_queue_client", return_value=fake_client)
+
+    purge_non_human_tracks_from_queue_redis()
+
+    remaining = [json.loads(i) for i in fake_client.items]
+    assert len(remaining) == 3
+    assert remaining[0]["title"] == "Currently Playing"
+    assert remaining[1]["title"] == "Human Guest Song"
+    assert remaining[2]["title"] == "Human Admin Song"

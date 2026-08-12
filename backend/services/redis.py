@@ -297,6 +297,30 @@ def reorder_redis_queue(from_index: int, to_index: int):
     return {"message": "Queue reordered successfully."}
 
 
+def purge_non_human_tracks_from_queue_redis():
+    """Remove non-human added tracks (is_fallback=True or autoplay/vibe-seeded) from the queue, except currently playing (index 0)."""
+    client = get_redis_queue_client()
+    raw_queue = client.lrange("playback_queue", 0, -1)
+    if not raw_queue or len(raw_queue) <= 1:
+        return
+
+    new_queue = [raw_queue[0]]
+    for item_raw in raw_queue[1:]:
+        item_str = item_raw.decode("utf-8") if isinstance(item_raw, bytes) else item_raw
+        item = json.loads(item_str)
+        is_fallback = bool(item.get("is_fallback"))
+        added_by = str(item.get("added_by", "")).lower()
+
+        is_human = not is_fallback and not any(k in added_by for k in ["autoplay", "vibe seed", "seed", "tunebox", "smart"])
+        if is_human:
+            new_queue.append(item_raw)
+
+    client.delete("playback_queue")
+    if new_queue:
+        client.rpush("playback_queue", *new_queue)
+    logger.info("Purged non-human tracks from playback queue. %d tracks remaining.", len(new_queue))
+
+
 def ensure_queue_synced_with_now_playing(song_data: dict):
     """Ensure that index 0 of the Redis playback queue matches the currently active now_playing track."""
     if not isinstance(song_data, dict) or not song_data.get("title"):
