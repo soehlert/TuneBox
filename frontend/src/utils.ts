@@ -1,4 +1,15 @@
-export const getLocalUsername = (): string | null => {
+export const getClientId = (): string => {
+  let cid = localStorage.getItem("tunebox_client_id");
+  if (!cid) {
+    cid = typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : Math.random().toString(36).substring(2) + Date.now().toString(36);
+    localStorage.setItem("tunebox_client_id", cid);
+  }
+  return cid;
+};
+
+export const getLocalUsername = (): string => {
   const adminName = localStorage.getItem("tunebox_admin_name");
   if (adminName) return adminName;
   
@@ -17,7 +28,7 @@ export const getLocalUsername = (): string | null => {
     return "Admin";
   }
   
-  return null;
+  return `Guest-${getClientId().substring(0, 6)}`;
 };
 
 export const getApiUrl = (path: string) => {

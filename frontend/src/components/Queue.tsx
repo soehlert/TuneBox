@@ -798,7 +798,7 @@ const QueueComponent = () => {
               width: "100%",
               pointerEvents: "auto",
               background: severity === "success" 
-                ? "rgba(20, 50, 30, 0.88)" 
+                ? "rgba(18, 45, 26, 0.88)" 
                 : severity === "warning" 
                 ? "rgba(12, 38, 58, 0.88)" 
                 : "rgba(60, 18, 30, 0.88)",
@@ -807,13 +807,19 @@ const QueueComponent = () => {
               fontWeight: "bold",
               fontSize: "0.85rem",
               borderRadius: "12px",
-              border: severity === "warning" ? "1px solid #0077b6" : "1px solid rgba(255, 255, 255, 0.25)",
-              boxShadow: severity === "warning"
+              border: severity === "success" 
+                ? "1px solid #4caf50" 
+                : severity === "warning" 
+                ? "1px solid #0077b6" 
+                : "1px solid #bf095e",
+              boxShadow: severity === "success"
+                ? "0 8px 32px rgba(0, 0, 0, 0.75), 0 0 16px rgba(76, 175, 80, 0.35)"
+                : severity === "warning"
                 ? "0 8px 32px rgba(0, 0, 0, 0.75), 0 0 16px rgba(0, 119, 182, 0.4)"
-                : "0 8px 32px rgba(0, 0, 0, 0.75)",
+                : "0 8px 32px rgba(0, 0, 0, 0.75), 0 0 16px rgba(191, 9, 94, 0.4)",
               alignItems: "center",
               "& .MuiAlert-icon": {
-                color: severity === "warning" ? "#0077b6" : "#ffffff"
+                color: severity === "success" ? "#4caf50" : severity === "warning" ? "#0077b6" : "#bf095e"
               }
             }}
           >
