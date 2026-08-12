@@ -2829,6 +2829,8 @@ def trigger_closing_time_mode() -> dict:
     except Exception as purge_ex:
         logger.warning("Error purging non-human tracks during Last Call: %s", purge_ex)
 
+    remove_closing_time_track_from_queue()
+
     closing_track = None
     try:
         closing_track = find_closing_time_track_db()
