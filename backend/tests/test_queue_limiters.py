@@ -77,9 +77,12 @@ def test_single_use_session_bump(mock_redis, make_mock_track, mocker):
         return user_bumps.get(key)
     def mock_set(key, val, ex=None):
         user_bumps[key] = val
+    def mock_setex(key, time, val):
+        user_bumps[key] = val
 
     mock_queue_client.get.side_effect = mock_get
     mock_queue_client.set.side_effect = mock_set
+    mock_queue_client.setex.side_effect = mock_setex
 
     # Pre-populate queue with index 0 (now playing) and index 1 (fallback)
     item_0 = json.dumps({"item_id": "1", "title": "Playing", "is_fallback": False}).encode("utf-8")

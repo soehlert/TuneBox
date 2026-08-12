@@ -62,14 +62,26 @@ def has_user_bumped(username: str) -> bool:
 
 
 def consume_user_bump(username: str):
-    """Mark a user's session bump token as consumed."""
+    """Mark a user's session bump token as consumed with a 12-hour TTL."""
     if not username:
         return
     client = get_redis_queue_client()
     try:
-        client.set(f"session_user_bumps:{username}", "1")
+        client.setex(f"session_user_bumps:{username}", 43200, "1")
     except Exception as e:
         logger.warning("Failed setting bump used for user %s: %s", username, e)
+
+
+def clear_all_user_bumps():
+    """Clear all stored user bump tokens from Redis."""
+    try:
+        client = get_redis_queue_client()
+        keys = client.keys("session_user_bumps:*")
+        if keys:
+            client.delete(*keys)
+            logger.info("Cleared %d session user bump tokens from Redis.", len(keys))
+    except Exception as e:
+        logger.warning("Failed to clear session user bump tokens from Redis: %s", e)
 
 
 def calculate_queue_eta(target_item_id: str | None = None) -> tuple[int, int]:
@@ -390,6 +402,7 @@ def clear_redis_queue(force_all: bool = False, fallback_only: bool = False):
     # Perform queue clear
     if force_all or (not track_time_tracker.is_playing and track_time_tracker.state != "paused" and not fallback_only):
         client.delete("playback_queue")
+        clear_all_user_bumps()
         if force_all:
             clear_cache("now_playing")
             track_time_tracker.stop()
