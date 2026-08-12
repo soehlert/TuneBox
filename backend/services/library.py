@@ -2,6 +2,7 @@
 
 import time
 import re
+import json
 import sqlite3
 import logging
 from backend.db.library_db import get_db_connection
@@ -357,7 +358,7 @@ def get_top_played_tracks_db(limit: int = 50, db_path: str | None = None) -> lis
                 t.title,
                 t.duration,
                 t.thumb,
-                COUNT(ph.id) AS play_count,
+                COUNT(ph.track_id) AS play_count,
                 MAX(ph.played_at) AS last_played_at
             FROM playback_history ph
             JOIN tracks t ON ph.track_id = t.track_id

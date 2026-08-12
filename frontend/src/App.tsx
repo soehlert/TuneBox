@@ -2193,7 +2193,15 @@ function App() {
     }
   }, []);
 
-  const [viewMode, setViewMode] = useState<ViewMode>("artists");
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    const saved = localStorage.getItem("tunebox_view_mode");
+    const validModes: ViewMode[] = ["artists", "albums", "top_played", "recently_added", "genres", "decades"];
+    return validModes.includes(saved as ViewMode) ? (saved as ViewMode) : "artists";
+  });
+
+  useEffect(() => {
+    localStorage.setItem("tunebox_view_mode", viewMode);
+  }, [viewMode]);
   const [artists, setArtists] = useState<any[]>([]);
   const [loadingArtists, setLoadingArtists] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
