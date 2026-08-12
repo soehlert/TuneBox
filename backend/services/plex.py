@@ -2852,6 +2852,18 @@ def trigger_closing_time_mode() -> dict:
             logger.warning("Failed adding Closing Time track to queue: %s", ex)
 
     msg = f"🍸 Last Call activated! '{added_track_title}' added as the final track." if added_track_title else "🍸 Last Call activated! No new guest requests allowed."
+
+    try:
+        from backend.websockets import broadcast_json_threadsafe
+        broadcast_json_threadsafe({
+            "type": "closing_time_triggered",
+            "message": msg,
+            "closing_time": True,
+            "finale_track": added_track_title,
+        })
+    except Exception as ws_ex:
+        logger.debug("Failed sending closing_time_triggered WS broadcast: %s", ws_ex)
+
     return {
         "success": True,
         "message": msg,

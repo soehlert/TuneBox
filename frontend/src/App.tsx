@@ -2405,6 +2405,9 @@ function App() {
             console.log("Received server_settings_updated WS push. Re-fetching library content...");
             refreshLibraryData();
             setIndexingStatus(null);
+          } else if (data.type === "closing_time_triggered") {
+            console.log("Received closing_time_triggered WS push:", data);
+            window.dispatchEvent(new CustomEvent("tunebox_closing_time_updated", { detail: true }));
           } else if (data.type === "indexing_status") {
             console.log("Received indexing_status WS push:", data);
             window.dispatchEvent(new CustomEvent("tunebox_refresh_albums"));

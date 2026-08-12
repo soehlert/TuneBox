@@ -25,6 +25,15 @@ const QueueComponent = () => {
 
   useEffect(() => {
     fetchClosingTime();
+    const handleClosingTimeEvent = (e: any) => {
+      if (e && e.detail !== undefined) {
+        setClosingTimeMode(Boolean(e.detail));
+      } else {
+        fetchClosingTime();
+      }
+    };
+    window.addEventListener("tunebox_closing_time_updated", handleClosingTimeEvent);
+    return () => window.removeEventListener("tunebox_closing_time_updated", handleClosingTimeEvent);
   }, []);
 
   const handleTriggerLastCall = async () => {
@@ -420,6 +429,37 @@ const QueueComponent = () => {
       </Box>
       )}
 
+      {adminToken && (
+        <Box style={{ padding: "0 12px 8px 12px" }}>
+          <button
+            type="button"
+            onClick={handleTriggerLastCall}
+            style={{
+              width: "100%",
+              background: closingTimeMode ? "rgba(191, 9, 94, 0.25)" : "rgba(245, 166, 35, 0.2)",
+              border: closingTimeMode ? "1px solid #bf095e" : "1px solid #f5a623",
+              color: closingTimeMode ? "#ff4d94" : "#f5a623",
+              padding: "7px 14px",
+              borderRadius: "18px",
+              fontWeight: 700,
+              fontSize: "12px",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "6px",
+              transition: "all 0.2s ease",
+            }}
+            title="Stop guest requests and append 'Closing Time' finale song"
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>
+              {closingTimeMode ? "lock" : "nightlife"}
+            </span>
+            <span>{closingTimeMode ? "Last Call Active (Queue Closed)" : "🍸 Trigger Last Call"}</span>
+          </button>
+        </Box>
+      )}
+
       <Box className="queue-tabs-container">
         <button
           className={`queue-tab-btn ${activeTab === 'queue' ? 'active' : ''}`}
@@ -438,34 +478,6 @@ const QueueComponent = () => {
           <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>history</span>
           <span>History ({history.length})</span>
         </button>
-
-        {adminToken && (
-          <button
-            type="button"
-            onClick={handleTriggerLastCall}
-            style={{
-              background: closingTimeMode ? "rgba(191, 9, 94, 0.25)" : "rgba(245, 166, 35, 0.2)",
-              border: closingTimeMode ? "1px solid #bf095e" : "1px solid #f5a623",
-              color: closingTimeMode ? "#ff4d94" : "#f5a623",
-              padding: "4px 12px",
-              borderRadius: "14px",
-              fontWeight: 700,
-              fontSize: "11px",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: "4px",
-              marginLeft: "auto",
-              transition: "all 0.2s ease",
-            }}
-            title="Stop guest requests and append 'Closing Time' finale song"
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: "14px" }}>
-              {closingTimeMode ? "lock" : "nightlife"}
-            </span>
-            <span>{closingTimeMode ? "Last Call Active" : "Trigger Last Call"}</span>
-          </button>
-        )}
       </Box>
 
       {closingTimeMode && (
