@@ -8,7 +8,7 @@ import ArtistAlbums from "./components/ArtistAlbums";
 import TrackList from "./components/TrackList";
 import MusicControls from "./components/MusicControls";
 import Queue from "./components/Queue";
-import { BrowseTabs, AlbumsGridView, GenresGridView, DecadesGridView, RecentlyAddedGridView, ViewMode } from "./components/BrowseViews";
+import { BrowseTabs, AlbumsGridView, GenresGridView, DecadesGridView, RecentlyAddedGridView, TopPlayedTracksGridView, ViewMode } from "./components/BrowseViews";
 import theme from "./theme";
 import TuneBoxLogo from "../public/TuneBox.svg";
 import Stats from "./components/Stats";
@@ -2947,6 +2947,8 @@ function App() {
                       />
                     ) : viewMode === "recently_added" ? (
                       <RecentlyAddedGridView apiBase={getApiUrl("")} />
+                    ) : viewMode === "top_played" ? (
+                      <TopPlayedTracksGridView apiBase={getApiUrl("")} />
                     ) : viewMode === "albums" ? (
                       <AlbumsGridView apiBase={getApiUrl("")} selectedLetter={selectedLetter} scrollTargetLetter={scrollTargetLetter} onSelectLetter={handleScrollLetterChange} />
                     ) : viewMode === "genres" ? (
@@ -2981,6 +2983,8 @@ function App() {
                       />
                     ) : viewMode === "recently_added" ? (
                       <RecentlyAddedGridView apiBase={getApiUrl("")} />
+                    ) : viewMode === "top_played" ? (
+                      <TopPlayedTracksGridView apiBase={getApiUrl("")} />
                     ) : viewMode === "albums" ? (
                       <AlbumsGridView apiBase={getApiUrl("")} selectedLetter={selectedLetter} scrollTargetLetter={scrollTargetLetter} onSelectLetter={handleScrollLetterChange} />
                     ) : viewMode === "genres" ? (

@@ -19,6 +19,9 @@
   - Do NOT make network calls in tests; use a mock DB and Redis cache with `fakeredis` to get the truest representation of the real application.
   - Write meaningful tests — if bad code could easily pass the test, design a more rigorous assertion.
   - Ignore guarding against external infrastructure failures (hardware failure, network latency, etc.); focus strictly on our own application logic.
+- **Frontend Toast Readability**: When catching API errors in frontend components (`TrackList.tsx`, `ArtistList.tsx`), always extract `err?.response?.data?.detail` before falling back to default strings, and set `autoHideDuration` to at least `4000ms` (4 seconds) so toasts stay visible long enough to read. Avoid 1.5s durations for error/warning alerts.
+- **Standalone Track Object Attributes**: When creating standalone or mock track objects in backend services (e.g. `trigger_closing_time_mode`), always include standard `track_obj.TYPE = "track"` to satisfy `is_track_object()` validation.
+
 
 
 

@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
-import { Card, Typography, Button } from "@mui/material";
+import { Card, Typography, Button, Snackbar, Alert } from "@mui/material";
 import axios from "axios";
 import { FallbackImage } from "./FallbackImage";
 import { getLocalUsername, getSortKey } from "../utils";
@@ -211,7 +212,7 @@ interface Decade {
   top_album_id?: number | null;
 }
 
-export type ViewMode = "recently_added" | "artists" | "albums" | "genres" | "decades";
+export type ViewMode = "recently_added" | "top_played" | "artists" | "albums" | "genres" | "decades";
 
 interface BrowseTabsProps {
   currentMode: ViewMode;
@@ -222,6 +223,7 @@ export const BrowseTabs: React.FC<BrowseTabsProps> = ({ currentMode, onModeChang
   const tabs: { id: ViewMode; label: string; icon: string }[] = [
     { id: "artists", label: "Artists", icon: "mic" },
     { id: "albums", label: "Albums", icon: "album" },
+    { id: "top_played", label: "Top Played", icon: "local_fire_department" },
     { id: "recently_added", label: "Recently Added", icon: "auto_awesome" },
     { id: "genres", label: "Genres", icon: "music_note" },
     { id: "decades", label: "Decades", icon: "calendar_clock" },
@@ -811,6 +813,234 @@ export const RecentlyAddedGridView: React.FC<{ apiBase: string }> = ({ apiBase }
             </Card>
           ))}
         </div>
+      )}
+    </div>
+  );
+};
+
+
+interface TopPlayedTrack {
+  track_id: number;
+  album_id?: number;
+  server_id?: string;
+  artist: string;
+  album: string;
+  title: string;
+  duration: number;
+  thumb?: string | null;
+  play_count: number;
+  last_played_at?: number;
+}
+
+export const TopPlayedTracksGridView: React.FC<{ apiBase: string }> = ({ apiBase }) => {
+  const [tracks, setTracks] = useState<TopPlayedTrack[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [severity, setSeverity] = useState<"success" | "error" | "warning">("success");
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    axios
+      .get(`${apiBase}/api/music/tracks/top-played`)
+      .then((res) => setTracks(res.data))
+      .catch((err) => console.error("Error fetching top played tracks:", err))
+      .finally(() => setLoading(false));
+  }, [apiBase]);
+
+  const showSnackbar = (msg: string, sev: "success" | "error" | "warning" = "success") => {
+    setSnackbarMessage(msg);
+    setSeverity(sev);
+    setSnackbarOpen(true);
+  };
+
+  const handleQueueTrack = async (track: TopPlayedTrack, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await axios.post(`${apiBase}/api/music/queue/${track.track_id}`, {
+        server_id: track.server_id,
+        username: getLocalUsername(),
+      });
+      showSnackbar(`"${track.title}" added to queue!`, "success");
+    } catch (error: any) {
+      const errorMsg = error?.response?.data?.detail || error?.response?.data?.message;
+      if (error.response && error.response.status === 400) {
+        showSnackbar(errorMsg || "This song is already in the queue!", "warning");
+      } else if (error.response && error.response.status === 403) {
+        showSnackbar(errorMsg || "🍸 Last Call active! Queue is closed to new guest requests.", "warning");
+      } else {
+        showSnackbar(errorMsg || "An unexpected error occurred.", "error");
+      }
+    }
+  };
+
+  if (loading) {
+    return <div style={{ color: "#aaa", padding: "40px", textAlign: "center" }}>Loading Top Played Tracks...</div>;
+  }
+
+  return (
+    <div style={{ width: "100%" }}>
+      {tracks.length === 0 ? (
+        <div style={{ color: "rgba(255,255,255,0.5)", textAlign: "center", padding: "60px 20px" }}>
+          No TuneBox play history yet. Start playing songs to see your party's top tracks!
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+          {tracks.map((track, idx) => {
+            const rank = idx + 1;
+            const rankBadgeStyle = rank === 1
+              ? { background: "linear-gradient(135deg, #ffd700 0%, #ffa500 100%)", color: "#111" }
+              : rank === 2
+              ? { background: "linear-gradient(135deg, #e0e0e0 0%, #9e9e9e 100%)", color: "#111" }
+              : rank === 3
+              ? { background: "linear-gradient(135deg, #cd7f32 0%, #8b4513 100%)", color: "#fff" }
+              : { background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.7)" };
+
+            return (
+              <div
+                key={`${track.track_id}-${idx}`}
+                onClick={() => track.album_id && navigate(`/albums/${track.album_id}/tracks`)}
+                style={{
+                  background: "var(--color-glass-bg)",
+                  border: "1px solid var(--color-glass-border)",
+                  borderRadius: "14px",
+                  padding: "10px 14px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "12px",
+                  cursor: track.album_id ? "pointer" : "default",
+                  transition: "background-color 0.2s, transform 0.2s, border-color 0.2s",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = "var(--color-primary)";
+                  e.currentTarget.style.transform = "translateX(4px)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = "var(--color-glass-border)";
+                  e.currentTarget.style.transform = "none";
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "14px", minWidth: 0, flex: 1 }}>
+                  {/* Rank Badge */}
+                  <div
+                    style={{
+                      width: "32px",
+                      height: "32px",
+                      borderRadius: "50%",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontWeight: 800,
+                      fontSize: "13px",
+                      flexShrink: 0,
+                      ...rankBadgeStyle
+                    }}
+                  >
+                    #{rank}
+                  </div>
+
+                  {/* Album Artwork */}
+                  <div style={{ width: "48px", height: "48px", borderRadius: "8px", overflow: "hidden", flexShrink: 0 }}>
+                    <FallbackImage
+                      src={`${apiBase}/api/music/track-art/${track.track_id}`}
+                      alt={track.title}
+                      type="album"
+                      loading="lazy"
+                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                    />
+                  </div>
+
+                  {/* Track Info */}
+                  <div style={{ display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
+                    <span style={{ fontWeight: 700, fontSize: "14px", color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {track.title}
+                    </span>
+                    <span style={{ fontSize: "12px", color: "rgba(255,255,255,0.6)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {track.artist} {track.album ? `• ${track.album}` : ""}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Right Column: Play Count Pill & Add Button */}
+                <div style={{ display: "flex", alignItems: "center", gap: "12px", flexShrink: 0 }}>
+                  <div
+                    style={{
+                      padding: "4px 10px",
+                      borderRadius: "20px",
+                      background: "rgba(255, 149, 0, 0.15)",
+                      border: "1px solid rgba(255, 149, 0, 0.3)",
+                      color: "#ff9500",
+                      fontSize: "12px",
+                      fontWeight: 700,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      whiteSpace: "nowrap"
+                    }}
+                  >
+                    🔥 {track.play_count} {track.play_count === 1 ? "play" : "plays"}
+                  </div>
+
+                  <button
+                    onClick={(e) => handleQueueTrack(track, e)}
+                    style={{
+                      background: "rgba(51, 117, 173, 0.2)",
+                      border: "1px solid #3376ad",
+                      color: "#9bd0ff",
+                      borderRadius: "20px",
+                      padding: "6px 14px",
+                      fontSize: "12px",
+                      fontWeight: 700,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      transition: "background-color 0.2s, transform 0.15s",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = "rgba(51, 117, 173, 0.4)";
+                      e.currentTarget.style.transform = "scale(1.05)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = "rgba(51, 117, 173, 0.2)";
+                      e.currentTarget.style.transform = "none";
+                    }}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>add</span>
+                    Queue
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {createPortal(
+        <Snackbar
+          open={snackbarOpen}
+          autoHideDuration={4000}
+          onClose={() => setSnackbarOpen(false)}
+          className="queue-toast-snackbar"
+        >
+          <Alert
+            onClose={() => setSnackbarOpen(false)}
+            severity={severity}
+            sx={{
+              width: "100%",
+              background: severity === "success" ? "#1e4620" : severity === "warning" ? "#663c00" : "#5f2120",
+              color: "white",
+              fontWeight: "bold",
+              borderRadius: "8px",
+              border: "1px solid rgba(255,255,255,0.2)",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.8)"
+            }}
+          >
+            {snackbarMessage}
+          </Alert>
+        </Snackbar>,
+        document.body
       )}
     </div>
   );

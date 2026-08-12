@@ -339,7 +339,51 @@ def log_playback_event_db(track_id: int, username: str = "Admin", db_path: str |
                 """,
                 (row["track_id"], row["artist_name"], row["album_title"], row["title"], username, now),
             )
-            conn.commit()
+    finally:
+        conn.close()
+
+
+def get_top_played_tracks_db(limit: int = 50, db_path: str | None = None) -> list[dict]:
+    """Retrieve top played tracks in TuneBox ordered by total play count."""
+    conn = get_db_connection(db_path)
+    try:
+        query = """
+            SELECT 
+                t.track_id,
+                t.album_id,
+                t.server_id,
+                t.artist_name AS artist,
+                t.album_title AS album,
+                t.title,
+                t.duration,
+                t.thumb,
+                COUNT(ph.id) AS play_count,
+                MAX(ph.played_at) AS last_played_at
+            FROM playback_history ph
+            JOIN tracks t ON ph.track_id = t.track_id
+            GROUP BY ph.track_id
+            ORDER BY play_count DESC, last_played_at DESC
+            LIMIT ?
+        """
+        rows = conn.execute(query, (limit,)).fetchall()
+        top_tracks = []
+        for r in rows:
+            top_tracks.append({
+                "track_id": r["track_id"],
+                "album_id": r["album_id"],
+                "server_id": r["server_id"],
+                "artist": r["artist"] or "Unknown Artist",
+                "album": r["album"] or "Unknown Album",
+                "title": r["title"] or "Unknown Title",
+                "duration": r["duration"] or 0,
+                "thumb": r["thumb"],
+                "play_count": r["play_count"],
+                "last_played_at": r["last_played_at"],
+            })
+        return top_tracks
+    except Exception as ex:
+        logger.warning("Error fetching top played tracks from DB: %s", ex)
+        return []
     finally:
         conn.close()
 

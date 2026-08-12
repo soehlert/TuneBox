@@ -68,6 +68,7 @@ from backend.services.library import (
     get_albums_for_artist_db,
     get_indexed_albums,
     get_recently_added_albums,
+    get_top_played_tracks_db,
     get_all_genres_db,
     get_albums_by_genre_db,
     get_all_decades_db,
@@ -495,6 +496,15 @@ def get_recently_added_endpoint(limit: int = 50):
         return get_recently_added_albums(limit=limit)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching recently added albums: {e}") from e
+
+
+@router.get("/tracks/top-played")
+def get_top_played_tracks_endpoint(limit: int = 50):
+    """Fetch top played tracks in TuneBox ordered by play count."""
+    try:
+        return get_top_played_tracks_db(limit=limit)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching top played tracks: {e}") from e
 
 
 # Fetch music genres with album counts
