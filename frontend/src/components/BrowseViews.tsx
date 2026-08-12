@@ -223,10 +223,10 @@ export const BrowseTabs: React.FC<BrowseTabsProps> = ({ currentMode, onModeChang
   const tabs: { id: ViewMode; label: string; icon: string }[] = [
     { id: "artists", label: "Artists", icon: "mic" },
     { id: "albums", label: "Albums", icon: "album" },
-    { id: "top_played", label: "Top Played", icon: "local_fire_department" },
     { id: "recently_added", label: "Recently Added", icon: "auto_awesome" },
     { id: "genres", label: "Genres", icon: "music_note" },
     { id: "decades", label: "Decades", icon: "calendar_clock" },
+    { id: "top_played", label: "Top Played", icon: "leaderboard" },
   ];
 
   return (
@@ -885,7 +885,7 @@ export const TopPlayedTracksGridView: React.FC<{ apiBase: string }> = ({ apiBase
           No TuneBox play history yet. Start playing songs to see your party's top tracks!
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(360px, 1fr))", gap: "12px" }}>
           {tracks.map((track, idx) => {
             const rank = idx + 1;
             const rankBadgeStyle = rank === 1
