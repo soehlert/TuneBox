@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: Compose/frontend/Dockerfile
     ports:
-      - "80:80"
+      - "0.0.0.0:80:80"
     environment:
       - TUNEBOX_URL=${TUNEBOX_URL:-backend:8000}
     volumes:
@@ -17,8 +17,8 @@ services:
       context: .
       dockerfile: Compose/backend/Dockerfile
     ports:
-      - "8000:8000"
-      - "5353:5353/udp"
+      - "0.0.0.0:8000:8000"
+      - "0.0.0.0:5353:5353/udp"
     environment:
       - PLEX_USERNAME=${PLEX_USERNAME}
       - PLEX_SERVER_NAME=${PLEX_SERVER_NAME}
