@@ -472,12 +472,29 @@ function TrackList() {
             severity={severity}
             sx={{
               width: "100%",
-              background: severity === "success" ? "#1e4620" : severity === "warning" ? "#663c00" : "#5f2120",
-              color: "white",
+              background: severity === "success" 
+                ? "rgba(18, 38, 22, 0.94)" 
+                : severity === "warning" 
+                ? "rgba(42, 28, 10, 0.95)" 
+                : "rgba(42, 14, 14, 0.94)",
+              color: "#ffffff",
               fontWeight: "bold",
-              borderRadius: "8px",
-              border: "1px solid rgba(255,255,255,0.2)",
-              boxShadow: "0 8px 32px rgba(0,0,0,0.8)"
+              fontSize: "0.9rem",
+              fontFamily: "var(--font-body)",
+              borderRadius: "12px",
+              border: severity === "success" 
+                ? "1px solid rgba(76, 175, 80, 0.6)" 
+                : severity === "warning" 
+                ? "1px solid rgba(245, 166, 35, 0.7)" 
+                : "1px solid rgba(244, 67, 54, 0.6)",
+              boxShadow: severity === "warning"
+                ? "0 10px 32px rgba(0,0,0,0.85), 0 0 20px rgba(245, 166, 35, 0.25)"
+                : "0 10px 32px rgba(0,0,0,0.85)",
+              backdropFilter: "blur(16px)",
+              alignItems: "center",
+              "& .MuiAlert-icon": {
+                color: severity === "warning" ? "#f5a623" : severity === "success" ? "#4caf50" : "#f44336"
+              }
             }}
           >
             {snackbarMessage}
