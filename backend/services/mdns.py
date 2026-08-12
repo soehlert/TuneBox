@@ -10,16 +10,26 @@ _zeroconf_instance: Zeroconf | None = None
 _service_info: ServiceInfo | None = None
 
 
+import os
+
 def get_lan_ip() -> str:
-    """Get the local LAN IP address of this machine."""
+    """Get the local LAN IP address of the host machine."""
+    env_ip = os.getenv("HOST_IP")
+    if env_ip and not env_ip.startswith("127.") and not env_ip.startswith("172."):
+        return env_ip
+
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
         s.connect(("8.8.8.8", 80))
-        return s.getsockname()[0]
+        ip = s.getsockname()[0]
+        if not ip.startswith("172.") and not ip.startswith("192.168.107."):
+            return ip
     except Exception:
-        return "127.0.0.1"
+        pass
     finally:
         s.close()
+
+    return env_ip or "127.0.0.1"
 
 
 def register_mdns_service(hostname: str = "tunebox.local", port: int = 8000) -> bool:
