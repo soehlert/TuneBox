@@ -147,3 +147,19 @@ def test_add_to_history_handles_invalid_non_dict_input(mock_redis, caplog):
     add_to_history(12345)  # Invalid non-dict
     assert "Failed to update playback history" in caplog.text
 
+
+def test_skipped_tracks_not_added_to_history(mocker, mock_redis):
+    """Verify skipping a track does NOT invoke add_to_history or append to history."""
+    from backend.services.plex import skip_current_track
+
+    mock_history = mocker.patch("backend.services.plex.add_to_history")
+    mocker.patch("backend.services.plex.get_active_player", return_value=None)
+    mocker.patch("backend.services.plex.get_cached_data", return_value={"item_id": 999, "title": "Skipped Track"})
+    mocker.patch("backend.services.plex.remove_from_redis_queue")
+    mocker.patch("backend.services.plex.clear_cache")
+
+    res = skip_current_track()
+    assert res == {"message": "Track skipped successfully."}
+    mock_history.assert_not_called()
+
+

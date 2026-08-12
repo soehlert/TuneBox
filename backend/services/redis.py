@@ -359,12 +359,8 @@ def ensure_queue_synced_with_now_playing(song_data: dict):
                 break
 
         if match_idx > 0:
-            from backend.services.plex import add_to_history  # noqa: PLC0415
             for _ in range(match_idx):
-                popped_raw = client.lpop("playback_queue")
-                if popped_raw:
-                    popped_track = json.loads(popped_raw)
-                    add_to_history(popped_track)
+                client.lpop("playback_queue")
         else:
             q_items[0] = song_data
             client.delete("playback_queue")

@@ -1104,7 +1104,6 @@ def skip_current_track():
 
     cached_track = get_cached_data("now_playing")
     if cached_track:
-        add_to_history(cached_track)
         remove_from_redis_queue(cached_track["item_id"])
 
     track_time_tracker.stop()
