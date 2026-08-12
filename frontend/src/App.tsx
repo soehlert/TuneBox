@@ -332,6 +332,33 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
   const [refreshing, setRefreshing] = useState(false);
   const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
   const [isFormDirty, setIsFormDirty] = useState(false);
+  const [closingTimeMode, setClosingTimeMode] = useState(false);
+
+  useEffect(() => {
+    axios
+      .get(getApiUrl("/api/music/closing-time"))
+      .then((res) => setClosingTimeMode(Boolean(res.data.closing_time)))
+      .catch((err) => console.error("Error fetching closing time mode:", err));
+  }, []);
+
+  const handleToggleLastCall = async () => {
+    try {
+      const isCancelling = closingTimeMode;
+      const method = isCancelling ? "DELETE" : "POST";
+      const res = await axios({
+        method,
+        url: getApiUrl("/api/music/closing-time"),
+        headers: { "x-admin-token": adminToken },
+      });
+      setClosingTimeMode(!isCancelling);
+      if (res.data && res.data.message) {
+        setMsg(res.data.message);
+      }
+    } catch (err) {
+      console.error("Error toggling Last Call:", err);
+      setMsg("✗ Failed to toggle Last Call mode.");
+    }
+  };
 
   const handleAttemptClose = () => {
     if (isFormDirty) {
@@ -812,30 +839,31 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
             <span className="material-symbols-outlined">settings</span> TuneBox Settings
           </h2>
 
-          {selectedServer && (
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "5px",
-                padding: "3px 9px",
-                background: "rgba(255, 255, 255, 0.07)",
-                border: "1px solid rgba(255, 255, 255, 0.15)",
-                borderRadius: "14px",
-                fontSize: "11px",
-                fontWeight: 600,
-                color: "rgba(255, 255, 255, 0.75)",
-                whiteSpace: "nowrap",
-                maxWidth: "160px",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
-              title={`Connected Plex Server: ${selectedServer}`}
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: "14px", color: "#5cdd5c", flexShrink: 0 }}>dns</span>
-              <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{selectedServer}</span>
-            </div>
-          )}
+          <button
+            type="button"
+            onClick={handleToggleLastCall}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              padding: "4px 12px",
+              background: closingTimeMode ? "rgba(191, 9, 94, 0.25)" : "rgba(245, 166, 35, 0.2)",
+              border: closingTimeMode ? "1px solid #bf095e" : "1px solid #f5a623",
+              borderRadius: "14px",
+              fontSize: "12px",
+              fontWeight: 700,
+              color: closingTimeMode ? "#ff4d94" : "#f5a623",
+              cursor: "pointer",
+              transition: "all 0.2s ease",
+              whiteSpace: "nowrap",
+              marginLeft: "auto",
+              marginRight: "4px",
+            }}
+            title={closingTimeMode ? "Cancel Last Call and unlock guest queue" : "Stop guest requests and append 'Closing Time' finale song"}
+          >
+            <span style={{ fontSize: "14px" }}>{closingTimeMode ? "🔓" : "🍸"}</span>
+            <span>{closingTimeMode ? "Cancel Last Call" : "Last Call"}</span>
+          </button>
 
           <button
             onClick={handleAttemptClose}

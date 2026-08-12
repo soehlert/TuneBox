@@ -36,29 +36,6 @@ const QueueComponent = () => {
     return () => window.removeEventListener("tunebox_closing_time_updated", handleClosingTimeEvent);
   }, []);
 
-  const handleTriggerLastCall = async () => {
-    if (!adminToken) return;
-    try {
-      const isCancelling = closingTimeMode;
-      const method = isCancelling ? "DELETE" : "POST";
-      const response = await fetch(`${apiBase}/api/music/closing-time`, {
-        method,
-        headers: {
-          "X-Admin-Token": adminToken,
-        },
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setClosingTimeMode(!isCancelling);
-        if (data.message) {
-          alert(data.message);
-        }
-      }
-    } catch (error) {
-      console.error("Error toggling Last Call:", error);
-    }
-  };
-
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const touchDragRef = useRef<{ index: number; targetIndex: number | null } | null>(null);
@@ -429,37 +406,6 @@ const QueueComponent = () => {
           ))}
         </Box>
       </Box>
-      )}
-
-      {adminToken && (
-        <Box style={{ padding: "0 12px 8px 12px" }}>
-          <button
-            type="button"
-            onClick={handleTriggerLastCall}
-            style={{
-              width: "100%",
-              background: closingTimeMode ? "rgba(191, 9, 94, 0.25)" : "rgba(245, 166, 35, 0.2)",
-              border: closingTimeMode ? "1px solid #bf095e" : "1px solid #f5a623",
-              color: closingTimeMode ? "#ff4d94" : "#f5a623",
-              padding: "7px 14px",
-              borderRadius: "18px",
-              fontWeight: 700,
-              fontSize: "12px",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "6px",
-              transition: "all 0.2s ease",
-            }}
-            title="Stop guest requests and append 'Closing Time' finale song"
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>
-              {closingTimeMode ? "lock_open" : "nightlife"}
-            </span>
-            <span>{closingTimeMode ? "🔓 Cancel Last Call (Unlock Queue)" : "🍸 Trigger Last Call"}</span>
-          </button>
-        </Box>
       )}
 
       <Box className="queue-tabs-container">
