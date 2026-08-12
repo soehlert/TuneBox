@@ -1,17 +1,15 @@
 """mDNS Zeroconf Local Discovery Service (tunebox.local)."""
 
 import logging
+import os
 import socket
+import ifaddr
 from zeroconf import ServiceInfo, Zeroconf
 
 logger = logging.getLogger(__name__)
 
 _zeroconf_instance: Zeroconf | None = None
 _service_info: ServiceInfo | None = None
-
-
-import os
-import ifaddr
 
 def get_lan_ip() -> str:
     """Get the local LAN IP address of the host machine, VM, or LXC container."""
