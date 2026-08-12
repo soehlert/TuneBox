@@ -444,7 +444,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
   }, [adminToken]);
 
   const [selectedVibe, setSelectedVibe] = useState<string>("Party");
-  const [availableVibes, setAvailableVibes] = useState<Array<{vibe: string, display: string, count: number}>>([
+  const [availableVibes, setAvailableVibes] = useState<Array<{ vibe: string, display: string, count: number }>>([
     { vibe: "Party", display: "🎉 Party", count: 10 },
     { vibe: "Energetic", display: "⚡ Energetic", count: 10 },
     { vibe: "Chill", display: "☕ Chill", count: 10 },
@@ -463,7 +463,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
           setAvailableVibes(res.data);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const [guestVibeChangingEnabled, setGuestVibeChangingEnabled] = useState<boolean>(true);
@@ -1204,7 +1204,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(255,255,255,0.03)", padding: "12px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.05)" }}>
                   <div style={{ display: "flex", flexDirection: "column", gap: "4px", paddingRight: "16px" }}>
                     <span style={{ color: "#fff", fontSize: "14px", fontWeight: "bold", display: "flex", alignItems: "center", gap: "6px" }}>
-                      ✨ Allow Guests to Change Room Vibe
+                      ✨ Allow Guests to Change Party Vibe
                     </span>
                     <span style={{ color: "rgba(255, 255, 255, 0.5)", fontSize: "11px", lineHeight: "1.4" }}>
                       When enabled, guests can click Room Party Vibe buttons to adjust the room mood.
