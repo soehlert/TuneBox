@@ -2842,7 +2842,6 @@ def trigger_closing_time_mode() -> dict:
             from unittest.mock import MagicMock
             track_obj = MagicMock()
             track_obj.TYPE = "track"
-            track_obj.type = "track"
             track_obj.title = closing_track["title"]
             track_obj.artist = closing_track["artist"]
             track_obj.grandparentTitle = closing_track["artist"]
