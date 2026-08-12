@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Routes, Route, Link, useNavigate, useLocation } from "react-router-dom";
 import { ThemeProvider } from "@mui/material/styles";
+import { Alert } from "@mui/material";
 import axios from "axios";
 import { QRCodeSVG } from "qrcode.react";
 import ArtistList from "./components/ArtistList";
@@ -2167,6 +2168,28 @@ function App() {
     message: "",
   });
 
+  // Global Toast Notifications State
+  const [toastOpen, setToastOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
+  const [toastSeverity, setToastSeverity] = useState<"success" | "warning" | "error">("success");
+  const toastTimerRef = useRef<any>(null);
+
+  useEffect(() => {
+    const handleToastEvent = (e: any) => {
+      if (e && e.detail) {
+        setToastMessage(e.detail.message);
+        setToastSeverity(e.detail.severity || "success");
+        setToastOpen(true);
+        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+        toastTimerRef.current = setTimeout(() => {
+          setToastOpen(false);
+        }, 4000);
+      }
+    };
+    window.addEventListener("tunebox_queue_toast", handleToastEvent);
+    return () => window.removeEventListener("tunebox_queue_toast", handleToastEvent);
+  }, []);
+
   // Artist library / Search states
   const navigate = useNavigate();
   const location = useLocation();
@@ -3196,6 +3219,46 @@ function App() {
           )}
 
           {isStatsOpen && <Stats apiBase={apiBase} />}
+
+          {/* Global Toast Notification */}
+          {toastOpen && (
+            <div className="queue-toast-snackbar">
+              <Alert
+                onClose={() => setToastOpen(false)}
+                severity={toastSeverity}
+                sx={{
+                  width: "100%",
+                  pointerEvents: "auto",
+                  background: toastSeverity === "success" 
+                    ? "rgba(18, 45, 26, 0.88)" 
+                    : toastSeverity === "warning" 
+                    ? "rgba(12, 38, 58, 0.88)" 
+                    : "rgba(60, 18, 30, 0.88)",
+                  backdropFilter: "blur(16px)",
+                  color: "#ffffff",
+                  fontWeight: "bold",
+                  fontSize: "0.85rem",
+                  borderRadius: "12px",
+                  border: toastSeverity === "success" 
+                    ? "1px solid #4caf50" 
+                    : toastSeverity === "warning" 
+                    ? "1px solid #0077b6" 
+                    : "1px solid #bf095e",
+                  boxShadow: toastSeverity === "success"
+                    ? "0 8px 32px rgba(0, 0, 0, 0.75), 0 0 16px rgba(76, 175, 80, 0.35)"
+                    : toastSeverity === "warning"
+                    ? "0 8px 32px rgba(0, 0, 0, 0.75), 0 0 16px rgba(0, 119, 182, 0.4)"
+                    : "0 8px 32px rgba(0, 0, 0, 0.75), 0 0 16px rgba(191, 9, 94, 0.4)",
+                  alignItems: "center",
+                  "& .MuiAlert-icon": {
+                    color: toastSeverity === "success" ? "#4caf50" : toastSeverity === "warning" ? "#0077b6" : "#bf095e"
+                  }
+                }}
+              >
+                {toastMessage}
+              </Alert>
+            </div>
+          )}
         </div>
       </ThemeProvider>
     );

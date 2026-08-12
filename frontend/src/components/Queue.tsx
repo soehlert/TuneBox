@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Typography, Alert } from '@mui/material';
-import { getLocalUsername } from '../utils';
+import { Box, Typography } from '@mui/material';
+import { getLocalUsername, triggerQueueToast } from '../utils';
 import "./Queue.css";
 
 const QueueComponent = () => {
@@ -12,19 +12,8 @@ const QueueComponent = () => {
   const [closingTimeMode, setClosingTimeMode] = useState(false);
   const adminToken = localStorage.getItem("tunebox_admin_token") || "";
 
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState("");
-  const [severity, setSeverity] = useState<"success" | "error" | "warning">("success");
-  const snackbarTimerRef = useRef<any>(null);
-
   const showSnackbar = (msg: string, sev: "success" | "error" | "warning" = "success") => {
-    setSnackbarMessage(msg);
-    setSeverity(sev);
-    setSnackbarOpen(true);
-    if (snackbarTimerRef.current) clearTimeout(snackbarTimerRef.current);
-    snackbarTimerRef.current = setTimeout(() => {
-      setSnackbarOpen(false);
-    }, 4000);
+    triggerQueueToast(msg, sev);
   };
 
   const fetchClosingTime = async () => {
@@ -777,55 +766,6 @@ const QueueComponent = () => {
             ))
           )}
         </ul>
-      )}
-      {snackbarOpen && (
-        <Box
-          style={{
-            position: "absolute",
-            bottom: "16px",
-            left: "12px",
-            right: "12px",
-            zIndex: 9999,
-            display: "flex",
-            justifyContent: "center",
-            pointerEvents: "none"
-          }}
-        >
-          <Alert
-            onClose={() => setSnackbarOpen(false)}
-            severity={severity}
-            sx={{
-              width: "100%",
-              pointerEvents: "auto",
-              background: severity === "success" 
-                ? "rgba(18, 45, 26, 0.88)" 
-                : severity === "warning" 
-                ? "rgba(12, 38, 58, 0.88)" 
-                : "rgba(60, 18, 30, 0.88)",
-              backdropFilter: "blur(16px)",
-              color: "#ffffff",
-              fontWeight: "bold",
-              fontSize: "0.85rem",
-              borderRadius: "12px",
-              border: severity === "success" 
-                ? "1px solid #4caf50" 
-                : severity === "warning" 
-                ? "1px solid #0077b6" 
-                : "1px solid #bf095e",
-              boxShadow: severity === "success"
-                ? "0 8px 32px rgba(0, 0, 0, 0.75), 0 0 16px rgba(76, 175, 80, 0.35)"
-                : severity === "warning"
-                ? "0 8px 32px rgba(0, 0, 0, 0.75), 0 0 16px rgba(0, 119, 182, 0.4)"
-                : "0 8px 32px rgba(0, 0, 0, 0.75), 0 0 16px rgba(191, 9, 94, 0.4)",
-              alignItems: "center",
-              "& .MuiAlert-icon": {
-                color: severity === "success" ? "#4caf50" : severity === "warning" ? "#0077b6" : "#bf095e"
-              }
-            }}
-          >
-            {snackbarMessage}
-          </Alert>
-        </Box>
       )}
     </Box>
   );
