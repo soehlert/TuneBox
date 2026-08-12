@@ -1,5 +1,6 @@
 """Incremental background library indexer for live Plex server synchronization."""
 
+import asyncio
 import time
 import logging
 import concurrent.futures
@@ -631,3 +632,28 @@ def sync_all_servers(db_path: str | None = None, force_full: bool = False):
         logger.warning("Error in sync_all_servers: %s", ex)
     finally:
         _sync_lock.release()
+
+
+async def periodic_library_indexer():
+    """Background task to run sync_all_servers periodically based on settings.index_interval_hours."""
+    if settings.index_interval_hours <= 0:
+        logger.info("Periodic library indexing is disabled (INDEX_INTERVAL_HOURS <= 0).")
+        return
+
+    interval_seconds = settings.index_interval_hours * 3600
+    logger.info(
+        "Periodic library indexer initialized. Scheduling auto-sync every %d hour(s).",
+        settings.index_interval_hours,
+    )
+
+    while True:
+        try:
+            await asyncio.sleep(interval_seconds)
+            logger.info("Triggering scheduled periodic library index sync for enabled servers...")
+            await asyncio.to_thread(sync_all_servers)
+        except asyncio.CancelledError:
+            logger.info("Periodic library indexer task cancelled.")
+            break
+        except Exception as ex:
+            logger.warning("Error in periodic_library_indexer loop: %s", ex)
+

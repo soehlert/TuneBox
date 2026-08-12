@@ -29,6 +29,10 @@ async def lifespan(app: FastAPI):
     ws_task = asyncio.create_task(update_websocket_clients())
     orch_task = asyncio.create_task(playback_orchestrator())
 
+    # Start periodic library indexer for enabled servers
+    from backend.services.indexer import periodic_library_indexer  # noqa: PLC0415
+    indexer_task = asyncio.create_task(periodic_library_indexer())
+
     # Pre-warm caches asynchronously in a background thread
     clean_library_deduplication()
     asyncio.create_task(asyncio.to_thread(pre_warm_all_caches))
@@ -44,7 +48,8 @@ async def lifespan(app: FastAPI):
         # Cleanup tasks on shutdown
         ws_task.cancel()
         orch_task.cancel()
-        for task in [ws_task, orch_task]:
+        indexer_task.cancel()
+        for task in [ws_task, orch_task, indexer_task]:
             with contextlib.suppress(asyncio.CancelledError):
                 await task
 
