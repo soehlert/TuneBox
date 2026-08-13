@@ -1555,9 +1555,6 @@ def get_available_vibes_db(db_path: str | None = None) -> list[dict]:
             row = conn.execute(query, params).fetchone()
             count = row["count"] if row else 0
 
-            if count == 0:
-                count = 10
-
             results.append({
                 "vibe": mood_key,
                 "display": meta["display"],
@@ -1568,7 +1565,7 @@ def get_available_vibes_db(db_path: str | None = None) -> list[dict]:
         return results
     except Exception as ex:
         logger.warning("Failed to fetch vibes from DB: %s", ex)
-        return [{"vibe": k, "display": meta["display"], "count": 10, "preset": True} for k, meta in MOOD_MAPPINGS.items()]
+        return []
     finally:
         conn.close()
 

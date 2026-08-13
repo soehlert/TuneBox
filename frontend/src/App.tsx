@@ -472,21 +472,13 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
   }, [adminToken]);
 
   const [selectedVibe, setSelectedVibe] = useState<string>("Party");
-  const [availableVibes, setAvailableVibes] = useState<Array<{ vibe: string, display: string, count: number }>>([
-    { vibe: "Party", display: "🎉 Party", count: 10 },
-    { vibe: "Chill Hang", display: "🛋️ Chill Hang", count: 10 },
-    { vibe: "Energetic", display: "⚡ Energetic", count: 10 },
-    { vibe: "Groovy", display: "🎷 Groovy", count: 10 },
-    { vibe: "Acoustic", display: "🎸 Acoustic", count: 10 },
-    { vibe: "Electronic", display: "🎧 Electronic", count: 10 },
-    { vibe: "Melancholic", display: "🌙 Melancholic", count: 10 },
-  ]);
+  const [availableVibes, setAvailableVibes] = useState<Array<{ vibe: string, display: string, count: number }>>([]);
 
   useEffect(() => {
     axios
       .get(getApiUrl("/api/music/vibes"))
       .then((res) => {
-        if (Array.isArray(res.data) && res.data.length > 0) {
+        if (Array.isArray(res.data)) {
           setAvailableVibes(res.data);
         }
       })

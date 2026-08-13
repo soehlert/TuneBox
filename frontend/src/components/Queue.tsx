@@ -335,15 +335,7 @@ const QueueComponent = () => {
     };
   }, [wsHost]);
 
-  const [availableVibes, setAvailableVibes] = useState<Array<{vibe: string, display: string, count: number}>>([
-    { vibe: "Party", display: "🎉 Party", count: 10 },
-    { vibe: "Chill Hang", display: "🛋️ Chill Hang", count: 10 },
-    { vibe: "Energetic", display: "⚡ Energetic", count: 10 },
-    { vibe: "Groovy", display: "🎷 Groovy", count: 10 },
-    { vibe: "Acoustic", display: "🎸 Acoustic", count: 10 },
-    { vibe: "Electronic", display: "🎧 Electronic", count: 10 },
-    { vibe: "Melancholic", display: "🌙 Melancholic", count: 10 },
-  ]);
+  const [availableVibes, setAvailableVibes] = useState<Array<{vibe: string, display: string, count: number}>>([]);
 
   const [guestVibeChangingEnabled, setGuestVibeChangingEnabled] = useState<boolean>(true);
 
@@ -362,7 +354,7 @@ const QueueComponent = () => {
     fetch(`${apiBase}/api/music/vibes`)
       .then((res) => res.json())
       .then((data) => {
-        if (Array.isArray(data) && data.length > 0) {
+        if (Array.isArray(data)) {
           setAvailableVibes(data);
         }
       })
