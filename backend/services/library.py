@@ -1454,7 +1454,7 @@ MOOD_MAPPINGS = {
     },
     "Chill Hang": {
         "display": "🛋️ Chill Hang",
-        "moods": ["hangout", "chill hang", "mellow", "feel-good", "friendly", "upbeat"],
+        "moods": ["hangout", "chill hang", "mellow", "feel-good", "friendly", "upbeat", "relaxed", "calm"],
         "genres": ["indie", "indie pop", "indie rock", "classic rock", "folk", "indie folk", "alternative", "alt-rock", "acoustic rock", "soft rock"],
         "bpm_min": 105,
         "bpm_max": 135,
@@ -1475,7 +1475,7 @@ MOOD_MAPPINGS = {
     },
     "Acoustic": {
         "display": "🎸 Acoustic",
-        "moods": ["acoustic", "unplugged", "intimate", "organic", "warm"],
+        "moods": ["acoustic", "unplugged", "intimate", "organic", "warm", "romantic", "calm"],
         "genres": ["acoustic", "folk", "indie folk", "bluegrass", "singer-songwriter", "americana", "country"],
         "bpm_min": 50,
         "bpm_max": 115,
@@ -1498,38 +1498,43 @@ MOOD_MAPPINGS = {
 
 
 def _build_vibe_where_clause(meta: dict) -> tuple[str, list[str]]:
-    """Build a weighted SQL WHERE clause matching a target party vibe.
+    """Build a weighted SQL WHERE clause matching a target vibe specification.
 
-    1. Mood tag match (Highest weight: +3)
-    2. Genre match (Medium weight: +2)
-    3. BPM match (Lower weight: +1)
-
-    A track matches if its combined score >= 2.
+    Score Formula: Total Score = Score_Mood (+3) + Score_SubGenre (+2) + Score_BPM (+1)
+    Threshold: Total Score >= 3
     """
     score_parts = []
     params = []
 
-    # 1. Moods (+3 weight)
-    for m in meta.get("moods", []):
-        score_parts.append("(CASE WHEN LOWER(alb.genre) LIKE ? THEN 3 ELSE 0 END)")
-        params.append(f"%{m}%")
+    # 1. Moods (+3 weight if any match)
+    moods = meta.get("moods", [])
+    if moods:
+        mood_clauses = []
+        for m in moods:
+            mood_clauses.append("LOWER(alb.genre) LIKE ?")
+            params.append(f"%{m.lower()}%")
+        score_parts.append(f"(CASE WHEN ({' OR '.join(mood_clauses)}) THEN 3 ELSE 0 END)")
 
-    # 2. Genres (+2 weight)
-    for g in meta.get("genres", []):
-        score_parts.append("(CASE WHEN LOWER(alb.genre) LIKE ? THEN 2 ELSE 0 END)")
-        params.append(f"%{g}%")
+    # 2. Sub-Genres (+2 weight if any match)
+    genres = meta.get("genres", [])
+    if genres:
+        genre_clauses = []
+        for g in genres:
+            genre_clauses.append("LOWER(alb.genre) LIKE ?")
+            params.append(f"%{g.lower()}%")
+        score_parts.append(f"(CASE WHEN ({' OR '.join(genre_clauses)}) THEN 2 ELSE 0 END)")
 
-    # 3. BPM (+1 bonus weight)
+    # 3. BPM (+1 weight if within range)
     bpm_min = meta.get("bpm_min")
     bpm_max = meta.get("bpm_max")
     if bpm_min is not None and bpm_max is not None:
-        score_parts.append(f"(CASE WHEN t.bpm >= {bpm_min} AND t.bpm <= {bpm_max} THEN 1 ELSE 0 END)")
+        score_parts.append(f"(CASE WHEN t.bpm >= {int(bpm_min)} AND t.bpm <= {int(bpm_max)} THEN 1 ELSE 0 END)")
 
     if not score_parts:
         return "1=0", []
 
     score_expr = " + ".join(score_parts)
-    where_clause = f"({score_expr}) >= 2"
+    where_clause = f"({score_expr}) >= 3"
     return where_clause, params
 
 

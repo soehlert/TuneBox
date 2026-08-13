@@ -5,7 +5,7 @@ from fastapi.testclient import TestClient
 
 from backend.config import settings
 from backend.main import app
-from backend.services.library import get_available_vibes_db, get_tracks_by_vibe_db
+from backend.services.library import _build_vibe_where_clause, get_available_vibes_db, get_tracks_by_vibe_db, MOOD_MAPPINGS
 from backend.services.plex import seed_queue_from_vibe
 from backend.services.redis import clear_redis_queue, get_redis_queue
 
@@ -107,3 +107,18 @@ def test_get_vibes_endpoint():
     assert response.status_code == 200
     data = response.json()
     assert isinstance(data, list)
+    vibe_names = [item["vibe"] for item in data]
+    expected_vibes = ["Party", "Chill Hang", "Energetic", "Groovy", "Acoustic", "Electronic", "Melancholic"]
+    for expected in expected_vibes:
+        assert expected in vibe_names
+
+
+def test_vibe_where_clause_scoring_threshold():
+    """Verify _build_vibe_where_clause enforces Score >= 3 threshold."""
+    meta = MOOD_MAPPINGS["Party"]
+    where_clause, params = _build_vibe_where_clause(meta)
+    assert ">= 3" in where_clause
+    assert "THEN 3 ELSE 0" in where_clause
+    assert "THEN 2 ELSE 0" in where_clause
+    assert "THEN 1 ELSE 0" in where_clause
+

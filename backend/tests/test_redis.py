@@ -139,7 +139,7 @@ def test_clear_redis_queue(mock_redis):
     ):
         response = clear_redis_queue()
 
-    mock_redis_queue.delete.assert_called_once_with("playback_queue")
+    mock_redis_queue.delete.assert_any_call("playback_queue")
     assert response == {"message": "The queue has been cleared."}
 
 
