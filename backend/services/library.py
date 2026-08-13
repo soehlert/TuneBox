@@ -1455,14 +1455,14 @@ MOOD_MAPPINGS = {
     "Chill Hang": {
         "display": "🛋️ Chill Hang",
         "moods": ["hangout", "chill hang", "mellow", "feel-good", "friendly", "upbeat", "relaxed", "calm"],
-        "genres": ["indie", "indie pop", "indie rock", "classic rock", "folk", "indie folk", "alternative", "alt-rock", "acoustic rock", "soft rock", "easy listening", "vocal", "americana", "singer-songwriter"],
+        "genres": ["indie", "indie pop", "indie rock", "classic rock", "folk", "indie folk", "alternative", "alt-rock", "acoustic rock", "soft rock"],
         "bpm_min": 105,
         "bpm_max": 135,
     },
     "Energetic": {
         "display": "⚡ Energetic",
         "moods": ["energetic", "intense", "driving", "powerful", "aggressive", "rowdy"],
-        "genres": ["hard rock", "heavy metal", "punk", "thrash", "skate punk", "garage rock", "rap", "rock", "alternative"],
+        "genres": ["hard rock", "heavy metal", "punk", "thrash", "skate punk", "garage rock", "rap"],
         "bpm_min": 125,
         "bpm_max": 200,
     },
@@ -1476,7 +1476,7 @@ MOOD_MAPPINGS = {
     "Acoustic": {
         "display": "🎸 Acoustic",
         "moods": ["acoustic", "unplugged", "intimate", "organic", "warm", "romantic", "calm"],
-        "genres": ["acoustic", "folk", "indie folk", "bluegrass", "singer-songwriter", "americana", "country", "alternative country"],
+        "genres": ["acoustic", "folk", "indie folk", "bluegrass", "singer-songwriter", "americana", "country"],
         "bpm_min": 50,
         "bpm_max": 115,
     },
@@ -1490,7 +1490,7 @@ MOOD_MAPPINGS = {
     "Melancholic": {
         "display": "🌙 Melancholic",
         "moods": ["melancholic", "sad", "bittersweet", "somber", "brooding", "gloomy", "emotional"],
-        "genres": ["slowcore", "post-rock", "sadcore", "blues", "darkwave", "gothic", "shoegaze", "emo", "ballad", "classical"],
+        "genres": ["slowcore", "post-rock", "sadcore", "blues", "darkwave", "gothic", "shoegaze", "emo", "ballad"],
         "bpm_min": 40,
         "bpm_max": 100,
     },
@@ -1500,7 +1500,7 @@ MOOD_MAPPINGS = {
 def _build_vibe_where_clause(meta: dict) -> tuple[str, list[str]]:
     """Build a weighted SQL WHERE clause matching a target vibe specification.
 
-    Score Formula: Total Score = Score_Mood (+3) + Score_SubGenre (+3) + Score_BPM (+1)
+    Score Formula: Total Score = Score_Mood (+3) + Score_SubGenre (+2) + Score_BPM (+1)
     Threshold: Total Score >= 3
     """
     score_parts = []
@@ -1515,14 +1515,14 @@ def _build_vibe_where_clause(meta: dict) -> tuple[str, list[str]]:
             params.append(f"%{m.lower()}%")
         score_parts.append(f"(CASE WHEN ({' OR '.join(mood_clauses)}) THEN 3 ELSE 0 END)")
 
-    # 2. Sub-Genres (+3 weight if any match)
+    # 2. Sub-Genres (+2 weight if any match)
     genres = meta.get("genres", [])
     if genres:
         genre_clauses = []
         for g in genres:
             genre_clauses.append("LOWER(alb.genre) LIKE ?")
             params.append(f"%{g.lower()}%")
-        score_parts.append(f"(CASE WHEN ({' OR '.join(genre_clauses)}) THEN 3 ELSE 0 END)")
+        score_parts.append(f"(CASE WHEN ({' OR '.join(genre_clauses)}) THEN 2 ELSE 0 END)")
 
     # 3. BPM (+1 weight if within range)
     bpm_min = meta.get("bpm_min")

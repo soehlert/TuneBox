@@ -119,5 +119,6 @@ def test_vibe_where_clause_scoring_threshold():
     where_clause, params = _build_vibe_where_clause(meta)
     assert ">= 3" in where_clause
     assert "THEN 3 ELSE 0" in where_clause
+    assert "THEN 2 ELSE 0" in where_clause
     assert "THEN 1 ELSE 0" in where_clause
 
