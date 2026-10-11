@@ -57,9 +57,9 @@ def write_settings_to_env(
 
         updates = {
             "PLEX_TOKEN": token,
-            "PLEX_SERVER_NAME": server_name or settings.plex_server_name,
-            "CLIENT_NAME": client_name or settings.client_name,
-            "PLEX_USERNAME": plex_username or settings.plex_username,
+            "PLEX_SERVER_NAME": server_name,
+            "CLIENT_NAME": client_name,
+            "PLEX_USERNAME": plex_username,
             "ADMIN_TOKEN": admin_token or settings.admin_token,
             "INSTANCE_NAME": instance_name or settings.instance_name,
         }
