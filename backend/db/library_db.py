@@ -157,19 +157,24 @@ def init_library_db(db_path: str | None = None):
                 play_count INTEGER DEFAULT 0,
                 user_rating REAL DEFAULT 0.0,
                 bpm INTEGER DEFAULT 0,
+                moods TEXT DEFAULT '',
                 updated_at INTEGER NOT NULL,
                 FOREIGN KEY (album_id) REFERENCES albums(album_id) ON DELETE CASCADE
             )
             """
         )
 
-        # Migration for existing database schemas missing user_rating or bpm
+        # Migration for existing database schemas missing user_rating, bpm, or moods
         try:
             cursor.execute("ALTER TABLE tracks ADD COLUMN user_rating REAL DEFAULT 0.0;")
         except Exception:
             pass
         try:
             cursor.execute("ALTER TABLE tracks ADD COLUMN bpm INTEGER DEFAULT 0;")
+        except Exception:
+            pass
+        try:
+            cursor.execute("ALTER TABLE tracks ADD COLUMN moods TEXT DEFAULT '';")
         except Exception:
             pass
 
@@ -231,6 +236,7 @@ def init_library_db(db_path: str | None = None):
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_albums_year ON albums (year);")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_albums_play_count ON albums (play_count DESC);")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_tracks_album ON tracks (album_id);")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_tracks_moods ON tracks (moods);")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_track_sources_track ON track_sources (track_id);")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_track_sources_server ON track_sources (server_id);")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_playback_history_played_at ON playback_history (played_at DESC);")

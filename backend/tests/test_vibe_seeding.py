@@ -1,11 +1,20 @@
 """Tests verifying Party Vibe Selector endpoints and vibe queue seeding."""
 
-import pytest
 from fastapi.testclient import TestClient
 
 from backend.config import settings
+from backend.db.library_db import init_library_db
 from backend.main import app
-from backend.services.library import _build_vibe_where_clause, get_available_vibes_db, get_tracks_by_vibe_db, MOOD_MAPPINGS
+from backend.services.library import (
+    MOOD_MAPPINGS,
+    build_vibe_match_filter,
+    get_available_vibes_db,
+    get_tracks_by_vibe_db,
+    upsert_album,
+    upsert_artist,
+    upsert_server,
+    upsert_track,
+)
 from backend.services.plex import seed_queue_from_vibe
 from backend.services.redis import clear_redis_queue, get_redis_queue
 
@@ -113,12 +122,47 @@ def test_get_vibes_endpoint():
         assert expected in vibe_names
 
 
-def test_vibe_where_clause_scoring_threshold():
-    """Verify _build_vibe_where_clause enforces Score >= 3 threshold."""
+def test_vibe_match_filter_scoring_threshold():
+    """Verify build_vibe_match_filter enforces Score >= 3 threshold and queries t.moods."""
     meta = MOOD_MAPPINGS["Party"]
-    where_clause, params = _build_vibe_where_clause(meta)
-    assert ">= 3" in where_clause
-    assert "THEN 3 ELSE 0" in where_clause
-    assert "THEN 2 ELSE 0" in where_clause
-    assert "THEN 1 ELSE 0" in where_clause
+    filter_clause, _ = build_vibe_match_filter(meta)
+    assert ">= 3" in filter_clause
+    assert "t.moods" in filter_clause
+    assert "alb.genre" in filter_clause
+    assert "THEN 3 ELSE 0" in filter_clause
+    assert "THEN 2 ELSE 0" in filter_clause
+    assert "THEN 1 ELSE 0" in filter_clause
+
+
+def test_vibe_matching_with_track_moods(tmp_path):
+    """Verify tracks with tagged moods meet Score >= 3 and are selected for vibes."""
+    db_file = str(tmp_path / "vibe_test.db")
+    init_library_db(db_file)
+
+    upsert_server("srv-1", "Primary Server", is_primary=True, enabled=True, db_path=db_file)
+    art_id = upsert_artist("Test Artist", server_id="srv-1", server_artist_id="a1", db_path=db_file)
+    alb_id = upsert_album(
+        "Test Album", "Test Artist", artist_id=art_id, genre="Rock",
+        server_id="srv-1", server_album_id="alb1", db_path=db_file,
+    )
+
+    # Track 1 has mood 'energetic' -> scores +3 (qualifies for Energetic vibe)
+    upsert_track(
+        alb_id, "srv-1", "t1", "Test Artist", "Test Album", "High Energy Song",
+        200, bpm=0, moods="energetic, rowdy", db_path=db_file,
+    )
+    # Track 2 has no mood and BPM=0 -> genre Rock scores +2 (fails Score >= 3)
+    upsert_track(
+        alb_id, "srv-1", "t2", "Test Artist", "Test Album", "Plain Rock Song",
+        200, bpm=0, moods="", db_path=db_file,
+    )
+
+    matching_tracks = get_tracks_by_vibe_db("Energetic", count=10, db_path=db_file)
+    assert len(matching_tracks) == 1
+    assert matching_tracks[0]["title"] == "High Energy Song"
+
+    vibes = get_available_vibes_db(db_path=db_file)
+    energetic_vibe = next((v for v in vibes if v["vibe"] == "Energetic"), None)
+    assert energetic_vibe is not None
+    assert energetic_vibe["count"] == 1
 

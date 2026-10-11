@@ -361,6 +361,17 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
                                 media = trk.get("Media", [{}])[0] if trk.get("Media") else {}
                                 bitrate = int(media.get("bitrate", 0) or 0)
                                 codec = media.get("audioCodec") or media.get("container")
+                                raw_bpm = trk.get("bpm")
+                                trk_bpm = int(raw_bpm or 0) if raw_bpm else 0
+
+                                raw_moods = trk.get("Mood", [])
+                                track_moods = []
+                                if isinstance(raw_moods, list):
+                                    for m in raw_moods:
+                                        if isinstance(m, dict) and m.get("tag"):
+                                            track_moods.append(str(m.get("tag")).strip())
+                                        elif isinstance(m, str) and m.strip():
+                                            track_moods.append(m.strip())
 
                                 upsert_track(
                                     album_id=alb_db_id,
@@ -374,8 +385,10 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
                                     thumb=trk.get("parentThumb") or trk.get("thumb"),
                                     play_count=int(trk.get("viewCount", 0) or 0),
                                     user_rating=raw_rating / 2.0 if raw_rating else 0.0,
+                                    bpm=trk_bpm,
                                     bitrate=bitrate,
                                     codec=codec,
+                                    moods=track_moods,
                                     db_path=db_path,
                                     conn=conn,
                                 )
@@ -418,6 +431,7 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
                                 bitrate = getattr(media, "bitrate", 0) if media else 0
                                 codec = getattr(media, "audioCodec", None) if media else None
                                 trk_bpm = int(getattr(track, "bpm", 0) or 0)
+                                track_moods = [m.tag for m in getattr(track, "moods", []) if hasattr(m, "tag")]
 
                                 upsert_track(
                                     album_id=alb_db_id,
@@ -434,6 +448,7 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
                                     bpm=trk_bpm,
                                     bitrate=int(bitrate or 0),
                                     codec=str(codec) if codec else None,
+                                    moods=track_moods,
                                     db_path=db_path,
                                     conn=conn,
                                 )

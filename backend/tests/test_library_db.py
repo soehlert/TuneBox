@@ -3,7 +3,14 @@
 import os
 import tempfile
 import pytest
+
 from backend.db.library_db import get_db_connection, init_library_db
+from backend.services.library import (
+    upsert_album,
+    upsert_artist,
+    upsert_server,
+    upsert_track,
+)
 
 
 @pytest.fixture
@@ -138,3 +145,32 @@ def test_get_albums_for_artist_db_prevents_server_album_id_mismatch(temp_db):
 
     assert "Bad Hair Day" in album_titles
     assert "Zipper Down" not in album_titles, "Zipper Down (Eagles of Death Metal) must NOT be returned when querying Weird Al's artist_id"
+
+
+def test_track_moods_persistence(temp_db):
+    """Verify upsert_track correctly stores and updates moods column."""
+    upsert_server("srv-1", "Alpha Server", enabled=True, db_path=temp_db)
+    art_id = upsert_artist("Daft Punk", server_id="srv-1", server_artist_id="dp1", db_path=temp_db)
+    alb_id = upsert_album(
+        "Discovery", "Daft Punk", artist_id=art_id,
+        server_id="srv-1", server_album_id="dp_alb1", db_path=temp_db,
+    )
+
+    trk_id = upsert_track(
+        alb_id, "srv-1", "dp_trk1", "Daft Punk", "Discovery", "One More Time",
+        320, bpm=123, moods=["party", "dance", "upbeat"], db_path=temp_db,
+    )
+
+    conn = get_db_connection(temp_db)
+    row = conn.execute("SELECT bpm, moods FROM tracks WHERE track_id = ?", (trk_id,)).fetchone()
+    assert row["bpm"] == 123
+    assert row["moods"] == "party, dance, upbeat"
+
+    # Update track moods
+    upsert_track(
+        alb_id, "srv-1", "dp_trk1", "Daft Punk", "Discovery", "One More Time",
+        320, bpm=123, moods="club, celebration", db_path=temp_db,
+    )
+    row2 = conn.execute("SELECT moods FROM tracks WHERE track_id = ?", (trk_id,)).fetchone()
+    assert row2["moods"] == "club, celebration"
+    conn.close()

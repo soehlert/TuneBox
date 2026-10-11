@@ -196,12 +196,19 @@ def upsert_track(
     codec: str | None = None,
     sample_rate: int = 0,
     bit_depth: int = 16,
+    moods: str | list[str] | None = None,
     db_path: str | None = None,
     conn: sqlite3.Connection | None = None,
 ) -> int:
     """Upsert a track and its per-server track source into SQLite library."""
     now = int(time.time())
     safe_url = str(url) if (url is not None and not callable(url)) else None
+    if isinstance(moods, list):
+        clean_moods = ", ".join(str(m).strip() for m in moods if str(m).strip())
+    elif isinstance(moods, str):
+        clean_moods = moods.strip()
+    else:
+        clean_moods = ""
     should_close = False
     if conn is None:
         conn = get_db_connection(db_path)
@@ -238,18 +245,18 @@ def upsert_track(
             cursor.execute(
                 """
                 UPDATE tracks
-                SET album_id = ?, artist_name = ?, album_title = ?, title = ?, duration = ?, url = COALESCE(?, url), thumb = COALESCE(?, thumb), play_count = MAX(play_count, ?), user_rating = ?, bpm = CASE WHEN ? > 0 THEN ? ELSE bpm END, updated_at = ?
+                SET album_id = ?, artist_name = ?, album_title = ?, title = ?, duration = ?, url = COALESCE(?, url), thumb = COALESCE(?, thumb), play_count = MAX(play_count, ?), user_rating = ?, bpm = CASE WHEN ? > 0 THEN ? ELSE bpm END, moods = CASE WHEN ? != '' THEN ? ELSE moods END, updated_at = ?
                 WHERE track_id = ?
                 """,
-                (album_id, artist_name, album_title, title, duration, safe_url, thumb, play_count, float(user_rating or 0.0), clean_bpm, clean_bpm, now, track_id),
+                (album_id, artist_name, album_title, title, duration, safe_url, thumb, play_count, float(user_rating or 0.0), clean_bpm, clean_bpm, clean_moods, clean_moods, now, track_id),
             )
         else:
             cursor.execute(
                 """
-                INSERT INTO tracks (album_id, server_id, server_track_id, artist_name, album_title, title, duration, url, thumb, play_count, user_rating, bpm, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO tracks (album_id, server_id, server_track_id, artist_name, album_title, title, duration, url, thumb, play_count, user_rating, bpm, moods, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
-                (album_id, server_id, str(server_track_id), artist_name, album_title, title, duration, safe_url, thumb, play_count, float(user_rating or 0.0), clean_bpm, now),
+                (album_id, server_id, str(server_track_id), artist_name, album_title, title, duration, safe_url, thumb, play_count, float(user_rating or 0.0), clean_bpm, clean_moods, now),
             )
             track_id = cursor.lastrowid
 
@@ -1497,8 +1504,8 @@ MOOD_MAPPINGS = {
 }
 
 
-def _build_vibe_where_clause(meta: dict) -> tuple[str, list[str]]:
-    """Build a weighted SQL WHERE clause matching a target vibe specification.
+def build_vibe_match_filter(meta: dict) -> tuple[str, list[str]]:
+    """Build a parameterized SQL scoring filter matching a target vibe specification.
 
     Score Formula: Total Score = Score_Mood (+3) + Score_SubGenre (+2) + Score_BPM (+1)
     Threshold: Total Score >= 3
@@ -1506,12 +1513,12 @@ def _build_vibe_where_clause(meta: dict) -> tuple[str, list[str]]:
     score_parts = []
     params = []
 
-    # 1. Moods (+3 weight if any match)
+    # 1. Track Moods (+3 weight if any match)
     moods = meta.get("moods", [])
     if moods:
         mood_clauses = []
         for m in moods:
-            mood_clauses.append("LOWER(alb.genre) LIKE ?")
+            mood_clauses.append("LOWER(t.moods) LIKE ?")
             params.append(f"%{m.lower()}%")
         score_parts.append(f"(CASE WHEN ({' OR '.join(mood_clauses)}) THEN 3 ELSE 0 END)")
 
@@ -1534,8 +1541,8 @@ def _build_vibe_where_clause(meta: dict) -> tuple[str, list[str]]:
         return "1=0", []
 
     score_expr = " + ".join(score_parts)
-    where_clause = f"({score_expr}) >= 3"
-    return where_clause, params
+    filter_clause = f"({score_expr}) >= 3"
+    return filter_clause, params
 
 
 def get_available_vibes_db(db_path: str | None = None) -> list[dict]:
@@ -1544,13 +1551,13 @@ def get_available_vibes_db(db_path: str | None = None) -> list[dict]:
     try:
         results = []
         for mood_key, meta in MOOD_MAPPINGS.items():
-            where_clause, params = _build_vibe_where_clause(meta)
+            filter_clause, params = build_vibe_match_filter(meta)
             query = f"""
                 SELECT COUNT(DISTINCT t.track_id) as count
                 FROM tracks t
                 JOIN albums alb ON t.album_id = alb.album_id
                 JOIN servers s ON t.server_id = s.server_id
-                WHERE s.is_primary = 1 AND ({where_clause})
+                WHERE s.is_primary = 1 AND ({filter_clause})
             """
             row = conn.execute(query, params).fetchone()
             count = row["count"] if row else 0
@@ -1584,7 +1591,7 @@ def get_tracks_by_vibe_db(vibe_name: str, count: int = 10, db_path: str | None =
 
         if vibe_key:
             meta = MOOD_MAPPINGS[vibe_key]
-            where_clause, params = _build_vibe_where_clause(meta)
+            filter_clause, params = build_vibe_match_filter(meta)
             query = f"""
                 SELECT t.track_id, t.album_id, t.server_id, t.server_track_id,
                        t.artist_name as artist, t.album_title as album, t.title,
@@ -1592,7 +1599,7 @@ def get_tracks_by_vibe_db(vibe_name: str, count: int = 10, db_path: str | None =
                 FROM tracks t
                 JOIN albums alb ON t.album_id = alb.album_id
                 JOIN servers s ON t.server_id = s.server_id
-                WHERE s.is_primary = 1 AND ({where_clause})
+                WHERE s.is_primary = 1 AND ({filter_clause})
                 ORDER BY RANDOM()
                 LIMIT ?
             """
