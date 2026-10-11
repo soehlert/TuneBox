@@ -11,6 +11,7 @@ import ssl
 
 from backend.config import settings
 from backend.services.library import (
+    MOOD_MAPPINGS,
     upsert_server,
     upsert_artist,
     upsert_album,
@@ -476,6 +477,11 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
                 finally:
                     conn.close()
 
+                try:
+                    sync_plex_track_moods(plex, music_lib, s_id, db_path=db_path)
+                except Exception as mood_sync_ex:
+                    logger.debug("Non-fatal error in sync_plex_track_moods: %s", mood_sync_ex)
+
             except Exception as lib_ex:
                 logger.warning("Error scanning section '%s' on server %s: %s", getattr(music_lib, "title", "Unknown"), s_name, lib_ex)
                 try:
@@ -555,6 +561,79 @@ def fetch_section_json_batched(plex_conn, music_lib, item_type: int = 10, batch_
     except Exception as ex:
         logger.debug("Fast JSON batching failed for type %d, falling back to plexapi: %s", item_type, ex)
         return None
+
+
+def sync_plex_track_moods(plex_conn, music_lib, server_id: str, db_path: str | None = None) -> int:
+    """Fetch track mood tag assignments from Plex and update tracks.moods in SQLite."""
+    try:
+        server_url = getattr(plex_conn, "_baseurl", None)
+        token = getattr(plex_conn, "_token", None)
+        sec_key = getattr(music_lib, "key", None)
+        if not server_url or not token or not sec_key:
+            return 0
+
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+
+        moods_url = f"{server_url}/library/sections/{sec_key}/mood?X-Plex-Token={token}"
+        req = urllib.request.Request(moods_url, headers={"Accept": "application/json"})
+        with urllib.request.urlopen(req, timeout=15, context=ctx) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+            items = data.get("MediaContainer", {}).get("Directory", [])
+
+        if not items:
+            return 0
+
+        all_target_moods = set()
+        for v in MOOD_MAPPINGS.values():
+            for m in v.get("moods", []):
+                all_target_moods.add(m.lower())
+
+        matched_moods = []
+        for it in items:
+            title = it.get("title", "").strip()
+            if title.lower() in all_target_moods or any(tm in title.lower() for tm in all_target_moods):
+                matched_moods.append((title, it["key"]))
+
+        track_to_moods: dict[str, set[str]] = {}
+        for title, key in matched_moods:
+            u = f"{server_url}/library/sections/{sec_key}/all?type=10&mood={key}&X-Plex-Token={token}"
+            r = urllib.request.Request(u, headers={"Accept": "application/json"})
+            try:
+                with urllib.request.urlopen(r, timeout=15, context=ctx) as resp:
+                    d = json.loads(resp.read().decode("utf-8"))
+                    trks = d.get("MediaContainer", {}).get("Metadata", [])
+                    for trk in trks:
+                        rk = str(trk.get("ratingKey"))
+                        if rk not in track_to_moods:
+                            track_to_moods[rk] = set()
+                        track_to_moods[rk].add(title)
+            except Exception as mood_fetch_ex:
+                logger.debug("Failed fetching tracks for mood %s: %s", title, mood_fetch_ex)
+
+        if not track_to_moods:
+            return 0
+
+        update_data = [
+            (", ".join(sorted(m_set)), server_id, rk)
+            for rk, m_set in track_to_moods.items()
+        ]
+
+        conn = get_db_connection(db_path)
+        try:
+            conn.executemany(
+                "UPDATE tracks SET moods = ? WHERE server_id = ? AND server_track_id = ?",
+                update_data,
+            )
+            conn.commit()
+            logger.info("Synced mood tags for %d tracks from Plex section %s", len(track_to_moods), getattr(music_lib, "title", "Music"))
+            return len(track_to_moods)
+        finally:
+            conn.close()
+    except Exception as ex:
+        logger.warning("Failed syncing Plex track moods for server %s: %s", server_id, ex)
+        return 0
 
 
 def _prewarm_art_in_background(server_id: str, artist_ids: list[int], album_ids: list[int]):
