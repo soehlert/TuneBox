@@ -635,6 +635,70 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
 
   const [confirmClearOpen, setConfirmClearOpen] = useState(false);
   const [confirmStopOpen, setConfirmStopOpen] = useState(false);
+  const [relinkOpen, setRelinkOpen] = useState(false);
+  const [relinkCode, setRelinkCode] = useState("");
+  const [relinkPinId, setRelinkPinId] = useState<string | number | null>(null);
+  const [relinkUrl, setRelinkUrl] = useState("");
+  const [relinkLoading, setRelinkLoading] = useState(false);
+  const [relinkError, setRelinkError] = useState("");
+  const [relinkSuccess, setRelinkSuccess] = useState(false);
+
+  const handleStartRelink = async () => {
+    setRelinkOpen(true);
+    setRelinkLoading(true);
+    setRelinkError("");
+    setRelinkSuccess(false);
+    setRelinkCode("");
+    try {
+      const res = await axios.post(getApiUrl("/api/auth/pin"));
+      setRelinkCode(res.data.code);
+      setRelinkPinId(res.data.pin_id);
+      setRelinkUrl(res.data.url || "https://plex.tv/link");
+    } catch (err: any) {
+      console.error("Failed to request PIN for re-link:", err);
+      setRelinkError("Failed to request Plex authorization PIN. Please check your connection.");
+    } finally {
+      setRelinkLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!relinkOpen || !relinkPinId || relinkSuccess) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await axios.get(getApiUrl(`/api/auth/check?pin_id=${relinkPinId}`));
+        if (res.data.authenticated) {
+          clearInterval(interval);
+          setRelinkSuccess(true);
+          if (res.data.plex_username) {
+            setPlexUsername(res.data.plex_username);
+            localStorage.setItem("tunebox_admin_name", res.data.plex_username);
+          }
+          setMsg("✓ Plex account re-linked successfully!");
+          axios
+            .get(getApiUrl("/api/auth/resources?refresh=true"))
+            .then((r) => setPlayers(r.data.players ?? []))
+            .catch(console.error);
+          axios
+            .get(getApiUrl("/api/auth/libraries"))
+            .then((r) => setLibraries(r.data ?? []))
+            .catch(console.error);
+          setTimeout(() => {
+            setRelinkOpen(false);
+            setRelinkSuccess(false);
+            setRelinkPinId(null);
+            setRelinkCode("");
+          }, 1800);
+        }
+      } catch (err) {
+        console.error("Error checking relink PIN status:", err);
+      }
+    }, 2500);
+
+    return () => clearInterval(interval);
+  }, [relinkOpen, relinkPinId, relinkSuccess]);
+
   const [renameState, setRenameState] = useState<{ isOpen: boolean; clientId: string; currentName: string }>({
     isOpen: false,
     clientId: "",
@@ -941,7 +1005,32 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
             {sectionsOpen.general && (
               <form id="settings-form" onSubmit={handleSave} style={{ display: "flex", flexDirection: "column", gap: "14px", padding: "4px 8px 12px 8px" }}>
                 <div>
-                  <label style={labelStyle}>Authenticated Plex Account</label>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                    <label style={{ ...labelStyle, margin: 0 }}>Authenticated Plex Account</label>
+                    <button
+                      type="button"
+                      onClick={handleStartRelink}
+                      style={{
+                        background: "rgba(245, 166, 35, 0.15)",
+                        border: "1px solid #f5a623",
+                        color: "#f5a623",
+                        borderRadius: "14px",
+                        padding: "3px 10px",
+                        fontSize: "11px",
+                        fontWeight: "bold",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                        transition: "all 0.2s ease",
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(245, 166, 35, 0.3)")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(245, 166, 35, 0.15)")}
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: "14px" }}>sync</span>
+                      Re-link Account
+                    </button>
+                  </div>
                   <div style={{ ...inputStyle, background: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.1)", color: "#f5a623", fontWeight: "bold" }}>
                     {plexUsername || "Connected via Plex"}
                   </div>
@@ -975,7 +1064,7 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
                       }}
                     >
                       <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>refresh</span>
-                      {refreshing ? "Refreshing..." : "Refresh"}
+                      {refreshing ? "Refreshing" : "Refresh"}
                     </button>
                   </div>
                   {players.length > 0 ? (
@@ -1005,7 +1094,29 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
                   <label style={labelStyle}>Plex Media Servers (Unified Catalog)</label>
                   <div style={{ display: "flex", flexDirection: "column", gap: "8px", background: "rgba(255, 255, 255, 0.03)", padding: "10px 12px", borderRadius: "8px", border: "1px solid rgba(255, 255, 255, 0.08)" }}>
                     {libraries.length === 0 ? (
-                      <span style={{ color: "rgba(255, 255, 255, 0.5)", fontSize: "13px" }}>No servers found.</span>
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "8px", padding: "4px 0" }}>
+                        <span style={{ color: "rgba(255, 255, 255, 0.5)", fontSize: "13px" }}>No servers found. Your Plex session may have expired.</span>
+                        <button
+                          type="button"
+                          onClick={handleStartRelink}
+                          style={{
+                            background: "rgba(245, 166, 35, 0.15)",
+                            border: "1px solid #f5a623",
+                            color: "#f5a623",
+                            borderRadius: "6px",
+                            padding: "6px 12px",
+                            fontSize: "12px",
+                            fontWeight: "bold",
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "5px",
+                          }}
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: "14px" }}>link</span>
+                          Re-link Plex Account with PIN
+                        </button>
+                      </div>
                     ) : (
                       libraries.map((lib) => (
                         <label key={lib.server_id || lib.name} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", color: "#fff", fontSize: "13px", cursor: "pointer", userSelect: "none", width: "100%" }}>
@@ -1857,6 +1968,143 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
           onSave={handleExecuteRename}
           onCancel={() => setRenameState({ isOpen: false, clientId: "", currentName: "" })}
         />
+        {relinkOpen && (
+          <div
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              width: "100vw",
+              height: "100vh",
+              background: "rgba(0, 0, 0, 0.75)",
+              backdropFilter: "blur(8px)",
+              WebkitBackdropFilter: "blur(8px)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 20000,
+              padding: "16px",
+              boxSizing: "border-box",
+            }}
+            onClick={() => {
+              setRelinkOpen(false);
+              setRelinkPinId(null);
+            }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: "#1c1c1f",
+                border: "1px solid rgba(255, 255, 255, 0.15)",
+                borderRadius: "16px",
+                padding: "24px 28px",
+                maxWidth: "420px",
+                width: "100%",
+                textAlign: "center",
+                boxShadow: "0 20px 60px rgba(0,0,0,0.8)",
+                color: "#fff",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                <h3 style={{ margin: 0, color: "#f5a623", fontSize: "18px", display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span className="material-symbols-outlined">link</span> Re-link Plex Account
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRelinkOpen(false);
+                    setRelinkPinId(null);
+                  }}
+                  style={{ background: "none", border: "none", color: "rgba(255, 255, 255, 0.5)", fontSize: "20px", cursor: "pointer" }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {relinkLoading ? (
+                <div style={{ padding: "30px 0", color: "#aaa" }}>
+                  <span className="spinner" style={{ display: "inline-block", width: "28px", height: "28px", border: "3px solid #444", borderTopColor: "#f5a623", borderRadius: "50%", animation: "spin 1s linear infinite", marginBottom: "12px" }}></span>
+                  <div>Requesting Plex authorization code</div>
+                </div>
+              ) : relinkSuccess ? (
+                <div style={{ padding: "24px 0", color: "#2ecc71" }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: "48px", marginBottom: "8px" }}>check_circle</span>
+                  <div style={{ fontSize: "16px", fontWeight: "bold" }}>Plex Account Re-linked!</div>
+                  <div style={{ color: "#aaa", fontSize: "13px", marginTop: "4px" }}>Refreshing your library servers and devices</div>
+                </div>
+              ) : relinkError ? (
+                <div style={{ padding: "16px 0" }}>
+                  <div style={{ color: "#ff4d4d", marginBottom: "16px", fontSize: "13px" }}>{relinkError}</div>
+                  <button
+                    type="button"
+                    onClick={handleStartRelink}
+                    style={{ ...btnStyle, padding: "8px 16px", fontSize: "13px" }}
+                  >
+                    Try Again
+                  </button>
+                </div>
+              ) : (
+                <div>
+                  <p style={{ color: "#bbb", fontSize: "13px", margin: "0 0 16px 0", lineHeight: "1.4" }}>
+                    Sign in to your Plex account and enter the 4-character code below.
+                  </p>
+
+                  <div
+                    style={{
+                      background: "#252528",
+                      padding: "16px",
+                      borderRadius: "10px",
+                      marginBottom: "18px",
+                      fontSize: "36px",
+                      letterSpacing: "6px",
+                      fontWeight: 800,
+                      fontFamily: "monospace",
+                      color: "#f5a623",
+                      border: "1px dashed rgba(245, 166, 35, 0.4)",
+                    }}
+                  >
+                    {relinkCode || "----"}
+                  </div>
+
+                  <p style={{ color: "#ddd", fontSize: "13px", textAlign: "left", margin: "0 0 18px 0", lineHeight: "1.6" }}>
+                    1. Open <a href="https://plex.tv/link" target="_blank" rel="noopener noreferrer" style={{ color: "#f5a623", textDecoration: "underline", fontWeight: 600 }}>plex.tv/link</a> in your browser.<br />
+                    2. Enter the code shown above and click Link.
+                  </p>
+
+                  <a
+                    href={relinkUrl || "https://plex.tv/link"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "6px",
+                      width: "100%",
+                      padding: "12px",
+                      background: "#f5a623",
+                      color: "#121212",
+                      borderRadius: "8px",
+                      textDecoration: "none",
+                      fontWeight: "bold",
+                      fontSize: "14px",
+                      marginBottom: "16px",
+                      boxSizing: "border-box",
+                    }}
+                  >
+                    <span>Open plex.tv/link</span>
+                    <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>open_in_new</span>
+                  </a>
+
+                  <div style={{ color: "#888", fontSize: "12px", display: "flex", justifyContent: "center", alignItems: "center", gap: "8px" }}>
+                    <span className="spinner" style={{ display: "inline-block", width: "12px", height: "12px", border: "2px solid #555", borderTopColor: "#f5a623", borderRadius: "50%", animation: "spin 1s linear infinite" }}></span>
+                    Waiting for Plex authorization
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
