@@ -871,8 +871,131 @@ export const TopPlayedTracksGridView: React.FC<{ apiBase: string }> = ({ apiBase
   };
 
   if (loading) {
-    return <div style={{ color: "#aaa", padding: "40px", textAlign: "center" }}>Loading Top Played Tracks...</div>;
+    return <div style={{ color: "#aaa", padding: "40px", textAlign: "center" }}>Loading Top Played Tracks</div>;
   }
+
+  const midpoint = Math.ceil(tracks.length / 2);
+  const leftTracks = tracks.slice(0, midpoint);
+  const rightTracks = tracks.slice(midpoint);
+
+  const renderTrackCard = (track: TopPlayedTrack, rank: number) => {
+    const rankBadgeStyle = rank === 1
+      ? { background: "linear-gradient(135deg, #ffd700 0%, #ffa500 100%)", color: "#111" }
+      : rank === 2
+      ? { background: "linear-gradient(135deg, #e0e0e0 0%, #9e9e9e 100%)", color: "#111" }
+      : rank === 3
+      ? { background: "linear-gradient(135deg, #cd7f32 0%, #8b4513 100%)", color: "#fff" }
+      : { background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.7)" };
+
+    return (
+      <div
+        key={`${track.track_id}-${rank}`}
+        onClick={() => {
+          if (track.album_id) {
+            const trackParam = track.track_id ? `highlight_track_id=${track.track_id}` : "";
+            const serverParam = track.server_id ? `server_id=${track.server_id}` : "";
+            const query = [trackParam, serverParam].filter(Boolean).join("&");
+            navigate(`/albums/${track.album_id}/tracks${query ? `?${query}` : ""}`);
+          }
+        }}
+        style={{
+          background: "var(--color-glass-bg)",
+          border: "1px solid var(--color-glass-border)",
+          borderRadius: "14px",
+          padding: "10px 14px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "12px",
+          cursor: track.album_id ? "pointer" : "default",
+          transition: "background-color 0.2s, transform 0.2s, border-color 0.2s",
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.borderColor = "var(--color-primary)";
+          e.currentTarget.style.transform = "translateX(4px)";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.borderColor = "var(--color-glass-border)";
+          e.currentTarget.style.transform = "none";
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0, flex: 1 }}>
+          {/* Rank Badge */}
+          <div
+            style={{
+              width: "32px",
+              height: "32px",
+              borderRadius: "50%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontWeight: 800,
+              fontSize: "13px",
+              flexShrink: 0,
+              ...rankBadgeStyle
+            }}
+          >
+            #{rank}
+          </div>
+
+          {/* Album Artwork */}
+          <div style={{ width: "48px", height: "48px", borderRadius: "8px", overflow: "hidden", flexShrink: 0 }}>
+            <FallbackImage
+              src={`${apiBase}/api/music/track-art/${track.track_id}`}
+              alt={track.title}
+              type="album"
+              loading="lazy"
+              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+            />
+          </div>
+
+          {/* Track Info (Title, Artist • Album, Play count subheader) */}
+          <div style={{ display: "flex", flexDirection: "column", minWidth: 0, flex: 1, overflow: "hidden" }}>
+            <span style={{ fontWeight: 700, fontSize: "14px", color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {track.title}
+            </span>
+            <span style={{ fontSize: "12px", color: "rgba(255,255,255,0.6)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {track.artist} {track.album ? `• ${track.album}` : ""}
+            </span>
+            <span style={{ fontSize: "11px", fontWeight: 600, color: "#ff9500", marginTop: "2px" }}>
+              {track.play_count} {track.play_count === 1 ? "play" : "plays"}
+            </span>
+          </div>
+        </div>
+
+        {/* Far Right: Queue Button */}
+        <button
+          onClick={(e) => handleQueueTrack(track, e)}
+          style={{
+            background: "rgba(51, 117, 173, 0.2)",
+            border: "1px solid #3376ad",
+            color: "#9bd0ff",
+            borderRadius: "20px",
+            padding: "6px 14px",
+            fontSize: "12px",
+            fontWeight: 700,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: "4px",
+            flexShrink: 0,
+            transition: "background-color 0.2s, transform 0.15s",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = "rgba(51, 117, 173, 0.4)";
+            e.currentTarget.style.transform = "scale(1.05)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "rgba(51, 117, 173, 0.2)";
+            e.currentTarget.style.transform = "none";
+          }}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>add</span>
+          Queue
+        </button>
+      </div>
+    );
+  };
 
   return (
     <div style={{ width: "100%" }}>
@@ -881,126 +1004,13 @@ export const TopPlayedTracksGridView: React.FC<{ apiBase: string }> = ({ apiBase
           No TuneBox play history yet. Start playing songs to see your party's top tracks!
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(360px, 1fr))", gap: "12px" }}>
-          {tracks.map((track, idx) => {
-            const rank = idx + 1;
-            const rankBadgeStyle = rank === 1
-              ? { background: "linear-gradient(135deg, #ffd700 0%, #ffa500 100%)", color: "#111" }
-              : rank === 2
-              ? { background: "linear-gradient(135deg, #e0e0e0 0%, #9e9e9e 100%)", color: "#111" }
-              : rank === 3
-              ? { background: "linear-gradient(135deg, #cd7f32 0%, #8b4513 100%)", color: "#fff" }
-              : { background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.7)" };
-
-            return (
-              <div
-                key={`${track.track_id}-${idx}`}
-                onClick={() => {
-                  if (track.album_id) {
-                    const trackParam = track.track_id ? `highlight_track_id=${track.track_id}` : "";
-                    const serverParam = track.server_id ? `server_id=${track.server_id}` : "";
-                    const query = [trackParam, serverParam].filter(Boolean).join("&");
-                    navigate(`/albums/${track.album_id}/tracks${query ? `?${query}` : ""}`);
-                  }
-                }}
-                style={{
-                  background: "var(--color-glass-bg)",
-                  border: "1px solid var(--color-glass-border)",
-                  borderRadius: "14px",
-                  padding: "10px 14px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: "12px",
-                  cursor: track.album_id ? "pointer" : "default",
-                  transition: "background-color 0.2s, transform 0.2s, border-color 0.2s",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = "var(--color-primary)";
-                  e.currentTarget.style.transform = "translateX(4px)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = "var(--color-glass-border)";
-                  e.currentTarget.style.transform = "none";
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0, flex: 1 }}>
-                  {/* Rank Badge */}
-                  <div
-                    style={{
-                      width: "32px",
-                      height: "32px",
-                      borderRadius: "50%",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontWeight: 800,
-                      fontSize: "13px",
-                      flexShrink: 0,
-                      ...rankBadgeStyle
-                    }}
-                  >
-                    #{rank}
-                  </div>
-
-                  {/* Album Artwork */}
-                  <div style={{ width: "48px", height: "48px", borderRadius: "8px", overflow: "hidden", flexShrink: 0 }}>
-                    <FallbackImage
-                      src={`${apiBase}/api/music/track-art/${track.track_id}`}
-                      alt={track.title}
-                      type="album"
-                      loading="lazy"
-                      style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                    />
-                  </div>
-
-                  {/* Track Info (Title, Artist • Album, Play count subheader) */}
-                  <div style={{ display: "flex", flexDirection: "column", minWidth: 0, flex: 1, overflow: "hidden" }}>
-                    <span style={{ fontWeight: 700, fontSize: "14px", color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                      {track.title}
-                    </span>
-                    <span style={{ fontSize: "12px", color: "rgba(255,255,255,0.6)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                      {track.artist} {track.album ? `• ${track.album}` : ""}
-                    </span>
-                    <span style={{ fontSize: "11px", fontWeight: 600, color: "#ff9500", marginTop: "2px" }}>
-                      {track.play_count} {track.play_count === 1 ? "play" : "plays"}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Far Right: Queue Button */}
-                <button
-                  onClick={(e) => handleQueueTrack(track, e)}
-                  style={{
-                    background: "rgba(51, 117, 173, 0.2)",
-                    border: "1px solid #3376ad",
-                    color: "#9bd0ff",
-                    borderRadius: "20px",
-                    padding: "6px 14px",
-                    fontSize: "12px",
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "4px",
-                    flexShrink: 0,
-                    transition: "background-color 0.2s, transform 0.15s",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "rgba(51, 117, 173, 0.4)";
-                    e.currentTarget.style.transform = "scale(1.05)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "rgba(51, 117, 173, 0.2)";
-                    e.currentTarget.style.transform = "none";
-                  }}
-                >
-                  <span className="material-symbols-outlined" style={{ fontSize: "16px" }}>add</span>
-                  Queue
-                </button>
-              </div>
-            );
-          })}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: "12px", alignItems: "start" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            {leftTracks.map((track, idx) => renderTrackCard(track, idx + 1))}
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            {rightTracks.map((track, idx) => renderTrackCard(track, midpoint + idx + 1))}
+          </div>
         </div>
       )}
 
