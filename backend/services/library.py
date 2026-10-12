@@ -1551,18 +1551,29 @@ def get_available_vibes_db(db_path: str | None = None) -> list[dict]:
     try:
         results = []
         for mood_key, meta in MOOD_MAPPINGS.items():
-            filter_clause, params = build_vibe_match_filter(meta)
-            query = f"""
-                SELECT COUNT(DISTINCT t.track_id) as count
-                FROM tracks t
-                JOIN albums alb ON t.album_id = alb.album_id
+            curated_query = """
+                SELECT COUNT(DISTINCT cvt.track_id) as count
+                FROM curated_vibe_tracks cvt
+                JOIN tracks t ON cvt.track_id = t.track_id
                 JOIN servers s ON t.server_id = s.server_id
-                LEFT JOIN curated_vibe_tracks cvt ON t.track_id = cvt.track_id AND LOWER(cvt.vibe) = LOWER(?)
-                WHERE s.is_primary = 1 AND (cvt.track_id IS NOT NULL OR ({filter_clause}))
+                WHERE s.is_primary = 1 AND LOWER(cvt.vibe) = LOWER(?)
             """
-            full_params = [mood_key, *params]
-            row = conn.execute(query, full_params).fetchone()
-            count = row["count"] if row else 0
+            curated_row = conn.execute(curated_query, (mood_key,)).fetchone()
+            curated_count = curated_row["count"] if curated_row else 0
+
+            if curated_count > 0:
+                count = curated_count
+            else:
+                filter_clause, params = build_vibe_match_filter(meta)
+                query = f"""
+                    SELECT COUNT(DISTINCT t.track_id) as count
+                    FROM tracks t
+                    JOIN albums alb ON t.album_id = alb.album_id
+                    JOIN servers s ON t.server_id = s.server_id
+                    WHERE s.is_primary = 1 AND ({filter_clause})
+                """
+                row = conn.execute(query, params).fetchone()
+                count = row["count"] if row else 0
 
             results.append({
                 "vibe": mood_key,
@@ -1591,25 +1602,55 @@ def get_tracks_by_vibe_db(vibe_name: str, count: int = 10, db_path: str | None =
                 vibe_key = k
                 break
 
+        rows = []
         if vibe_key:
             meta = MOOD_MAPPINGS[vibe_key]
-            filter_clause, params = build_vibe_match_filter(meta)
-            query = f"""
+            curated_query = """
                 SELECT t.track_id, t.album_id, t.server_id, t.server_track_id,
                        t.artist_name as artist, t.album_title as album, t.title,
                        t.duration, t.thumb
-                FROM tracks t
-                JOIN albums alb ON t.album_id = alb.album_id
+                FROM curated_vibe_tracks cvt
+                JOIN tracks t ON cvt.track_id = t.track_id
                 JOIN servers s ON t.server_id = s.server_id
-                LEFT JOIN curated_vibe_tracks cvt ON t.track_id = cvt.track_id AND LOWER(cvt.vibe) = LOWER(?)
-                WHERE s.is_primary = 1 AND (cvt.track_id IS NOT NULL OR ({filter_clause}))
-                ORDER BY (CASE WHEN cvt.track_id IS NOT NULL THEN 0 ELSE 1 END), RANDOM()
+                WHERE s.is_primary = 1 AND LOWER(cvt.vibe) = LOWER(?)
+                ORDER BY RANDOM()
                 LIMIT ?
             """
-            full_params = [vibe_key, *params, target_count]
-            rows = conn.execute(query, full_params).fetchall()
-        else:
-            rows = []
+            curated_rows = conn.execute(curated_query, (vibe_key, target_count)).fetchall()
+            rows.extend(curated_rows)
+
+            if not rows:
+                filter_clause, params = build_vibe_match_filter(meta)
+                query = f"""
+                    SELECT t.track_id, t.album_id, t.server_id, t.server_track_id,
+                           t.artist_name as artist, t.album_title as album, t.title,
+                           t.duration, t.thumb
+                    FROM tracks t
+                    JOIN albums alb ON t.album_id = alb.album_id
+                    JOIN servers s ON t.server_id = s.server_id
+                    WHERE s.is_primary = 1 AND ({filter_clause})
+                    ORDER BY RANDOM()
+                    LIMIT ?
+                """
+                rows = conn.execute(query, [*params, target_count]).fetchall()
+            elif len(rows) < target_count:
+                filter_clause, params = build_vibe_match_filter(meta)
+                existing_ids = [r["track_id"] for r in rows]
+                placeholders = ",".join("?" for _ in existing_ids)
+                needed = target_count - len(rows)
+                query = f"""
+                    SELECT t.track_id, t.album_id, t.server_id, t.server_track_id,
+                           t.artist_name as artist, t.album_title as album, t.title,
+                           t.duration, t.thumb
+                    FROM tracks t
+                    JOIN albums alb ON t.album_id = alb.album_id
+                    JOIN servers s ON t.server_id = s.server_id
+                    WHERE s.is_primary = 1 AND ({filter_clause}) AND t.track_id NOT IN ({placeholders})
+                    ORDER BY RANDOM()
+                    LIMIT ?
+                """
+                fallback_rows = conn.execute(query, [*params, *existing_ids, needed]).fetchall()
+                rows.extend(fallback_rows)
 
         if not rows:
             rows = conn.execute(

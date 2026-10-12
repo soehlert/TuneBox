@@ -331,15 +331,18 @@ def get_latest_preseed_playlist_tracks(db_path: str | None = None) -> list | Non
         conn.close()
 
 
-def save_curated_vibe_tracks(vibe: str, track_ids: list[int], source: str = "playlist", db_path: str | None = None) -> int:
+def save_curated_vibe_tracks(vibe: str, track_ids: list[int], source: str = "playlist", replace: bool = True, db_path: str | None = None) -> int:
     """Save curated anchor track IDs for a specific party vibe."""
-    if not isinstance(track_ids, list) or not track_ids:
-        return 0
-    now = int(time.time())
     clean_vibe = str(vibe).strip()
     conn = get_db_connection(db_path)
     try:
         cursor = conn.cursor()
+        if replace:
+            cursor.execute("DELETE FROM curated_vibe_tracks WHERE LOWER(vibe) = LOWER(?)", (clean_vibe,))
+        if not isinstance(track_ids, list) or not track_ids:
+            conn.commit()
+            return 0
+        now = int(time.time())
         data = [(clean_vibe, tid, source, now) for tid in track_ids]
         cursor.executemany(
             """

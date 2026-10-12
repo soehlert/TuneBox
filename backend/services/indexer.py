@@ -25,6 +25,7 @@ from backend.services.plex import (
     get_enabled_server_ids,
     fetch_art_bytes,
     fetch_accessible_plex_servers,
+    sync_all_curated_vibes_from_plex,
 )
 from backend.websockets import broadcast_indexing_status_threadsafe
 from backend.services.mock_data import seed_mock_library_db
@@ -481,6 +482,11 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
                     sync_plex_track_moods(plex, music_lib, s_id, db_path=db_path)
                 except Exception as mood_sync_ex:
                     logger.debug("Non-fatal error in sync_plex_track_moods: %s", mood_sync_ex)
+
+                try:
+                    sync_all_curated_vibes_from_plex(db_path=db_path)
+                except Exception as vibe_sync_ex:
+                    logger.debug("Non-fatal error in sync_all_curated_vibes_from_plex: %s", vibe_sync_ex)
 
             except Exception as lib_ex:
                 logger.warning("Error scanning section '%s' on server %s: %s", getattr(music_lib, "title", "Unknown"), s_name, lib_ex)

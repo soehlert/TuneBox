@@ -3,7 +3,11 @@
 from fastapi.testclient import TestClient
 
 from backend.config import settings
-from backend.db.library_db import init_library_db, save_curated_vibe_tracks
+from backend.db.library_db import (
+    get_curated_vibe_track_ids,
+    init_library_db,
+    save_curated_vibe_tracks,
+)
 from backend.main import app
 from backend.services.library import (
     MOOD_MAPPINGS,
@@ -194,13 +198,19 @@ def test_curated_vibe_tracks_prioritized(tmp_path):
     vibes = get_available_vibes_db(db_path=db_file)
     chill_vibe = next((v for v in vibes if v["vibe"] == "Chill Hang"), None)
     assert chill_vibe is not None
-    # Count should include both the curated track and the tagged track
-    assert chill_vibe["count"] == 2
+    # When curated tracks exist, the vibe count reflects the curated collection
+    assert chill_vibe["count"] == 1
 
     tracks = get_tracks_by_vibe_db("Chill Hang", count=1, db_path=db_file)
     assert len(tracks) == 1
     # Curated track must be prioritized first
     assert tracks[0]["track_id"] == t1_id
+
+    # When requesting more tracks than curated, top off from tagged library tracks
+    tracks_2 = get_tracks_by_vibe_db("Chill Hang", count=2, db_path=db_file)
+    assert len(tracks_2) == 2
+    track_ids = {t["track_id"] for t in tracks_2}
+    assert t1_id in track_ids
 
 
 def test_synonym_mood_not_matched(tmp_path):
@@ -225,4 +235,26 @@ def test_synonym_mood_not_matched(tmp_path):
     chill_vibe = next((v for v in vibes if v["vibe"] == "Chill Hang"), None)
     assert chill_vibe is not None
     assert chill_vibe["count"] == 0
+
+
+def test_curated_vibe_tracks_replace_pruning(tmp_path):
+    """Verify save_curated_vibe_tracks cleanly replaces previous tracks when synced."""
+    db_file = str(tmp_path / "vibe_prune_test.db")
+    init_library_db(db_file)
+
+    upsert_server("srv-1", "Primary Server", is_primary=True, enabled=True, db_path=db_file)
+    art_id = upsert_artist("Artist", server_id="srv-1", server_artist_id="a1", db_path=db_file)
+    alb_id = upsert_album("Album", "Artist", artist_id=art_id, server_id="srv-1", server_album_id="alb1", db_path=db_file)
+    t1 = upsert_track(alb_id, "srv-1", "t1", "Artist", "Album", "Song 1", 100, db_path=db_file)
+    t2 = upsert_track(alb_id, "srv-1", "t2", "Artist", "Album", "Song 2", 100, db_path=db_file)
+    t3 = upsert_track(alb_id, "srv-1", "t3", "Artist", "Album", "Song 3", 100, db_path=db_file)
+    t4 = upsert_track(alb_id, "srv-1", "t4", "Artist", "Album", "Song 4", 100, db_path=db_file)
+
+    save_curated_vibe_tracks("Chill Hang", [t1, t2, t3], source="playlist", replace=True, db_path=db_file)
+    assert set(get_curated_vibe_track_ids("Chill Hang", db_path=db_file)) == {t1, t2, t3}
+
+    # Prune down to [t2, t4]
+    save_curated_vibe_tracks("Chill Hang", [t2, t4], source="playlist", replace=True, db_path=db_file)
+    assert set(get_curated_vibe_track_ids("Chill Hang", db_path=db_file)) == {t2, t4}
+
 

@@ -36,7 +36,12 @@ from backend.services.redis import (
     get_closing_time_mode,
 )
 from backend.utils import TrackTimeTracker, milliseconds_to_seconds
-from backend.db.library_db import get_db_connection, get_latest_preseed_playlist_tracks, save_preseed_playlist_tracks
+from backend.db.library_db import (
+    get_db_connection,
+    get_latest_preseed_playlist_tracks,
+    save_preseed_playlist_tracks,
+    save_curated_vibe_tracks,
+)
 from backend.services.library import (
     get_art_source_info,
     get_albums_for_artist_db,
@@ -2931,5 +2936,70 @@ def cancel_closing_time_mode() -> dict:
         "message": msg,
         "closing_time": False,
     }
+
+
+def sync_curated_vibe_from_plex(vibe_name: str, playlist_name: str, db_path: str | None = None) -> int:
+    """Sync tracks from a named Plex playlist into SQLite curated_vibe_tracks for a given vibe."""
+    if settings.testing:
+        return 0
+    conn = get_db_connection(db_path)
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT server_id FROM servers WHERE is_primary = 1")
+        row = cursor.fetchone()
+        if not row:
+            logger.warning("No primary server found for curated vibe sync")
+            return 0
+        server_id = row["server_id"]
+    finally:
+        conn.close()
+
+    try:
+        server = get_target_plex_connection(server_id)
+        target_pl = next((p for p in server.playlists() if p.title.lower() == playlist_name.lower()), None)
+        if not target_pl:
+            logger.warning("Plex playlist '%s' not found on primary server", playlist_name)
+            return 0
+
+        items = target_pl.items()
+        plex_keys = [str(it.ratingKey) for it in items]
+        if not plex_keys:
+            save_curated_vibe_tracks(vibe_name, [], source="plex_playlist", replace=True, db_path=db_path)
+            return 0
+
+        conn = get_db_connection(db_path)
+        try:
+            cursor = conn.cursor()
+            placeholders = ",".join("?" for _ in plex_keys)
+            cursor.execute(
+                f"SELECT server_track_id, track_id FROM tracks WHERE server_id = ? AND server_track_id IN ({placeholders})",
+                [server_id, *plex_keys],
+            )
+            key_to_id = dict(cursor.fetchall())
+        finally:
+            conn.close()
+
+        track_ids = [key_to_id[k] for k in plex_keys if k in key_to_id]
+        saved = save_curated_vibe_tracks(vibe_name, track_ids, source="plex_playlist", replace=True, db_path=db_path)
+        logger.info("Synced %d tracks from Plex playlist '%s' into vibe '%s'", saved, playlist_name, vibe_name)
+        return saved
+    except Exception as ex:
+        logger.exception("Failed to sync curated vibe '%s' from Plex playlist '%s': %s", vibe_name, playlist_name, ex)
+        return 0
+
+
+def sync_all_curated_vibes_from_plex(db_path: str | None = None) -> dict[str, int]:
+    """Inspect primary Plex server for resonate curated playlists and sync them into SQLite."""
+    if settings.testing:
+        return {}
+    vibe_map = {
+        "resonate_chill_hang": "Chill Hang",
+    }
+    results = {}
+    for pl_title, vibe in vibe_map.items():
+        cnt = sync_curated_vibe_from_plex(vibe, pl_title, db_path=db_path)
+        results[vibe] = cnt
+    return results
+
 
 
