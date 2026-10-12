@@ -1454,49 +1454,49 @@ def refetch_item_artwork(item_type: str, item_id: int, db_path: str | None = Non
 MOOD_MAPPINGS = {
     "Party": {
         "display": "🎉 Party",
-        "moods": ["party", "dance", "club", "lively", "fun", "celebration", "festive"],
+        "moods": ["party"],
         "genres": ["dance", "disco", "funk", "house", "edm", "techno", "club", "dance-pop", "hip-hop", "rap", "r&b", "latin", "reggaeton", "ska", "synthpop"],
         "bpm_min": 115,
         "bpm_max": 145,
     },
     "Chill Hang": {
         "display": "🛋️ Chill Hang",
-        "moods": ["hangout", "chill hang", "mellow", "feel-good", "friendly", "upbeat", "relaxed", "calm"],
+        "moods": ["chill hang"],
         "genres": ["indie", "indie pop", "indie rock", "classic rock", "folk", "indie folk", "alternative", "alt-rock", "acoustic rock", "soft rock"],
         "bpm_min": 105,
         "bpm_max": 135,
     },
     "Energetic": {
         "display": "⚡ Energetic",
-        "moods": ["energetic", "intense", "driving", "powerful", "aggressive", "rowdy"],
+        "moods": ["energetic"],
         "genres": ["hard rock", "heavy metal", "punk", "thrash", "skate punk", "garage rock", "rap"],
         "bpm_min": 125,
         "bpm_max": 200,
     },
     "Groovy": {
         "display": "🎷 Groovy",
-        "moods": ["groovy", "funky", "rhythmic", "soulful", "boogie", "smooth"],
+        "moods": ["groovy"],
         "genres": ["funk", "disco", "soul", "motown", "r&b", "neo-soul", "afrobeat", "reggae", "dub", "blues", "jazz", "groove"],
         "bpm_min": 90,
         "bpm_max": 120,
     },
     "Acoustic": {
         "display": "🎸 Acoustic",
-        "moods": ["acoustic", "unplugged", "intimate", "organic", "warm", "romantic", "calm"],
+        "moods": ["acoustic"],
         "genres": ["acoustic", "folk", "indie folk", "bluegrass", "singer-songwriter", "americana", "country"],
         "bpm_min": 50,
         "bpm_max": 115,
     },
     "Electronic": {
         "display": "🎧 Electronic",
-        "moods": ["electronic", "synth", "hypnotic", "futuristic", "atmospheric", "club"],
+        "moods": ["electronic"],
         "genres": ["electronic", "electropop", "synthwave", "synth-pop", "house", "trance", "techno", "electronica", "idm", "ambient", "edm", "dubstep", "drum and bass"],
         "bpm_min": 115,
         "bpm_max": 145,
     },
     "Melancholic": {
         "display": "🌙 Melancholic",
-        "moods": ["melancholic", "sad", "bittersweet", "somber", "brooding", "gloomy", "emotional"],
+        "moods": ["melancholic"],
         "genres": ["slowcore", "post-rock", "sadcore", "blues", "darkwave", "gothic", "shoegaze", "emo", "ballad"],
         "bpm_min": 40,
         "bpm_max": 100,
@@ -1557,9 +1557,11 @@ def get_available_vibes_db(db_path: str | None = None) -> list[dict]:
                 FROM tracks t
                 JOIN albums alb ON t.album_id = alb.album_id
                 JOIN servers s ON t.server_id = s.server_id
-                WHERE s.is_primary = 1 AND ({filter_clause})
+                LEFT JOIN curated_vibe_tracks cvt ON t.track_id = cvt.track_id AND LOWER(cvt.vibe) = LOWER(?)
+                WHERE s.is_primary = 1 AND (cvt.track_id IS NOT NULL OR ({filter_clause}))
             """
-            row = conn.execute(query, params).fetchone()
+            full_params = [mood_key, *params]
+            row = conn.execute(query, full_params).fetchone()
             count = row["count"] if row else 0
 
             results.append({
@@ -1578,7 +1580,7 @@ def get_available_vibes_db(db_path: str | None = None) -> list[dict]:
 
 
 def get_tracks_by_vibe_db(vibe_name: str, count: int = 10, db_path: str | None = None) -> list[dict]:
-    """Retrieve random tracks from SQLite matching a targeted mood from the primary server via weighted scoring."""
+    """Retrieve random tracks from SQLite matching a targeted mood from the primary server, prioritizing curated tracks."""
     target_count = max(1, count)
     conn = get_db_connection(db_path)
     try:
@@ -1599,12 +1601,13 @@ def get_tracks_by_vibe_db(vibe_name: str, count: int = 10, db_path: str | None =
                 FROM tracks t
                 JOIN albums alb ON t.album_id = alb.album_id
                 JOIN servers s ON t.server_id = s.server_id
-                WHERE s.is_primary = 1 AND ({filter_clause})
-                ORDER BY RANDOM()
+                LEFT JOIN curated_vibe_tracks cvt ON t.track_id = cvt.track_id AND LOWER(cvt.vibe) = LOWER(?)
+                WHERE s.is_primary = 1 AND (cvt.track_id IS NOT NULL OR ({filter_clause}))
+                ORDER BY (CASE WHEN cvt.track_id IS NOT NULL THEN 0 ELSE 1 END), RANDOM()
                 LIMIT ?
             """
-            params.append(target_count)
-            rows = conn.execute(query, params).fetchall()
+            full_params = [vibe_key, *params, target_count]
+            rows = conn.execute(query, full_params).fetchall()
         else:
             rows = []
 

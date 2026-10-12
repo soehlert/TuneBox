@@ -3,6 +3,8 @@
 import os
 import sqlite3
 import logging
+import json
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -253,6 +255,21 @@ def init_library_db(db_path: str | None = None):
             """
         )
 
+        # 7. Curated Vibe Tracks Table for anchor playlists
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS curated_vibe_tracks (
+                vibe TEXT NOT NULL,
+                track_id INTEGER NOT NULL,
+                source TEXT DEFAULT 'playlist',
+                updated_at INTEGER NOT NULL,
+                PRIMARY KEY (vibe, track_id),
+                FOREIGN KEY (track_id) REFERENCES tracks(track_id) ON DELETE CASCADE
+            )
+            """
+        )
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_curated_vibe_tracks_vibe ON curated_vibe_tracks (vibe);")
+
         cursor.execute("DELETE FROM servers WHERE server_id = 'mock' OR name LIKE '%Mock%';")
 
         conn.commit()
@@ -266,8 +283,6 @@ def init_library_db(db_path: str | None = None):
 
 def save_preseed_playlist_tracks(track_ids: list, playlist_id: str = "default", db_path: str | None = None) -> bool:
     """Save preseed playlist track IDs into SQLite for persistent autoplay fallback."""
-    import json
-    import time
     if not isinstance(track_ids, list) or not track_ids:
         return False
     conn = get_db_connection(db_path)
@@ -298,7 +313,6 @@ def save_preseed_playlist_tracks(track_ids: list, playlist_id: str = "default", 
 
 def get_latest_preseed_playlist_tracks(db_path: str | None = None) -> list | None:
     """Retrieve the most recent preseed playlist track IDs from SQLite."""
-    import json
     conn = get_db_connection(db_path)
     try:
         cursor = conn.cursor()
@@ -313,6 +327,54 @@ def get_latest_preseed_playlist_tracks(db_path: str | None = None) -> list | Non
     except Exception as ex:
         logger.exception("Failed to get preseed playlist tracks from SQLite: %s", ex)
         return None
+    finally:
+        conn.close()
+
+
+def save_curated_vibe_tracks(vibe: str, track_ids: list[int], source: str = "playlist", db_path: str | None = None) -> int:
+    """Save curated anchor track IDs for a specific party vibe."""
+    if not isinstance(track_ids, list) or not track_ids:
+        return 0
+    now = int(time.time())
+    clean_vibe = str(vibe).strip()
+    conn = get_db_connection(db_path)
+    try:
+        cursor = conn.cursor()
+        data = [(clean_vibe, tid, source, now) for tid in track_ids]
+        cursor.executemany(
+            """
+            INSERT INTO curated_vibe_tracks (vibe, track_id, source, updated_at)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(vibe, track_id) DO UPDATE SET
+                source = excluded.source,
+                updated_at = excluded.updated_at
+            """,
+            data,
+        )
+        conn.commit()
+        return len(data)
+    except Exception as ex:
+        logger.exception("Failed to save curated vibe tracks to SQLite: %s", ex)
+        return 0
+    finally:
+        conn.close()
+
+
+def get_curated_vibe_track_ids(vibe: str, db_path: str | None = None) -> list[int]:
+    """Retrieve curated track IDs for a specific party vibe."""
+    clean_vibe = str(vibe).strip()
+    conn = get_db_connection(db_path)
+    try:
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT track_id FROM curated_vibe_tracks WHERE LOWER(vibe) = LOWER(?)",
+            (clean_vibe,),
+        )
+        rows = cursor.fetchall()
+        return [row["track_id"] for row in rows]
+    except Exception as ex:
+        logger.exception("Failed to get curated vibe tracks from SQLite: %s", ex)
+        return []
     finally:
         conn.close()
 

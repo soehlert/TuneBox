@@ -3,7 +3,7 @@
 from fastapi.testclient import TestClient
 
 from backend.config import settings
-from backend.db.library_db import init_library_db
+from backend.db.library_db import init_library_db, save_curated_vibe_tracks
 from backend.main import app
 from backend.services.library import (
     MOOD_MAPPINGS,
@@ -165,4 +165,64 @@ def test_vibe_matching_with_track_moods(tmp_path):
     energetic_vibe = next((v for v in vibes if v["vibe"] == "Energetic"), None)
     assert energetic_vibe is not None
     assert energetic_vibe["count"] == 1
+
+
+def test_curated_vibe_tracks_prioritized(tmp_path):
+    """Verify curated vibe tracks are counted and prioritized in results."""
+    db_file = str(tmp_path / "vibe_curated_test.db")
+    init_library_db(db_file)
+
+    upsert_server("srv-1", "Primary Server", is_primary=True, enabled=True, db_path=db_file)
+    art_id = upsert_artist("Test Artist", server_id="srv-1", server_artist_id="a1", db_path=db_file)
+    alb_id = upsert_album(
+        "Test Album", "Test Artist", artist_id=art_id, genre="Indie",
+        server_id="srv-1", server_album_id="alb1", db_path=db_file,
+    )
+
+    t1_id = upsert_track(
+        alb_id, "srv-1", "t1", "Test Artist", "Test Album", "Curated Chill Track",
+        200, bpm=0, moods="", db_path=db_file,
+    )
+    upsert_track(
+        alb_id, "srv-1", "t2", "Test Artist", "Test Album", "Tagged Chill Track",
+        200, bpm=0, moods="chill hang", db_path=db_file,
+    )
+
+    # Save t1 as a curated track for Chill Hang
+    save_curated_vibe_tracks("Chill Hang", [t1_id], source="playlist", db_path=db_file)
+
+    vibes = get_available_vibes_db(db_path=db_file)
+    chill_vibe = next((v for v in vibes if v["vibe"] == "Chill Hang"), None)
+    assert chill_vibe is not None
+    # Count should include both the curated track and the tagged track
+    assert chill_vibe["count"] == 2
+
+    tracks = get_tracks_by_vibe_db("Chill Hang", count=1, db_path=db_file)
+    assert len(tracks) == 1
+    # Curated track must be prioritized first
+    assert tracks[0]["track_id"] == t1_id
+
+
+def test_synonym_mood_not_matched(tmp_path):
+    """Verify loose synonyms like upbeat or calm do not match Chill Hang without canonical tag."""
+    db_file = str(tmp_path / "vibe_synonym_test.db")
+    init_library_db(db_file)
+
+    upsert_server("srv-1", "Primary Server", is_primary=True, enabled=True, db_path=db_file)
+    art_id = upsert_artist("Pop Artist", server_id="srv-1", server_artist_id="a2", db_path=db_file)
+    alb_id = upsert_album(
+        "Pop Album", "Pop Artist", artist_id=art_id, genre="Pop",
+        server_id="srv-1", server_album_id="alb2", db_path=db_file,
+    )
+
+    # Track has 'upbeat' mood but NOT 'chill hang'
+    upsert_track(
+        alb_id, "srv-1", "t3", "Pop Artist", "Pop Album", "Upbeat Dance Song",
+        200, bpm=120, moods="upbeat, lively", db_path=db_file,
+    )
+
+    vibes = get_available_vibes_db(db_path=db_file)
+    chill_vibe = next((v for v in vibes if v["vibe"] == "Chill Hang"), None)
+    assert chill_vibe is not None
+    assert chill_vibe["count"] == 0
 
