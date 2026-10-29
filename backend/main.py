@@ -79,9 +79,10 @@ app.add_middleware(
         "http://tunebox.local",
         "http://tunebox.local:8000",
         "http://tunebox.local:80",
+        "https://tunebox.soehlert.com",
         settings.tunebox_url,
     ],
-    allow_origin_regex=r"http://.*\.local(:[0-9]+)?",
+    allow_origin_regex=r"https?://(.*\.local|.*\.soehlert\.com)(:[0-9]+)?",
     allow_methods=["*"],
     allow_headers=["*"],
 )

@@ -22,8 +22,8 @@ RUN npm run build
 # Use the official Nginx image to serve the build
 FROM nginx:alpine
 
-# Set the environment variable for TUNEBOX_URL
-ENV TUNEBOX_URL=${TUNEBOX_URL}
+# Set the default environment variable for TUNEBOX_URL
+ENV TUNEBOX_URL=backend:8000
 
 # Copy the custom nginx.conf file to the container
 COPY ./Compose/frontend/nginx.conf /etc/nginx/nginx.conf.template

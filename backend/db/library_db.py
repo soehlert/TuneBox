@@ -1,14 +1,26 @@
 """SQLite database management for TuneBox music library indexing and stats."""
 
-import os
-import sqlite3
-import logging
 import json
+import logging
+import os
+import pathlib
+import sqlite3
 import time
 
 logger = logging.getLogger(__name__)
 
-DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "library.db")
+
+def resolve_library_db_path(data_dir: str | None = None) -> str:
+    """Resolve the SQLite library database path using DATA_DIR when configured."""
+    target_dir = data_dir if data_dir is not None else os.getenv("DATA_DIR", "").strip()
+    if target_dir:
+        dir_path = pathlib.Path(target_dir)
+        dir_path.mkdir(parents=True, exist_ok=True)
+        return str(dir_path / "library.db")
+    return str(pathlib.Path(__file__).resolve().parent.parent / "library.db")
+
+
+DB_PATH = resolve_library_db_path()
 
 
 def get_db_connection(db_path: str | None = None) -> sqlite3.Connection:
@@ -23,7 +35,7 @@ def get_db_connection(db_path: str | None = None) -> sqlite3.Connection:
         return conn
     except (sqlite3.DatabaseError, sqlite3.OperationalError) as ex:
         if "malformed" in str(ex).lower() or "disk image" in str(ex).lower() or "integrity check" in str(ex).lower():
-            logger.warning("Corrupted SQLite database detected at %s (%s). Recreating clean database...", target_path, ex)
+            logger.warning("Corrupted SQLite database detected at %s (%s). Recreating clean database", target_path, ex)
             try:
                 if os.path.exists(target_path):
                     os.remove(target_path)

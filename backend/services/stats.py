@@ -1,11 +1,24 @@
-import os
-import sqlite3
 import logging
+import os
+import pathlib
+import sqlite3
+
 from backend.services.redis import get_redis_queue_client
 
 logger = logging.getLogger(__name__)
 
-DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "stats.db")
+
+def resolve_stats_db_path(data_dir: str | None = None) -> str:
+    """Resolve the SQLite stats database path using DATA_DIR when configured."""
+    target_dir = data_dir if data_dir is not None else os.getenv("DATA_DIR", "").strip()
+    if target_dir:
+        dir_path = pathlib.Path(target_dir)
+        dir_path.mkdir(parents=True, exist_ok=True)
+        return str(dir_path / "stats.db")
+    return str(pathlib.Path(__file__).resolve().parent.parent / "stats.db")
+
+
+DB_PATH = resolve_stats_db_path()
 
 def init_db():
     """Initialize the SQLite database schema for all-time statistics."""

@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import os
 import pathlib
 import secrets
 
@@ -37,6 +38,19 @@ MOCK_PIN_ID = 9999
 MOCK_TOKEN = "mock_token_12345"  # noqa: S105
 
 
+def resolve_env_write_path() -> pathlib.Path:
+    """Resolve the .env file path for persisting settings."""
+    data_dir = settings.data_dir or os.getenv("DATA_DIR", "").strip()
+    if data_dir:
+        dir_path = pathlib.Path(data_dir)
+        dir_path.mkdir(parents=True, exist_ok=True)
+        return dir_path / ".env"
+    app_env = pathlib.Path("/app/.env")
+    if app_env.exists():
+        return app_env
+    return pathlib.Path(".env")
+
+
 def write_settings_to_env(
     token: str,
     server_name: str,
@@ -46,12 +60,8 @@ def write_settings_to_env(
     instance_name: str = "",
 ):
     """Write settings back to the .env file."""
-    env_path = "/app/.env"
-    if not pathlib.Path(env_path).exists():
-        env_path = ".env"
-
     try:
-        path_obj = pathlib.Path(env_path)
+        path_obj = resolve_env_write_path()
         content = path_obj.read_text(encoding="utf-8") if path_obj.exists() else ""
         lines = content.splitlines()
 
