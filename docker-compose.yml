@@ -16,15 +16,12 @@ services:
     build:
       context: .
       dockerfile: Compose/backend/Dockerfile
-    ports:
-      - "0.0.0.0:5353:5353/udp"
     environment:
       - PLEX_USERNAME=${PLEX_USERNAME}
       - PLEX_SERVER_NAME=${PLEX_SERVER_NAME}
       - CLIENT_NAME=${CLIENT_NAME}
       - REDIS_URL=${REDIS_URL:-redis://redis:6379}
       - TUNEBOX_URL=${TUNEBOX_URL:-backend:8000}
-      - HOST_IP=${HOST_IP:-}
       - INDEX_INTERVAL_HOURS=${INDEX_INTERVAL_HOURS:-24}
       - TESTING=${TESTING:-false}
     volumes:

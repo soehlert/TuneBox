@@ -13,7 +13,6 @@ dependencies = [
     "websockets>=14.1",
     "requests>=2.32.3",
     "httpx>=0.28.1",
-    "zeroconf>=0.150.0",
 ]
 
 [dependency-groups]
