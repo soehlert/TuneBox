@@ -36,8 +36,7 @@ function ArtistList({
   onSelectLetter,
 }: ArtistListProps) {
   const navigate = useNavigate();
-  const isDev = window.location.port === "5173";
-  const apiBase = isDev ? `http://${window.location.hostname}:8000` : window.location.origin;
+  const apiBase = window.location.origin;
 
   const [dialogState, setDialogState] = useState<{ open: boolean; title: string; message: string }>({
     open: false,

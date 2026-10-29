@@ -102,8 +102,7 @@ function TrackList() {
   const navigate = useNavigate();
   const [albumData, setAlbumData] = useState<AlbumData | null>(null);
   const [loading, setLoading] = useState(true);
-  const isDev = window.location.port === "5173";
-  const apiBase = isDev ? `http://${window.location.hostname}:8000` : window.location.origin;
+  const apiBase = window.location.origin;
 
   const adminToken = localStorage.getItem("tunebox_admin_token") || "";
   const isAdmin = Boolean(adminToken);

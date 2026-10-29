@@ -16,7 +16,7 @@ def test_register_mdns_service(mocker):
     mocker.patch("backend.services.mdns.Zeroconf", return_value=mock_zeroconf)
     mocker.patch("backend.services.mdns.get_lan_ip", return_value="192.168.1.100")
 
-    success = register_mdns_service(hostname="tunebox.local", port=8000)
+    success = register_mdns_service(hostname="tunebox.local", port=80)
     assert success is True
     mock_zeroconf.register_service.assert_called_once()
 
@@ -28,5 +28,5 @@ def test_register_mdns_service(mocker):
 def test_register_mdns_service_fallback_localhost(mocker):
     """Test that localhost (127.0.0.1) skips zeroconf registration gracefully."""
     mocker.patch("backend.services.mdns.get_lan_ip", return_value="127.0.0.1")
-    success = register_mdns_service(hostname="tunebox.local", port=8000)
+    success = register_mdns_service(hostname="tunebox.local", port=80)
     assert success is False

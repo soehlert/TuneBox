@@ -45,7 +45,7 @@ def get_lan_ip() -> str:
     return "127.0.0.1"
 
 
-def register_mdns_service(hostname: str = "tunebox.local", port: int = 8000) -> bool:
+def register_mdns_service(hostname: str = "tunebox.local", port: int = 80) -> bool:
     """Register 'tunebox.local' and HTTP service on the local network via Zeroconf mDNS."""
     global _zeroconf_instance, _service_info
 

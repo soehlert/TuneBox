@@ -13,6 +13,7 @@ from backend.websockets import router as websockets_router, update_websocket_cli
 import backend.websockets
 from backend.services.plex import playback_orchestrator, pre_warm_all_caches
 from backend.services.library import clean_library_deduplication
+from backend.services.mdns import register_mdns_service, unregister_mdns_service
 from backend.db.library_db import get_db_connection
 
 # Logging configuration
@@ -40,8 +41,7 @@ async def lifespan(app: FastAPI):
     asyncio.create_task(asyncio.to_thread(pre_warm_all_caches))
 
     # Register mDNS zeroconf local discovery (tunebox.local)
-    from backend.services.mdns import register_mdns_service, unregister_mdns_service  # noqa: PLC0415
-    asyncio.create_task(asyncio.to_thread(register_mdns_service, "tunebox.local", 8000))
+    asyncio.create_task(asyncio.to_thread(register_mdns_service, "tunebox.local", 80))
 
     try:
         yield
@@ -77,9 +77,7 @@ app.add_middleware(
     allow_origins=[
         "http://frontend:80",
         "http://localhost",
-        "http://localhost:5173",
         "http://tunebox.local",
-        "http://tunebox.local:8000",
         "http://tunebox.local:80",
         "https://tunebox.soehlert.com",
         settings.tunebox_url,

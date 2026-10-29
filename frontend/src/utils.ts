@@ -30,9 +30,7 @@ export const getLocalUsername = (): string => {
 };
 
 export const getApiUrl = (path: string) => {
-  const isDev = window.location.port === "5173";
-  const base = isDev ? `http://${window.location.hostname}:8000` : window.location.origin;
-  return `${base}${path}`;
+  return `${window.location.origin}${path}`;
 };
 
 export const getSortKey = (name: string): string => {

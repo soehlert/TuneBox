@@ -40,8 +40,7 @@ For public hosting or network security, host TuneBox behind a reverse proxy (Ngi
 
 ### Architecture Overview
 ```
-Client (HTTPS:443) ──> Nginx / Traefik (SSL Termination) ──> TuneBox Frontend (Port 80)
-                                                          ──> TuneBox Backend (Port 8000)
+Client (HTTPS:443) ──> Nginx / Traefik (SSL Termination) ──> TuneBox Frontend (Port 80) ──> TuneBox Backend (Internal Docker Network:8000)
 ```
 
 ### Sample Nginx Reverse Proxy Configuration
@@ -60,7 +59,7 @@ server {
     ssl_certificate /etc/letsencrypt/live/tunebox.yourdomain.com/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/tunebox.yourdomain.com/privkey.pem;
 
-    # Frontend Static Assets & Web App
+    # Frontend Static Assets & REST API (proxied internally by the frontend Nginx container)
     location / {
         proxy_pass http://127.0.0.1:80;
         proxy_set_header Host $host;
@@ -69,16 +68,9 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
-    # Backend REST API
-    location /api/ {
-        proxy_pass http://127.0.0.1:8000/api/;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-
-    # Real-time WebSockets
+    # Real-time WebSockets (proxied through the frontend Nginx container)
     location /ws {
-        proxy_pass http://127.0.0.1:8000/ws;
+        proxy_pass http://127.0.0.1:80/ws;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "Upgrade";

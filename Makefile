@@ -18,7 +18,7 @@ reset: ## ⚠ Factory reset (wipes .env credentials, rebuilds containers, flushe
 	@$(COMPOSE_CMD) restart backend 2>/dev/null
 	@echo "   Waiting for backend service to become ready..."
 	@for i in $$(seq 1 15); do \
-		if curl -sf http://localhost:8000/api/auth/status > /dev/null 2>&1; then \
+		if curl -sf http://localhost/api/auth/status > /dev/null 2>&1; then \
 			break; \
 		fi; \
 		sleep 1; \

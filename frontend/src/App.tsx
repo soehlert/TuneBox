@@ -19,9 +19,7 @@ import "./App.css";
 import "./components/Queue.css";
 
 const getApiUrl = (path: string) => {
-  const isDev = window.location.port === "5173";
-  const base = isDev ? `http://${window.location.hostname}:8000` : window.location.origin;
-  return `${base}${path}`;
+  return `${window.location.origin}${path}`;
 };
 
 interface GuestProfile {
@@ -51,10 +49,8 @@ const getClientId = () => {
 };
 
 const getWsUrl = () => {
-  const isDev = window.location.port === "5173";
-  const host = isDev ? `${window.location.hostname}:8000` : window.location.host;
   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  return `${protocol}//${host}/ws`;
+  return `${protocol}//${window.location.host}/ws`;
 };
 
 // ─── Shared style helpers ─────────────────────────────────────────────────────
@@ -3075,8 +3071,7 @@ function App() {
 
   // ── TuneBox Dashboard (configured) ──────────────────────────────────────────
   if (isAuthenticated && isConfigured && step === 4) {
-    const isDev = window.location.port === "5173";
-    const apiBase = isDev ? `http://${window.location.hostname}:8000` : window.location.origin;
+    const apiBase = window.location.origin;
 
     const isStatsOpen = location.pathname === "/stats";
 
