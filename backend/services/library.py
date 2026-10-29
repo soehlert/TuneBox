@@ -150,7 +150,6 @@ def upsert_album(title: str, artist_name: str, artist_id: int | None = None, yea
                 year = COALESCE(excluded.year, albums.year),
                 genre = CASE
                     WHEN excluded.genre IS NULL OR LOWER(TRIM(excluded.genre)) IN ('', 'uncategorized') THEN COALESCE(albums.genre, 'Uncategorized')
-                    WHEN LOWER(TRIM(excluded.genre)) = 'pop/rock' AND albums.genre IS NOT NULL AND LOWER(TRIM(albums.genre)) NOT IN ('', 'uncategorized', 'pop/rock') THEN albums.genre
                     ELSE excluded.genre
                 END,
                 thumb = COALESCE(excluded.thumb, albums.thumb),

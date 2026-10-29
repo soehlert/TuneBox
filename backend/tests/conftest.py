@@ -19,8 +19,9 @@ with patch.dict("os.environ", mock_env):
 
 
 @pytest.fixture(autouse=True)
-def mock_settings():
-    """Mock settings for all tests."""
+def mock_settings(tmp_path, monkeypatch):
+    """Mock settings and isolate SQLite database paths for all tests."""
+    monkeypatch.setattr(settings, "data_dir", str(tmp_path))
     with patch("backend.config.settings", settings):
         yield settings
 

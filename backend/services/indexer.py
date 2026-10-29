@@ -34,25 +34,31 @@ logger = logging.getLogger(__name__)
 
 _sync_lock = threading.Lock()
 
-_GENERIC_ALBUM_GENRES = {"", "uncategorized", "pop/rock"}
+_UNCATEGORIZED_ALBUM_GENRES = {"", "uncategorized"}
 
 
-def resolve_album_genre_from_tracks(current_album_genre: str | None, track_genres: list[str]) -> str | None:
-    """Resolve the best album genre from track-level genres when the album genre is missing or generic."""
+def resolve_album_genre_from_tracks(
+    current_album_genre: str | None,
+    track_genres: list[str],
+    tagged_track_count: int = 0,
+) -> str | None:
+    """Resolve an album genre from track-level genres when the album is Uncategorized."""
+    norm_current = (current_album_genre or "").strip().lower()
+    if norm_current not in _UNCATEGORIZED_ALBUM_GENRES:
+        return None
+
     cleaned = [g.strip() for g in track_genres if g and g.strip() and g.strip().lower() != "uncategorized"]
     if not cleaned:
         return None
 
-    norm_current = (current_album_genre or "").strip().lower()
     specific = [g for g in cleaned if g.lower() != "pop/rock"]
-    if specific and norm_current in _GENERIC_ALBUM_GENRES:
-        return Counter(specific).most_common(1)[0][0]
+    if specific:
+        top_genre, top_count = Counter(specific).most_common(1)[0]
+        if tagged_track_count > 0 and top_count < tagged_track_count / 2:
+            return "Pop/Rock"
+        return top_genre
 
-    fallback = [g for g in cleaned if g.lower() == "pop/rock"]
-    if fallback and norm_current in {"", "uncategorized"}:
-        return "Pop/Rock"
-
-    return None
+    return "Pop/Rock"
 
 
 def index_server(server_info: dict, db_path: str | None = None, force_full: bool = False) -> int:
@@ -363,6 +369,7 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
 
                 logger.info("Bulk fetching tracks for section '%s' on server %s", getattr(music_lib, "title", "Music"), s_name)
                 album_track_genres: dict[int, list[str]] = {}
+                album_tagged_track_counts: dict[int, int] = {}
                 json_tracks = fetch_section_json_batched(plex, music_lib, item_type=10)
                 conn = get_db_connection(db_path)
                 try:
@@ -394,10 +401,14 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
                                 if alb_db_id is not None:
                                     raw_genres = trk.get("Genre", [])
                                     if isinstance(raw_genres, list):
+                                        seen_tags = []
                                         for g in raw_genres:
                                             tag = g.get("tag") if isinstance(g, dict) else (g if isinstance(g, str) else None)
-                                            if tag and str(tag).strip():
-                                                album_track_genres.setdefault(alb_db_id, []).append(str(tag).strip())
+                                            if tag and str(tag).strip() and str(tag).strip() not in seen_tags:
+                                                seen_tags.append(str(tag).strip())
+                                        if seen_tags:
+                                            album_track_genres.setdefault(alb_db_id, []).extend(seen_tags)
+                                            album_tagged_track_counts[alb_db_id] = album_tagged_track_counts.get(alb_db_id, 0) + 1
 
                                 upsert_track(
                                     album_id=alb_db_id,
@@ -459,10 +470,14 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
                                 track_moods = [m.tag for m in getattr(track, "moods", []) if hasattr(m, "tag")]
 
                                 if alb_db_id is not None:
+                                    seen_tags = []
                                     for g in getattr(track, "genres", []):
                                         tag = getattr(g, "tag", None)
-                                        if tag and str(tag).strip():
-                                            album_track_genres.setdefault(alb_db_id, []).append(str(tag).strip())
+                                        if tag and str(tag).strip() and str(tag).strip() not in seen_tags:
+                                            seen_tags.append(str(tag).strip())
+                                    if seen_tags:
+                                        album_track_genres.setdefault(alb_db_id, []).extend(seen_tags)
+                                        album_tagged_track_counts[alb_db_id] = album_tagged_track_counts.get(alb_db_id, 0) + 1
 
                                 upsert_track(
                                     album_id=alb_db_id,
@@ -507,7 +522,11 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
                     if album_track_genres:
                         genre_updates = []
                         for alb_db_id, trk_genres in album_track_genres.items():
-                            resolved = resolve_album_genre_from_tracks(album_genre_map.get(alb_db_id), trk_genres)
+                            resolved = resolve_album_genre_from_tracks(
+                                album_genre_map.get(alb_db_id),
+                                trk_genres,
+                                tagged_track_count=album_tagged_track_counts.get(alb_db_id, 0),
+                            )
                             if resolved:
                                 genre_updates.append((resolved, alb_db_id))
                         if genre_updates:

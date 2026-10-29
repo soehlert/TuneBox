@@ -70,20 +70,27 @@ def test_disabled_server_filtering(temp_db, monkeypatch):
 
 
 def test_resolve_album_genre_from_tracks():
-    """Verify track genres roll up to Uncategorized and Pop/Rock albums without overwriting specific genres."""
-    # Replaces Uncategorized with most frequent specific track genre
+    """Verify track genres roll up strictly to Uncategorized albums using a majority threshold."""
+    # Replaces Uncategorized with most frequent specific track genre when majority is met
     assert (
         resolve_album_genre_from_tracks(
-            "Uncategorized", ["Pop/Rock", "Indie Rock", "Dream Pop", "Indie Rock"]
+            "Uncategorized",
+            ["Pop/Rock", "Indie Rock", "Dream Pop", "Indie Rock"],
+            tagged_track_count=3,
         )
         == "Indie Rock"
     )
-    # Replaces generic Pop/Rock with specific Resonate track genre
+    # Falls back to Pop/Rock when no track genre reaches 50% of tagged tracks
     assert (
-        resolve_album_genre_from_tracks("Pop/Rock", ["Punk", "Skate Punk", "Skate Punk"])
-        == "Skate Punk"
+        resolve_album_genre_from_tracks(
+            "Uncategorized",
+            ["Electronic", "Hip-Hop", "Pop", "Jazz"],
+            tagged_track_count=4,
+        )
+        == "Pop/Rock"
     )
-    # Preserves existing specific album genre
-    assert resolve_album_genre_from_tracks("Jazz", ["Bebop", "Bebop"]) is None
+    # Does not overwrite existing album genres (including Pop/Rock or Jazz)
+    assert resolve_album_genre_from_tracks("Pop/Rock", ["Punk", "Punk"], tagged_track_count=2) is None
+    assert resolve_album_genre_from_tracks("Jazz", ["Bebop", "Bebop"], tagged_track_count=2) is None
     # Returns None when tracks have no usable genres
-    assert resolve_album_genre_from_tracks("Uncategorized", ["Uncategorized", ""]) is None
+    assert resolve_album_genre_from_tracks("Uncategorized", ["Uncategorized", ""], tagged_track_count=0) is None
