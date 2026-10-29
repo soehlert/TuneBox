@@ -3,9 +3,13 @@
 import os
 import tempfile
 import pytest
-from unittest.mock import MagicMock
+from backend.config import settings
 from backend.db.library_db import init_library_db, get_db_connection
-from backend.services.indexer import sync_all_servers, index_server
+from backend.services.indexer import (
+    sync_all_servers,
+    resolve_album_genre_from_tracks,
+)
+from backend.services.library import set_server_enabled_status, get_indexed_artists
 
 
 @pytest.fixture
@@ -21,7 +25,6 @@ def temp_db():
 
 def test_sync_all_servers_seeds_db_in_mock_mode(temp_db, monkeypatch):
     """Verify sync_all_servers seeds SQLite database in test/mock mode."""
-    from backend.config import settings
     monkeypatch.setattr(settings, "testing", True)
 
     sync_all_servers(db_path=temp_db)
@@ -41,8 +44,6 @@ def test_sync_all_servers_seeds_db_in_mock_mode(temp_db, monkeypatch):
 
 def test_disabled_server_filtering(temp_db, monkeypatch):
     """Verify disabling a server keeps data in SQLite but hides it from queries."""
-    from backend.config import settings
-    from backend.services.library import set_server_enabled_status, get_indexed_artists
     monkeypatch.setattr(settings, "testing", True)
 
     # Seed data
@@ -66,3 +67,23 @@ def test_disabled_server_filtering(temp_db, monkeypatch):
         assert raw_rows > 0
     finally:
         conn.close()
+
+
+def test_resolve_album_genre_from_tracks():
+    """Verify track genres roll up to Uncategorized and Pop/Rock albums without overwriting specific genres."""
+    # Replaces Uncategorized with most frequent specific track genre
+    assert (
+        resolve_album_genre_from_tracks(
+            "Uncategorized", ["Pop/Rock", "Indie Rock", "Dream Pop", "Indie Rock"]
+        )
+        == "Indie Rock"
+    )
+    # Replaces generic Pop/Rock with specific Resonate track genre
+    assert (
+        resolve_album_genre_from_tracks("Pop/Rock", ["Punk", "Skate Punk", "Skate Punk"])
+        == "Skate Punk"
+    )
+    # Preserves existing specific album genre
+    assert resolve_album_genre_from_tracks("Jazz", ["Bebop", "Bebop"]) is None
+    # Returns None when tracks have no usable genres
+    assert resolve_album_genre_from_tracks("Uncategorized", ["Uncategorized", ""]) is None

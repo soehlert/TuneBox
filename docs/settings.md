@@ -45,11 +45,11 @@ Clicking the **Settings Gear Button** (⚙) on the right side of the **bottom pl
 - **Description**: Dropdown selecting which linked Plex Media Server TuneBox queries for music tracks, albums, artists, and artwork.
 
 ### 5. Connected Users Manager
-- **Description**: Live list of all guest usernames currently connected to TuneBox.
+- **Description**: Live list of all guest usernames currently connected to TuneBox. Guest nicknames are validated for uniqueness against active connected sessions and the host admin username.
 - **Features**:
-  * **Change Username**: Allows the host/admin to rename any user's display name nickname (e.g. rename *"device-82f"* to *"Alex"*).
-  * **Make Display**: Designates a user session as a **Shared Display**, showing the Jukebox interface prominently alongside the guest join QR code.
-  * **Disconnect User**: Forcefully terminates a guest session.
+  * **Change Username**: Allows the host/admin to rename any user's display nickname (validated for uniqueness).
+  * **Make Admin / Remove Admin**: Grants or revokes Admin privileges on a connected guest device (e.g., promoting your phone to Admin in one click).
+  * **Make Kiosk / Remove Kiosk**: Designates a connected device as a **Shared Display**, showing the Jukebox interface alongside the guest join QR code.
 
 ### 6. TuneBox Party Stats & Leaderboard Link
 - **Description**: Direct access link to view the party's full-screen live leaderboard dashboard.

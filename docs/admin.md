@@ -61,5 +61,8 @@ When guests are voting to skip a song, the host can bypass vote thresholds:
 - The **Save Settings** button persists settings with a green status message without auto-closing the modal.
 - Closing the modal with unsaved changes prompts a confirmation dialog (`TuneBoxDialog`) offering **Save Settings**, **Discard**, or **Keep Editing**.
 
-### 3. Display / Kiosk Mode
-Admins can view all connected user sessions under **Active Party Guests** and **Connected Devices & Kiosks** in Settings and designate specific devices as dedicated display kiosks.
+### 3. Display / Kiosk Mode & Admin Delegation
+Admins can view all connected user sessions under **Active Party Guests** and **Connected Devices & Kiosks** in Settings to:
+- Designate specific devices as dedicated display kiosks (**Make Kiosk** / **Remove Kiosk**).
+- Promote or demote connected guest devices (such as a host's phone) to Admin (**Make Admin** / **Remove Admin**), pushing the `ADMIN_TOKEN` live over WebSocket.
+- Rename connected guests (enforcing unique nicknames across all active sessions).

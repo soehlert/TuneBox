@@ -518,45 +518,39 @@ async def update_libraries(
     return {"message": "Enabled libraries updated successfully", "enabled_server_ids": req.enabled_server_ids}
 
 
+def _is_nickname_taken(username: str, exclude_client_id: str | None = None) -> bool:
+    """Return True if the nickname is already used by another connected client or the host admin."""
+    target = username.strip().lower()
+    if not target:
+        return False
+    if settings.plex_username and target == settings.plex_username.strip().lower():
+        return True
+    for cid, info in ws.client_registry.items():
+        if exclude_client_id and cid == exclude_client_id:
+            continue
+        existing_name = str(info.get("name", "")).strip().lower()
+        if existing_name and existing_name == target:
+            return True
+    return False
+
+
 @router.get("/verify-username")
-async def verify_username(username: str):
-    """Check if a display name matches a Plex friend or home user of the owner."""
+async def verify_username(username: str, client_id: str | None = None):
+    """Verify that a guest nickname is available and not already in use."""
     if not settings.plex_token:
         raise HTTPException(status_code=503, detail="TuneBox not configured yet")
 
-    if settings.testing:
-        # In testing mode, treat usernames starting with "friend_" as verified
-        is_member = username.lower().startswith("friend_")
-        return {
-            "username": username,
-            "is_member": is_member,
-            "role": "member" if is_member else "guest",
-        }
+    cleaned = username.strip()
+    if not cleaned:
+        raise HTTPException(status_code=400, detail="Nickname cannot be empty")
 
-    try:
-        account = MyPlexAccount(token=settings.plex_token)
-        friend_names = {u.username.lower() for u in account.users() if getattr(u, "username", None)}
-        home_names = set()
-        try:
-            for u in account.home().users:
-                name = getattr(u, "title", None) or getattr(u, "username", None)
-                if name:
-                    home_names.add(name.lower())
-        except Exception as home_err:
-            logger.warning("Failed to fetch Plex Home users: %s", home_err)
+    if _is_nickname_taken(cleaned, exclude_client_id=client_id):
+        raise HTTPException(status_code=409, detail="Nickname is already in use")
 
-        verified_names = friend_names | home_names
-        is_member = username.lower() in verified_names
-        return {
-            "username": username,
-            "is_member": is_member,
-            "role": "member" if is_member else "guest",
-        }
-    except Exception as e:
-        logger.exception("Failed to look up Plex friends list")
-        raise HTTPException(
-            status_code=500, detail=f"Failed to verify username: {e}"
-        ) from e
+    return {
+        "username": cleaned,
+        "role": "guest",
+    }
 
 
 @router.get("/clients")
@@ -596,6 +590,41 @@ async def unset_client_display(client_id: str, x_admin_token: str | None = Heade
     return {"message": f"Client {client_id} display mode removed"}
 
 
+@router.post("/clients/{client_id}/set-admin")
+async def set_client_admin(client_id: str, x_admin_token: str | None = Header(None)):
+    """Grant admin privileges to a connected client session. Requires admin token."""
+    if not settings.admin_token or x_admin_token != settings.admin_token:
+        raise HTTPException(status_code=401, detail="Unauthorized: Invalid admin token")
+
+    if client_id not in ws.client_registry:
+        raise HTTPException(status_code=404, detail="Client not found")
+
+    ws.client_registry[client_id]["role"] = "admin"
+    await ws.send_to_client_id(
+        client_id,
+        {
+            "type": "set_admin_mode",
+            "admin_token": settings.admin_token,
+            "plex_username": settings.plex_username,
+        },
+    )
+    return {"message": f"Client {client_id} granted admin access"}
+
+
+@router.post("/clients/{client_id}/unset-admin")
+async def unset_client_admin(client_id: str, x_admin_token: str | None = Header(None)):
+    """Revoke admin privileges from a connected client session. Requires admin token."""
+    if not settings.admin_token or x_admin_token != settings.admin_token:
+        raise HTTPException(status_code=401, detail="Unauthorized: Invalid admin token")
+
+    if client_id not in ws.client_registry:
+        raise HTTPException(status_code=404, detail="Client not found")
+
+    ws.client_registry[client_id]["role"] = "guest"
+    await ws.send_to_client_id(client_id, {"type": "unset_admin_mode"})
+    return {"message": f"Client {client_id} admin access removed"}
+
+
 class RenameClientRequest(BaseModel):
     name: str
 
@@ -609,7 +638,14 @@ async def rename_client(client_id: str, req: RenameClientRequest, x_admin_token:
     if client_id not in ws.client_registry:
         raise HTTPException(status_code=404, detail="Client not found")
 
-    ws.client_registry[client_id]["name"] = req.name
-    await ws.send_to_client_id(client_id, {"type": "rename_client", "name": req.name})
-    return {"message": f"Client {client_id} renamed to {req.name}"}
+    new_name = req.name.strip()
+    if not new_name:
+        raise HTTPException(status_code=400, detail="Nickname cannot be empty")
+
+    if _is_nickname_taken(new_name, exclude_client_id=client_id):
+        raise HTTPException(status_code=409, detail="Nickname is already in use")
+
+    ws.client_registry[client_id]["name"] = new_name
+    await ws.send_to_client_id(client_id, {"type": "rename_client", "name": new_name})
+    return {"message": f"Client {client_id} renamed to {new_name}"}
 

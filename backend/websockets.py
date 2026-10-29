@@ -528,7 +528,7 @@ def get_skip_vote_status():
         # Calculate vote weight
         if role == "admin":
             weight = 2
-        else: # guest / display / unknown / member
+        else:  # guest / display / unknown
             weight = 1
             
         total_weight += weight

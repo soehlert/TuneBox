@@ -1,7 +1,7 @@
 """Incremental background library indexer for live Plex server synchronization."""
 
 import asyncio
-import time
+from collections import Counter
 import logging
 import concurrent.futures
 import threading
@@ -33,6 +33,26 @@ from backend.services.mock_data import seed_mock_library_db
 logger = logging.getLogger(__name__)
 
 _sync_lock = threading.Lock()
+
+_GENERIC_ALBUM_GENRES = {"", "uncategorized", "pop/rock"}
+
+
+def resolve_album_genre_from_tracks(current_album_genre: str | None, track_genres: list[str]) -> str | None:
+    """Resolve the best album genre from track-level genres when the album genre is missing or generic."""
+    cleaned = [g.strip() for g in track_genres if g and g.strip() and g.strip().lower() != "uncategorized"]
+    if not cleaned:
+        return None
+
+    norm_current = (current_album_genre or "").strip().lower()
+    specific = [g for g in cleaned if g.lower() != "pop/rock"]
+    if specific and norm_current in _GENERIC_ALBUM_GENRES:
+        return Counter(specific).most_common(1)[0][0]
+
+    fallback = [g for g in cleaned if g.lower() == "pop/rock"]
+    if fallback and norm_current in {"", "uncategorized"}:
+        return "Pop/Rock"
+
+    return None
 
 
 def index_server(server_info: dict, db_path: str | None = None, force_full: bool = False) -> int:
@@ -104,7 +124,6 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
             return 0
 
         items_indexed = 0
-        now = int(time.time())
 
         def _is_cancelled() -> bool:
             if s_id not in get_enabled_server_ids():
@@ -124,7 +143,6 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
                     return 0
 
                 try:
-                    from backend.websockets import broadcast_indexing_status_threadsafe  # noqa: PLC0415
                     broadcast_indexing_status_threadsafe(is_indexing=True, is_initial=is_initial, server_name=s_name, message=f"Fetching artist catalog from {s_name}")
                 except Exception:
                     pass
@@ -158,7 +176,6 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
                                     conn.commit()
                                     pct = min(100, int((idx / max(1, total_art_count)) * 100))
                                     try:
-                                        from backend.websockets import broadcast_indexing_status_threadsafe  # noqa: PLC0415
                                         broadcast_indexing_status_threadsafe(
                                             is_indexing=True,
                                             is_initial=is_initial,
@@ -197,7 +214,6 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
                                     conn.commit()
                                     pct = min(100, int((idx / max(1, total_art_count)) * 100))
                                     try:
-                                        from backend.websockets import broadcast_indexing_status_threadsafe  # noqa: PLC0415
                                         broadcast_indexing_status_threadsafe(
                                             is_indexing=True,
                                             is_initial=is_initial,
@@ -221,13 +237,13 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
                     return 0
 
                 try:
-                    from backend.websockets import broadcast_indexing_status_threadsafe  # noqa: PLC0415
                     broadcast_indexing_status_threadsafe(is_indexing=True, is_initial=is_initial, server_name=s_name, message=f"Fetching album catalog from {s_name}")
                 except Exception:
                     pass
 
                 logger.info("Bulk fetching albums for section '%s' on server %s", getattr(music_lib, "title", "Music"), s_name)
                 album_map: dict[str, int] = {}  # album ratingKey -> album_db_id
+                album_genre_map: dict[int, str] = {}  # album_db_id -> album genre
 
                 json_albums = fetch_section_json_batched(plex, music_lib, item_type=9)
                 conn = get_db_connection(db_path)
@@ -259,11 +275,11 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
                                     conn=conn,
                                 )
                                 album_map[str(alb.get("ratingKey"))] = alb_db_id
+                                album_genre_map[alb_db_id] = genre_val
                                 if idx > 0 and idx % 200 == 0:
                                     conn.commit()
                                     pct = min(100, int((idx / max(1, total_alb_count)) * 100))
                                     try:
-                                        from backend.websockets import broadcast_indexing_status_threadsafe  # noqa: PLC0415
                                         broadcast_indexing_status_threadsafe(
                                             is_indexing=True,
                                             is_initial=is_initial,
@@ -313,11 +329,11 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
                                     conn=conn,
                                 )
                                 album_map[str(album.ratingKey)] = alb_db_id
+                                album_genre_map[alb_db_id] = genre_val
                                 if idx > 0 and idx % 200 == 0:
                                     conn.commit()
                                     pct = min(100, int((idx / max(1, total_alb_count)) * 100))
                                     try:
-                                        from backend.websockets import broadcast_indexing_status_threadsafe  # noqa: PLC0415
                                         broadcast_indexing_status_threadsafe(
                                             is_indexing=True,
                                             is_initial=is_initial,
@@ -341,12 +357,12 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
                     return 0
 
                 try:
-                    from backend.websockets import broadcast_indexing_status_threadsafe  # noqa: PLC0415
                     broadcast_indexing_status_threadsafe(is_indexing=True, is_initial=is_initial, server_name=s_name, message=f"Fetching track catalog from {s_name}")
                 except Exception:
                     pass
 
                 logger.info("Bulk fetching tracks for section '%s' on server %s", getattr(music_lib, "title", "Music"), s_name)
+                album_track_genres: dict[int, list[str]] = {}
                 json_tracks = fetch_section_json_batched(plex, music_lib, item_type=10)
                 conn = get_db_connection(db_path)
                 try:
@@ -375,6 +391,14 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
                                         elif isinstance(m, str) and m.strip():
                                             track_moods.append(m.strip())
 
+                                if alb_db_id is not None:
+                                    raw_genres = trk.get("Genre", [])
+                                    if isinstance(raw_genres, list):
+                                        for g in raw_genres:
+                                            tag = g.get("tag") if isinstance(g, dict) else (g if isinstance(g, str) else None)
+                                            if tag and str(tag).strip():
+                                                album_track_genres.setdefault(alb_db_id, []).append(str(tag).strip())
+
                                 upsert_track(
                                     album_id=alb_db_id,
                                     server_id=s_id,
@@ -400,7 +424,6 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
                                     pct = min(100, int((trk_idx / max(1, total_trk_count)) * 100))
                                     msg = f"Indexing tracks on {s_name} • {pct}% ({trk_idx:,} / {total_trk_count:,})"
                                     try:
-                                        from backend.websockets import broadcast_indexing_status_threadsafe  # noqa: PLC0415
                                         broadcast_indexing_status_threadsafe(
                                             is_indexing=True,
                                             is_initial=is_initial,
@@ -435,6 +458,12 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
                                 trk_bpm = int(getattr(track, "bpm", 0) or 0)
                                 track_moods = [m.tag for m in getattr(track, "moods", []) if hasattr(m, "tag")]
 
+                                if alb_db_id is not None:
+                                    for g in getattr(track, "genres", []):
+                                        tag = getattr(g, "tag", None)
+                                        if tag and str(tag).strip():
+                                            album_track_genres.setdefault(alb_db_id, []).append(str(tag).strip())
+
                                 upsert_track(
                                     album_id=alb_db_id,
                                     server_id=s_id,
@@ -460,7 +489,6 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
                                     pct = min(100, int((trk_idx / max(1, total_trk_count)) * 100))
                                     msg = f"Indexing tracks on {s_name} • {pct}% ({trk_idx:,} / {total_trk_count:,})"
                                     try:
-                                        from backend.websockets import broadcast_indexing_status_threadsafe  # noqa: PLC0415
                                         broadcast_indexing_status_threadsafe(
                                             is_indexing=True,
                                             is_initial=is_initial,
@@ -475,6 +503,20 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
                             except Exception as trk_ex:
                                 logger.debug("Failed to upsert track %s: %s", getattr(track, "title", "Unknown"), trk_ex)
                         conn.commit()
+
+                    if album_track_genres:
+                        genre_updates = []
+                        for alb_db_id, trk_genres in album_track_genres.items():
+                            resolved = resolve_album_genre_from_tracks(album_genre_map.get(alb_db_id), trk_genres)
+                            if resolved:
+                                genre_updates.append((resolved, alb_db_id))
+                        if genre_updates:
+                            conn.executemany(
+                                "UPDATE albums SET genre = ? WHERE album_id = ?;",
+                                genre_updates,
+                            )
+                            conn.commit()
+                            logger.info("Rolled up track genres to %d albums for server %s.", len(genre_updates), s_name)
                 finally:
                     conn.close()
 
@@ -491,7 +533,6 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
             except Exception as lib_ex:
                 logger.warning("Error scanning section '%s' on server %s: %s", getattr(music_lib, "title", "Unknown"), s_name, lib_ex)
                 try:
-                    from backend.websockets import broadcast_indexing_status_threadsafe  # noqa: PLC0415
                     broadcast_indexing_status_threadsafe(
                         is_indexing=False,
                         is_initial=is_initial,
@@ -506,7 +547,6 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
 
         logger.info("Successfully indexed %d items from server %s (ID: %s)", items_indexed, s_name, s_id)
         try:
-            from backend.websockets import broadcast_indexing_status_threadsafe  # noqa: PLC0415
             broadcast_indexing_status_threadsafe(is_indexing=False, is_initial=is_initial, server_name=s_name, items_indexed=items_indexed, message=f"Indexing complete for {s_name}!")
         except Exception as ws_ex:
             logger.debug("Could not send indexing status complete: %s", ws_ex)
@@ -519,7 +559,6 @@ def index_server(server_info: dict, db_path: str | None = None, force_full: bool
     except Exception as ex:
         logger.exception("Error indexing server %s: %s", s_name, ex)
         try:
-            from backend.websockets import broadcast_indexing_status_threadsafe  # noqa: PLC0415
             broadcast_indexing_status_threadsafe(
                 is_indexing=False,
                 is_initial=is_initial,
@@ -646,7 +685,7 @@ def _prewarm_art_in_background(server_id: str, artist_ids: list[int], album_ids:
     """Pre-warm artist and album thumbnails into Redis in a parallel background thread pool."""
     def _worker():
         try:
-            logger.info("Pre-warming %d artist and %d album thumbnails into Redis for server %s...", len(artist_ids), len(album_ids), server_id)
+            logger.info("Pre-warming %d artist and %d album thumbnails into Redis for server %s", len(artist_ids), len(album_ids), server_id)
             
             with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
                 for a_id in artist_ids:
@@ -749,7 +788,7 @@ async def periodic_library_indexer():
     while True:
         try:
             await asyncio.sleep(interval_seconds)
-            logger.info("Triggering scheduled periodic library index sync for enabled servers...")
+            logger.info("Triggering scheduled periodic library index sync for enabled servers")
             await asyncio.to_thread(sync_all_servers)
         except asyncio.CancelledError:
             logger.info("Periodic library indexer task cancelled.")

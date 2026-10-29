@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 from backend.config import settings
 from backend.main import app
 from backend.routers.auth import MOCK_PIN_ID, MOCK_TOKEN
+from backend.websockets import client_registry
 
 
 @pytest.fixture
@@ -32,7 +33,9 @@ def reset_settings():
     settings.client_name = ""
     settings.testing = True
     settings.admin_token = ""
+    client_registry.clear()
     yield
+    client_registry.clear()
     settings.plex_token = original_token
     settings.plex_username = original_username
     settings.plex_server_name = original_server
@@ -324,28 +327,39 @@ def test_verify_username_unconfigured(client):
     assert response.status_code == 503
 
 
-def test_verify_username_guest_in_testing(client):
-    """Test verify-username returns guest role for unknown names in testing mode."""
+def test_verify_username_available(client):
+    """Test verify-username returns guest role for available nicknames."""
     settings.plex_token = "some_token"
     settings.testing = True
 
     response = client.get("/api/auth/verify-username?username=randomguy")
     assert response.status_code == 200
     data = response.json()
-    assert data["role"] == "guest"
-    assert data["is_member"] is False
+    assert data == {"username": "randomguy", "role": "guest"}
 
 
-def test_verify_username_member_in_testing(client):
-    """Test verify-username returns member role for friend_ prefix names in testing mode."""
+def test_verify_username_rejects_duplicates_and_admin_name(client):
+    """Test verify-username returns 409 when nickname is used by another client or matches host admin."""
     settings.plex_token = "some_token"
-    settings.testing = True
+    settings.plex_username = "HostAdmin"
+    client_registry["client_1"] = {
+        "name": "Alice",
+        "role": "guest",
+        "is_display": False,
+        "connected_at": "2026-07-15T12:00:00Z",
+    }
 
-    response = client.get("/api/auth/verify-username?username=friend_alice")
-    assert response.status_code == 200
-    data = response.json()
-    assert data["role"] == "member"
-    assert data["is_member"] is True
+    # Taken by another connected client (case-insensitive)
+    dup_resp = client.get("/api/auth/verify-username?username=alice&client_id=client_2")
+    assert dup_resp.status_code == 409
+
+    # Same client_id keeping its own name is allowed
+    self_resp = client.get("/api/auth/verify-username?username=Alice&client_id=client_1")
+    assert self_resp.status_code == 200
+
+    # Matches host admin username (case-insensitive)
+    admin_resp = client.get("/api/auth/verify-username?username=hostadmin&client_id=client_2")
+    assert admin_resp.status_code == 409
 
 
 def test_clients_endpoints_requires_admin_token(client):
@@ -364,12 +378,15 @@ def test_clients_endpoints_requires_admin_token(client):
     )
     assert response.status_code == 401
 
+    response = client.post(
+        "/api/auth/clients/some_id/set-admin", headers={"x-admin-token": "bad_token"}
+    )
+    assert response.status_code == 401
+
 
 def test_get_clients_and_set_display(client):
     """Test retrieving client list and designating one as display."""
     settings.admin_token = "valid_admin_token"
-
-    from backend.websockets import client_registry
 
     client_registry.clear()
     client_registry["uuid_123"] = {
@@ -397,6 +414,59 @@ def test_get_clients_and_set_display(client):
         assert response.status_code == 200
         assert client_registry["uuid_123"]["is_display"] is True
         mock_send.assert_called_once_with("uuid_123", {"type": "set_display_mode"})
+
+
+def test_set_unset_admin_and_rename_conflict(client):
+    """Test promoting/demoting a client to admin and preventing duplicate names on rename."""
+    settings.admin_token = "valid_admin_token"
+    settings.plex_username = "soehlert"
+
+    client_registry["phone_1"] = {
+        "name": "Steve Phone",
+        "role": "guest",
+        "is_display": False,
+        "connected_at": "2026-07-15T12:00:00Z",
+    }
+    client_registry["guest_2"] = {
+        "name": "Bob",
+        "role": "guest",
+        "is_display": False,
+        "connected_at": "2026-07-15T12:05:00Z",
+    }
+
+    with patch("backend.websockets.send_to_client_id") as mock_send:
+        res_set = client.post(
+            "/api/auth/clients/phone_1/set-admin",
+            headers={"x-admin-token": "valid_admin_token"},
+        )
+        assert res_set.status_code == 200
+        assert client_registry["phone_1"]["role"] == "admin"
+        mock_send.assert_called_once_with(
+            "phone_1",
+            {
+                "type": "set_admin_mode",
+                "admin_token": "valid_admin_token",
+                "plex_username": "soehlert",
+            },
+        )
+
+    with patch("backend.websockets.send_to_client_id") as mock_send:
+        res_unset = client.post(
+            "/api/auth/clients/phone_1/unset-admin",
+            headers={"x-admin-token": "valid_admin_token"},
+        )
+        assert res_unset.status_code == 200
+        assert client_registry["phone_1"]["role"] == "guest"
+        mock_send.assert_called_once_with("phone_1", {"type": "unset_admin_mode"})
+
+    # Renaming guest_2 to phone_1's name should fail with 409
+    res_dup = client.post(
+        "/api/auth/clients/guest_2/rename",
+        json={"name": "steve phone"},
+        headers={"x-admin-token": "valid_admin_token"},
+    )
+    assert res_dup.status_code == 409
+    assert client_registry["guest_2"]["name"] == "Bob"
 
 
 def test_production_pin_flow_mocked(client):

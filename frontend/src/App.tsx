@@ -26,7 +26,7 @@ const getApiUrl = (path: string) => {
 
 interface GuestProfile {
   name: string;
-  role: "member" | "guest";
+  role: "guest";
 }
 
 interface ClientSession {
@@ -633,6 +633,32 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
     }
   };
 
+  const handleSetAdmin = async (clientId: string) => {
+    try {
+      await axios.post(
+        getApiUrl(`/api/auth/clients/${clientId}/set-admin`),
+        {},
+        { headers: { "x-admin-token": adminToken } }
+      );
+      fetchClients();
+    } catch (err) {
+      console.error("Failed to set admin:", err);
+    }
+  };
+
+  const handleUnsetAdmin = async (clientId: string) => {
+    try {
+      await axios.post(
+        getApiUrl(`/api/auth/clients/${clientId}/unset-admin`),
+        {},
+        { headers: { "x-admin-token": adminToken } }
+      );
+      fetchClients();
+    } catch (err) {
+      console.error("Failed to unset admin:", err);
+    }
+  };
+
   const [confirmClearOpen, setConfirmClearOpen] = useState(false);
   const [confirmStopOpen, setConfirmStopOpen] = useState(false);
   const [relinkOpen, setRelinkOpen] = useState(false);
@@ -722,8 +748,10 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
         localStorage.setItem("tunebox_admin_name", newName);
       }
       fetchClients();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Failed to rename user:", err);
+      const detail = err?.response?.data?.detail || "Failed to rename user";
+      setMsg(`✗ ${detail}`);
     }
   };
 
@@ -1665,6 +1693,54 @@ function SettingsModal({ adminToken, onClose, instanceName, setInstanceName, onS
                             Role: {c.role} {c.is_display ? "• Display Screen" : ""}
                           </span>
                         </div>
+                        {c.client_id !== getClientId() && !c.is_display && (
+                          c.role === "admin" ? (
+                            <button
+                              type="button"
+                              onClick={() => handleUnsetAdmin(c.client_id)}
+                              style={{
+                                background: "transparent",
+                                border: "1px solid rgba(255, 107, 107, 0.4)",
+                                color: "#ff6b6b",
+                                borderRadius: "4px",
+                                padding: "6px 10px",
+                                fontSize: "11px",
+                                fontWeight: "bold",
+                                cursor: "pointer",
+                                transition: "background-color 0.2s",
+                              }}
+                              onMouseOver={(e) => {
+                                e.currentTarget.style.backgroundColor = "rgba(255, 107, 107, 0.1)";
+                              }}
+                              onMouseOut={(e) => {
+                                e.currentTarget.style.backgroundColor = "transparent";
+                              }}
+                              title="Revoke Admin privileges from this device"
+                            >
+                              Remove Admin
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleSetAdmin(c.client_id)}
+                              style={{
+                                background: "#f5a623",
+                                color: "#1d083b",
+                                border: "none",
+                                borderRadius: "4px",
+                                padding: "6px 10px",
+                                fontSize: "11px",
+                                fontWeight: "bold",
+                                cursor: "pointer",
+                              }}
+                              onMouseOver={(e) => (e.currentTarget.style.background = "#d48b17")}
+                              onMouseOut={(e) => (e.currentTarget.style.background = "#f5a623")}
+                              title="Grant Admin privileges to this device"
+                            >
+                              Make Admin
+                            </button>
+                          )
+                        )}
                       </div>
                     ))}
                   </div>
@@ -2129,15 +2205,14 @@ function GuestModal({ onJoin, onClose }: GuestModalProps) {
     setLoading(true);
     setError("");
     try {
-      const res = await axios.get(getApiUrl(`/api/auth/verify-username?username=${encodeURIComponent(trimmed)}`));
-      const profile: GuestProfile = { name: trimmed, role: res.data.role };
+      const cid = encodeURIComponent(getClientId());
+      const res = await axios.get(getApiUrl(`/api/auth/verify-username?username=${encodeURIComponent(trimmed)}&client_id=${cid}`));
+      const profile: GuestProfile = { name: trimmed, role: res.data.role || "guest" };
       localStorage.setItem("tunebox_guest", JSON.stringify(profile));
       onJoin(profile);
-    } catch {
-      setError("Could not verify username. Joining as guest.");
-      const profile: GuestProfile = { name: trimmed, role: "guest" };
-      localStorage.setItem("tunebox_guest", JSON.stringify(profile));
-      onJoin(profile);
+    } catch (err: any) {
+      const detail = err?.response?.data?.detail || "Could not verify nickname";
+      setError(detail);
     } finally {
       setLoading(false);
     }
@@ -2271,22 +2346,27 @@ function UserBadge({ profile, onLeave, onEditName }: { profile: GuestProfile; on
 
 interface NameModalProps {
   currentName: string;
-  onSave: (newName: string) => void;
+  onSave: (newName: string) => Promise<void> | void;
   onClose: () => void;
 }
 
 function NameModal({ currentName, onSave, onClose }: NameModalProps) {
   const [name, setName] = useState(currentName);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmed = name.trim();
     if (!trimmed) return;
     setLoading(true);
+    setError("");
     try {
       await onSave(trimmed);
       onClose();
+    } catch (err: any) {
+      const detail = err?.response?.data?.detail || "Could not update nickname";
+      setError(detail);
     } finally {
       setLoading(false);
     }
@@ -2326,6 +2406,7 @@ function NameModal({ currentName, onSave, onClose }: NameModalProps) {
             style={{ ...inputStyle, textAlign: "center", fontSize: "16px", padding: "12px" }}
             autoFocus
           />
+          {error && <div style={{ color: "#ff6b6b", fontSize: "12px" }}>{error}</div>}
           <div style={{ display: "flex", gap: "10px" }}>
             <button
               type="button"
@@ -2662,7 +2743,7 @@ function App() {
           let name = "Unknown";
           let role = "guest";
           if (isAdmin) {
-            name = localStorage.getItem("tunebox_admin_name") || "Admin";
+            name = guestProfile?.name || localStorage.getItem("tunebox_admin_name") || "Admin";
             role = "admin";
           } else if (isDisplay) {
             name = localStorage.getItem("tunebox_display_name") || "Shared Display";
@@ -2713,6 +2794,24 @@ function App() {
             console.log("Received unset_display_mode WS push!");
             localStorage.removeItem("tunebox_display");
             setIsDisplay(false);
+          } else if (data.type === "set_admin_mode") {
+            if (data.admin_token) {
+              localStorage.setItem("tunebox_admin_token", data.admin_token);
+              setAdminToken(data.admin_token);
+            }
+            if (data.plex_username) {
+              localStorage.setItem("tunebox_admin_name", data.plex_username);
+              setPlexUsername(data.plex_username);
+            }
+          } else if (data.type === "unset_admin_mode") {
+            localStorage.removeItem("tunebox_admin_token");
+            setAdminToken("");
+          } else if (data.type === "rename_client") {
+            if (data.name && guestProfile) {
+              const updated: GuestProfile = { ...guestProfile, name: data.name };
+              localStorage.setItem("tunebox_guest", JSON.stringify(updated));
+              setGuestProfile(updated);
+            }
           } else if (data.type === "server_settings_updated") {
             console.log("Received server_settings_updated WS push. Re-fetching library content...");
             refreshLibraryData();
@@ -2955,16 +3054,11 @@ function App() {
   };
 
   const handleSaveNewName = async (newName: string) => {
-    try {
-      const res = await axios.get(getApiUrl(`/api/auth/verify-username?username=${encodeURIComponent(newName)}`));
-      const profile: GuestProfile = { name: newName, role: res.data.role };
-      localStorage.setItem("tunebox_guest", JSON.stringify(profile));
-      setGuestProfile(profile);
-    } catch {
-      const profile: GuestProfile = { name: newName, role: "guest" };
-      localStorage.setItem("tunebox_guest", JSON.stringify(profile));
-      setGuestProfile(profile);
-    }
+    const cid = encodeURIComponent(getClientId());
+    const res = await axios.get(getApiUrl(`/api/auth/verify-username?username=${encodeURIComponent(newName)}&client_id=${cid}`));
+    const profile: GuestProfile = { name: newName, role: res.data.role || "guest" };
+    localStorage.setItem("tunebox_guest", JSON.stringify(profile));
+    setGuestProfile(profile);
   };
 
   // Plain base URL for QR — no query params so guests don't accidentally enter display mode
