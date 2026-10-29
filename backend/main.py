@@ -30,8 +30,10 @@ async def lifespan(app: FastAPI):
     orch_task = asyncio.create_task(playback_orchestrator())
 
     # Start periodic library indexer for enabled servers
-    from backend.services.indexer import periodic_library_indexer  # noqa: PLC0415
+    from backend.services.indexer import periodic_library_indexer, sync_all_servers  # noqa: PLC0415
     indexer_task = asyncio.create_task(periodic_library_indexer())
+    if settings.plex_token and not settings.testing:
+        asyncio.create_task(asyncio.to_thread(sync_all_servers))
 
     # Pre-warm caches asynchronously in a background thread
     clean_library_deduplication()

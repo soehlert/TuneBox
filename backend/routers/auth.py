@@ -375,6 +375,9 @@ async def configure_resources(req: ConfigurationRequest):
     )
 
     reinitialize_plex()
+    if not settings.testing:
+        set_enabled_server_ids([req.plex_server_name])
+        asyncio.create_task(asyncio.to_thread(sync_all_servers))
 
     return {
         "message": "Configuration successfully saved and reinitialized!",

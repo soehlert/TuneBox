@@ -219,11 +219,14 @@ def test_simulation_disabled_in_production(client):
 
 
 def test_configure_generates_admin_token(client):
-    """Test that configure endpoint generates an admin_token and returns it."""
+    """Test that configure endpoint generates an admin_token and triggers initial server indexing."""
     settings.plex_token = "some_token"
+    settings.testing = False
 
     with (
         patch("backend.routers.auth.reinitialize_plex"),
+        patch("backend.routers.auth.set_enabled_server_ids") as mock_set_enabled,
+        patch("backend.routers.auth.sync_all_servers") as mock_sync,
         patch("pathlib.Path.exists", return_value=True),
         patch("pathlib.Path.read_text", return_value=""),
         patch("pathlib.Path.write_text"),
@@ -240,6 +243,8 @@ def test_configure_generates_admin_token(client):
         assert len(data["admin_token"]) == 32  # secrets.token_hex(16) = 32 hex chars
         # Token should also be persisted in settings
         assert settings.admin_token == data["admin_token"]
+        mock_set_enabled.assert_called_once_with(["MyServer"])
+        mock_sync.assert_called_once()
 
 
 def test_settings_get_requires_admin_token(client):

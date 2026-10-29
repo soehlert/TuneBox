@@ -40,14 +40,14 @@ def upsert_server(server_id: str, name: str, server_url: str | None = None, is_p
             conn.execute(
                 """
                 INSERT INTO servers (server_id, name, server_url, access_token, is_primary, enabled, last_indexed_at)
-                VALUES (?, ?, ?, ?, ?, 1, 0)
+                VALUES (?, ?, ?, ?, ?, ?, 0)
                 ON CONFLICT(server_id) DO UPDATE SET
                     name = excluded.name,
                     server_url = COALESCE(excluded.server_url, servers.server_url),
                     access_token = COALESCE(excluded.access_token, servers.access_token),
                     is_primary = excluded.is_primary
                 """,
-                (server_id, name, server_url, access_token, 1 if is_primary else 0),
+                (server_id, name, server_url, access_token, 1 if is_primary else 0, 1 if is_primary else 0),
             )
         else:
             conn.execute(
