@@ -66,12 +66,12 @@ def resolve_album_genre_from_tracks(
 ) -> str | None:
     """Resolve an album genre from track-level genres (Subgenre -> Primary Genre -> Pop/Rock)."""
     norm_current = (current_album_genre or "").strip().lower()
-    if norm_current not in _UNCATEGORIZED_ALBUM_GENRES:
-        return None
 
     cleaned = [g.strip() for g in track_genres if g and g.strip() and g.strip().lower() != "uncategorized"]
     if not cleaned:
         return None
+
+    resolved_genre: str | None = None
 
     subgenre_candidates = [
         g
@@ -81,19 +81,29 @@ def resolve_album_genre_from_tracks(
     if subgenre_candidates:
         top_sub, top_sub_count = Counter(subgenre_candidates).most_common(1)[0]
         if tagged_track_count == 0 or top_sub_count >= tagged_track_count / 2:
-            return top_sub
+            resolved_genre = top_sub
 
-    primary_candidates = [
-        _PRIMARY_GENRES_LOWER[g.lower()]
-        for g in cleaned
-        if g.lower() in _PRIMARY_GENRES_LOWER
-    ]
-    if primary_candidates:
-        top_prim, top_prim_count = Counter(primary_candidates).most_common(1)[0]
-        if tagged_track_count == 0 or top_prim_count >= tagged_track_count / 2:
-            return top_prim
+    if resolved_genre is None:
+        primary_candidates = [
+            _PRIMARY_GENRES_LOWER[g.lower()]
+            for g in cleaned
+            if g.lower() in _PRIMARY_GENRES_LOWER
+        ]
+        if primary_candidates:
+            top_prim, top_prim_count = Counter(primary_candidates).most_common(1)[0]
+            if tagged_track_count == 0 or top_prim_count >= tagged_track_count / 2:
+                resolved_genre = top_prim
 
-    return "Pop/Rock"
+    if resolved_genre is None:
+        resolved_genre = "Pop/Rock"
+
+    if norm_current not in _UNCATEGORIZED_ALBUM_GENRES:
+        if resolved_genre.lower() == "pop/rock" and norm_current != "pop/rock":
+            return None
+        if norm_current == resolved_genre.lower():
+            return None
+
+    return resolved_genre
 
 
 def index_server(server_info: dict, db_path: str | None = None, force_full: bool = False) -> int:

@@ -70,7 +70,7 @@ def test_disabled_server_filtering(temp_db, monkeypatch):
 
 
 def test_resolve_album_genre_from_tracks():
-    """Verify track genres roll up to Uncategorized albums preferring subgenres over primary genres."""
+    """Verify track genres roll up to albums preferring subgenres over primary genres."""
     # Prefers consensus subgenre (Indie Rock) even when primary genre (Rock) appears on all tracks
     assert (
         resolve_album_genre_from_tracks(
@@ -79,6 +79,23 @@ def test_resolve_album_genre_from_tracks():
             tagged_track_count=3,
         )
         == "Indie Rock"
+    )
+    # Upgrades existing broad album genre (Rock or Pop/Rock) to consensus subgenre
+    assert (
+        resolve_album_genre_from_tracks(
+            "Rock",
+            ["Rock", "Indie Rock", "Rock", "Indie Rock"],
+            tagged_track_count=2,
+        )
+        == "Indie Rock"
+    )
+    assert (
+        resolve_album_genre_from_tracks(
+            "Pop/Rock",
+            ["Punk", "Skate Punk", "Punk", "Skate Punk"],
+            tagged_track_count=2,
+        )
+        == "Skate Punk"
     )
     # Falls back to consensus primary genre (Rock) when subgenres are split (< 50% each)
     assert (
@@ -98,8 +115,22 @@ def test_resolve_album_genre_from_tracks():
         )
         == "Pop/Rock"
     )
-    # Does not overwrite existing album genres (including Pop/Rock or Jazz)
-    assert resolve_album_genre_from_tracks("Pop/Rock", ["Punk", "Punk"], tagged_track_count=2) is None
-    assert resolve_album_genre_from_tracks("Jazz", ["Bebop", "Bebop"], tagged_track_count=2) is None
+    # Never downgrades an existing specific genre to Pop/Rock and skips no-op updates
+    assert (
+        resolve_album_genre_from_tracks(
+            "Jazz",
+            ["Electronic", "Hip-Hop", "Pop", "Jazz"],
+            tagged_track_count=4,
+        )
+        is None
+    )
+    assert (
+        resolve_album_genre_from_tracks(
+            "Indie Rock",
+            ["Rock", "Indie Rock", "Rock", "Indie Rock"],
+            tagged_track_count=2,
+        )
+        is None
+    )
     # Returns None when tracks have no usable genres
     assert resolve_album_genre_from_tracks("Uncategorized", ["Uncategorized", ""], tagged_track_count=0) is None
