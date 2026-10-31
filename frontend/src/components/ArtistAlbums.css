@@ -13,14 +13,14 @@
 
 .album-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
   width: 100%;
   margin-bottom: 24px;
   box-sizing: border-box;
 }
 
-@media (min-width: 600px) {
+@media (min-width: 601px) {
   .album-grid {
     grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
     gap: 16px;

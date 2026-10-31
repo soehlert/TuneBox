@@ -579,8 +579,16 @@
   width: 100%;
 }
 
+.browse-category-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 20px;
+  width: 100%;
+}
+
 @media (max-width: 600px) {
-  .browse-albums-grid {
+  .browse-albums-grid,
+  .browse-category-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 16px;
   }

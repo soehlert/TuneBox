@@ -407,12 +407,7 @@ function ArtistList({
               <Typography variant="h5" style={{ color: "#f5a623", marginBottom: "16px", fontFamily: "var(--font-title)", fontWeight: 700 }}>
                 Albums
               </Typography>
-              <div style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(130px, 1fr))",
-                gap: "16px",
-                width: "100%"
-              }}>
+              <div className="artist-grid">
                 {searchAlbums.map((album) => {
                   const sParam = album.server_id ? `?server_id=${album.server_id}` : "";
                   return (

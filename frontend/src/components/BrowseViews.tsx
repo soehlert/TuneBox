@@ -93,7 +93,7 @@ export const GenresGridView: React.FC<{ apiBase: string }> = ({ apiBase }) => {
         <Typography variant="h5" style={{ color: "#fff", fontWeight: 800, marginBottom: "20px" }}>
           {selectedGenre} ({genreAlbums.length} {genreAlbums.length === 1 ? "Album" : "Albums"})
         </Typography>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "20px" }}>
+        <div className="browse-albums-grid">
           {genreAlbums.map((alb) => (
             <Card
               key={alb.album_id}
@@ -101,8 +101,8 @@ export const GenresGridView: React.FC<{ apiBase: string }> = ({ apiBase }) => {
               style={{ background: "rgba(255, 255, 255, 0.03)", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "16px", padding: "12px", cursor: "pointer" }}
             >
               <FallbackImage src={`${apiBase}/api/music/album-art/${alb.album_id}`} alt={alb.title} type="album" loading="lazy" style={{ width: "100%", aspectRatio: "1/1", borderRadius: "12px" }} />
-              <Typography style={{ color: "#fff", fontWeight: 700, fontSize: "14px", marginTop: "8px" }}>{alb.title}</Typography>
-              <Typography style={{ color: "rgba(255,255,255,0.6)", fontSize: "12px" }}>{alb.artist}</Typography>
+              <Typography style={{ color: "#fff", fontWeight: 700, fontSize: "14px", marginTop: "8px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{alb.title}</Typography>
+              <Typography style={{ color: "rgba(255,255,255,0.6)", fontSize: "12px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{alb.artist}</Typography>
             </Card>
           ))}
         </div>
@@ -151,7 +151,7 @@ export const GenresGridView: React.FC<{ apiBase: string }> = ({ apiBase }) => {
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "20px" }}>
+      <div className="browse-category-grid">
         {sortedGenres.map((g) => (
           <Card
             key={g.genre}
@@ -188,7 +188,7 @@ export const GenresGridView: React.FC<{ apiBase: string }> = ({ apiBase }) => {
               </div>
             )}
 
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "4px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "4px", gap: "6px", flexWrap: "wrap" }}>
               <Typography variant="h6" style={{ color: "#fff", fontWeight: 800, fontSize: "16px" }}>
                 {g.genre}
               </Typography>
@@ -593,7 +593,7 @@ export const DecadesGridView: React.FC<{ apiBase: string }> = ({ apiBase }) => {
         <Typography variant="h5" style={{ color: "#fff", fontWeight: 800, marginBottom: "20px" }}>
           📅 {selectedDecade.decade} ({decadeAlbums.length} Albums)
         </Typography>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "20px" }}>
+        <div className="browse-albums-grid">
           {decadeAlbums.map((alb) => (
             <Card
               key={alb.album_id}
@@ -601,8 +601,8 @@ export const DecadesGridView: React.FC<{ apiBase: string }> = ({ apiBase }) => {
               style={{ background: "rgba(255, 255, 255, 0.03)", border: "1px solid rgba(255, 255, 255, 0.08)", borderRadius: "16px", padding: "12px", cursor: "pointer" }}
             >
               <FallbackImage src={`${apiBase}/api/music/album-art/${alb.album_id}`} alt={alb.title} type="album" style={{ width: "100%", aspectRatio: "1/1", borderRadius: "12px" }} />
-              <Typography style={{ color: "#fff", fontWeight: 700, fontSize: "14px", marginTop: "8px" }}>{alb.title}</Typography>
-              <Typography style={{ color: "rgba(255,255,255,0.6)", fontSize: "12px" }}>{alb.artist} {alb.year ? `(${alb.year})` : ""}</Typography>
+              <Typography style={{ color: "#fff", fontWeight: 700, fontSize: "14px", marginTop: "8px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{alb.title}</Typography>
+              <Typography style={{ color: "rgba(255,255,255,0.6)", fontSize: "12px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{alb.artist} {alb.year ? `(${alb.year})` : ""}</Typography>
             </Card>
           ))}
         </div>
@@ -618,7 +618,7 @@ export const DecadesGridView: React.FC<{ apiBase: string }> = ({ apiBase }) => {
         </span>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "20px" }}>
+      <div className="browse-category-grid">
         {decades.map((d) => (
           <Card
             key={d.decade}
@@ -655,7 +655,7 @@ export const DecadesGridView: React.FC<{ apiBase: string }> = ({ apiBase }) => {
               </div>
             )}
 
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "4px" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "4px", gap: "6px", flexWrap: "wrap" }}>
               <Typography variant="h6" style={{ color: "#fff", fontWeight: 800, fontSize: "16px" }}>
                 {d.decade}
               </Typography>
@@ -724,7 +724,7 @@ export const RecentlyAddedGridView: React.FC<{ apiBase: string }> = ({ apiBase }
           No recently added items found.
         </div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "20px" }}>
+        <div className="browse-albums-grid">
           {albums.map((alb) => (
             <Card
               key={alb.album_id}
