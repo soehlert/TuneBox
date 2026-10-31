@@ -70,15 +70,24 @@ def test_disabled_server_filtering(temp_db, monkeypatch):
 
 
 def test_resolve_album_genre_from_tracks():
-    """Verify track genres roll up strictly to Uncategorized albums using a majority threshold."""
-    # Replaces Uncategorized with most frequent specific track genre when majority is met
+    """Verify track genres roll up to Uncategorized albums preferring subgenres over primary genres."""
+    # Prefers consensus subgenre (Indie Rock) even when primary genre (Rock) appears on all tracks
     assert (
         resolve_album_genre_from_tracks(
             "Uncategorized",
-            ["Pop/Rock", "Indie Rock", "Dream Pop", "Indie Rock"],
+            ["Rock", "Indie Rock", "Rock", "Indie Rock", "Rock", "Dream Pop"],
             tagged_track_count=3,
         )
         == "Indie Rock"
+    )
+    # Falls back to consensus primary genre (Rock) when subgenres are split (< 50% each)
+    assert (
+        resolve_album_genre_from_tracks(
+            "Uncategorized",
+            ["Rock", "Indie Rock", "Rock", "Garage Rock", "Rock", "Post-Punk"],
+            tagged_track_count=3,
+        )
+        == "Rock"
     )
     # Falls back to Pop/Rock when no track genre reaches 50% of tagged tracks
     assert (

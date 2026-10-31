@@ -35,6 +35,28 @@ logger = logging.getLogger(__name__)
 _sync_lock = threading.Lock()
 
 _UNCATEGORIZED_ALBUM_GENRES = {"", "uncategorized"}
+_PRIMARY_GENRES_LOWER = {
+    g.lower(): g
+    for g in (
+        "Rock",
+        "Pop",
+        "Indie",
+        "Hip-Hop",
+        "Electronic",
+        "Jazz",
+        "Blues",
+        "Classical",
+        "Country",
+        "Folk",
+        "R&B",
+        "Metal",
+        "Punk",
+        "Reggae",
+        "Latin",
+        "Soul",
+        "Dance",
+    )
+}
 
 
 def resolve_album_genre_from_tracks(
@@ -42,7 +64,7 @@ def resolve_album_genre_from_tracks(
     track_genres: list[str],
     tagged_track_count: int = 0,
 ) -> str | None:
-    """Resolve an album genre from track-level genres when the album is Uncategorized."""
+    """Resolve an album genre from track-level genres (Subgenre -> Primary Genre -> Pop/Rock)."""
     norm_current = (current_album_genre or "").strip().lower()
     if norm_current not in _UNCATEGORIZED_ALBUM_GENRES:
         return None
@@ -51,12 +73,25 @@ def resolve_album_genre_from_tracks(
     if not cleaned:
         return None
 
-    specific = [g for g in cleaned if g.lower() != "pop/rock"]
-    if specific:
-        top_genre, top_count = Counter(specific).most_common(1)[0]
-        if tagged_track_count > 0 and top_count < tagged_track_count / 2:
-            return "Pop/Rock"
-        return top_genre
+    subgenre_candidates = [
+        g
+        for g in cleaned
+        if g.lower() not in _PRIMARY_GENRES_LOWER and g.lower() != "pop/rock"
+    ]
+    if subgenre_candidates:
+        top_sub, top_sub_count = Counter(subgenre_candidates).most_common(1)[0]
+        if tagged_track_count == 0 or top_sub_count >= tagged_track_count / 2:
+            return top_sub
+
+    primary_candidates = [
+        _PRIMARY_GENRES_LOWER[g.lower()]
+        for g in cleaned
+        if g.lower() in _PRIMARY_GENRES_LOWER
+    ]
+    if primary_candidates:
+        top_prim, top_prim_count = Counter(primary_candidates).most_common(1)[0]
+        if tagged_track_count == 0 or top_prim_count >= tagged_track_count / 2:
+            return top_prim
 
     return "Pop/Rock"
 
