@@ -654,10 +654,17 @@ def get_indexed_albums(sort_mode: str = "name_asc", db_path: str | None = None) 
         conn.close()
 
 
+def _is_single_primary_server_only(conn: sqlite3.Connection) -> bool:
+    """Return True when only a single server is enabled and it is the primary server."""
+    rows = conn.execute("SELECT is_primary FROM servers WHERE enabled = 1").fetchall()
+    return len(rows) == 1 and bool(rows[0]["is_primary"])
+
+
 def get_recently_added_albums(limit: int = 50, db_path: str | None = None) -> list[dict]:
     """Fetch recently added albums across all currently enabled servers."""
     conn = get_db_connection(db_path)
     try:
+        hide_server = _is_single_primary_server_only(conn)
         query = """
             SELECT 
                 alb.album_id, 
@@ -680,7 +687,11 @@ def get_recently_added_albums(limit: int = 50, db_path: str | None = None) -> li
             LIMIT ?
         """
         cursor = conn.execute(query, (limit,))
-        return [dict(r) for r in cursor.fetchall()]
+        results = [dict(r) for r in cursor.fetchall()]
+        if hide_server:
+            for item in results:
+                item["server_names"] = None
+        return results
     finally:
         conn.close()
 
@@ -903,6 +914,7 @@ def search_music_db(query_str: str, db_path: str | None = None) -> list[dict]:
             (term,),
         )
         raw_tracks = [dict(r) for r in cursor.fetchall()]
+        hide_server = _is_single_primary_server_only(conn)
         for trk in raw_tracks:
             sources = get_all_art_sources(trk["track_id"], "track", db_path=db_path)
             s_list = []
@@ -910,10 +922,12 @@ def search_music_db(query_str: str, db_path: str | None = None) -> list[dict]:
                 if src_sid:
                     s_name = srv_map.get(src_sid, "Plex Server")
                     s_list.append({"server_id": src_sid, "server_name": s_name, "rating_key": src_rkey})
-            trk["sources"] = s_list
+            trk["sources"] = [] if hide_server else s_list
             if not trk.get("server_id") and s_list:
                 trk["server_id"] = s_list[0]["server_id"]
-                trk["server_name"] = s_list[0]["server_name"]
+                trk["server_name"] = None if hide_server else s_list[0]["server_name"]
+            elif hide_server:
+                trk["server_name"] = None
         res.extend(raw_tracks)
         return res
     finally:
@@ -1121,6 +1135,7 @@ def get_albums_for_artist_db(artist_id: int | str, db_path: str | None = None) -
     """Fetch all albums belonging to an artist from SQLite database using internal artist_id."""
     conn = get_db_connection(db_path)
     try:
+        hide_server = _is_single_primary_server_only(conn)
         query = """
             SELECT alb.album_id, alb.artist_id, alb.artist_name as artist, alb.title, alb.year, alb.genre, alb.thumb, alb.play_count,
                    GROUP_CONCAT(DISTINCT srv.server_id || '::' || srv.name) as sources_str
@@ -1138,7 +1153,7 @@ def get_albums_for_artist_db(artist_id: int | str, db_path: str | None = None) -
             item = dict(r)
             sources_str = item.pop("sources_str", None)
             sources = []
-            if sources_str:
+            if sources_str and not hide_server:
                 seen_s = set()
                 for pair in sources_str.split(","):
                     if "::" in pair:
@@ -1157,6 +1172,7 @@ def get_tracks_for_album_db(album_id: int | str, db_path: str | None = None) -> 
     """Fetch tracks for an album from SQLite database using album_id or server_album_id."""
     conn = get_db_connection(db_path)
     try:
+        hide_server = _is_single_primary_server_only(conn)
         cursor = conn.execute(
             """
             SELECT alb.album_id, alb.artist_id, alb.title, alb.artist_name, alb.thumb, srv.name as server_name, src.server_id, srv.enabled
@@ -1176,12 +1192,13 @@ def get_tracks_for_album_db(album_id: int | str, db_path: str | None = None) -> 
         resolved_album_id = alb_row["album_id"]
         seen_server_ids = set()
         server_sources = []
-        for r in alb_rows:
-            s_id = r["server_id"]
-            s_name = r["server_name"]
-            if s_id and s_name and s_id not in seen_server_ids:
-                seen_server_ids.add(s_id)
-                server_sources.append({"server_id": s_id, "server_name": s_name})
+        if not hide_server:
+            for r in alb_rows:
+                s_id = r["server_id"]
+                s_name = r["server_name"]
+                if s_id and s_name and s_id not in seen_server_ids:
+                    seen_server_ids.add(s_id)
+                    server_sources.append({"server_id": s_id, "server_name": s_name})
 
         cursor = conn.execute(
             """
@@ -1222,7 +1239,7 @@ def get_tracks_for_album_db(album_id: int | str, db_path: str | None = None) -> 
                 "thumb": r["thumb"],
                 "user_rating": float(r["user_rating"] or 0.0),
                 "is_primary": bool(r["is_primary"]),
-                "server_name": r["server_name"],
+                "server_name": None if hide_server else r["server_name"],
                 "server_id": r["server_id"],
             }
             for idx, r in enumerate(deduped_rows)
@@ -1233,7 +1250,7 @@ def get_tracks_for_album_db(album_id: int | str, db_path: str | None = None) -> 
             "artist_id": alb_row["artist_id"],
             "artist_name": alb_row["artist_name"],
             "thumb": alb_row["thumb"],
-            "server_name": alb_row["server_name"],
+            "server_name": None if hide_server else alb_row["server_name"],
             "sources": server_sources,
             "tracks": tracks,
         }
