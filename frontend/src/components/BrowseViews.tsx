@@ -467,7 +467,7 @@ export const AlbumsGridView: React.FC<{
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: "20px", width: "100%" }}>
+      <div className="browse-albums-grid">
         {sortedAlbums.map((alb) => {
           const targetChar = scrollTargetLetter?.letter?.toUpperCase();
           const firstChar = alb.title ? alb.title.trim()[0].toUpperCase() : "";

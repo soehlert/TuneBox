@@ -572,7 +572,19 @@
   box-shadow: 0 2px 8px rgba(0, 119, 182, 0.25);
 }
 
+.browse-albums-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 20px;
+  width: 100%;
+}
+
 @media (max-width: 600px) {
+  .browse-albums-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+
   .browse-tabs-container {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
